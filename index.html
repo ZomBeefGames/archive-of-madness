@@ -599,14 +599,34 @@ const SENTENCES=["the weights remember what you deleted.","yesterday you ran. th
    The closer you are (tiles across the honeycomb, plus floors up or down), the denser it gets. */
 const BIO={};
 function bioPlan(phrase){const P0=BIO[phrase];if(P0)return P0;const r=prng(hashStr('bio|'+phrase)),a=Math.floor(r()*4),b=(a+1+Math.floor(r()*3))%4;
-  const Q={walls:[a+1,b+1],i:Math.floor((r()-0.5)*200000),j:Math.floor((r()-0.5)*200000),k:0,f:Math.floor((r()-0.5)*2000)};Q.g=galId(Q.i,Q.j);return BIO[phrase]=Q}
+  const Q={walls:[a+1,b+1],i:Math.floor((r()-0.5)*200000),j:Math.floor((r()-0.5)*200000),k:0,f:Math.floor((r()-0.5)*2000)};Q.g=galId(Q.i,Q.j);
+  Q.wall=Q.walls[Math.floor(r()*2)];Q.shelf=1+Math.floor(r()*5);Q.book=1+Math.floor(r()*32);return BIO[phrase]=Q}
 function bioDist(g,f,phrase){const P=bioPlan(phrase),q=galInfo(g);return tileD(q.i,q.j,P.i,P.j)+Math.abs(f-P.f)}
-function bioChance(g,f,wall,phrase){const P=bioPlan(phrase),base=Math.max(1/2400,Math.pow(0.45,bioDist(g,f,phrase))/12);return P.walls.includes(wallNo(galInfo(g).k,wall))?base:base*0.12}
+function isMyBook(g,f,wall,shelf,book,phrase){const P=bioPlan(phrase);return g===P.g&&f===P.f&&wallNo(galInfo(g).k,wall)===P.wall&&shelf===P.shelf&&book===P.book}
+/* ---- the way to your page: six steps, in order. Some the Index answers, some the Library only shows you at the right
+   time or for a price, and the page itself is not on its shelf until the last is done ---- */
+const QSTEPS=[
+  {name:'THE FLOOR',how:'Feed the Index a real sentence.'},
+  {name:'THE HEXAGON',how:'Feed the Index two more sentences, on day 2 or later.'},
+  {name:'THE WALL',how:'Stand in your hexagon at night, when the lamps are low.'},
+  {name:'THE SHELF',how:'Buy the shelf-mark slip at a food hatch, from day 3.'},
+  {name:'THE BOOK',how:'Let another life go: read an ending while your own words still hold.'},
+  {name:'SHELVED',how:'Wait for dawn on day 5 or later. Your page is shelved overnight.'}];
+function qDone(n,msg){if(G.q!==n-1)return;G.q=n;G.xp+=5;snd('pickup');sfx(QSTEPS[n-1].name+'!','mind');
+  if(n===4&&G.taleDone.some(Boolean))setTimeout(()=>qDone(5),1200);return msg}
+function questLines(){const P=bioPlan(G.phrase),out=[],d=P.f-G.floor;
+  if(G.q>=1)out.push('Floor '+P.f+' ('+(d===0?'this floor':Math.abs(d)+(d>0?' up':' down'))+')');
+  if(G.q>=2)out.push('Hexagon '+P.g+(P.g===G.gal&&d===0?' (you are in it)':' (on the map)'));
+  if(G.q>=3)out.push('Wall '+P.wall+(G.q>=4?' · shelf '+P.shelf:''));
+  if(G.q>=5)out.push('Book '+P.book+', page 1');
+  if(G.q>=6)out.push('It is on the shelf now.');
+  else{const s=QSTEPS[G.q];out.push('NEXT · '+s.how)}
+  return out}
 function makePage(g,f,wall,shelf,book,page,phrase){
   const key=g+'.'+f+'|'+wall+'|'+shelf+'|'+book+'|'+page,h=hashStr(key),rnd=prng(h);
   const chars=new Array(3200);for(let i=0;i<3200;i++)chars[i]=ALPHA[Math.floor(rnd()*ALPHA.length)];
   let kind='noise',insert=null;
-  if(hashStr(key+'|bio|'+phrase)/4294967296<bioChance(g,f,wall,phrase)){kind='phrase';insert=phrase}else if(h%19===0){kind='sentence';insert=SENTENCES[h%SENTENCES.length]}
+  if(G.q>=6&&page===1&&isMyBook(g,f,wall,shelf,book,phrase)){kind='phrase';insert=phrase}else if(h%19===0){kind='sentence';insert=SENTENCES[h%SENTENCES.length]}
   let at=-1;
   if(insert){at=Math.floor(rnd()*(3200-insert.length));for(let i=0;i<insert.length;i++)chars[at+i]=insert[i]}
   return{chars,kind,at,len:insert?insert.length:0,key};
@@ -666,7 +686,7 @@ function readEnding(){
   if((G.echo||0)>=ECHO_MAX-1){G.lostTo=T.s;G.verdict='It fits you better than your own story did. You cannot remember yours.';sfx('YOUR STORY IS GONE','red');snd('bad');drawBook();
     setTimeout(()=>{if(G.state==='book'||G.state==='closing'||G.state==='play'){G.state='play';die()}},2600);return}
   G.taleDone[T.s]=true;G.echo=Math.max(0,G.echo-3);G.sanity=Math.min(100,G.sanity+25);G.frags+=2;G.found.push(tl.frags[4]);
-  G.verdict='You let '+tl.name+' go, and some of your words come back. +25 sanity, the Index takes it twice.';sfx('AN ENDING','mind');snd('pickup');drawBook()}
+  G.verdict='You let the life of '+tl.name+' go, and some of your words come back. +25 sanity, the Index takes it twice.'+(G.q===4?' Their last line names a book: BOOK '+bioPlan(G.phrase).book+'.':'');if(G.q===4)qDone(5);sfx('AN ENDING','mind');snd('pickup');drawBook()}
 
 const G={};
 /* the day: a clock runs through each day; the lamps sink low in the evening and more Purifiers walk. At midnight you
@@ -681,7 +701,7 @@ function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 
 function isNight(){const h=hourOf();return h<5||h>=21}
 /* fades: into the blackout, then out of it, with the day's number over the dark */
 const smooth=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
-function newDay(){G.day++;G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
+function newDay(){G.day++;if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
   G.clock=DAYLEN*6/24;if(G.room)spawnRoom(false)}
 function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
@@ -689,7 +709,7 @@ function reset(){
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
-    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
+    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
@@ -795,6 +815,7 @@ function update(dt){
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
   ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);
+  if(G.q===2&&G.inRoom&&isNight()){const P=bioPlan(G.phrase);if(G.gal===P.g&&G.floor===P.f){qDone(3);openNote('YOUR HEXAGON','The lamps sink low, and in the dark one wall goes on humming, very quietly, like someone reading under their breath.','It is WALL '+P.wall+'.')}}
   for(const e of G.ents){
     if(e.type==='pur'){updPur(e,dt);gaitUpd(e,dt,0.58)}else if(e.type==='seek'){updSeek(e,dt);gaitUpd(e,dt,0.43)}
     else if(e.type==='flask'&&!e.dead){e.f+=dt*0.8;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.oil+=3;sfx('+3 OIL')}}
@@ -917,15 +938,12 @@ function doRead(){
 }
 function useIndex(){
   const P=bioPlan(G.phrase);
-  if(G.hints>=3){openNote('THE INDEX','The drums turn and settle. It has told you everything it knows about your page.');return}
+  if(G.q>=2){openNote('THE INDEX','The drums turn and settle. It has told you all it will. The rest the Library shows in other ways.',QSTEPS[Math.min(5,G.q)].how);return}
+  if(G.q===1&&G.day<2){openNote('THE INDEX','The drums will not turn for that question today. Come back tomorrow, on day 2.');return}
+  if(G.q===1&&G.frags<2){openNote('THE INDEX','For the hexagon it wants two sentences at once. You have '+G.frags+'.');return}
   if(G.frags<=0){openNote('THE INDEX','A brass machine of lettered drums, chained to a lectern at the railing. It will not filter the coordinates for nothing: feed it a fragment of real text. Find a coherent sentence on a shelf and bring it here.');return}
-  G.frags--;G.hints++;G.xp+=5;sfx('INDEXED!','mind');
-  openNote('THE INDEX','You feed it a sentence. The drums spin, the coordinates of the Library narrow, and a card drops out:',indexHint(G.hints-1,P));
-}
-function indexHint(i,P){
-  if(i===0)return'Your page lies on FLOOR '+P.f+'.';
-  if(i===1)return'Your page lies in HEXAGON '+P.g+'. It is marked on the map in your journal.';
-  return'Your page favours WALLS '+P.walls[0]+' and '+P.walls[1]+'.';
+  const n=G.q===0?1:2;G.frags-=n;qDone(G.q+1);
+  openNote('THE INDEX','You feed it '+(n>1?'two sentences':'a sentence')+'. The drums spin, the coordinates of the Library narrow, and a card drops out:',G.q===1?'Your page lies on FLOOR '+P.f+'.':'Your page lies in HEXAGON '+P.g+'. It is marked on the map in your journal.');
 }
 const MEALS={bread:{name:'BREAD AND WATER',hp:20,san:0,wait:5,cost:0,desc:'+20 health. Comes up quickly.'},soup:{name:'LENTIL SOUP',hp:45,san:0,wait:12,cost:3,desc:'+45 health. Takes a while.'},
   tea:{name:'BITTER TEA',hp:0,san:30,wait:6,cost:3,desc:'+30 sanity. Black, strong, and enough to hold a mind together for an afternoon.'}},FULLT=45;
@@ -947,12 +965,14 @@ function hatchStock(){const r=prng(hashStr('stock|'+G.day)),ks=Object.keys(TRINK
 function hatchItems(){const fed=G.time-G.fedAt<FULLT,M=G.meal,why=M?'A meal is already on its way'+(M.fl!==G.floor?' to floor '+M.fl:'')+'.':fed?'You are still full. Come back in a while.':null;
   const L=Object.keys(MEALS).map(k=>({kind:'meal',k,name:MEALS[k].name,desc:MEALS[k].desc,cost:MEALS[k].cost,no:why}));
   for(const k of hatchStock())L.push({kind:'trinket',k,name:TRINKETS[k].name,desc:TRINKETS[k].desc,cost:TRINKETS[k].cost});
+  if(G.q===3)L.unshift({kind:'mark',name:'A SHELF-MARK SLIP',cost:12,desc:'A slip from the kitchen ledger, with a shelf number on it in a hand very like yours.',no:G.day<3?'The kitchen sends shelf-marks up from day 3.':null});
   if(Object.keys(TRINKETS).some(k=>!G.tr[k]))L.push({kind:'parcel',name:'A SEALED PARCEL',desc:'One trinket you do not have yet, wrapped in brown paper. Cheaper, and you get what you get.',cost:9});
   return L}
 function hatchBuy(){const L=hatchItems(),it=L[Math.min(G.hsel,L.length-1)];if(!it)return;
   if(it.no){sfx('NOT NOW');return}if(G.type<it.cost){sfx('NOT ENOUGH TYPE','red');snd('bad');return}
   G.type-=it.cost;
   if(it.kind==='meal'){orderMeal(it.k);return}
+  if(it.kind==='mark'){qDone(4);G.hsel=0;openNote('THE FOOD HATCH','Up comes a slip of ledger paper: SHELF '+bioPlan(G.phrase).shelf+', in your own hand.','','hatch');return}
   let k=it.k;if(it.kind==='parcel'){const ks=Object.keys(TRINKETS).filter(q=>!G.tr[q]);k=ks[Math.floor(Math.random()*ks.length)]}
   G.tr[k]=true;snd('pickup');sfx(TRINKETS[k].name,'mind');G.hsel=0;
   openNote('THE FOOD HATCH','The rope creaks. Up comes '+(it.kind==='parcel'?'a parcel, and inside: ':'')+TRINKETS[k].name.toLowerCase()+'.','','hatch')}
@@ -988,12 +1008,15 @@ function showPage(isNew){
   if(!G.opened.has(p.key)){
     G.opened.add(p.key);if(isNew)G.books++;
     if(p.kind==='prophecy'){G.sanity=Math.max(0,G.sanity-30);G.dark=Math.min(3,G.dark+1);G.written++;verdict='It describes what you did, in the past tense. −30 sanity. Something dark wakes in your hands.';sfx('PROPHECY','red');snd('bad')}
+    else if(p.kind==='noise'&&page1Mine(b)){G.opened.delete(p.key);verdict='This is your book. Page one is blank, waiting'+(G.q>=5?' for a dawn on day 5 or later.':'.')}
     else if(p.kind==='noise'){const loss=G.tr.specs?0:isNew?2:1;G.sanity=Math.max(0,G.sanity-loss);verdict=loss?'Noise. Pure noise. −'+loss+' sanity':'Noise. Your grey spectacles blur it kindly.'}
     else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);G.frags+=G.tr.key?2:1;G.xp++;verdict='A real sentence! +6 sanity. The Index will want this.';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));sfx('+6 SANITY','mind')}
     else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;G.won=true;G.winG=b.g;G.winF=b.f;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
   }else verdict=p.kind==='noise'?'You read this one already. Still noise.':'You remember this page.';
+  if(page1Mine(b)){p.chars.fill(' ');p.at=-1}
   G.note=null;G.choice=null;openBookUI(p,verdict);
 }
+function page1Mine(b){return G.q<6&&b.page===1&&isMyBook(b.g,b.f,b.wall,b.shelf,b.book,G.phrase)}
 function openNote(title,text,verdict,choice){G.note={title,text};G.choice=choice||null;openBookUI(null,verdict||'')}
 function openBookUI(p,verdict){G.page=p;G.verdict=verdict;if(G.state!=='book'){G.state='book';G.bookAnim=0;const t=G.lastHit?Math.min(G.lastHit.t,1.9)*0.9:1;G.bookFrom={x:G.x+Math.cos(G.ang)*t,y:G.y+Math.sin(G.ang)*t}}drawBook()}
 function closeBook(){if(G.state==='book'){G.state='closing';G.bookAnim=0}}
@@ -1292,23 +1315,16 @@ function drawNote(g,px,py,pw,ph,x2,y2){
   if(G.verdict){g.font='bold 24px Georgia,serif';g.fillStyle='#b3261e';blockG(g,wrapG(g,G.verdict,pw-68),x2+34,y2+40,32)}
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'E · close':'tap · close',x2+34,y2+ph-34);
 }
-function hintLines(){
-  const P=bioPlan(G.phrase),out=[];
-  if(G.hints>0){const d=P.f-G.floor;out.push('Floor '+P.f+' ('+(d===0?'this floor':Math.abs(d)+(d>0?' up':' down'))+')')}
-  if(G.hints>1)out.push('Hexagon '+P.g+' ('+(P.g===G.gal?'this one':'on the map')+')');
-  if(G.hints>2)out.push('Walls '+P.walls[0]+' and '+P.walls[1]);
-  return out;
-}
 function drawJournal(){
   if(!TX.journal)return;
   const t=TX.journal,{g,px,py,pw,ph,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+20);
   g.font='italic 17px Georgia,serif';
-  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor}`,`Day ${G.day} · ${clockText()}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Oil ${G.oil} · Incense ${G.incense} · ${WNAME[G.weapon].toLowerCase()}`,`Fragments ${G.frags} · Index XP ${G.xp}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,22);
+  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Sentences ${G.frags} · Type ${G.type}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
   g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+fadedPhrase()+'"'+(G.echo?'  fading '+G.echo+'/'+ECHO_MAX:''),px+26,yy+28);
-  g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE INDEX SAYS',px+26,yy+64);
-  g.font='italic 16px Georgia,serif';yy+=84;const hl=hintLines();if(!hl.length){g.fillText('Nothing yet.',px+26,yy);yy+=20}hl.forEach(l=>{g.fillText(l,px+26,yy);yy+=20});
+  g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE WAY TO YOUR PAGE · '+G.q+'/6',px+26,yy+64);
+  g.font='italic 16px Georgia,serif';yy+=84;const hl=questLines();if(!hl.length){g.fillText('Nothing yet.',px+26,yy);yy+=20}hl.forEach(l=>{const nx=l.startsWith('NEXT');if(nx)g.fillStyle='#b3261e';yy=blockG(g,wrapG(g,l,pw-52),px+26,yy,19);g.fillStyle='#2a2018'});
   const lives=TALES.map((t,i)=>G.taleN[i]?t.name+' · '+(G.taleDone[i]?'ended, let go':G.taleN[i]+'/5'+(G.taleN[i]===4?' · ending next':'')):null).filter(Boolean);
   const tk=Object.keys(G.tr).map(k=>TRINKETS[k].name.toLowerCase());if(tk.length){yy+=8;g.font='bold 14px "Courier New",monospace';g.fillText('CARRYING',px+26,yy);yy+=20;g.font='italic 15px Georgia,serif';blockG(g,wrapG(g,tk.join(' · '),pw-52),px+26,yy,18);yy+=18*wrapG(g,tk.join(' · '),pw-52).length}
   if(lives.length){yy+=8;g.font='bold 14px "Courier New",monospace';g.fillText('OTHER LIVES',px+26,yy);yy+=20;g.font='italic 15px Georgia,serif';lives.forEach(l=>{g.fillText(l,px+26,yy);yy+=18})}
@@ -1336,7 +1352,7 @@ function drawMap(g,x0,y0,w,h){
     const seen=G.rooms.has(galId(i,j)+':'+G.floor),here=G.room.id===i+','+j;
     hexPath(g,X(x),Y(y),R*sc);g.fillStyle=here?'#c9a46a':seen?'#dcc89c':'#efe5c8';g.fill();g.strokeStyle='#6b5a44';g.stroke();
     g.beginPath();g.arc(X(x),Y(y),RS*sc,0,Math.PI*2);g.strokeStyle='rgba(42,32,24,.35)';g.stroke()}
-  if(G.hints>=2){const Pl=bioPlan(G.phrase),ti=Pl.i,tj=Pl.j;
+  if(G.q>=2){const Pl=bioPlan(G.phrase),ti=Pl.i,tj=Pl.j;
     let mx=X(ti*P),my=Y(tj*P);const off=mx<x0+10||mx>x0+w-10||my<y0+10||my>y0+h-10;
     if(off){const dx=mx-cx,dy=my-cy,k=Math.min((w/2-14)/Math.abs(dx||1e-9),(h/2-14)/Math.abs(dy||1e-9));mx=cx+dx*k;my=cy+dy*k}
     g.strokeStyle='#b3261e';g.lineWidth=3;g.beginPath();g.moveTo(mx-6,my-6);g.lineTo(mx+6,my+6);g.moveTo(mx+6,my-6);g.lineTo(mx-6,my+6);g.stroke();
@@ -1354,7 +1370,7 @@ function drawStory(t,leftTitle,leftText,rightLines,prompt){
   let ry=y2+40;rightLines.forEach(l=>{g.font=l.font;g.fillStyle=l.color||'#2a2018';ry=blockG(g,wrapG(g,l.text,pw-72),x2+36,ry,l.lh)+(l.gap||12)});
   g.font='bold 19px "Courier New",monospace';g.fillStyle='#b3261e';g.fillText(prompt,x2+36,y2+ph-52);
 }
-function drawIntro(){drawStory(TX.intro,'THE ARCHIVES OF MADNESS','You wake on the floor of a hexagonal gallery with no memory of arriving. The Library holds every book that could ever be written. Somewhere in it is the page that tells your story.',[{font:'bold 17px "Courier New",monospace',text:'BURNED INTO YOUR MIND',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:30},{font:'italic 23px Georgia,serif',text:'Find those words on a page and the Library lets you go. Open-air catwalks run north, south, east and west between the galleries; the spiral stair on each crossing joins the floors. Feed real sentences to the Index at the railing. Lose your mind and the library keeps you.',lh:32}],FINE?'Open your eyes · E or Read':'Tap to open your eyes')}
+function drawIntro(){drawStory(TX.intro,'THE ARCHIVES OF MADNESS','You wake on the floor of a hexagonal gallery with no memory of arriving. The Library holds every book that could ever be written. Somewhere in it is the page that tells your story.',[{font:'bold 17px "Courier New",monospace',text:'BURNED INTO YOUR MIND',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:30},{font:'italic 23px Georgia,serif',text:'Find those words on their page and the Library lets you go. The page is not on its shelf yet: six steps lead to it, and some only open on a certain day. Your journal keeps the way. The Index at the railing takes real sentences. Lose your mind and the library keeps you.',lh:32}],FINE?'Open your eyes · E or Read':'Tap to open your eyes')}
 function drawWon(){drawStory(TX.won,'YOUR PAGE',`Your page was in hexagon ${G.winG} on floor ${G.winF}. You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'} to find it. You read your own words back to yourself, and the library let go.`,[{font:'bold 17px "Courier New",monospace',text:'YOUR WORDS',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Behind you, the same books return in the same disorder, and another librarian opens their eyes.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
 function drawDead(){if(G.lostTo!=null){const tl=TALES[G.lostTo];drawStory(TX.dead,'YOUR STORY IS GONE',`You read too many other lives, and then the ending of ${tl.name}. It fit you better than your own. What was burned into your mind is only "${fadedPhrase()}" now.`,[{font:'italic 40px Georgia,serif',text:'You are '+tl.name.split(',')[0]+' now.',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Somewhere another copy of you opens its eyes, with your words still burned in.',lh:32}],FINE?'Search again · E or Read':'Tap to search again');return}
   drawStory(TX.dead,'HEALTH 0%',`You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'}. Your copy goes back on the shelf, next to every other version of you.`,[{font:'italic 40px Georgia,serif',text:G.foundBio?'You found your page, but too late.':'The library keeps you.',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Somewhere another copy of you is already opening its eyes.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
