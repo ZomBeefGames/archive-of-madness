@@ -1290,6 +1290,10 @@ function update(dt){
   if(keys.swing){keys.swing=false;doSwing()}
   if(keys.read){keys.read=false;doRead()}
   G.swing=Math.max(0,G.swing-dt*4);G.swingCd=Math.max(0,G.swingCd-dt);G.hurtCd=Math.max(0,G.hurtCd-dt);G.flash=Math.max(0,G.flash-dt*2);G.sleepCd=Math.max(0,G.sleepCd-dt);
+  if(torchLit()){G.torchTime=Math.max(0,G.torchTime-dt);if(G.torchTime===0){
+    G.torches--;G.torchTime=G.torches?75:0;if(!G.torches)G.weapon='press';
+    sfx(G.torches?'NEXT TORCH':'TORCH GUTTERS OUT','mind');
+  }}
   G.oilTimer+=dt;if(G.oilTimer>(G.tr.wick?80:40)&&G.oil>0){G.oilTimer=0;G.oil--}
   G.clock+=dt;if(G.clock>=DAYLEN){G.clock=DAYLEN-1e-3;blackout();return}
   if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
@@ -1357,15 +1361,16 @@ function startle(){
 }
 /* weapons: the heavy bookpress (slow, crushing), the sharpened shelf rod (fast, long reach), and lantern oil,
    thrown and lit (a fire that blocks the way, paid for with your light) */
-const WNAME={press:'BOOKPRESS',rod:'SHELF ROD',oil:'OIL FLASK'};
-function hasWeapon(w){return w==='press'||w==='oil'||(w==='rod'&&G.hasRod)}
-function setWeapon(w){if(!hasWeapon(w)){sfx('NO ROD YET');return}if(G.weapon!==w){G.weapon=w;G.swing=0.6;sfx(WNAME[w]);snd('pickup')}}
-function cycleWeapon(){const L=['press','rod','oil'];let i=L.indexOf(G.weapon);for(let k=0;k<3;k++){i=(i+1)%3;if(hasWeapon(L[i])){setWeapon(L[i]);return}}}
+const WNAME={press:'BOOKPRESS',rod:'SHELF ROD',oil:'OIL FLASK',torch:'PURIFIER TORCH'};
+function torchLit(){return G.weapon==='torch'&&G.torches>0&&G.torchTime>0}
+function hasWeapon(w){return w==='press'||w==='oil'||(w==='rod'&&G.hasRod)||(w==='torch'&&G.torches>0)}
+function setWeapon(w){if(!hasWeapon(w)){sfx(w==='torch'?'NO TORCH':w==='rod'?'NO ROD YET':'UNAVAILABLE');return}if(G.weapon!==w){G.weapon=w;G.swing=0.6;sfx(WNAME[w]);snd('pickup')}}
+function cycleWeapon(){const L=['press','rod','oil','torch'];let i=L.indexOf(G.weapon);for(let k=0;k<L.length;k++){i=(i+1)%L.length;if(hasWeapon(L[i])){setWeapon(L[i]);return}}}
 function doSwing(){
   if(G.swingCd>0)return;
   if(G.weapon==='oil'){throwOil();return}
-  const rod=G.weapon==='rod',reach=rod?2.1:1.35,cone=rod?0.3:0.65,dmg=(rod?1:2)+Math.min(2,G.dark)+(G.tr.thimble?1:0);
-  G.swingCd=rod?0.35:0.6;G.swing=1;snd(rod?'poke':'swing');
+  const rod=G.weapon==='rod',torch=torchLit(),reach=rod?2.1:torch?1.65:1.35,cone=rod?0.3:0.65,dmg=(rod?1:2)+Math.min(2,G.dark)+(G.tr.thimble?1:0);
+  G.swingCd=rod?0.35:torch?0.47:0.6;G.swing=1;snd(torch?'fire':rod?'poke':'swing');
   let e=null,bd=1e9;
   for(const q of G.ents){if(q.dead||(q.type!=='pur'&&q.type!=='seek'))continue;const dx=q.x-G.x,dy=q.y-G.y,d=Math.hypot(dx,dy);
     if(d<reach&&d<bd&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<cone){e=q;bd=d}}
@@ -1400,6 +1405,7 @@ function sin(kind,wallN,gid){const at=placeWords(gid==null?G.gal:gid,G.floor);
 /* Read does whatever is in front of you: a shelf, the Index, the stair, a closet, the mirror */
 function doRead(){
   if(encTalk())return;
+  const body=bodyTarget();if(body){searchBody(body);return}
   for(const e of G.ents)if(e.type==='index'){const dx=e.x-G.x,dy=e.y-G.y;if(Math.hypot(dx,dy)<1.25&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.7){G.lastHit={t:Math.hypot(dx,dy)};useIndex();return}}
   if(!G.inRoom){const c=crossingAt(G.x,G.y),dx=c.x-G.x,dy=c.y-G.y;if(c.comm&&Math.hypot(dx,dy)<RSW+1.3&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.75){G.lastHit={t:Math.hypot(dx,dy)-RSW};openNote('THE SPIRAL STAIR','It sinks into the abyss and climbs out of sight. Every floor is the same.','','stairs');return}}
   const h=cast(G.x,G.y,Math.cos(G.ang),Math.sin(G.ang));
@@ -1442,6 +1448,62 @@ const TRINKETS={
 };
 const TYPEC=buildCard(["kkkkkk","kGgGGk","kGkkGk","kGkkGk","kGGgGk","kkkkkk"]);
 function keepDead(kind,e){recordCorpse(kind,e,false)}
+
+/* Read searches one unsearched body in reach and line of sight. Recorded deaths and
+   seeded background corpses keep stable identities across room revisits. */
+function bodyTarget(){
+  let target=null,closest=1.7;
+  function consider(e){
+    if(!e.lootId||G.looted.has(e.lootId))return;
+    if(!((e.type==='pur'||e.type==='seek')&&e.dead>0||(e.type==='fig'&&e.pose==='dead')))return;
+    if(e.lvl!==undefined&&e.lvl!==0)return;
+    const dx=e.x-G.x,dy=e.y-G.y,d=Math.hypot(dx,dy);
+    if(d>closest||d<0.05)return;
+    if(Math.abs(angDiff(Math.atan2(dy,dx),G.ang))>0.78)return;
+    const h=cast(G.x,G.y,dx/d,dy/d);
+    if(h&&h.t<d-0.16)return;
+    target=e;closest=d;
+  }
+  for(const e of G.ents)consider(e);
+  for(const e of worldDead())consider(e);
+  return target;
+}
+function searchBody(body){
+  if(!body||!body.lootId||G.looted.has(body.lootId))return false;
+  G.looted.add(body.lootId);G.searchedBodies++;
+  const r=prng(hashStr('searched|'+body.lootId)),finds=[];
+  const pur=body.type==='pur',seek=body.type==='seek',burnt=!!body.burnt;
+  let text='';
+  if(pur){
+    text='The Purifier wears ash-cloth and a scorched red sash. You turn out the pockets and unhook the iron-bound torch.';
+    if(G.torches<5){
+      const first=G.torches===0;G.torches++;
+      if(first){G.torchTime=75;G.weapon='torch';G.swing=0.4}
+      finds.push('PURIFIER TORCH'+(first?' (equipped)':''));
+    }else{G.type+=2;finds.push('2 TYPE (torch rack full)')}
+    if(r()<0.5){G.incense++;finds.push('SECT INCENSE')}
+    if(r()<0.3){G.type++;finds.push('1 TYPE')}
+  }else if(seek){
+    text='The Seeker has tucked small things inside the binding of a battered book.';
+    if(r()<0.65){G.oil+=1;finds.push('1 OIL')}else{G.type+=2;finds.push('2 TYPE')}
+    if(r()<0.2){G.frags+=G.tr.key?2:1;finds.push('A REAL SENTENCE')}
+  }else if(burnt){
+    text='Only ash and a few pages fused together remain.';
+    if(r()<0.3){G.type++;finds.push('1 SCORCHED TYPE')}
+  }else{
+    text='You search the dead librarian with care. Their pockets hold the ordinary relics of another life.';
+    const roll=r();
+    if(roll<0.35){const n=1+Math.floor(r()*3);G.type+=n;finds.push(n+' TYPE')}
+    else if(roll<0.57){G.oil++;finds.push('1 OIL')}
+    else if(roll<0.75){G.incense++;finds.push('SECT INCENSE')}
+    else if(roll<0.9){G.frags+=G.tr.key?2:1;finds.push('A REAL SENTENCE')}
+  }
+  const result=finds.length?finds.join(' · '):'NOTHING WORTH TAKING';
+  G.lastHit={t:Math.hypot(body.x-G.x,body.y-G.y)};
+  snd('pickup');sfx(finds.length?'BODY SEARCHED · '+finds.length+' FIND'+(finds.length===1?'':'S'):'POCKETS EMPTY','mind');
+  openNote(pur?'A FALLEN PURIFIER':seek?'A FALLEN SEEKER':'A FALLEN LIBRARIAN',text,result+(finds.some(f=>f.startsWith('PURIFIER TORCH'))?' · Q / 4 or tap your weapon hand. Torches burn for 75 seconds while held.':''));
+  return true;
+}
 function dropType(x,y,n){G.ents.push({type:'type',x,y,f:0,bill:true,frame:0,hgt:0.16,cards:[TYPEC],dead:0,n})}
 function hatchStock(){const r=prng(hashStr('stock|'+G.day)),ks=Object.keys(TRINKETS).filter(k=>!G.tr[k]);
   for(let i=ks.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[ks[i],ks[j]]=[ks[j],ks[i]]}return ks.slice(0,3)}
