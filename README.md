@@ -21,9 +21,9 @@ python3 -m http.server 8000
 | --- | --- | --- |
 | Walk / turn | W A S D or arrows | Thumbstick (bottom left) |
 | Look around, up and down | Drag, or R / F | Drag |
-| Read the shelf you aim at, or use what is in front of you | E or Enter | Read button |
+| Read shelves, search bodies, or use what is in front of you | E or Enter | Read button |
 | Attack with your weapon (or throw oil) | Space | Swing button |
-| Switch weapon: bookpress, shelf rod, oil flask | Q, or 1 2 3 | Tap your weapon hand |
+| Switch weapon: bookpress, shelf rod, oil flask, recovered torch | Q, or 1 2 3 4 | Tap your weapon hand |
 | Burn sect incense | I | Tap your face in the mirror |
 | Sound on / off | M | Tap the bottom of the journal |
 | Third / first person | V | — |
@@ -52,6 +52,9 @@ The rooms follow Borges' story; the space between them is open air:
 - Deterministic pages: every page is calculated from its address (hexagon, floor, wall, shelf, book and page) (FNV-1a + mulberry32), so the same shelf always reads the same on every device.
 - Sanity, health and lantern oil; psychosis at zero sanity with phantom Purifiers. Sleeping in the closet restores sanity at the cost of oil.
 - Purifiers (patrol, chase, burn shelves) and Seekers (charge to steal oil when startled).
+- Search fallen Purifiers, Seekers and librarians by standing near a body, facing it and pressing Read (E/Enter on desktop, Read button on mobile). An on-screen prompt appears when a body is within reach. Corpses can only be searched once per day, even if you leave and revisit the area. Search results appear in the in-world book UI.
+- Purifiers always have a recoverable torch (plus occasional incense or type); Seekers may have oil, type or sentences; dead librarians may have oil, incense, type, useful text or nothing. Burned corpses often carry only ash. You can carry up to five torches, keeping extras through the dawn.
+- Recovered Purifier torches can be equipped as a fourth weapon: the first is automatically selected. Torches provide light when the lantern is empty and can strike nearby enemies. Each burns for 75 seconds while equipped; unused torches remain in your inventory and automatically replace spent ones.
 - Your biography page clusters around one hexagon and floor tied to your phrase and favours two walls, so it can be learned.
 - The Index, a brass machine at some railings: feed it coherent sentences you find and it tells you the floor, the hexagon (marked on your map), then the walls of your page.
 - Weapons: the heavy bookpress (slow, three hits fell a Purifier), the sharpened shelf rod (fast, long reach; pry one loose from a burned shelf), and lantern oil thrown and lit (a fire that blocks the way, scorches Purifiers and costs 2 oil). Oil splashed on a bookcase burns the whole wall.
@@ -78,6 +81,7 @@ The rooms follow Borges' story; the space between them is open air:
 - The Library is brighter: more light from the lamps and the air, a longer lantern, and less murk between floors.
 - Voices: screams (near and falling away), maniacal cackling, sobbing, whispering, muttering and humming are synthesised with a small formant voice in the browser, placed in the Library (quieter and duller with distance, panned left or right). Recorded CC0 sounds can replace any of them: see `sfx/README.md`.
 - Lead type and the hatch: Purifiers (3–5) and Seekers (2) drop lead type when they fall, and loose type lies on gallery floors. The food hatch is now a menu: bread (free), lentil soup and bitter tea (+30 sanity) for 3 type, three trinkets a day from the stock, and a cheaper sealed parcel holding a random one you do not have. Trinkets last the whole run: grey spectacles (noise costs no sanity), iron thimble (+1 damage), leather apron (40% less damage taken), the Index key (sentences and other lives count twice), slow wick (oil lasts twice as long), pocket mirror (once a day, survive at 30 health) and silk bookmark (each dawn your words come back in full).
+- Rear-view coat tails now sit over the librarian's trousers and are depth-sorted by the actual distance of each cut-out. NPC librarians receive the same correction.
 - Paper figures never turn fully edge-on to you: they keep within about 66° of side-on, so a Purifier walking across your view is still a slanted figure, not a hairline.
 
 ## Design
@@ -90,6 +94,6 @@ The game is the single file `index.html`. On Railway it is served by `server.mjs
 
 ## Checks
 
-Run `npm run check` (Node 18 or newer; no dependencies). It checks server syntax, parses the inline game JavaScript, and runs focused sermon regressions for catwalk and gallery pursuit, congregation flight, combat, floor collision and the peaceful LISTEN choice. The tests execute production logic with rendering and audio stubbed; they do not replace a browser gameplay test.
+Run `npm run check` (Node 18 or newer; no dependencies). It checks server syntax, parses the inline game JavaScript, and runs focused tests for sermons, body searching, one-time loot, torch inventory and coat-tail depth. The tests use production game logic with rendering and audio stubbed; they do not replace browser gameplay tests. The tests execute production logic with rendering and audio stubbed; they do not replace a browser gameplay test.
 
 The visual presentation uses detailed jointed paper-cutout characters, engraved brass gauges, leather-bound journal covers, layered parchment pages, and illustrated lanterns and hand tools. Character textures render at twice their original sampling density while retaining their existing world size and animation pivots.
