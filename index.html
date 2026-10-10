@@ -17,7 +17,7 @@ body{color:var(--paper);font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
 <div id="room">
   <h1 class="sr">Archives of Madness</h1>
-  <canvas id="view" tabindex="0" aria-label="Archives of Madness. A third-person view (V for first person) filling the screen inside a hexagonal library. Health, sanity, your face and lantern oil float at the top as glowing layered models; a layered glowing thumbstick (push up to walk, sideways to turn) and glowing 3D Journal, Read and Swing icons float at the bottom. Keys: W A S D or arrows to move, drag to look around and up or down (or R and F), Q or 1 2 3 switch weapons (bookpress, shelf rod, oil flask), I burns incense, M toggles sound, E reads the shelf you aim at or uses what is in front of you (the Index, the stair, a closet, the mirror), Space swings, J opens the journal."></canvas>
+  <canvas id="view" tabindex="0" aria-label="Archives of Madness. A third-person view (V for first person) filling the screen inside a hexagonal library. Health, sanity, your face and lantern oil float at the top as glowing layered models; a layered glowing thumbstick (push up to walk, sideways to turn) and glowing 3D Journal, Read and Swing icons float at the bottom. A cinematic title screen starts the game; Enter begins and Escape skips story scenes. Keys: W A S D or arrows to move, drag to look around and up or down (or R and F), Q or 1 2 3 4 switch weapons (bookpress, shelf rod, oil flask, torch), I burns incense, M toggles sound, E reads the shelf you aim at or uses what is in front of you (the Index, the stair, a closet, the mirror), Space swings, J opens the journal."></canvas>
   <div id="fx" aria-live="polite"></div>
 </div>
 <div id="safe" aria-hidden="true"></div>
@@ -1308,7 +1308,7 @@ function update(dt){
   ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);bgUpd(dt);encUpd(dt);
   if(G.q===2&&G.inRoom&&isNight()){const P=bioPlan(G.phrase);if(G.gal===P.g&&G.floor===P.f){qDone(3);openNote('YOUR HEXAGON','The lamps sink low, and in the dark one wall goes on humming, very quietly, like someone reading under their breath.','It is WALL '+P.wall+'.')}}
   // Freeze combat while the first Purifier reveal plays; never repeat it this run.
-  if(G.playClock>3.5&&!G.cutSeen.purifier&&G.ents.some(e=>e.type==='pur'&&!e.dead&&Math.hypot(e.x-G.x,e.y-G.y)<3.4)){
+  if(G.state==='play'&&G.playClock>3.5&&!G.cutSeen.purifier&&G.ents.some(e=>e.type==='pur'&&!e.dead&&Math.hypot(e.x-G.x,e.y-G.y)<3.4)){
     if(filmBegin('purifier','play'))return;
   }
   for(const e of G.ents){
@@ -2306,7 +2306,7 @@ function filmDrawCut(){
   g.fillText(shot.tag,tx,ty-75,tw);
   g.fillStyle='#f0ddba';g.font='bold '+(portrait?43:47)+'px Georgia';
   filmTextLines(g,shot.title,tx,ty,tw,portrait?47:52,2);
-  const chars=CALM?String(typeof shot.text==='function'?shot.text():shot.text).length:Math.max(0,Math.floor((t-.5)*44));
+  const chars=CALM?String(typeof shot.text==='function'?shot.text():shot.text).length:Math.max(0,Math.floor((t-.25)*72));
   const story=String(typeof shot.text==='function'?shot.text():shot.text).slice(0,chars);
   g.fillStyle='#ccbca0';g.font=(portrait?24:25)+'px Georgia';filmTextLines(g,story,tx,ty+(portrait?65:80),tw,portrait?32:36,4);
   g.globalAlpha=1;
