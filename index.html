@@ -124,6 +124,7 @@ function airFloor(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,l
   return false}
 /* where you may stand */
 function walkable(x,y,rad){
+  if(galleryBarricadeAt(x,y,rad))return false;
   const i=Math.round(x/P),j=Math.round(y/P),lx=x-i*P,ly=y-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
   if(inHexL(lx,ly,A-rad))return lx*lx+ly*ly>=(RS+rad)*(RS+rad);
   if(ay<=HW-rad&&ax>=A-rad-0.05&&ax<=CWI+rad+0.01)return true;
@@ -338,7 +339,7 @@ function makeCaseTex(g,f,wall,burnt){
 }
 const texCache=new Map(),burned=new Set();
 function wallTex(g,f,wall){
-  const b=burned.has(g+'.'+f+':'+wall),key=g+'.'+f+':'+wall+':'+(b?1:0);
+  const q=galInfo(g),zone=galleryZone(q.i,q.j,f),b=burned.has(g+'.'+f+':'+wall)||zone.type==='burned'||zone.type==='burning',key=G.resetEpoch+':'+g+'.'+f+':'+wall+':'+(b?1:0);
   let t=texCache.get(key);
   if(!t){t=makeCaseTex(g,f,wall,b);texCache.set(key,t);if(texCache.size>240)texCache.delete(texCache.keys().next().value)}
   return t;
@@ -1279,6 +1280,7 @@ function newDay(){
     // Only scheduled resets rebuild the world. On intervening dawns,
     // burned shelves, corpses, looted pockets, fires and purchases remain.
     G.corpses={};G.wcorpse={};G.looted.clear();G.corpseSeq=0;WD.key=null;
+    G.zoneState.clear();G.zoneVisited.clear();texCache.clear();
     BG.acts=[];BG.t=8;ENC.list=[];ENC.t=30;
     burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;
     LAMPS.key=null;
@@ -1297,20 +1299,25 @@ function reset(){
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,frags:0,sentencesFound:0,seenSentences:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
   G.room=c;G.gal=c.gid;G.rooms.add(G.gal+':'+G.floor);spawnRoom(false);
+  const zone=galleryZone(c.i,c.j);
+  if(zone.type!=='normal'&&!G.zoneVisited.has(zone.key)){
+    G.zoneVisited.add(zone.key);
+    sfx(GALLERY_NAMES[zone.type],zone.type==='burning'?'red':'mind');
+  }
 }
 function spawnRoom(first){
   const h=hashStr('room|'+G.gal+'|'+G.floor+'|'+G.resetEpoch),rnd=prng(h);G.ents=[];G.alerted=false;
-  const C=G.room,at=(x,y)=>[C.cx+x,C.cy+y],spot=()=>{const r=RS+0.6+rnd()*(A-RS-1.3),a=rnd()*Math.PI*2;return at(Math.cos(a)*r,Math.sin(a)*r)};
+  const C=G.room,zone=galleryZone(C.i,C.j),at=(x,y)=>[C.cx+x,C.cy+y],spot=()=>{const r=RS+0.6+rnd()*(A-RS-1.3),a=rnd()*Math.PI*2;return at(Math.cos(a)*r,Math.sin(a)*r)};
   if(first||h%3===0){const[x,y]=first?at(-1.8,-2.4):spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6})}
   if(!first&&isNight()&&(h>>>9)%2===0){const[x,y]=spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6})}
   if(first||h%2===0){const[x,y]=first?at(2.6,-0.9):spot();G.ents.push({type:'seek',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,scared:0,hit:0,dead:0,hgt:1.15,cards:SEEK,stealCd:0,flee:0,hp:3})}
-  if(first||h%4===1){const[x,y]=first?at(1.4,2.7):spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
-  if(first||(h>>>4)%3===1){const[x,y]=first?at(0.8,-2.9):spot();dropType(x,y,1+(h>>>11)%2)}
+  if((zone.type!=='burned'&&zone.type!=='burning')&&(first||h%4===1)){const[x,y]=first?at(1.4,2.7):spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
+  if(zone.type!=='burned'&&(first||(h>>>4)%3===1)){const[x,y]=first?at(0.8,-2.9):spot();dropType(x,y,1+(h>>>11)%2)}
   if(first||(h>>>6)%5===0){const[x,y]=first?at(-2.7,1.3):spot();G.ents.push({type:'incense',x,y,f:rnd()*6.28,frame:0,hgt:0.5,cards:[INCC],dead:0})}
   if(!first)for(const c of roomBodies()){
     const common={x:c.x,y:c.y,f:c.f,lootId:c.lootId};
@@ -1318,7 +1325,7 @@ function spawnRoom(first){
     else if(c.kind==='seek')G.ents.push({type:'seek',...common,hit:0,dead:9,hp:0,scared:0,flee:0,stealCd:0,seed:c.y%6});
     else G.ents.push({type:'fig',pose:'dead',...common,coat:c.coat||0,burnt:c.burnt,seed:c.x%6,dead:0})
   }
-  if(first||(h>>>3)%3===0){const a=first?Math.PI*0.75:rnd()*Math.PI*2;G.ents.push({type:'index',x:C.cx+Math.cos(a)*(RS+0.32),y:C.cy+Math.sin(a)*(RS+0.32),f:a,frame:0,hgt:0.9,cards:[INDEXC],dead:0})}
+  if(zone.type!=='burned'&&zone.type!=='burning'&&(first||(h>>>3)%3===0)){const a=first?Math.PI*0.75:rnd()*Math.PI*2;G.ents.push({type:'index',x:C.cx+Math.cos(a)*(RS+0.32),y:C.cy+Math.sin(a)*(RS+0.32),f:a,frame:0,hgt:0.9,cards:[INDEXC],dead:0})}
 }
 
 /* keep a body inside its gallery (gallery-local coordinates) and out of the air shaft */
@@ -1438,6 +1445,41 @@ function sfx(text,cls){
 function angDiff(a,b){let d=a-b;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return d}
 function turnToward(e,target,rate,dt){const d=angDiff(target,e.f);const s=Math.sign(d)*Math.min(Math.abs(d),rate*dt);e.f+=s}
 
+
+/* Static environmental dangers are linked to the same reset epoch as their rooms.
+   They do not expire at dawn and never spawn a permanent, unbounded list of fires. */
+function zoneHazards(dt){
+  if(G.inRoom){
+    const z=galleryZone(G.room.i,G.room.j);
+    if(z.type==='burning'){
+      const rx=G.x-G.room.cx,ry=G.y-G.room.cy,r=Math.hypot(rx,ry);
+      // Keep the gallery door and the shaft approach traversable: flames lie along the outer shelves.
+      if(r>2.35&&Math.abs(ry)>.65){
+        G.health=Math.max(0,G.health-(G.tr.apron?.58:1.05)*dt);
+        G.sanity=Math.max(0,G.sanity-.18*dt);
+        G.zoneHurt=(G.zoneHurt||0)-dt;
+        if(G.zoneHurt<=0){G.zoneHurt=1.5;sfx('THE SHELVES ARE BURNING','red');snd('crackle')}
+      }
+    }else if(z.type==='burned'){
+      G.zoneAsh=(G.zoneAsh||0)-dt;
+      if(G.zoneAsh<=0&&rNearChar(G.x-G.room.cx,G.y-G.room.cy)){
+        G.zoneAsh=10;G.sanity=Math.max(0,G.sanity-.6);
+        sfx('ASH IN YOUR LUNGS','mind');
+      }
+    }
+  }else{
+    const c=crossingAt(G.x,G.y);
+    if(c.stairs){
+      const z=crossingZone(c.ci,c.cj),d=Math.hypot(G.x-c.x,G.y-c.y);
+      if(z.type==='collapsed'&&d<1.65){
+        G.zoneHurt=(G.zoneHurt||0)-dt;
+        if(G.zoneHurt<=0){G.zoneHurt=3;G.sanity=Math.max(0,G.sanity-1);sfx('CRUMBLING STONE','mind')}
+      }
+    }
+  }
+}
+function rNearChar(x,y){return Math.hypot(x,y)>2.3}
+
 function update(dt){
   G.time+=dt;
   if(G.state!=='play')return;
@@ -1453,6 +1495,7 @@ function update(dt){
   if(G.inRoom&&G.cell!==G.room){enterRoom(G.cell);sfx('HEXAGON '+G.gal,'mind')}
   if(keys.swing){keys.swing=false;doSwing()}
   if(keys.read){keys.read=false;doRead()}
+  zoneHazards(dt);
   G.swing=Math.max(0,G.swing-dt*4);G.swingCd=Math.max(0,G.swingCd-dt);G.hurtCd=Math.max(0,G.hurtCd-dt);G.flash=Math.max(0,G.flash-dt*2);G.sleepCd=Math.max(0,G.sleepCd-dt);
   if(torchLit()){G.torchTime=Math.max(0,G.torchTime-dt);if(G.torchTime===0){
     G.torches--;G.torchTime=G.torches?75:0;if(!G.torches)G.weapon='press';
@@ -1574,6 +1617,7 @@ function sin(kind,wallN,gid){const at=placeWords(gid==null?G.gal:gid,G.floor);
 function doRead(){
   if(encTalk())return;
   const body=bodyTarget();if(body){searchBody(body);return}
+  if(zoneRead())return;
   for(const e of G.ents)if(e.type==='index'){const dx=e.x-G.x,dy=e.y-G.y;if(Math.hypot(dx,dy)<1.25&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.7){G.lastHit={t:Math.hypot(dx,dy)};useIndex();return}}
   if(!G.inRoom){const c=crossingAt(G.x,G.y),dx=c.x-G.x,dy=c.y-G.y;if(c.stairs&&Math.hypot(dx,dy)<RSW+1.3&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.75){G.lastHit={t:Math.hypot(dx,dy)-RSW};openNote('THE SPIRAL STAIR',c.comm?'Brass and stone mark this communal landing. The stair continues between the distant hubs.':'The stairs still spiral through this floor, but the communal facilities are '+hubStride()+' floors apart. This is a bare transit landing.','','stairs');return}}
   const h=cast(G.x,G.y,Math.cos(G.ang),Math.sin(G.ang));
@@ -1581,8 +1625,14 @@ function doRead(){
   if(!h||h.t>1.9){sfx('NOTHING TO READ');return}
   G.lastHit={t:h.t};
   const f=G.floor;
-  if(h.type==='sleep'){doSleep();return}
-  if(h.type==='food'){useHatch(h.x,h.y);return}
+  if(h.type==='sleep'||h.type==='food'){
+    const c=crossingAt(h.x,h.y),q=c.stairs?crossingZone(c.ci,c.cj):null;
+    if(q&&q.type==='barricaded'&&!q.breached){
+      openNote('THE SEALED SERVICE','People boarded this hub before the last reset. The staircase is still open, but the services are behind boards. Examine the checkpoint beside the stairs to clear it.','BARRICADED UNTIL CLEARED OR RESET');return;
+    }
+    if(h.type==='sleep')doSleep();else useHatch(h.x,h.y);
+    return;
+  }
   if(h.type==='privy'){openNote('A VERY SMALL CLOSET','The other closet in the pillars of the platform, for necessities. For once, nothing in here to read.');return}
   if(h.type==='frame'){openNote('THE MIRROR','A gilt frame. In the glass, another platform, another you.');return}
   if(h.type!=='shelf'){sfx('NO SHELVES HERE');return}
