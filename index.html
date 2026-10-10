@@ -1288,7 +1288,7 @@ function addZoneFireLights(){
   const i0=Math.round(LX/P),j0=Math.round(LY/P);
   for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){
     if(galleryZone(i,j).type!=='burning')continue;
-    const x=i*P,y=j*P;if(Math.hypot(x-LX,y-LY)>17)return; // only a nearby burning gallery illuminates the scene
+    const x=i*P,y=j*P;if(Math.hypot(x-LX,y-LY)>17)continue; // only a nearby burning gallery illuminates the scene
     for(const a of [.85,2.28,4.13])FIREL.push(x+Math.cos(a)*2.85,y+Math.sin(a)*2.85);
   }
 }
@@ -2029,7 +2029,7 @@ function render(){
 function renderScene(MEP){
   if(DEP.length!==W*H)DEP=new Float32Array(W*H);
   FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=G.oil>0?3.8+Math.min(G.oil,10)*0.6+(torchLit()?0.8:0):torchLit()?4.7:1.1;
-  const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);if(torchLit())FIREL.push(LX,LY);
+  const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
   lifeLayers(POSE);
   const low=G.sanity<25?(25-G.sanity)/25:0;
@@ -2067,6 +2067,7 @@ function renderScene(MEP){
     }
   }
   const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek'&&e.type!=='fig').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
+  addZoneDressing(list);
   {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),key=i0+','+j0;
    if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];const lamp=(x,y,z)=>LAMPS.list.push({type:'lamp',x,y,z0:z,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
      for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){for(const q of getRoom(i,j).lamps)lamp(q[0],q[1],LAMPZ);lamp((i+0.5)*P,(j+0.5)*P,isComm(i,j)?JLZ:JLZ+0.2)}}
@@ -2264,7 +2265,7 @@ function drawJournal(){
   const t=TX.journal,{g,px,py,pw,ph,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+20);
   g.font='italic 17px Georgia,serif';
-  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Sentences ${G.frags} · Type ${G.type}`,`Grid ${hubStride()} rooms / ${hubStride()} floors · ${G.sentencesFound} found`,`Reset day ${G.nextResetDay} · interval ${G.resetInterval} days`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
+  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Sentences ${G.frags} · Type ${G.type}`,`Grid ${hubStride()} rooms / ${hubStride()} floors · ${G.sentencesFound} found`,`Reset day ${G.nextResetDay} · interval ${G.resetInterval} days`,`Zone: ${G.inRoom?GALLERY_NAMES[galleryZone(G.room.i,G.room.j).type]:crossingAt(G.x,G.y).stairs?CROSS_NAMES[crossingZone(crossingAt(G.x,G.y).ci,crossingAt(G.x,G.y).cj).type]:'OPEN CATWALK'}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
   g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+fadedPhrase()+'"'+(G.echo?'  fading '+G.echo+'/'+ECHO_MAX:''),px+26,yy+28);
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE WAY TO YOUR PAGE · '+G.q+'/6',px+26,yy+64);
@@ -2292,15 +2293,19 @@ function drawMap(g,x0,y0,w,h){
     // the communal platform and its stairwell
     if(isStair(i,j)){
       const hx=X(x+P/2),hy=Y(y+P/2);
-      if(isComm(i,j)){g.fillStyle='#c9a46a';g.fillRect(hx-1.8*sc,hy-1.8*sc,3.6*sc,3.6*sc)}
+      const z=crossingZone(i,j),isHub=isComm(i,j);
+      if(isHub){g.fillStyle=z.type==='barricaded'?'#984a38':z.type==='scorched'?'#4c4a47':z.type==='vigil'?'#d1b17b':'#c9a46a';
+        g.fillRect(hx-1.8*sc,hy-1.8*sc,3.6*sc,3.6*sc)}
       g.beginPath();g.arc(hx,hy,RSW*sc,0,Math.PI*2);
-      g.fillStyle=isComm(i,j)?'#2a2018':'#715b49';g.fill();
-      if(!isComm(i,j)){g.strokeStyle='#bc9c68';g.lineWidth=1.5;g.stroke()}
+      g.fillStyle=isHub?'#2a2018':z.type==='ash'?'#4d4b49':z.type==='barricaded'?'#a66340':z.type==='shrine'?'#c8ae70':'#715b49';g.fill();
+      if(!isHub){g.strokeStyle=z.type==='collapsed'?'#dd6f50':'#bc9c68';g.lineWidth=1.5;g.stroke()}
     }
     // landings to the doorways
     g.fillStyle='#8a7b5c';g.fillRect(X(x+A),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);g.fillRect(X(x-CWI),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);
     const seen=G.rooms.has(galId(i,j)+':'+G.floor),here=G.room.id===i+','+j;
-    hexPath(g,X(x),Y(y),R*sc);g.fillStyle=here?'#c9a46a':seen?'#dcc89c':'#efe5c8';g.fill();g.strokeStyle='#6b5a44';g.stroke();
+    const zone=galleryZone(i,j);hexPath(g,X(x),Y(y),R*sc);
+    const zoneFill=zone.type==='burned'?'#3b3735':zone.type==='burning'?'#b74429':zone.type==='barricaded'?'#936645':zone.type==='refuge'?'#b0bdad':'#efe5c8';
+    g.fillStyle=here?'#c9a46a':seen?zoneFill:'#efe5c8';g.fill();g.strokeStyle='#6b5a44';g.stroke();
     g.beginPath();g.arc(X(x),Y(y),RS*sc,0,Math.PI*2);g.strokeStyle='rgba(42,32,24,.35)';g.stroke()}
   if(G.q>=2){const Pl=bioPlan(G.phrase),ti=Pl.i,tj=Pl.j;
     let mx=X(ti*P),my=Y(tj*P);const off=mx<x0+10||mx>x0+w-10||my<y0+10||my>y0+h-10;
@@ -2963,7 +2968,8 @@ function drawStat(){const dark=G.oil<=0,g=HST.glass.g;g.clearRect(0,0,260,180);g
   hudText(q,'DAY '+G.day+'  '+clockText(),92,75,'bold 17px Georgia','#ded0b2');
   hudText(q,'FLOOR '+G.floor+' · HUB '+hubStride(),92,99,'14px Georgia','#d6c8aa');
   hudText(q,'TYPE '+G.type+'  INC '+G.incense+'  TOR '+G.torches,92,123,'bold 13px Georgia','#bca780');
-  const alerts=['RESET D'+G.nextResetDay,torchLit()?'TORCH '+Math.ceil(G.torchTime)+'s':'',G.incenseT>0?'BURNING':'',G.meal&&G.time>=G.meal.ready?'MEAL READY':''].filter(Boolean).join(' · ');
+  const cZone=G.inRoom?galleryZone(G.room.i,G.room.j).type:crossingAt(G.x,G.y).stairs?crossingZone(crossingAt(G.x,G.y).ci,crossingAt(G.x,G.y).cj).type:'plain';
+  const alerts=[cZone!=='normal'&&cZone!=='plain'?cZone.toUpperCase():'','RESET D'+G.nextResetDay,torchLit()?'TORCH '+Math.ceil(G.torchTime)+'s':'',G.incenseT>0?'INCENSE':'',G.meal&&G.time>=G.meal.ready?'MEAL READY':''].filter(Boolean).join(' · ');
   hudText(q,alerts,92,145,'bold 10px Georgia','#e5b776');
   if(G.echo)hudText(q,'WORDS '+(ECHO_MAX-G.echo)+'/'+ECHO_MAX,39,140,'bold 11px Georgia',G.echo>=ECHO_MAX-1?'#ff8f6b':'#9fd8c8','center');
   hudText(q,'HEX '+G.gal,130,168,'bold 12px "Courier New",monospace','#c8b58f','center');
