@@ -796,17 +796,17 @@ function bgCorpse(e){const i=Math.round(e.x/P-0.5),j=Math.round(e.y/P-0.5),fl=G.
 
 /* ---- the dead: everything in a gallery you killed is kept there for the day (G.corpses); others appear as the hours
    pass, on seeds of the day and the place; on the catwalks they lie or hang, on this floor and the two above and below ---- */
-function roomBodies(){const key=G.gal+'|'+G.floor,h=hashStr('dead|'+key+'|'+G.day),r=prng(h),hr=hourOf(),out=[];
+function roomBodies(){const key=G.gal+'|'+G.floor,h=hashStr('dead|'+key+'|'+G.resetEpoch),r=prng(h),hr=hoursSinceReset(),out=[];
   for(const c of G.corpses[key]||[])out.push(c);
   const n=h%5===0?2:h%3===0?1:0;
   for(let k=0;k<n;k++){const at=6+r()*17,ra=RS+0.7+r()*(A-RS-1.4),a=r()*6.28,kind=r()<0.15?'seek':'fig';if(hr<at)continue;
-    out.push({kind,x:G.room.cx+Math.cos(a)*ra,y:G.room.cy+Math.sin(a)*ra,f:r()*6.28,coat:Math.floor(r()*3),lootId:'room|'+G.day+'|'+key+'|'+k})}
+    out.push({kind,x:G.room.cx+Math.cos(a)*ra,y:G.room.cy+Math.sin(a)*ra,f:r()*6.28,coat:Math.floor(r()*3),lootId:'room|'+G.resetEpoch+'|'+key+'|'+k})}
   return out}
 const WD={key:null,list:[]};
-function worldDead(){const i0=Math.round(G.x/P-0.5),j0=Math.round(G.y/P-0.5),hr=Math.floor(hourOf()),key=i0+','+j0+','+G.floor+','+G.day+','+hr+','+G.corpseSeq;
+function worldDead(){const i0=Math.round(G.x/P-0.5),j0=Math.round(G.y/P-0.5),hr=Math.floor(hoursSinceReset()),key=i0+','+j0+','+G.floor+','+G.resetEpoch+','+hr+','+G.corpseSeq;
   if(WD.key===key)return WD.list;WD.key=key;const L=[];
   for(let i=i0-2;i<=i0+2;i++)for(let j=j0-2;j<=j0+2;j++)for(let k=-2;k<=2;k++){
-    const fl=G.floor+k,h=hashStr('wd|'+i+'|'+j+'|'+fl+'|'+G.day),r=prng(h);
+    const fl=G.floor+k,h=hashStr('wd|'+i+'|'+j+'|'+fl+'|'+G.resetEpoch),r=prng(h);
     for(const c of G.wcorpse[i+','+j+','+fl]||[]){
       const common={x:c.x,y:c.y,f:c.f,zw:k*FH,lvl:k,hit:0,dead:9,seed:h%97,lootId:c.lootId,burnt:c.burnt};
       if(c.kind==='pur')L.push({type:'pur',hp:0,burnCd:9,...common});
@@ -816,7 +816,7 @@ function worldDead(){const i0=Math.round(G.x/P-0.5),j0=Math.round(G.y/P-0.5),hr=
     const ns=r()<0.5,al=(Math.floor(r()*2)?0.28:0.72)*P,hang=r()<0.45,side=r()<0.5?1:-1;
     let x=ns?(i+0.5)*P:(i+0.5)*P+al-P/2,y=ns?(j+0.5)*P+al-P/2:(j+0.5)*P;
     if(hang){if(ns)x+=side*(HW+0.3);else y+=side*(HW+0.3)}
-    L.push({type:'fig',pose:hang?'hang':'dead',x,y,f:ns?0:Math.PI/2,zw:k*FH,lvl:k,ropeZ:hang?RAILH/PS:0,seed:(h>>>4)%1000/100,coat:Math.floor(r()*3),lootId:'world|'+G.day+'|'+fl+'|'+i+','+j})}
+    L.push({type:'fig',pose:hang?'hang':'dead',x,y,f:ns?0:Math.PI/2,zw:k*FH,lvl:k,ropeZ:hang?RAILH/PS:0,seed:(h>>>4)%1000/100,coat:Math.floor(r()*3),lootId:'world|'+G.resetEpoch+'|'+fl+'|'+i+','+j})}
   return WD.list=L}
 /* all of it, as paper layers, culled to what could be on screen */
 function lifeLayers(out){
@@ -1126,20 +1126,48 @@ function readEnding(){
   G.verdict='You let the life of '+tl.name+' go, and some of your words come back. +25 sanity, the Index takes it twice.'+(G.q===4?' Their last line names a book: BOOK '+bioPlan(G.phrase).book+'.':'');if(G.q===4)qDone(5);sfx('AN ENDING','mind');snd('pickup');drawBook()}
 
 const G={};
-/* the day: a clock runs through each day; the lamps sink low in the evening and more Purifiers walk. At midnight you
-   black out where you stand, and wake at six the next morning to the day's number. While you were gone the Library
-   reset - every burned shelf whole again, every fire out, the people and the things they carry back where they were,
-   the kitchens and the closets ready again. What you know, and carry, stays with you */
+/* The clock still advances each day, with blackout at midnight and waking at six.
+   The Library itself now resets on a separate schedule: two days apart initially,
+   then the interval grows by one day after every SECOND Library reset. */
 const BLACKOUT=2.6,WAKE=4.2;
-const DAYLEN=480;
+const DAYLEN=480,BASE_RESET_DAYS=2;
 function hourOf(){return G.clock/DAYLEN*24}
+function resetIntervalAfter(n){return BASE_RESET_DAYS+Math.floor(n/2)}
+function hoursSinceReset(){return (G.day-G.lastResetDay)*24+hourOf()}
+/* These are NEW pieces of true text, not bonus Index credits. The Index key
+   may double fragments but cannot double the physical growth of the Library. */
+function rememberSentence(id){
+  if(G.seenSentences.has(id))return false;
+  G.seenSentences.add(id);G.sentencesFound++;
+  LAMPS.key=null;WD.key=null;
+  sfx('THE LIBRARY STRETCHES · HUBS '+hubStride()+' APART','mind');
+  return true;
+}
 function clockText(){const h=hourOf(),hh=Math.floor(h),mm=Math.floor((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')}
 function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 1;return(21-h)/3}
 function isNight(){const h=hourOf();return h<5||h>=21}
 /* fades: into the blackout, then out of it, with the day's number over the dark */
 const smooth=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
-function newDay(){G.day++;G.corpses={};G.wcorpse={};G.looted.clear();G.corpseSeq=0;WD.key=null;BG.acts=[];BG.t=8;ENC.list=[];ENC.t=30;if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
-  G.clock=DAYLEN*6/24;if(G.room)spawnRoom(false)}
+function newDay(){
+  G.day++;
+  G.justReset=G.day>=G.nextResetDay;
+  if(G.justReset){
+    G.resetCount++;G.resetEpoch++;G.lastResetDay=G.day;
+    G.resetInterval=resetIntervalAfter(G.resetCount);
+    G.nextResetDay=G.day+G.resetInterval;
+    // Only scheduled resets rebuild the world. On intervening dawns,
+    // burned shelves, corpses, looted pockets, fires and purchases remain.
+    G.corpses={};G.wcorpse={};G.looted.clear();G.corpseSeq=0;WD.key=null;
+    BG.acts=[];BG.t=8;ENC.list=[];ENC.t=30;
+    burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;
+    LAMPS.key=null;
+  }
+  if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}
+  G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);
+  G.sleepCd=0;G.phantoms=[];G.journal=false;
+  G.clock=DAYLEN*6/24;
+  if(G.justReset&&G.room)spawnRoom(false);
+}
 function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
 function reset(){
@@ -1148,14 +1176,14 @@ function reset(){
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,frags:0,sentencesFound:0,seenSentences:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
   G.room=c;G.gal=c.gid;G.rooms.add(G.gal+':'+G.floor);spawnRoom(false);
 }
 function spawnRoom(first){
-  const h=hashStr('room|'+G.gal+'|'+G.floor+'|'+G.day),rnd=prng(h);G.ents=[];G.alerted=false;
+  const h=hashStr('room|'+G.gal+'|'+G.floor+'|'+G.resetEpoch),rnd=prng(h);G.ents=[];G.alerted=false;
   const C=G.room,at=(x,y)=>[C.cx+x,C.cy+y],spot=()=>{const r=RS+0.6+rnd()*(A-RS-1.3),a=rnd()*Math.PI*2;return at(Math.cos(a)*r,Math.sin(a)*r)};
   if(first||h%3===0){const[x,y]=first?at(-1.8,-2.4):spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6})}
   if(!first&&isNight()&&(h>>>9)%2===0){const[x,y]=spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6})}
@@ -1921,7 +1949,7 @@ function drawJournal(){
   const t=TX.journal,{g,px,py,pw,ph,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+20);
   g.font='italic 17px Georgia,serif';
-  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Sentences ${G.frags} · Type ${G.type}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
+  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Sentences ${G.frags} · Type ${G.type}`,`Hub interval ${hubStride()} rooms N/S/E/W · ${hubStride()} floors up/down · Sentences found ${G.sentencesFound}`,`Next library reset: Day ${G.nextResetDay} (every ${G.resetInterval} days; ${G.resetCount} resets so far)`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
   g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+fadedPhrase()+'"'+(G.echo?'  fading '+G.echo+'/'+ECHO_MAX:''),px+26,yy+28);
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE WAY TO YOUR PAGE · '+G.q+'/6',px+26,yy+64);
@@ -2345,7 +2373,7 @@ function filmDrawDawn(){
   g.fillStyle='#efdcb5';g.textAlign='center';g.font='bold '+(portrait?64:83)+'px Georgia';
   g.fillText('DAY '+G.day,w/2,h*(portrait?.69:.73),w-84);
   g.font='italic '+(portrait?22:25)+'px Georgia';g.fillStyle='#bca27d';
-  g.fillText('THE LIBRARY IS PUT BACK IN ORDER',w/2,h*(portrait?.75:.82),w-68);
+  g.fillText(G.justReset?'THE LIBRARY IS PUT BACK IN ORDER':'THE LIBRARY REMEMBERS ITS SCARS',w/2,h*(portrait?.75:.82),w-68);
   g.restore();
 }
 function filmDrawFinale(){
@@ -2618,9 +2646,9 @@ function drawStat(){const dark=G.oil<=0,g=HST.glass.g;g.clearRect(0,0,260,180);g
   q.strokeStyle='#69583e';q.strokeRect(83,21,168,140);q.fillStyle='#b59c6f';q.fillRect(91,65,151,1);
   hudText(q,dark?'NO OIL':'OIL  '+String(G.oil).padStart(2,'0'),92,28,'bold 29px Georgia',dark?'#e99879':'#f3dfac');
   hudText(q,'DAY '+G.day+'  '+clockText(),92,75,'bold 17px Georgia','#ded0b2');
-  hudText(q,'FLOOR '+G.floor+(isNight()?' · NIGHT':''),92,99,'14px Georgia','#d6c8aa');
+  hudText(q,'FLOOR '+G.floor+' · HUB '+hubStride(),92,99,'14px Georgia','#d6c8aa');
   hudText(q,'TYPE '+G.type+'  INC '+G.incense+'  TOR '+G.torches,92,123,'bold 13px Georgia','#bca780');
-  const alerts=[torchLit()?'TORCH '+Math.ceil(G.torchTime)+'s':'',G.incenseT>0?'BURNING':'',G.meal&&G.time>=G.meal.ready?'MEAL READY':''].filter(Boolean).join(' · ');
+  const alerts=['RESET D'+G.nextResetDay,torchLit()?'TORCH '+Math.ceil(G.torchTime)+'s':'',G.incenseT>0?'BURNING':'',G.meal&&G.time>=G.meal.ready?'MEAL READY':''].filter(Boolean).join(' · ');
   hudText(q,alerts,92,145,'bold 10px Georgia','#e5b776');
   if(G.echo)hudText(q,'WORDS '+(ECHO_MAX-G.echo)+'/'+ECHO_MAX,39,140,'bold 11px Georgia',G.echo>=ECHO_MAX-1?'#ff8f6b':'#9fd8c8','center');
   hudText(q,'HEX '+G.gal,130,168,'bold 12px "Courier New",monospace','#c8b58f','center');
@@ -2807,7 +2835,7 @@ function display(dt){
     const a=t<0.6?smooth(t/0.6):1-smooth((t-2.0)/(WAKE-2.0)),fs=Math.round(Math.min(DW*0.16,DH*0.2));
     if(a>0){vctx.save();vctx.globalAlpha=a;vctx.textAlign='center';vctx.textBaseline='middle';vctx.fillStyle='#efe5c8';vctx.shadowColor='rgba(242,193,78,.55)';vctx.shadowBlur=fs*0.35;
       vctx.font='italic '+fs+'px Georgia,serif';vctx.fillText('Day '+G.day,DW/2,DH*0.45);vctx.shadowBlur=0;
-      vctx.font='bold '+Math.round(fs*0.16)+'px "Courier New",monospace';vctx.fillStyle='#c9b88f';vctx.fillText('THE LIBRARY HAS BEEN PUT BACK IN ORDER',DW/2,DH*0.45+fs*0.72);vctx.restore()}}
+      vctx.font='bold '+Math.round(fs*0.16)+'px "Courier New",monospace';vctx.fillStyle='#c9b88f';vctx.fillText(G.justReset?'THE LIBRARY HAS BEEN PUT BACK IN ORDER':'THE LIBRARY REMEMBERS ITS SCARS',DW/2,DH*0.45+fs*0.72);vctx.restore()}}
   if(st==='climb'){vctx.fillStyle='rgba(0,0,0,'+(0.96*Math.sin(Math.PI*Math.min(1,G.climbT/1.2)))+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='sleep'){vctx.fillStyle='rgba(4,3,8,'+(0.97*Math.sin(Math.PI*Math.min(1,G.sleepT/2.2)))+')';vctx.fillRect(0,0,DW,DH)}
 }
