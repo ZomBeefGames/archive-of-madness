@@ -252,6 +252,7 @@ function zoneRead(){
     else if(!z.opened&&z.type==='ash'){z.opened=true;G.type++;award='+1 CHARRED TYPE'}
     else if(!z.inspected){z.inspected=true}
     else return false; // let the regular Read action open the still-usable stairs
+    if(award)z.inspected=true; // do not consume the stair action twice after taking loot
     sfx(award||'THE LANDING REMEMBERS','mind');
     openNote(CROSS_NAMES[z.type],zoneDescription(z),award||'THE SPIRAL STAIR REMAINS OPEN');
     return true;
