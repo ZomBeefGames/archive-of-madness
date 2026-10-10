@@ -687,7 +687,12 @@ function meLayers(out){
   const outD=-0.05+hit*0.3;
   const[wx,wz,wfa]=armOut(put,R,shx+0.8,shz,tx,tz,-0.05,8.5,10.5,outD);
   const wa=wpn==='rod'?lerp(lerp(70,-10,wind),95,hit):lerp(lerp(60,-40,wind),130,hit);
-  if(!(wpn==='oil'&&s>0.5))put(wpn==='press'?R.press:wpn==='rod'?R.rod:R.flask,wa+fall*40,wx,wz,outD-0.004,false);
+  if(wpn==='torch'&&torchLit()){
+    const a=wa+fall*40;
+    put(PURIG.torch,a,wx,wz,outD-0.004,false);
+    if(!fall){const r=a/DEG,fx=wx+Math.sin(r)*9.5,fz=wz+Math.cos(r)*9.5;
+      put(PURIG.flame[Math.floor(T*10)%4],Math.sin(T*6)*6,fx,fz,outD-0.003,true)}
+  }else if(!(wpn==='oil'&&s>0.5))put(wpn==='press'?R.press:wpn==='rod'?R.rod:R.flask,wa+fall*40,wx,wz,outD-0.004,false);
 }
 /* ---- the Library goes on without you. Far off, on the catwalks of this floor and the floors above and below, other
    librarians run, scream, jump, are pushed, burn. The dead stay where they fell until the day is over: the cultists you
@@ -1359,7 +1364,7 @@ function updSeek(e,dt){
 function startle(){
   for(const e of G.ents){if(e.type==='seek'&&!e.dead&&Math.hypot(e.x-G.x,e.y-G.y)<3.6&&e.scared<=0){e.scared=5;sfx('AAAAAH!','mind');G.alerted=true}}
 }
-/* weapons: the heavy bookpress (slow, crushing), the sharpened shelf rod (fast, long reach), and lantern oil,
+/* weapons: the heavy bookpress (slow, crushing), the sharpened shelf rod (fast, long reach), recovered torches and lantern oil,
    thrown and lit (a fire that blocks the way, paid for with your light) */
 const WNAME={press:'BOOKPRESS',rod:'SHELF ROD',oil:'OIL FLASK',torch:'PURIFIER TORCH'};
 function torchLit(){return G.weapon==='torch'&&G.torches>0&&G.torchTime>0}
@@ -1419,7 +1424,7 @@ function doRead(){
   if(h.type==='frame'){openNote('THE MIRROR','A gilt frame. In the glass, another platform, another you.');return}
   if(h.type!=='shelf'){sfx('NO SHELVES HERE');return}
   const g=h.cell.gid,k=h.cell.k,wall=h.seg.wall,key=g+'.'+f+':'+wall;
-  if(burned.has(key)){G.sanity=Math.max(0,G.sanity-1);if(!G.hasRod){G.hasRod=true;G.weapon='rod';openNote('BURNED SHELF','. . . ash . . . Among the cinders a shelf rod comes loose. You sharpen it on the stone lip of the shaft.','You found a SHELF ROD: quick, with a long reach. '+(FINE?'Q or 1 2 3':'Tap your hand')+' to switch weapons.')}else openNote('BURNED SHELF','. . . ash . . .','Only ash. These books are lost forever. −1 sanity');return}
+  if(burned.has(key)){G.sanity=Math.max(0,G.sanity-1);if(!G.hasRod){G.hasRod=true;G.weapon='rod';openNote('BURNED SHELF','. . . ash . . . Among the cinders a shelf rod comes loose. You sharpen it on the stone lip of the shaft.','You found a SHELF ROD: quick, with a long reach. '+(FINE?'Q or 1 2 3 4':'Tap your hand')+' to switch weapons.')}else openNote('BURNED SHELF','. . . ash . . .','Only ash. These books are lost forever. −1 sanity');return}
   const z=EYE+G.pitch*H/PROJ*h.t,row=63-Math.max(0,Math.min(63,z/WALLH*64|0)),shelf=Math.max(1,Math.min(5,Math.floor((row-4)/12)+1)),book=1+Math.min(31,Math.floor(h.u*32));
   G.book={g,f,wall,k,shelf,book,page:1};
   showPage(true);startle();
@@ -1577,7 +1582,7 @@ function lampC(c,px,py){let L=0,w;if(c&&c.kind==='a'){const ci=Math.round(px/P-0
   else if(c&&c.kind==='g'){const q=c.lamps;let dx=px-q[0][0],dy=py-q[0][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*LDAY*w*w*w;dx=px-q[1][0];dy=py-q[1][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*LDAY*w*w*w}
   if(FIREL.length)
   for(let i=0;i<FIREL.length;i+=2){const dx=px-FIREL[i],dy=py-FIREL[i+1];w=1-(dx*dx+dy*dy)/7;if(w>0)L+=0.65*FLICK*w*w*w}return L}
-function lanL(d){const v=d<LANR?1-d/LANR:0;return FLICK*v*v}
+function lanL(d){const v=d<LANR?1-d/LANR:0;return FLICK*v*v*(G.oil>0?1:torchLit()?1:0.12)}
 function lightP(c,px,py,d){return AMB+lanL(d)+lampC(c,px,py)}
 const AIRLV=9,FOG=[...Array(AIRLV+2)].map((_,m)=>Math.pow(0.86,m+0.2));let CW_LAMP=0,CW_D2=0;
 function put(i,r,g,b,L){
@@ -1664,8 +1669,8 @@ function render(){
 }
 function renderScene(MEP){
   if(DEP.length!==W*H)DEP=new Float32Array(W*H);
-  FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=3.8+Math.min(G.oil,10)*0.6;
-  const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);
+  FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=G.oil>0?3.8+Math.min(G.oil,10)*0.6+(torchLit()?0.8:0):torchLit()?4.7:1.1;
+  const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);if(torchLit())FIREL.push(LX,LY);
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
   lifeLayers(POSE);
   const low=G.sanity<25?(25-G.sanity)/25:0;
@@ -1900,7 +1905,7 @@ function drawJournal(){
   const t=TX.journal,{g,px,py,pw,ph,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+20);
   g.font='italic 17px Georgia,serif';
-  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Sentences ${G.frags} · Type ${G.type}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
+  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Sentences ${G.frags} · Type ${G.type}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
   g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+fadedPhrase()+'"'+(G.echo?'  fading '+G.echo+'/'+ECHO_MAX:''),px+26,yy+28);
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE WAY TO YOUR PAGE · '+G.q+'/6',px+26,yy+64);
@@ -2044,6 +2049,15 @@ function illustratedTool(kind,side=false){const t=mkTex(160,144),g=t.g;g.scale(2
     g.save();g.translate(40,38);g.rotate(.43);artRect(g,-3,-36,6,68,metalFill(g,-3,-36,6,68,true),'#16191b',1);
     g.fillStyle='#e6d8b5';g.beginPath();g.moveTo(-3,-27);g.lineTo(1,-37);g.lineTo(3,-27);g.fill();
     artRect(g,-4,5,8,24,'#684735','#211b19',1);for(let y=7;y<28;y+=4){g.strokeStyle='#b49269';g.beginPath();g.moveTo(-3,y);g.lineTo(3,y+2);g.stroke()}g.restore();
+  }else if(kind==='torch'){
+    // Engraved torch with wrapped shaft and flickering inset fire, matching illustrated tools.
+    g.save();g.translate(40,35);g.rotate(0.24);
+    artRect(g,-4,-7,8,41,'#4e3221','#1a1412',2);
+    for(let y=0;y<30;y+=5){g.strokeStyle='#bd9160';g.lineWidth=2;g.beginPath();g.moveTo(-3,y);g.lineTo(3,y+3);g.stroke()}
+    artRect(g,-7,-13,14,12,metalFill(g,-7,-13,14,12),'#15151a',3);
+    g.save();g.shadowColor='#ffac42';g.shadowBlur=side?0:11;
+    g.fillStyle='#ef6324';g.beginPath();g.moveTo(-7,-12);g.quadraticCurveTo(-12,-28,0,-44);g.quadraticCurveTo(2,-29,8,-26);g.quadraticCurveTo(12,-15,3,-12);g.fill();
+    g.fillStyle='#ffe2a0';g.beginPath();g.moveTo(-4,-13);g.quadraticCurveTo(-5,-24,1,-32);g.quadraticCurveTo(6,-20,3,-13);g.fill();g.restore();g.restore();
   }else{
     const q=g.createLinearGradient(20,15,61,63);q.addColorStop(0,'#ffffdf');q.addColorStop(.2,'#d6b46d');q.addColorStop(.55,'#877037');q.addColorStop(1,'#373520');
     artRect(g,31,3,18,9,'#80624a','#191b1d',2);artRect(g,28,12,24,8,metalFill(g,28,12,24,8),'#282820',2);
@@ -2062,7 +2076,7 @@ function lanternArt(lit){const t=mkTex(120,184),g=t.g;
   for(const x of [20,48,94])artRect(g,x,53,6,92,metalFill(g,x,53,6,92),'#2e2b24',1);
   artRect(g,27,164,66,8,'#302b26','#c2a375',2);for(const x of [28,88])discC(g,x,48,2,1,'#ffe4a5');return t.c;
 }
-const HANDTOOLS={press:illustratedTool('press'),rod:illustratedTool('rod'),oil:illustratedTool('oil')},HANDLAMP=[lanternArt(false),lanternArt(true)];
+const HANDTOOLS={press:illustratedTool('press'),rod:illustratedTool('rod'),oil:illustratedTool('oil'),torch:illustratedTool('torch')},HANDLAMP=[lanternArt(false),lanternArt(true)];
 function gloveArt(){const t=mkTex(160,100),g=t.g;const q=g.createLinearGradient(35,12,113,95);q.addColorStop(0,'#c0a481');q.addColorStop(.5,'#82664e');q.addColorStop(1,'#49382e');
   artRect(g,24,34,103,61,'#322c2d','#171c21',8);artRect(g,28,60,94,33,'#5d4637','#bb9366',3);
   for(let i=0;i<4;i++)artRect(g,31+i*22,12+i%2*3,24,57,q,'#392e29',7);
@@ -2115,7 +2129,7 @@ function modelRead(o,a,d,yawX,down,dt,T){
    pressed: wind up, strike with a blur trail, settle */
 const PRESSF=gridCanvas(PRESS,8,{a:'#77716a',t:'#8c5a2b'}),PRESSS=gridCanvas(PRESS,8,{k:'#0e0b09',a:'#3a3632',t:'#4a2f1a'});
 const RODI=["........kn",".......knk","......ktk.",".....ktk..","....ktk...","...ktk....","..ktk.....",".ktk......","kkk......."],FLASKR=["..kk..","..kk..",".kccck","kyyyyk","kyYyyk","kyyyyk","kyyyyk",".kkkk."];
-const WSRC={press:[HANDTOOLS.press,illustratedTool('press',true)],rod:[HANDTOOLS.rod,illustratedTool('rod',true)],oil:[HANDTOOLS.oil,illustratedTool('oil',true)]};
+const WSRC={press:[HANDTOOLS.press,illustratedTool('press',true)],rod:[HANDTOOLS.rod,illustratedTool('rod',true)],oil:[HANDTOOLS.oil,illustratedTool('oil',true)],torch:[HANDTOOLS.torch,illustratedTool('torch',true)]};
 const SW={front:mkTex(352,320),side:mkTex(352,320),ang:null,tr:null,wp:null};SW.halo=haloTex(SW.front,48);
 function swingTex(ang,trail){
   const ws=WSRC[G.weapon]||WSRC.press;
@@ -2208,8 +2222,8 @@ function drawStat(){const dark=G.oil<=0,g=HST.glass.g;g.clearRect(0,0,260,180);g
   hudText(q,dark?'NO OIL':'OIL  '+String(G.oil).padStart(2,'0'),92,28,'bold 29px Georgia',dark?'#e99879':'#f3dfac');
   hudText(q,'DAY '+G.day+'  '+clockText(),92,75,'bold 17px Georgia','#ded0b2');
   hudText(q,'FLOOR '+G.floor+(isNight()?' · NIGHT':''),92,99,'14px Georgia','#d6c8aa');
-  hudText(q,'TYPE '+G.type+'  INC '+G.incense,92,123,'bold 14px Georgia','#bca780');
-  const alerts=[G.incenseT>0?'BURNING':'',G.meal&&G.time>=G.meal.ready?'MEAL READY':''].filter(Boolean).join(' · ');
+  hudText(q,'TYPE '+G.type+'  INC '+G.incense+'  TOR '+G.torches,92,123,'bold 13px Georgia','#bca780');
+  const alerts=[torchLit()?'TORCH '+Math.ceil(G.torchTime)+'s':'',G.incenseT>0?'BURNING':'',G.meal&&G.time>=G.meal.ready?'MEAL READY':''].filter(Boolean).join(' · ');
   hudText(q,alerts,92,145,'bold 10px Georgia','#e5b776');
   if(G.echo)hudText(q,'WORDS '+(ECHO_MAX-G.echo)+'/'+ECHO_MAX,39,140,'bold 11px Georgia',G.echo>=ECHO_MAX-1?'#ff8f6b':'#9fd8c8','center');
   hudText(q,'HEX '+G.gal,130,168,'bold 12px "Courier New",monospace','#c8b58f','center');
@@ -2332,7 +2346,16 @@ function display(dt){
   vctx.imageSmoothingEnabled=false;vctx.drawImage(scene,0,0,W,H,0,0,DW,DH);
   if(SCENEVIGNETTE){vctx.fillStyle=SCENEVIGNETTE;vctx.fillRect(0,0,DW,DH)}
   const low=G.sanity<25?(25-G.sanity)/25:0,L=LAY,st=G.state;
-  if(st==='play'){const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r)}
+  if(st==='play'){
+    const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r);
+    const b=bodyTarget();if(b&&!G.journal){
+      const label=FINE?'E  ·  SEARCH BODY':'READ  ·  SEARCH BODY',font=Math.max(13,Math.round(DH*0.021));
+      vctx.save();vctx.font='bold '+font+'px Georgia';const w=vctx.measureText(label).width+28,x=(DW-w)/2,y=DH*0.56;
+      vctx.fillStyle='rgba(19,14,12,.82)';vctx.fillRect(x,y,w,font+19);
+      vctx.strokeStyle='#b89a62';vctx.lineWidth=2;vctx.strokeRect(x+1,y+1,w-2,font+17);
+      vctx.textAlign='center';vctx.fillStyle='#f4dfb4';vctx.fillText(label,DW/2,y+font+2);vctx.restore();
+    }
+  }
   if(G.flash>0){vctx.fillStyle='rgba(200,40,20,'+(G.flash*0.35)+')';vctx.fillRect(0,0,DW,DH)}
   if(G.incenseT>0){vctx.fillStyle='rgba(215,205,235,'+(0.07*Math.min(1,G.incenseT))+')';vctx.fillRect(0,0,DW,DH)}
   if(low>0){vctx.fillStyle='rgba(60,20,90,'+(low*0.25)+')';vctx.fillRect(0,0,DW,DH)}
@@ -2436,7 +2459,7 @@ addEventListener('keydown',ev=>{
   if(c==='Space'){action('swing');ev.preventDefault()}
   if(c==='KeyE'||c==='Enter'){action('read');ev.preventDefault()}
   if(c==='KeyJ'||c==='Tab'){action('journal');ev.preventDefault()}
-  if(G.state==='play'){if(c==='KeyQ')cycleWeapon();else if(c==='Digit1')setWeapon('press');else if(c==='Digit2')setWeapon('rod');else if(c==='Digit3')setWeapon('oil');else if(c==='KeyI')useIncense()}
+  if(G.state==='play'){if(c==='KeyQ')cycleWeapon();else if(c==='Digit1')setWeapon('press');else if(c==='Digit2')setWeapon('rod');else if(c==='Digit3')setWeapon('oil');else if(c==='Digit4')setWeapon('torch');else if(c==='KeyI')useIncense()}
   if(c==='KeyM')soundToggle();
   if(c==='KeyV')toggleView();
 });
