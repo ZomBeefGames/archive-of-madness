@@ -307,24 +307,28 @@ function makePage(g,f,wall,shelf,book,page,phrase){
 }
 
 const G={};
-/* the day: a clock runs through each day; the lamps sink low at night and more Purifiers walk. At six in the morning
-   a bell rings and the Library resets - every burned shelf whole again, every fire out, the people and the things they
-   carry back where they were, the kitchens and the closets ready again. What you know, and carry, stays with you */
+/* the day: a clock runs through each day; the lamps sink low in the evening and more Purifiers walk. At midnight you
+   black out where you stand, and wake at six the next morning to the day's number. While you were gone the Library
+   reset - every burned shelf whole again, every fire out, the people and the things they carry back where they were,
+   the kitchens and the closets ready again. What you know, and carry, stays with you */
+const BLACKOUT=2.6,WAKE=4.2;
 const DAYLEN=480;
 function hourOf(){return G.clock/DAYLEN*24}
 function clockText(){const h=hourOf(),hh=Math.floor(h),mm=Math.floor((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')}
 function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 1;return(21-h)/3}
 function isNight(){const h=hourOf();return h<5||h>=21}
-function newDay(){G.day++;burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;G.dawnT=2.5;LAMPS.key=null;
-  if(G.state==='play'||G.state==='book'||G.state==='closing')spawnRoom(false);
-  snd('bell');sfx('DAY '+G.day,'mind');setTimeout(()=>sfx('THE LIBRARY RESETS','mind'),500);if(G.journal)drawJournal()}
+/* fades: into the blackout, then out of it, with the day's number over the dark */
+const smooth=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
+function newDay(){G.day++;burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
+  G.clock=DAYLEN*6/24;if(G.room)spawnRoom(false)}
+function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
 function reset(){
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,dawnT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
@@ -423,8 +427,7 @@ function update(dt){
   if(keys.read){keys.read=false;doRead()}
   G.swing=Math.max(0,G.swing-dt*4);G.swingCd=Math.max(0,G.swingCd-dt);G.hurtCd=Math.max(0,G.hurtCd-dt);G.flash=Math.max(0,G.flash-dt*2);G.sleepCd=Math.max(0,G.sleepCd-dt);
   G.oilTimer+=dt;if(G.oilTimer>40&&G.oil>0){G.oilTimer=0;G.oil--}
-  {const h0=hourOf();G.clock=(G.clock+dt)%DAYLEN;const h1=hourOf();if(h0<6&&h1>=6)newDay()}
-  G.dawnT=Math.max(0,G.dawnT-dt);
+  G.clock+=dt;if(G.clock>=DAYLEN){G.clock=DAYLEN-1e-3;blackout();return}
   if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
@@ -1214,7 +1217,6 @@ function display(dt){
   const low=G.sanity<25?(25-G.sanity)/25:0,L=LAY,st=G.state;
   if(st==='play'){const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r)}
   if(G.flash>0){vctx.fillStyle='rgba(200,40,20,'+(G.flash*0.35)+')';vctx.fillRect(0,0,DW,DH)}
-  if(G.dawnT>0){vctx.fillStyle='rgba(255,236,190,'+(0.35*Math.min(1,G.dawnT/1.5))+')';vctx.fillRect(0,0,DW,DH)}
   if(G.incenseT>0){vctx.fillStyle='rgba(215,205,235,'+(0.07*Math.min(1,G.incenseT))+')';vctx.fillRect(0,0,DW,DH)}
   if(low>0){vctx.fillStyle='rgba(60,20,90,'+(low*0.25)+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='intro'||st==='start'){
@@ -1226,7 +1228,7 @@ function display(dt){
   if(st==='waking'||st==='won'){const k=st==='won'?1:Math.min(1,G.winT/1.6);vctx.fillStyle='rgba(255,236,190,'+(0.85*k*k)+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='dying'||st==='dead'){vctx.fillStyle='rgba(120,10,10,'+Math.min(0.55,G.dieT*0.4)+')';vctx.fillRect(0,0,DW,DH)}
   HUD.forEach(h=>lag(h,dA,dF,dt,edgeLim(L.hud[h.key],h.tex,0.12),0.04,3.5));
-  const live=st==='play'||st==='dying'||st==='climb'||st==='sleep';if(live)HT+=dt;else HT=0;
+  const back=st==='wake'&&G.wakeT>WAKE-1.6,live=st==='play'||st==='dying'||st==='climb'||st==='sleep'||st==='blackout'||back;if(live)HT+=dt;else HT=0;
   if(live)HUD.forEach((h,i)=>{const ap=CALM?1:backOut((HT-0.05-i*0.09)/0.4);if(ap<=0.01){h.rect=null;return}const a=L.hud[h.key];
     h.alpha=Math.min(1,ap*1.6);hudModel(h,{cx:a.cx,cy:a.cy,h:a.h*(0.55+0.45*ap)},L.dH,(1-Math.min(1,ap))*1.35*(i?1:-1)+(CALM?0:0.14*Math.sin(G.time*0.6+i*2.1)))});
   if(live)hands();
@@ -1240,9 +1242,9 @@ function display(dt){
     bookCard.f=Math.atan2(G.y-bookCard.y,G.x-bookCard.x)+(1-k)*1.4+(G.flip>0?Math.sin(Math.PI*G.flip/0.3)*1.2*G.flipDir:0);
     bookCard.alpha=0.3+0.7*k;drawFloat(bookCard);
   }
-  ctlA+=((st==='play'||st==='start'||st==='climb'||st==='sleep'?1:0)-ctlA)*Math.min(1,dt*7);
+  ctlA+=((st==='play'||st==='start'||st==='climb'||st==='sleep'||st==='blackout'||back?1:0)-ctlA)*Math.min(1,dt*7);
   /* the buttons deal in one after another when you open your eyes, and fold away while you read */
-  const show=(st==='play'||st==='start'||st==='climb'||st==='sleep');if(show!==UI.show){UI.show=show;UI.t=0}else UI.t+=dt;
+  const show=(st==='play'||st==='start'||st==='climb'||st==='sleep'||st==='blackout'||back);if(show!==UI.show){UI.show=show;UI.t=0}else UI.t+=dt;
   const appear=i=>{if(CALM)return UI.show?1:0;const p=Math.max(0,Math.min(1,(UI.t-i*0.08)/0.36));return UI.show?backOut(p):1-ease3(p)};
   let ci=0;
   for(const k in CTLS){const c=CTLS[k],o=c.p,i=++ci;lag(o,dA,dF,dt,edgeLim(L.ctl[k],c.tex,0.035),0.015,8);
@@ -1257,6 +1259,12 @@ function display(dt){
      modelStick(sb,{cx:STICK.cx,cy:STICK.cy,h:Ls.h*m},L.dC,-(1-Math.min(1,ap))*1.35,held,dt,G.time,{h:Ls.h*m,travel:Ls.travel})}}
   if(st==='won'&&TX.won){wonCard.tex=TX.won;center(wonCard,1.45,DH*0.5,fitH(TX.won,1.45,DW*0.9,DH*0.8));wonCard.z+=CALM?0:Math.sin(G.time*1.2)*0.015;drawFloat(wonCard)}
   if(st==='dead'&&TX.dead){deadCard.tex=TX.dead;center(deadCard,1.45,DH*0.5,fitH(TX.dead,1.45,DW*0.9,DH*0.8));deadCard.z+=CALM?0:Math.sin(G.time*1.2)*0.015;drawFloat(deadCard)}
+  if(st==='blackout'){vctx.fillStyle='rgba(0,0,0,'+smooth(G.boT/(BLACKOUT*0.75))+')';vctx.fillRect(0,0,DW,DH)}
+  if(st==='wake'){const t=G.wakeT;vctx.fillStyle='rgba(0,0,0,'+(1-smooth((t-1.0)/2.2))+')';vctx.fillRect(0,0,DW,DH);
+    const a=t<0.6?smooth(t/0.6):1-smooth((t-2.0)/(WAKE-2.0)),fs=Math.round(Math.min(DW*0.16,DH*0.2));
+    if(a>0){vctx.save();vctx.globalAlpha=a;vctx.textAlign='center';vctx.textBaseline='middle';vctx.fillStyle='#efe5c8';vctx.shadowColor='rgba(242,193,78,.55)';vctx.shadowBlur=fs*0.35;
+      vctx.font='italic '+fs+'px Georgia,serif';vctx.fillText('Day '+G.day,DW/2,DH*0.45);vctx.shadowBlur=0;
+      vctx.font='bold '+Math.round(fs*0.16)+'px "Courier New",monospace';vctx.fillStyle='#c9b88f';vctx.fillText('THE LIBRARY HAS BEEN PUT BACK IN ORDER',DW/2,DH*0.45+fs*0.72);vctx.restore()}}
   if(st==='climb'){vctx.fillStyle='rgba(0,0,0,'+(0.96*Math.sin(Math.PI*Math.min(1,G.climbT/1.2)))+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='sleep'){vctx.fillStyle='rgba(4,3,8,'+(0.97*Math.sin(Math.PI*Math.min(1,G.sleepT/2.2)))+')';vctx.fillRect(0,0,DW,DH)}
 }
@@ -1283,6 +1291,8 @@ function frame(now){
   else if(G.state==='closing'){G.bookAnim+=dt;G.time+=dt;if(G.bookAnim>=0.3){if(G.won){G.state='waking';G.winT=0;G.journal=false}else{G.state='play';if(G.health<=0)die()}}}
   else if(G.state==='waking'){G.winT+=dt;G.time+=dt;EYE=0.5+0.25*Math.min(1,G.winT/1.6);if(G.winT>1.8){G.state='won';drawWon()}}
   else if(G.state==='won'){G.time+=dt}
+  else if(G.state==='blackout'){G.boT+=dt;G.time+=dt;EYE=0.5-0.3*smooth(G.boT/(BLACKOUT*0.8));if(G.boT>=BLACKOUT){newDay();EYE=0.5;G.pitch=0;G.state='wake';G.wakeT=0}}
+  else if(G.state==='wake'){G.wakeT+=dt;G.time+=dt;if(G.wakeT>=0.2&&!G.rung){G.rung=true;snd('bell')}if(G.wakeT>=WAKE){G.state='play';G.rung=false}}
   else if(G.state==='climb'){G.climbT+=dt;G.time+=dt;if(!G.climbed&&G.climbT>=0.6){G.climbed=true;G.floor+=G.climbDir;enterRoom(G.room);sfx('FLOOR '+G.floor,'mind')}if(G.climbT>=1.2)G.state='play'}
   else if(G.state==='sleep'){G.sleepT+=dt;G.time+=dt;if(G.sleepT>=2.2){G.state='play';G.sanity=Math.min(100,G.sanity+15);if(G.oil>0)G.oil--;G.sleepCd=75;sfx('+15 SANITY','mind');setTimeout(()=>sfx('-1 OIL'),300)}}
   else update(dt);
