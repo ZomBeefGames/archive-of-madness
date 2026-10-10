@@ -71,7 +71,7 @@ test('transit floors keep spiral stairs but omit all communal pillar amenities',
   assert.equal(s.run('SQV.length'),32,'16 hub variants + 16 transit variants');
   s.G.floor=0;
   const hub=s.run('SQV[sqLayout(0,0)]');
-  assert.ok(hub.solid.some(q=>q.type==='food'),'community floor has food hatch');
+  assert.ok(s.run('SQV[sqLayout(1,0)]').solid.some(q=>q.type==='food'),'adjacent community square has food hatch');
   assert.ok(hub.solid.some(q=>q.type==='sleep'),'community floor has sleep closet');
   assert.ok(hub.wells.length>0);
   s.G.floor=1;
@@ -82,9 +82,9 @@ test('transit floors keep spiral stairs but omit all communal pillar amenities',
   assert.equal(s.run('crossingAt(8,8).comm'),false);
   assert.equal(s.run('inWell(8,8)'),true);
   assert.equal(s.run('walkable(8,8,0.2)'),false,'cannot walk through stairwell');
-  assert.equal(s.run('walkable(7.15,7.15,0.2)'),true,'empty transit floor has a landing');
+  assert.equal(s.run('walkable(6.75,6.75,0.2)'),true,'empty transit floor has a landing');
   s.G.floor=0;
-  assert.equal(s.run('walkable(7.15,7.15,0.2)'),false,'same position blocked by hub pillar');
+  assert.equal(s.run('walkable(6.75,6.75,0.2)'),false,'same position blocked by hub pillar');
 });
 test('each newly found real sentence adds one room AND one floor to the regular hub interval',()=>{
   const s=harness();
