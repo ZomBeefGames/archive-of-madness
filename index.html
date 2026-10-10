@@ -25,18 +25,17 @@ body{color:var(--paper);font-family:ui-monospace,Menlo,Consolas,monospace}
 
 let W=320,H=200,PLANE=Math.tan(Math.PI/6),PROJ=(W/2)/PLANE;
 let EYE=0.5;
-/* The Library, after Borges. Every gallery is a hexagon: twenty shelves, five to each of four walls, thirty-two books
-   to a shelf, and two free sides. Each free side opens onto a vestibule, the communal space between galleries: two very
-   small closets (one for sleeping standing up, one for necessities), a mirror that doubles everything, and the spiral
-   stair, which sinks and soars without end through every floor. A vast air shaft with a low railing sits in the middle
-   of each gallery, and through it you see the floors above and below. Two spherical lamps hang in each gallery.
-   The vestibules sit on the corners of a honeycomb and the galleries on its edges, so every gallery keeps exactly two
-   free sides and yet a floor runs on in every direction; every floor has the same plan, so the stairs line up.
-   The Library is periodic: NT tiles across in any direction, or NF floors up or down, and the same volumes return
-   in the same disorder. */
-const R=5,A=R*Math.cos(Math.PI/6),HW=0.75,AV=2.0,LK=2*(A+AV),WALLH=1.9,FH=2.15,RS=1.7,RSW=0.85,RAILH=0.34,LAMPY=3.0,LAMPZ=1.3,MZ0=0.16,MZ1=WALLH-0.1;
-const NT=10,NF=24,NG=NT*NT*3,MAXLV=7;
-const A1X=1.5*LK,A1Y=Math.sqrt(3)/2*LK,A2X=1.5*LK,A2Y=-Math.sqrt(3)/2*LK,DET=A1X*A2Y-A2X*A1Y;
+/* The Library. Every gallery is a hexagon, after Borges: twenty shelves, five to each of four walls, thirty-two books
+   to a shelf, a vast air shaft with a low railing in the middle, two spherical lamps, and two free sides with doorways,
+   east and west. The galleries stand apart on a square grid, separated by open air. Railed catwalks run north-south and
+   east-west between them; a short landing joins each doorway to the catwalk beside it. Where four catwalks cross is the
+   communal platform: the spiral stairwell in the middle under a hanging lamp, and four stone pillars at its corners that
+   rise through every floor - one holds the closet for sleeping standing up, one the closet for necessities, one carries
+   the mirror. Every floor has the same plan, so from a catwalk you look down and up past the catwalks and galleries of
+   every other floor. The Library is periodic: NT galleries across in any direction, or NF floors up or down, and the
+   same volumes return in the same disorder. */
+const R=5,A=R*Math.cos(Math.PI/6),HW=0.75,P=16,CWI=P/2-0.8,PLI=P/2-1.8,PIL0=PLI,PIL1=PLI+0.7,WALLH=1.9,FH=2.15,RS=1.7,RSW=0.65,RAILH=0.34,LAMPY=3.0,LAMPZ=1.3,JLZ=1.5,CATT=0.12,MZ0=0.16,MZ1=WALLH-0.1;
+const NT=12,NF=24,NG=NT*NT,MAXLV=7;
 const NRM=[...Array(6)].map((_,w)=>[Math.cos(w*Math.PI/3),Math.sin(w*Math.PI/3)]);
 const wrapN=(v,n)=>((v%n)+n)%n;
 function torusD(a,b,n){const d=wrapN(a-b,n);return Math.min(d,n-d)}
@@ -53,88 +52,107 @@ allocCols();
 function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h>>>0}
 function prng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
 
-/* the plan of a floor. Vestibule (i,j,0) sits at i*a1+j*a2, vestibule (i,j,1) one link to its east; gallery (i,j,k)
-   lies on the link from vestibule (i,j,0) in direction k*120 degrees */
-function nodePos(i,j,b){return[i*A1X+j*A2X+(b?LK:0),i*A1Y+j*A2Y]}
-function galPos(i,j,k){const[x,y]=nodePos(i,j,0),a=k*2*Math.PI/3;return[x+Math.cos(a)*LK/2,y+Math.sin(a)*LK/2]}
-function galId(i,j,k){return(wrapN(i,NT)*NT+wrapN(j,NT))*3+k}
-function galInfo(g){return{i:Math.floor(g/3/NT),j:Math.floor(g/3)%NT,k:g%3}}
-function shelfWalls(k){const d0=2*k,d1=(2*k+3)%6;return[0,1,2,3,4,5].filter(w=>w!==d0&&w!==d1)}
-function wallNo(k,w){return shelfWalls(k).indexOf(w)+1}
-/* steps across the honeycomb's tiles between two tile coordinates, the short way round */
-function tileD(i1,j1,i2,j2){let best=1e9;const di0=wrapN(i1-i2,NT),dj0=wrapN(j1-j2,NT);
-  for(const di of[di0,di0-NT])for(const dj of[dj0,dj0-NT]){const d=(Math.abs(di)+Math.abs(dj)+Math.abs(di+dj))/2;if(d<best)best=d}return best}
-function tileUV(px,py){return[(px*A2Y-py*A2X)/DET,(A1X*py-A1Y*px)/DET]}
+/* gallery (i,j) stands at (i*P, j*P); north is -y */
+function galId(i,j){return wrapN(i,NT)*NT+wrapN(j,NT)}
+function galInfo(g){return{i:Math.floor(g/NT),j:g%NT,k:0}}
+function shelfWalls(){return[1,2,4,5]}
+const WN={1:1,2:2,4:3,5:4};function wallNo(k,w){return WN[w]}
+function tileD(i1,j1,i2,j2){return torusD(i1,i2,NT)+torusD(j1,j2,NT)}
+const ROOMS=new Map(),AIRS=new Map();
+function getRoom(i,j){const key=(i+8192)*16384+(j+8192);let c=ROOMS.get(key);if(c)return c;if(ROOMS.size>4000)ROOMS.clear();const cx=i*P,cy=j*P,id=i+','+j;
+  c={kind:'g',id,i,j,k:0,gid:galId(i,j),cx,cy,doors:[0,3],lamps:[[cx,cy+LAMPY],[cx,cy-LAMPY]]};ROOMS.set(key,c);return c}
+function getAir(i,j){const key=(i+8192)*16384+(j+8192);let c=AIRS.get(key);if(c)return c;if(AIRS.size>4000)AIRS.clear();c={kind:'a',id:i+','+j,i,j,cx:i*P,cy:j*P};AIRS.set(key,c);return c}
+function inHexL(lx,ly,ap){for(let w=0;w<6;w++)if(lx*NRM[w][0]+ly*NRM[w][1]>ap)return false;return true}
 
-/* cells: galleries ('g') and vestibules ('v'), built on demand from their lattice position; doorways are portals */
-const CELLS=new Map();
-function getCell(id){let c=CELLS.get(id);if(c)return c;if(CELLS.size>6000)CELLS.clear();c=buildCell(id);CELLS.set(id,c);return c}
-function hexVerts(cx,cy,ap){const r=ap/Math.cos(Math.PI/6);return[...Array(6)].map((_,w)=>[cx+r*Math.cos((w*60-30)*Math.PI/180),cy+r*Math.sin((w*60-30)*Math.PI/180)])}
-function buildCell(id){
-  const p=id.split(','),kind=p[0],i=+p[1],j=+p[2],q=+p[3],segs=[];
-  const add=(ax,ay,bx,by,type,o)=>segs.push(Object.assign({ax,ay,bx,by,type,u0:0,u1:1,len:Math.hypot(bx-ax,by-ay),to:null},o));
-  // a side split into jamb | middle | jamb: a doorway (portal) or a closet door
-  const split=(a,b,half,type,to)=>{const L=Math.hypot(b[0]-a[0],b[1]-a[1]),s0=(L/2-half)/L,s1=(L/2+half)/L,at=s=>[a[0]+(b[0]-a[0])*s,a[1]+(b[1]-a[1])*s],P=at(s0),Q=at(s1);
-    add(a[0],a[1],P[0],P[1],'plain',{u0:0,u1:s0,len:L});add(P[0],P[1],Q[0],Q[1],type,{len:2*half,to:to||null});add(Q[0],Q[1],b[0],b[1],'plain',{u0:s1,u1:1,len:L})};
-  if(kind==='g'){
-    const[cx,cy]=galPos(i,j,q),V=hexVerts(cx,cy,A),dB=2*q,dA=(2*q+3)%6;
-    const bId=q===0?`v,${i},${j},1`:q===1?`v,${i},${j-1},1`:`v,${i-1},${j},1`;
-    for(let w=0;w<6;w++){const a=V[w],b=V[(w+1)%6];
-      if(w===dB)split(a,b,HW,'door',bId);else if(w===dA)split(a,b,HW,'door',`v,${i},${j},0`);else add(a[0],a[1],b[0],b[1],'shelf',{wall:w,len:R})}
-    const ang=q*2*Math.PI/3,px=-Math.sin(ang),py=Math.cos(ang);
-    return{kind:'g',id,i,j,k:q,gid:galId(i,j,q),cx,cy,segs,doors:[dB,dA],lamps:[[cx+px*LAMPY,cy+py*LAMPY],[cx-px*LAMPY,cy-py*LAMPY]]};
-  }
-  const[cx,cy]=nodePos(i,j,q),V=hexVerts(cx,cy,AV);
-  const open=q?{3:`g,${i},${j},0`,5:`g,${i},${j+1},1`,1:`g,${i+1},${j},2`}:{0:`g,${i},${j},0`,2:`g,${i},${j},1`,4:`g,${i},${j},2`};
-  const shut=q?{0:'mirror',2:'sleep',4:'privy'}:{1:'sleep',3:'mirror',5:'privy'};
-  for(let w=0;w<6;w++){const a=V[w],b=V[(w+1)%6];
-    if(open[w])split(a,b,HW,'door',open[w]);else if(shut[w]==='mirror')add(a[0],a[1],b[0],b[1],'mirror',{});else split(a,b,0.45,shut[w])}
-  return{kind:'v',id,i,j,b:q,cx,cy,segs};
+/* the segments of one square of the grid, in coordinates centred on its gallery: the gallery's walls seen from inside,
+   and everything in the open air around it - the gallery's outside, the pillars at the corners, the railings */
+const SQIN=[],SQAIR=[];
+{const sg=(L,ax,ay,bx,by,type,o)=>L.push(Object.assign({ax,ay,bx,by,type,u0:0,u1:1,len:Math.hypot(bx-ax,by-ay)},o));
+ const r=A/Math.cos(Math.PI/6),V=[...Array(6)].map((_,w)=>[r*Math.cos((w*60-30)*Math.PI/180),r*Math.sin((w*60-30)*Math.PI/180)]);
+ for(let w=0;w<6;w++){const a=V[w],b=V[(w+1)%6];
+   if(w===0||w===3){const s0=(R/2-HW)/R,s1=(R/2+HW)/R,at=s=>[a[0]+(b[0]-a[0])*s,a[1]+(b[1]-a[1])*s],p=at(s0),q=at(s1);
+     for(const [L,side] of[[SQIN,'plain'],[SQAIR,'ext']]){sg(L,a[0],a[1],p[0],p[1],side,{u0:0,u1:s0,len:R,wall:w});sg(L,p[0],p[1],q[0],q[1],'door',{len:2*HW});sg(L,q[0],q[1],b[0],b[1],side,{u0:s1,u1:1,len:R,wall:w})}}
+   else{sg(SQIN,a[0],a[1],b[0],b[1],'shelf',{wall:w,len:R});sg(SQAIR,a[0],a[1],b[0],b[1],'ext',{wall:w,len:R})}}
+ // corner pillars: the one in this square's north-west corner of each crossing... named by which corner of the square
+ for(const sx of[-1,1])for(const sy of[-1,1]){
+   const inX=(sx===1&&sy===1)?'sleep':(sx===-1&&sy===-1)?'privy':(sx===1&&sy===-1)?'mirror':'pillar',inY=(sx===1&&sy===-1)?'mirror':'pillar';
+   const x0=sx*PIL0,x1=sx*PIL1,y0=sy*PIL0,y1=sy*PIL1;
+   sg(SQAIR,x1,y0,x1,y1,inX,{});sg(SQAIR,x0,y1,x1,y1,inY,{});sg(SQAIR,x0,y0,x0,y1,'pillar',{});sg(SQAIR,x0,y0,x1,y0,'pillar',{})}
+ // railings along every edge between walkway and open air
+ for(const sx of[-1,1]){sg(SQAIR,sx*CWI,HW,sx*CWI,PLI,'rail',{});sg(SQAIR,sx*CWI,-HW,sx*CWI,-PLI,'rail',{});
+   sg(SQAIR,sx*A,HW,sx*CWI,HW,'rail',{});sg(SQAIR,sx*A,-HW,sx*CWI,-HW,'rail',{})}
+ for(const sy of[-1,1])sg(SQAIR,-PLI,sy*CWI,PLI,sy*CWI,'rail',{});
+ for(const sx of[-1,1])for(const sy of[-1,1]){sg(SQAIR,sx*PLI,sy*PIL1,sx*PLI,sy*CWI,'rail',{});sg(SQAIR,sx*PIL1,sy*PLI,sx*CWI,sy*PLI,'rail',{})}
 }
-function inHexAt(px,py,cx,cy,ap){const dx=px-cx,dy=py-cy;for(let w=0;w<6;w++)if(dx*NRM[w][0]+dy*NRM[w][1]>ap+1e-6)return false;return true}
-/* which gallery or vestibule a point is in (null between rooms) */
-function locate(px,py){
-  const[u,v]=tileUV(px,py),i0=Math.floor(u),j0=Math.floor(v);
-  for(let i=i0-1;i<=i0+2;i++)for(let j=j0-1;j<=j0+2;j++){
-    for(let b=0;b<2;b++){const[x,y]=nodePos(i,j,b);if(Math.abs(px-x)<AV*1.2&&Math.abs(py-y)<AV*1.2&&inHexAt(px,py,x,y,AV))return getCell(`v,${i},${j},${b}`)}
-    for(let k=0;k<3;k++){const[x,y]=galPos(i,j,k);if(Math.abs(px-x)<R+0.1&&Math.abs(py-y)<R+0.1&&inHexAt(px,py,x,y,A))return getCell(`g,${i},${j},${k}`)}}
-  return null;
+const SQSOLID=SQAIR.filter(s=>s.type!=='rail'),SQRAIL=SQAIR.filter(s=>s.type==='rail');
+/* is there catwalk, landing or platform floor here (square-local), and is it inside a stairwell */
+function inWellL(lx,ly){const wx=Math.abs(lx)-P/2,wy=Math.abs(ly)-P/2;return wx*wx+wy*wy<RSW*RSW}
+function airFloorL(lx,ly){const ax=Math.abs(lx),ay=Math.abs(ly);if(ay<=HW&&ax>=A&&ax<=CWI)return true;if(ax>=CWI||ay>=CWI||(ax>=PLI&&ay>=PLI))return!inWellL(lx,ly);return false}
+function airFloor(px,py){return airFloorL(px-P*Math.round(px/P),py-P*Math.round(py/P))}
+function inWell(px,py){return inWellL(px-P*Math.round(px/P),py-P*Math.round(py/P))}
+/* where you may stand */
+function walkable(x,y,rad){
+  const lx=x-P*Math.round(x/P),ly=y-P*Math.round(y/P),ax=Math.abs(lx),ay=Math.abs(ly);
+  if(inHexL(lx,ly,A-rad))return lx*lx+ly*ly>=(RS+rad)*(RS+rad);
+  if(ay<=HW-rad&&ax>=A-rad-0.05&&ax<=CWI+rad+0.01)return true;
+  if(ax>=PIL0-rad&&ax<=PIL1+rad&&ay>=PIL0-rad&&ay<=PIL1+rad)return false;
+  const wx=ax-P/2,wy=ay-P/2;if(wx*wx+wy*wy<(RSW+rad)*(RSW+rad))return false;
+  return ax>=CWI+rad||ay>=CWI+rad||(ax>=PLI+rad&&ay>=PLI+rad);
 }
-function inHoleC(c,px,py){if(!c)return false;const r=c.kind==='g'?RS:RSW;return(px-c.cx)*(px-c.cx)+(py-c.cy)*(py-c.cy)<r*r}
+function placeOf(x,y){const i=Math.round(x/P),j=Math.round(y/P);return inHexL(x-i*P,y-j*P,A)?getRoom(i,j):getAir(i,j)}
 
-/* cast one ray through the Library, room to room through the doorways. It bounces off mirrors, notes every railing it
-   crosses and every room it passes, and stops on the first solid surface: a shelf, a wall, a closet door, the stair */
+/* cast one ray across the grid, square by square, in and out of galleries through their doorways. It bounces off the
+   mirror, notes every railing and every stretch of gallery or open air it passes, and stops on the first solid surface */
 const LEG={n:0,ox:new Float64Array(5),oy:new Float64Array(5),dx:new Float64Array(5),dy:new Float64Array(5),t0:new Float64Array(6)};
-const RH={n:0,t:new Float64Array(24),a:new Float64Array(24),far:new Uint8Array(24),well:new Uint8Array(24)},MH={n:0,t:new Float64Array(4)};
-const TV={n:0,c:new Array(96),t1:new Float64Array(96)};
+const RH={n:0,t:new Float64Array(48),a:new Float64Array(48),far:new Uint8Array(48),well:new Uint8Array(48),kind:new Uint8Array(48)},MH={n:0,t:new Float64Array(4)};
+const TV={n:0,c:new Array(200),t1:new Float64Array(200),door:new Uint8Array(200)};
 const HIT={t:0,type:'',seg:null,cell:null,u:0,x:0,y:0};
+function rh(t,a,far,well,kind){if(RH.n<46){RH.t[RH.n]=t;RH.a[RH.n]=a;RH.far[RH.n]=far;RH.kind[RH.n]=kind;RH.well[RH.n++]=well}}
+function circ(lx,ly,dx,dy,cx,cy,r,lim,t0,well){const qx=lx-cx,qy=ly-cy,a=dx*dx+dy*dy,b=qx*dx+qy*dy,c=qx*qx+qy*qy-r*r,disc=b*b-a*c;if(disc<=0)return;
+  const sq=Math.sqrt(disc),t1=(-b-sq)/a,t2=(-b+sq)/a;if(t1>1e-5&&t1<lim)rh(t0+t1,Math.atan2(qy+dy*t1,qx+dx*t1),0,well,well?2:0);if(t2>1e-5&&t2<lim)rh(t0+t2,Math.atan2(qy+dy*t2,qx+dx*t2),1,well,well?2:0)}
 function cast(ox,oy,dx,dy){
   LEG.n=1;LEG.ox[0]=ox;LEG.oy[0]=oy;LEG.dx[0]=dx;LEG.dy[0]=dy;LEG.t0[0]=0;RH.n=0;MH.n=0;TV.n=0;
-  let cell=G.cell,px=ox,py=oy,t0=0;
-  for(let hop=0;hop<90;hop++){
-    const sg=cell.segs;let best=1e9,bs=null,bk=0;
+  let si=Math.round(ox/P),sj=Math.round(oy/P),inR=G.inRoom,px=ox,py=oy,t0=0,res=null;
+  for(let hop=0;hop<220;hop++){
+    const lx=px-si*P,ly=py-sj*P,sg=inR?SQIN:SQSOLID;let best=1e9,bs=null,bk=0;
     for(let i=0;i<sg.length;i++){const s=sg[i],ex=s.bx-s.ax,ey=s.by-s.ay,den=dx*ey-dy*ex;if(den>-1e-12&&den<1e-12)continue;
-      const wx=s.ax-px,wy=s.ay-py,t=(wx*ey-wy*ex)/den;if(t<=1e-5||t>=best)continue;const q=(wx*dy-wy*dx)/den;if(q<0||q>1)continue;best=t;bs=s;bk=q}
-    // the air shaft of a gallery or the stairwell of a vestibule: note where the ray crosses its railing
-    {const lx=px-cell.cx,ly=py-cell.cy,a=dx*dx+dy*dy,b=lx*dx+ly*dy,rr=cell.kind==='g'?RS:RSW,c=lx*lx+ly*ly-rr*rr,disc=b*b-a*c,wl=cell.kind==='v'?1:0;
-      if(disc>0&&RH.n<22){const sq=Math.sqrt(disc),t1=(-b-sq)/a,t2=(-b+sq)/a;
-        if(t1>1e-5&&t1<best){RH.t[RH.n]=t0+t1;RH.a[RH.n]=Math.atan2(ly+dy*t1,lx+dx*t1);RH.well[RH.n]=wl;RH.far[RH.n++]=0}
-        if(t2>1e-5&&t2<best){RH.t[RH.n]=t0+t2;RH.a[RH.n]=Math.atan2(ly+dy*t2,lx+dx*t2);RH.well[RH.n]=wl;RH.far[RH.n++]=1}}}
-    if(TV.n<96){TV.c[TV.n]=cell;TV.t1[TV.n++]=t0+best}
-    if(!bs)return null;
+      const wx=s.ax-lx,wy=s.ay-ly,t=(wx*ey-wy*ex)/den;if(t<=1e-5||t>=best)continue;const q=(wx*dy-wy*dx)/den;if(q<0||q>1)continue;best=t;bs=s;bk=q}
+    let tp=1e9,ax=0;
+    if(!inR){if(dx>1e-12)tp=(P/2-lx)/dx;else if(dx<-1e-12)tp=(-P/2-lx)/dx;let ty=1e9;if(dy>1e-12)ty=(P/2-ly)/dy;else if(dy<-1e-12)ty=(-P/2-ly)/dy;if(ty<tp){tp=ty;ax=1}}
+    const lim=Math.min(best,tp);
+    if(inR)circ(lx,ly,dx,dy,0,0,RS,lim,t0,0);
+    else{for(let ri=0;ri<SQRAIL.length;ri++){const s=SQRAIL[ri],ex=s.bx-s.ax,ey=s.by-s.ay,den=dx*ey-dy*ex;if(den>-1e-12&&den<1e-12)continue;const wx=s.ax-lx,wy=s.ay-ly,t=(wx*ey-wy*ex)/den;if(t<=1e-5||t>=lim)continue;const q=(wx*dy-wy*dx)/den;if(q<0||q>1)continue;rh(t0+t,q*s.len*0.33,0,0,1)}
+      circ(lx,ly,dx,dy,-P/2,-P/2,RSW,lim,t0,1);circ(lx,ly,dx,dy,P/2,-P/2,RSW,lim,t0,1);circ(lx,ly,dx,dy,-P/2,P/2,RSW,lim,t0,1);circ(lx,ly,dx,dy,P/2,P/2,RSW,lim,t0,1)}
+    if(TV.n<200){TV.c[TV.n]=inR?getRoom(si,sj):getAir(si,sj);TV.t1[TV.n]=t0+lim;TV.door[TV.n++]=bs&&bs.type==='door'&&best<=tp?1:0}
+    if(tp<best){t0+=tp;px+=dx*tp;py+=dy*tp;if(ax)sj+=dy>0?1:-1;else si+=dx>0?1:-1;if(t0>140)break;continue}
+    if(!bs)break;
     t0+=best;const hx=px+dx*best,hy=py+dy*best,u=bs.u0+(bs.u1-bs.u0)*bk;
-    if(bs.to){cell=getCell(bs.to);px=hx;py=hy;if(t0>400)return null;continue}
-    if(bs.type==='mirror'&&u>0.03&&u<0.97&&LEG.n<4){
+    if(bs.type==='door'){inR=!inR;px=hx;py=hy;continue}
+    if(bs.type==='mirror'&&u>0.04&&u<0.96&&LEG.n<4){
       MH.t[MH.n++]=t0;const ex=bs.bx-bs.ax,ey=bs.by-bs.ay,el=Math.hypot(ex,ey),nx=-ey/el,ny=ex/el,dd=dx*nx+dy*ny;dx-=2*dd*nx;dy-=2*dd*ny;
       const j=LEG.n++;LEG.t0[j]=t0;LEG.ox[j]=hx;LEG.oy[j]=hy;LEG.dx[j]=dx;LEG.dy[j]=dy;px=hx;py=hy;continue}
     LEG.t0[LEG.n]=t0;
-    HIT.t=t0;HIT.seg=bs;HIT.cell=cell;HIT.type=bs.type==='mirror'?'frame':bs.type;HIT.u=u;HIT.x=hx;HIT.y=hy;return HIT;
+    HIT.t=t0;HIT.seg=bs;HIT.cell=TV.c[TV.n-1];HIT.type=bs.type==='mirror'?'frame':bs.type;HIT.u=u;HIT.x=hx;HIT.y=hy;res=HIT;break;
   }
-  return null;
+  if(!res){LEG.t0[LEG.n]=t0;HIT.t=Math.max(t0,1);HIT.seg=null;HIT.cell=null;HIT.type='void';HIT.u=0;HIT.x=px;HIT.y=py;res=HIT}
+  // railings in order of distance
+  for(let a=1;a<RH.n;a++){const t=RH.t[a],q=RH.a[a],f=RH.far[a],w=RH.well[a],k=RH.kind[a];let b=a-1;while(b>=0&&RH.t[b]>t){RH.t[b+1]=RH.t[b];RH.a[b+1]=RH.a[b];RH.far[b+1]=RH.far[b];RH.well[b+1]=RH.well[b];RH.kind[b+1]=RH.kind[b];b--}RH.t[b+1]=t;RH.a[b+1]=q;RH.far[b+1]=f;RH.well[b+1]=w;RH.kind[b+1]=k}
+  return res;
 }
 let PX_=0,PY_=0;
 function pointAt(t){let j=0;while(j+1<LEG.n&&t>=LEG.t0[j+1])j++;const q=t-LEG.t0[j];PX_=LEG.ox[j]+LEG.dx[j]*q;PY_=LEG.oy[j]+LEG.dy[j]*q}
+const IVA=new Float64Array(64),IVB=new Float64Array(64);let IVN=0;
+function onWalk(t){for(let k=0;k<IVN;k++)if(t>=IVA[k]&&t<=IVB[k])return true;return false}
+function walkways(){
+  let st=false,from=0,q=0;IVN=0;const close=t=>{if(IVN<64){IVA[IVN]=from;IVB[IVN++]=t}};
+  for(let r=0;r<TV.n;r++){const ts=r?TV.t1[r-1]:0,te=TV.t1[r];
+    if(TV.c[r].kind!=='a'){if(st)close(ts);st=false;while(q<RH.n&&RH.t[q]<=te)q++;continue}
+    if(r===0){st=airFloor(G.x,G.y);from=0}else if(TV.c[r-1].kind!=='a'){st=true;from=ts}
+    while(q<RH.n&&RH.t[q]<=te){if(RH.kind[q]){if(st)close(RH.t[q]);else from=RH.t[q];st=!st}q++}}
+  if(st&&TV.n)close(TV.t1[TV.n-1]);
+}
 function cellAt(t){for(let r=0;r<TV.n;r++)if(t<=TV.t1[r])return TV.c[r];return TV.n?TV.c[TV.n-1]:null}
+function inHoleC(c,px,py){if(!c)return false;if(c.kind==='g')return(px-c.cx)*(px-c.cx)+(py-c.cy)*(py-c.cy)<RS*RS;return!airFloor(px,py)}
 
 /* textures: a bookcase of five shelves of thirty-two books per wall, generated from the wall's coordinates so the same
    wall always looks the same; a burned variant; oak panels, the two closet doors, the stairwell, floor and ceiling */
@@ -169,6 +187,8 @@ function closetTex(sleep){const w=texCanvas(32,64);w.fillStyle='#2a1a10';w.fillR
   else{w.fillRect(13,16,6,1);w.fillRect(13,16,1,3);w.fillRect(18,16,1,3);w.fillRect(14,19,4,1);w.fillRect(15,20,2,1)}
   return w.getImageData(0,0,32,64).data}
 const CLOSET_S=closetTex(true),CLOSET_P=closetTex(false);
+const EXTT=(()=>{const w=texCanvas(32,32);w.fillStyle='#2e2016';w.fillRect(0,0,32,32);for(let x=0;x<32;x+=4){w.fillStyle=x%8?'#3a2818':'#33231a';w.fillRect(x,0,3,32)}w.fillStyle='#1d140c';w.fillRect(0,0,32,2);w.fillRect(0,30,32,2);return w.getImageData(0,0,32,32).data})();
+const STONE=(()=>{const w=texCanvas(32,32),rnd=prng(91);w.fillStyle='#4a443c';w.fillRect(0,0,32,32);for(let y=0;y<32;y+=8)for(let x=(y/8)%2?-8:0;x<32;x+=16){const c=60+rnd()*20|0;w.fillStyle=`rgb(${c},${c-6},${c-12})`;w.fillRect(x+1,y+1,14,6)}return w.getImageData(0,0,32,32).data})();
 const STAIRT=(()=>{const w=texCanvas(64,64);w.fillStyle='#2a1a10';w.fillRect(0,0,64,64);w.fillStyle='#07050a';w.fillRect(5,0,54,64);
   for(let y=0;y<64;y+=3){const lit=Math.max(0,1-Math.abs(y-46)/40),c=Math.round(30+80*lit),side=(y/3)%2?1:-1,len=Math.round(10+16*lit);
     w.fillStyle=`rgb(${c},${Math.round(c*0.8)},${Math.round(c*0.6)})`;if(side>0)w.fillRect(34,y,len,2);else w.fillRect(30-len,y,len,2);
@@ -241,9 +261,9 @@ const SENTENCES=["the weights remember what you deleted.","yesterday you ran. th
    Your page is not scattered by chance: it lives near one gallery and floor tied to your phrase, and favours two walls.
    The closer you are (tiles across the honeycomb, plus floors up or down), the denser it gets. */
 const BIO={};
-function bioPlan(phrase){let P=BIO[phrase];if(P)return P;const r=prng(hashStr('bio|'+phrase)),a=Math.floor(r()*4),b=(a+1+Math.floor(r()*3))%4;
-  P={walls:[a+1,b+1],i:Math.floor(r()*NT),j:Math.floor(r()*NT),k:Math.floor(r()*3),f:Math.floor(r()*NF)};P.g=galId(P.i,P.j,P.k);return BIO[phrase]=P}
-function bioDist(g,f,phrase){const P=bioPlan(phrase),q=galInfo(g);return tileD(q.i,q.j,P.i,P.j)+(q.k!==P.k?1:0)+torusD(f,P.f,NF)}
+function bioPlan(phrase){const P0=BIO[phrase];if(P0)return P0;const r=prng(hashStr('bio|'+phrase)),a=Math.floor(r()*4),b=(a+1+Math.floor(r()*3))%4;
+  const Q={walls:[a+1,b+1],i:Math.floor(r()*NT),j:Math.floor(r()*NT),k:0,f:Math.floor(r()*NF)};Q.g=galId(Q.i,Q.j);return BIO[phrase]=Q}
+function bioDist(g,f,phrase){const P=bioPlan(phrase),q=galInfo(g);return tileD(q.i,q.j,P.i,P.j)+torusD(f,P.f,NF)}
 function bioChance(g,f,wall,phrase){const P=bioPlan(phrase),base=Math.max(1/2400,Math.pow(0.45,bioDist(g,f,phrase))/12);return P.walls.includes(wallNo(galInfo(g).k,wall))?base:base*0.12}
 function makePage(g,f,wall,shelf,book,page,phrase){
   const key=g+'.'+f+'|'+wall+'|'+shelf+'|'+book+'|'+page,h=hashStr(key),rnd=prng(h);
@@ -259,8 +279,8 @@ const G={};
 const keys={};
 function reset(){
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
-  let c,f,d;do{c=getCell(`g,${Math.floor(Math.random()*NT)},${Math.floor(Math.random()*NT)},${Math.floor(Math.random()*3)}`);f=Math.floor(Math.random()*NF);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
-  Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),seen:new Map([[c.gid+':'+f,c.id+':0']]),
+  let c,f,d;do{c=getRoom(Math.floor(Math.random()*NT),Math.floor(Math.random()*NT));f=Math.floor(Math.random()*NF);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
+  Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),seen:new Map([[c.gid+':'+f,c.id+':0']]),
     phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,order:false,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
@@ -288,17 +308,6 @@ function collideHex(x,y,rad){
 }
 function collideE(x,y,rad){const C=G.room,[a,b]=collideHex(x-C.cx,y-C.cy,rad);return[a+C.cx,b+C.cy]}
 function wallHitIndex(x,y,rad){for(let i=0;i<6;i++){if(x*NRM[i][0]+y*NRM[i][1]>A-rad-0.02)return i}return -1}
-/* you walk through the doorways between galleries and vestibules: push off every wall nearby, the shaft and the stair */
-function pushSeg(p,s,rad){const ex=s.bx-s.ax,ey=s.by-s.ay;let t=((p[0]-s.ax)*ex+(p[1]-s.ay)*ey)/(ex*ex+ey*ey);t=t<0?0:t>1?1:t;
-  const qx=s.ax+ex*t,qy=s.ay+ey*t,dx=p[0]-qx,dy=p[1]-qy,d=Math.hypot(dx,dy);if(d<rad&&d>1e-9){p[0]=qx+dx/d*rad;p[1]=qy+dy/d*rad}}
-function pushCircle(p,cx,cy,r){const dx=p[0]-cx,dy=p[1]-cy,d=Math.hypot(dx,dy);if(d<r){if(d<1e-9)p[0]=cx+r;else{p[0]=cx+dx/d*r;p[1]=cy+dy/d*r}}}
-function collideP(x,y,rad){
-  const cells=[G.cell];for(const s of G.cell.segs)if(s.to)cells.push(getCell(s.to));
-  const p=[x,y];
-  for(let it=0;it<3;it++)for(const q of cells){for(const s of q.segs)if(!s.to)pushSeg(p,s,rad);pushCircle(p,q.cx,q.cy,(q.kind==='g'?RS:RSW)+rad)}
-  return p;
-}
-
 /* ---- sound: everything is synthesised with the Web Audio API, nothing is downloaded. It starts on your first tap or key ---- */
 const SND={ctx:null,on:true,out:null,noise:null,droneG:null,droneT:0};
 try{SND.on=localStorage.getItem('aom-sound')!=='off'}catch(e){}
@@ -363,9 +372,10 @@ function update(dt){
   if(keys.r||keys.f)G.pitch=Math.max(-0.45,Math.min(0.45,G.pitch+((keys.r?1:0)-(keys.f?1:0))*0.9*dt));
   const sp=2.2*dt*fwd;
   if(fwd){G.walkT+=dt*8*Math.abs(fwd)}
-  const[nx,ny]=collideP(G.x+Math.cos(G.ang)*sp,G.y+Math.sin(G.ang)*sp,0.3);G.x=nx;G.y=ny;
-  const lc=locate(G.x,G.y);if(lc)G.cell=lc;
-  if(G.cell.kind==='g'&&G.cell!==G.room){enterRoom(G.cell);sfx('HEXAGON '+G.gal,'mind')}
+  if(sp){let nx=G.x+Math.cos(G.ang)*sp,ny=G.y+Math.sin(G.ang)*sp;
+    if(!walkable(nx,ny,0.3)){if(walkable(nx,G.y,0.3))ny=G.y;else if(walkable(G.x,ny,0.3))nx=G.x;else{nx=G.x;ny=G.y}}
+    G.x=nx;G.y=ny;G.cell=placeOf(G.x,G.y);G.inRoom=G.cell.kind==='g'}
+  if(G.inRoom&&G.cell!==G.room){enterRoom(G.cell);sfx('HEXAGON '+G.gal,'mind')}
   if(keys.swing){keys.swing=false;doSwing()}
   if(keys.read){keys.read=false;doRead()}
   G.swing=Math.max(0,G.swing-dt*4);G.swingCd=Math.max(0,G.swingCd-dt);G.hurtCd=Math.max(0,G.hurtCd-dt);G.flash=Math.max(0,G.flash-dt*2);G.sleepCd=Math.max(0,G.sleepCd-dt);
@@ -454,8 +464,7 @@ function throwOil(){
   if(G.oil<2){sfx('NOT ENOUGH OIL');return}
   G.oil-=2;G.swingCd=0.8;G.swing=1;snd('throw');
   const dx=Math.cos(G.ang),dy=Math.sin(G.ang),h=cast(G.x,G.y,dx,dy);let d=2.6;if(h&&h.t-0.35<d)d=Math.max(0.5,h.t-0.35);
-  let fx=G.x+dx*d,fy=G.y+dy*d,fc=locate(fx,fy);while(!fc&&d>0.5){d-=0.3;fx=G.x+dx*d;fy=G.y+dy*d;fc=locate(fx,fy)}
-  if(!fc){fx=G.x;fy=G.y;fc=G.cell}
+  const fx=G.x+dx*d,fy=G.y+dy*d,fc=placeOf(fx,fy);
   if(inHoleC(fc,fx,fy)){sfx('IT FALLS AWAY','mind');return}
   G.fires.push({x:fx,y:fy,t:12,fl:G.floor});sfx('FWOOMP!','red');snd('fire');
   // oil splashed against a bookcase sets the whole wall alight, and that is a sin
@@ -472,15 +481,15 @@ function sin(kind,wallN,gid){const at='in hexagon '+numWords(gid==null?G.gal:gid
 /* Read does whatever is in front of you: a shelf, the Index, the stair, a closet, the mirror */
 function doRead(){
   for(const e of G.ents)if(e.type==='index'){const dx=e.x-G.x,dy=e.y-G.y;if(Math.hypot(dx,dy)<1.25&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.7){G.lastHit={t:Math.hypot(dx,dy)};useIndex();return}}
-  if(G.cell.kind==='v'){const dx=G.cell.cx-G.x,dy=G.cell.cy-G.y;if(Math.hypot(dx,dy)<RSW+1.3&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.75){G.lastHit={t:Math.hypot(dx,dy)-RSW};G.choice='stairs';openNote('THE SPIRAL STAIR','It sinks into the abyss and climbs out of sight. Every floor is the same.');return}}
+  if(!G.inRoom){const dx=P*(Math.round(G.x/P-0.5)+0.5)-G.x,dy=P*(Math.round(G.y/P-0.5)+0.5)-G.y;if(Math.hypot(dx,dy)<RSW+1.3&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.75){G.lastHit={t:Math.hypot(dx,dy)-RSW};G.choice='stairs';openNote('THE SPIRAL STAIR','It sinks into the abyss and climbs out of sight. Every floor is the same.');return}}
   const h=cast(G.x,G.y,Math.cos(G.ang),Math.sin(G.ang));
-  if(MH.n&&MH.t[0]<=1.9){G.lastHit={t:MH.t[0]};openNote('THE MIRROR','It doubles everything in the hallway, faithfully, you included. Some librarians take it as proof that the Library is not infinite: why else would it need the illusion? Others say it proves the opposite.');return}
+  if(MH.n&&MH.t[0]<=1.9){G.lastHit={t:MH.t[0]};openNote('THE MIRROR','Set into a stone pillar of the platform, it doubles the catwalks, the open air and you, faithfully. Some librarians take it as proof that the Library is not infinite: why else would it need the illusion? Others say it proves the opposite.');return}
   if(!h||h.t>1.9){sfx('NOTHING TO READ');return}
   G.lastHit={t:h.t};
   const f=G.floor;
   if(h.type==='sleep'){doSleep();return}
-  if(h.type==='privy'){openNote('A VERY SMALL CLOSET','The other closet off the hallway, for necessities. For once, nothing in here to read.');return}
-  if(h.type==='frame'){openNote('THE MIRROR','A gilt frame. In the glass, another hallway, another you.');return}
+  if(h.type==='privy'){openNote('A VERY SMALL CLOSET','The other closet in the pillars of the platform, for necessities. For once, nothing in here to read.');return}
+  if(h.type==='frame'){openNote('THE MIRROR','A gilt frame. In the glass, another platform, another you.');return}
   if(h.type!=='shelf'){sfx('NO SHELVES HERE');return}
   const g=h.cell.gid,k=h.cell.k,wall=h.seg.wall,key=g+'.'+f+':'+wall;
   if(burned.has(key)){G.sanity=Math.max(0,G.sanity-1);if(!G.hasRod){G.hasRod=true;G.weapon='rod';openNote('BURNED SHELF','. . . ash . . . Among the cinders a shelf rod comes loose. You sharpen it on the stone lip of the shaft.','You found a SHELF ROD: quick, with a long reach. '+(FINE?'Q or 1 2 3':'Tap your hand')+' to switch weapons.')}else openNote('BURNED SHELF','. . . ash . . .','Only ash. These books are lost forever. −1 sanity');return}
@@ -525,22 +534,26 @@ function climb(dir){snd('stairs');G.choice=null;G.note=null;G.state='climb';G.cl
 function die(){if(G.state==='dying'||G.state==='dead')return;snd('bad');G.state='dying';G.dieT=0;G.journal=false}
 
 /* ---- the renderer ---- */
-const LAMPS={key:null,list:[]};let TR=1,TG=1,TB=1,FLICK=1,LANR=4,HZ=100; // HZ: the horizon row, moved by looking up and down
+const LAMPS={key:null,list:[]},MCOLS=[];let TR=1,TG=1,TB=1,FLICK=1,LANR=4,HZ=100; // HZ: the horizon row, moved by looking up and down
 const LAMPR2=4.6*4.6;
 let FIREL=[];const AMB=0.085,LAMPI=0.62;
-function lampC(c,px,py){let L=0,w;if(c&&c.kind==='g'){const q=c.lamps;let dx=px-q[0][0],dy=py-q[0][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*w*w*w;dx=px-q[1][0];dy=py-q[1][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*w*w*w}
+const JR2=6.5*6.5,JLI=0.75;
+function lampC(c,px,py){let L=0,w;if(c&&c.kind==='a'){const jx=P*(Math.round(px/P-0.5)+0.5)-px,jy=P*(Math.round(py/P-0.5)+0.5)-py;w=1-(jx*jx+jy*jy)/JR2;if(w>0)L+=JLI*w*w*w}
+  else if(c&&c.kind==='g'){const q=c.lamps;let dx=px-q[0][0],dy=py-q[0][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*w*w*w;dx=px-q[1][0];dy=py-q[1][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*w*w*w}
   if(FIREL.length)
   for(let i=0;i<FIREL.length;i+=2){const dx=px-FIREL[i],dy=py-FIREL[i+1];w=1-(dx*dx+dy*dy)/7;if(w>0)L+=0.65*FLICK*w*w*w}return L}
 function lanL(d){const v=d<LANR?1-d/LANR:0;return FLICK*v*v}
 function lightP(c,px,py,d){return AMB+lanL(d)+lampC(c,px,py)}
-const FOG=[...Array(MAXLV+2)].map((_,m)=>Math.pow(0.78,m+0.3));let CW_LAMP=0,CW_D2=0;
+const AIRLV=9,FOG=[...Array(AIRLV+2)].map((_,m)=>Math.pow(0.8,m+0.3));let CW_LAMP=0,CW_D2=0;
 function put(i,r,g,b,L){buf[i]=r*L*TR;buf[i+1]=g*L*TG;buf[i+2]=b*L*TB}
 /* a wall pixel at height z on the floor lv levels from yours */
 const LVTEX=new Array(2*MAXLV+3);let LVSTAMP=0;const LVAT=new Int32Array(2*MAXLV+3);
 function colTex(h,lv){const j=lv+MAXLV+1;if(LVAT[j]!==LVSTAMP){LVAT[j]=LVSTAMP;LVTEX[j]=wallTex(h.cell.gid,wrapN(G.floor+lv,NF),h.seg.wall)}return LVTEX[j]}
 function wallPx(i,h,z,lv,L){
+  if(h.type==='void'){buf[i]=buf[i+1]=buf[i+2]=0;return}
   const s=h.seg,zz=Math.max(0,Math.min(WALLH-1e-6,z));let tex,ti;L*=(1-zz/WALLH*0.55)*2.0;
   if(h.type==='shelf'){tex=colTex(h,lv);ti=((63-(zz/WALLH*64|0))*64+Math.min(63,h.u*64|0))*4}
+  else if(h.type==='ext'||h.type==='pillar'){tex=h.type==='ext'?EXTT:STONE;ti=((31-(zz/WALLH*32|0))*32+((((h.u*s.len/(h.type==='ext'?1.2:0.7))%1)*32)|0))*4}
   else if(h.type==='plain'){tex=PANEL;ti=((31-(zz/WALLH*32|0))*32+((((h.u*s.len/0.85)%1)*32)|0))*4}
   else if(h.type==='sleep'||h.type==='privy'){tex=h.type==='sleep'?CLOSET_S:CLOSET_P;ti=((63-(zz/WALLH*64|0))*32+Math.min(31,h.u*32|0))*4}
   else if(h.type==='stair'){tex=STAIRT;ti=((63-(zz/WALLH*64|0))*64+Math.min(63,h.u*64|0))*4}
@@ -551,7 +564,8 @@ function floorPx(i,px,py,L){const ti=((((py%1)+1)%1*16|0)*16+(((px%1)+1)%1*16|0)
 function ceilPx(i,px,py,L){const ti=((((py%1)+1)%1*16|0)*16+(((px%1)+1)%1*16|0))*4;put(i,ceilTex[ti],ceilTex[ti+1],ceilTex[ti+2],L*2.2)}
 /* a ray that went into an air shaft: it falls (or rises) past the other floors until it leaves the shaft, then lands on
    whatever is there - the shaft's stone lip, a railing, or the floor, ceiling or shelves of another storey */
-function shaftPx(i,t,s,tw,up){
+function shaftPx(i,t,s,up,r){
+  const tw=r==null?TV.t1[TV.n-1]:TV.t1[r],fin=r==null||r===TV.n-1;
   let te=-1,ri=0;for(let r=0;r<RH.n;r++)if(RH.far[r]&&RH.t[r]>t){te=RH.t[r];ri=r;break}
   if(te<0){buf[i]=buf[i+1]=buf[i+2]=0;return}
   if(RH.well[ri]){const z2=up?EYE+s*te:EYE-s*te,lv=Math.abs(z2)/FH;if(lv>MAXLV){buf[i]=buf[i+1]=buf[i+2]=0;return}
@@ -563,11 +577,34 @@ function shaftPx(i,t,s,tw,up){
   if(zl>WALLH||zl<RAILH){pointAt(te);const dx=PX_-G.x,dy=PY_-G.y,dz=z2-EYE,L=(AMB+lampC(cellAt(te),PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog*1.6;
     if(zl>WALLH)put(i,70,60,52,L);else put(i,90,58,34,L);return}
   const tn=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;
-  if(tn<tw){pointAt(tn);const cn=cellAt(tn);if(inHoleC(cn,PX_,PY_)){buf[i]=buf[i+1]=buf[i+2]=0;return}
+  if(tn<tw){pointAt(tn);const cn=r==null?cellAt(tn):TV.c[r];if(cn.kind==='g'&&inHoleC(cn,PX_,PY_)){buf[i]=buf[i+1]=buf[i+2]=0;return}
     const dx=PX_-G.x,dy=PY_-G.y,dz=(up?m*FH+WALLH:m*FH)-EYE,L=(AMB+lampC(cn,PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog;
     if(up)ceilPx(i,PX_,PY_,L);else floorPx(i,PX_,PY_,L);return}
-  const zw=up?EYE+s*tw:EYE-s*tw,dz=zw-EYE;wallPx(i,HIT,zw-m*FH,m,(AMB+CW_LAMP+lanL(Math.sqrt(CW_D2+dz*dz)))*fog);
+  const zw=up?EYE+s*tw:EYE-s*tw,dz=zw-EYE;if(fin)wallPx(i,HIT,zw-m*FH,m,(AMB+CW_LAMP+lanL(Math.sqrt(CW_D2+dz*dz)))*fog);else put(i,74,48,28,(AMB+0.2)*fog*2);
 }
+/* a ray out in the open air: it falls (or rises) past the other floors and lands on a catwalk, a gallery's floor or
+   ceiling through its doorway, or the side of a gallery or a pillar, which run through every floor */
+function surfPx(i,z,t){const m=Math.floor(z/FH),zl=z-m*FH,am=m<0?-m:m;if(am>AIRLV){buf[i]=buf[i+1]=buf[i+2]=0;return}
+  const dz=z-EYE,L=(AMB+CW_LAMP+lanL(Math.sqrt(CW_D2+dz*dz)))*FOG[am];if(zl>WALLH)put(i,46,32,20,L*2);else wallPx(i,HIT,zl,m,L)}
+function airPx(i,s,up,r){
+  let iv=0;
+  for(let k=1;k<=AIRLV;k++){
+    const tk=up?(k*FH-CATT-EYE)/s:(EYE+k*FH)/s;
+    while(r<TV.n&&TV.t1[r]<=tk){
+      const tb=TV.t1[r],zb=up?EYE+s*tb:EYE-s*tb;
+      if(r===TV.n-1){if(HIT.cell)surfPx(i,zb,tb);else buf[i]=buf[i+1]=buf[i+2]=0;return}
+      if(TV.door[r]&&TV.c[r].kind==='a'){const m=Math.floor(zb/FH),zl=zb-m*FH,am=Math.min(AIRLV,m<0?-m:m);
+        if(zl>WALLH){pointAt(tb);put(i,46,32,20,(AMB+lampC(TV.c[r],PX_,PY_))*FOG[am]*2);return}
+        const tf=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;pointAt(tf);const c=TV.c[r+1],L=(AMB+lampC(c,PX_,PY_))*FOG[am];if(up)ceilPx(i,PX_,PY_,L*0.8);else floorPx(i,PX_,PY_,L);return}
+      r++}
+    if(r>=TV.n){buf[i]=buf[i+1]=buf[i+2]=0;return}
+    while(iv<IVN&&IVB[iv]<tk)iv++;
+    if(iv<IVN&&IVA[iv]<=tk&&TV.c[r].kind==='a'){pointAt(tk);const dx=PX_-G.x,dy=PY_-G.y,dz=(up?k:-k)*FH-EYE,L=(AMB+lampC(TV.c[r],PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
+      if(up)ceilPx(i,PX_,PY_,L*0.7);else catPx(i,PX_,PY_,L);return}
+  }
+  buf[i]=buf[i+1]=buf[i+2]=0;
+}
+function catPx(i,px,py,L){const ti=((((px%1)+1)%1*16|0)*16+(((py%1)+1)%1*16|0))*4;put(i,floorTex[ti]*0.85,floorTex[ti+1]*0.8,floorTex[ti+2]*0.75,L*2.2)}
 function render(){
   FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=3.2+Math.min(G.oil,10)*0.55;
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);
@@ -581,7 +618,7 @@ function render(){
     LGN[x]=LEG.n;for(let j=0;j<LEG.n;j++){const b=x*5+j;LGX[b]=LEG.ox[j];LGY[b]=LEG.oy[j];LGDX[b]=LEG.dx[j];LGDY[b]=LEG.dy[j];LGT0[b]=LEG.t0[j]}
     NR[x]=0;MT[x]=1e9;
     if(!h){zbuf[x]=1e9;for(let y=0;y<H;y++){const i=(y*W+x)*4;buf[i]=buf[i+1]=buf[i+2]=0}continue}
-    const tw=h.t;zbuf[x]=tw;LVSTAMP++;
+    const tw=h.t;zbuf[x]=tw;LVSTAMP++;walkways();
     const yb=H2+EYE*PROJ/tw,yt=H2-(WALLH-EYE)*PROJ/tw,y0=Math.max(0,Math.ceil(yt)),y1=Math.min(H,Math.ceil(yb));
     CW_LAMP=lampC(h.cell,h.x,h.y);CW_D2=(h.x-G.x)*(h.x-G.x)+(h.y-G.y)*(h.y-G.y);const Lw=AMB+CW_LAMP+lanL(Math.sqrt(CW_D2));
     for(let y=y0;y<y1;y++)wallPx((y*W+x)*4,h,(yb-y)/(yb-yt)*WALLH,0,Lw);
@@ -591,8 +628,11 @@ function render(){
         const yy=up?ya-y+yz:y,i=(yy*W+x)*4,s=up?(H2-yy)/PROJ:(yy-H2)/PROJ;if(s<=0){buf[i]=buf[i+1]=buf[i+2]=0;continue}
         const t=(up?WALLH-EYE:EYE)/s;while(ci<TV.n-1&&t>TV.t1[ci])ci++;while(li+1<LEG.n&&t>=LEG.t0[li+1])li++;
         const q=t-LEG.t0[li],px=LEG.ox[li]+LEG.dx[li]*q,py=LEG.oy[li]+LEG.dy[li]*q,c=TV.c[ci];
-        if(inHoleC(c,px,py)){PX_=px;PY_=py;shaftPx(i,t,s,tw,up)}
-        else{const dx=px-G.x,dy=py-G.y,L=AMB+lanL(Math.sqrt(dx*dx+dy*dy))+lampC(c,px,py);if(up)ceilPx(i,px,py,L*0.8);else floorPx(i,px,py,L)}}}
+        if(c.kind==='g'){if(inHoleC(c,px,py)){PX_=px;PY_=py;shaftPx(i,t,s,up,ci)}
+          else{const dx=px-G.x,dy=py-G.y,L=AMB+lanL(Math.sqrt(dx*dx+dy*dy))+lampC(c,px,py);if(up)ceilPx(i,px,py,L*0.8);else floorPx(i,px,py,L)}}
+        else if(!up&&onWalk(t)){const dx=px-G.x,dy=py-G.y;catPx(i,px,py,AMB+lanL(Math.sqrt(dx*dx+dy*dy))+lampC(c,px,py))}
+        else if(inWell(px,py)){PX_=px;PY_=py;shaftPx(i,t,s,up,null)}
+        else airPx(i,s,up,ci)}}
     // railings and the mirror's frame, far to near
     let ri=RH.n-1,mi=MH.n-1;
     while(ri>=0||mi>=0){
@@ -600,15 +640,15 @@ function render(){
     }
   }
   const list=G.ents.filter(e=>!(e.type==='pur'&&e.dead>=1.6)).concat((G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
-  {const[u,v]=tileUV(G.x,G.y),i0=Math.floor(u),j0=Math.floor(v),key=i0+','+j0;
-   if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];
-     for(let i=i0-2;i<=i0+3;i++)for(let j=j0-2;j<=j0+3;j++)for(let k=0;k<3;k++){const[x,y]=galPos(i,j,k);if(Math.abs(x-G.x)>30||Math.abs(y-G.y)>30)continue;
-       for(const q of getCell(`g,${i},${j},${k}`).lamps)LAMPS.list.push({type:'lamp',x:q[0],y:q[1],z0:LAMPZ,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0})}}
+  {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),key=i0+','+j0;
+   if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];const lamp=(x,y,z)=>LAMPS.list.push({type:'lamp',x,y,z0:z,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
+     for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){for(const q of getRoom(i,j).lamps)lamp(q[0],q[1],LAMPZ);lamp((i+0.5)*P,(j+0.5)*P,JLZ)}}
    // with no mirror in view, lamps behind you or far off to the side cannot show
    const mir=LGN.some(n=>n>1),cs=Math.cos(G.ang),sn=Math.sin(G.ang);
    for(const L of LAMPS.list){const dx=L.x-G.x,dy=L.y-G.y,f=dx*cs+dy*sn;if(mir||(f>0.1&&Math.abs(-dx*sn+dy*cs)<f*PLANE+0.6&&f<26))list.push(L)}}
   fires.forEach((F,i)=>list.push({type:'fire',x:F.x,y:F.y,bill:true,hgt:0.6*Math.min(1,F.t/2),cards:FIREC,frame:Math.floor(G.time*10+i)%3,dead:0}));
   if(LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
+  MCOLS.length=0;for(let x=0;x<W;x++)if(LGN[x]>1)MCOLS.push(x);
   for(const e of list)e._d=(e.x-G.x)*(e.x-G.x)+(e.y-G.y)*(e.y-G.y);list.sort((a,b)=>b._d-a._d);
   for(const e of list)drawCard(e);
   // the glass of the mirror is a little cold and dim
@@ -616,7 +656,7 @@ function render(){
   sctx.putImageData(img,0,0);
 }
 function railCol(x,t,a){
-  const yTop=HZ-(RAILH-EYE)*PROJ/t,yBot=HZ+EYE*PROJ/t,post=(((a*24/Math.PI)%2)+2)%2<0.4;pointAt(t);const L=lightP(cellAt(t),PX_,PY_,Math.hypot(PX_-G.x,PY_-G.y))*2.0;
+  const yTop=HZ-(RAILH-EYE)*PROJ/t,yBot=HZ+EYE*PROJ/t,post=(((a*24/Math.PI)%2)+2)%2<0.4;pointAt(t);const L=Math.min(1.05,lightP(cellAt(t),PX_,PY_,Math.hypot(PX_-G.x,PY_-G.y)))*2.0;
   for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){const z=EYE-(y-HZ)*t/PROJ,i=(y*W+x)*4;
     if(z>RAILH-0.06)put(i,z>RAILH-0.025?130:96,z>RAILH-0.025?88:62,z>RAILH-0.025?50:36,L);else if(post)put(i,64,40,22,L)}
   const n=NR[x];if(n<4){RT[x*4+n]=t;RY0[x*4+n]=yTop;RY1[x*4+n]=yBot;NR[x]=n+1}
@@ -635,9 +675,14 @@ function drawCard(e){
   const bob=(e.type==='flask')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
   const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.type==='lamp'||e.type==='ph'||e.type==='fire';
   const L=glow?1:Math.min(1.45,lightP(e.self?G.cell:G.room,e.x,e.y,Math.max(e.self?1.6:0,Math.hypot(e.x-G.x,e.y-G.y)))*2.1);
-  for(let x=0;x<W;x++){
-    const n=LGN[x];
-    for(let j=e.self?1:0;j<n;j++){
+  let xa=0,xb=W-1;
+  {const cs=Math.cos(G.ang),sn=Math.sin(G.ang),dx=e.x-G.x,dy=e.y-G.y,f=dx*cs+dy*sn,l=-dx*sn+dy*cs,r=wid/2+0.05;
+   if(f+r<0.08)xb=-1;else{const fl=Math.max(0.08,f-r),c0=(l-r)/fl,c1=(l+r)/fl;xa=Math.max(0,Math.floor((c0/PLANE+1)*W/2)-3);xb=Math.min(W-1,Math.ceil((c1/PLANE+1)*W/2)+3)}}
+  if(e.self)xb=-1;
+  for(let pass=0;pass<2;pass++){const cols=pass?MCOLS:null,nn=pass?MCOLS.length:xb-xa+1;
+  for(let ci=0;ci<nn;ci++){
+    const x=pass?cols[ci]:xa+ci,n=LGN[x];
+    for(let j=pass?1:(e.self?1:0);j<(pass?n:1);j++){
       const b=x*5+j,ox=LGX[b],oy=LGY[b],dx=LGDX[b],dy=LGDY[b],t0=LGT0[b],t1=j+1<n?LGT0[b+1]:zbuf[x];
       let nX,nY;if(e.bill){const qx=ox-e.x,qy=oy-e.y,ql=Math.hypot(qx,qy)||1;nX=qx/ql;nY=qy/ql}else{nX=Math.cos(e.f);nY=Math.sin(e.f)}
       const tX=-nY,tY=nX,ax=e.x-tX*wid/2,ay=e.y-tY*wid/2,ex=tX*wid,ey=tY*wid,den=dx*ey-dy*ex;if(Math.abs(den)<1e-9)continue;
@@ -658,7 +703,7 @@ function drawCard(e){
         put(i,data[ti],data[ti+1],data[ti+2],L);
       }
     }
-  }
+  }}
 }
 
 
@@ -762,23 +807,30 @@ function drawJournal(){
    small hexagons, and once the Index has told you, a red cross marks the gallery of your page */
 function hexPath(g,x,y,r){g.beginPath();for(let w=0;w<6;w++){const a=(w*60-30)*Math.PI/180;g[w?'lineTo':'moveTo'](x+r*Math.cos(a),y+r*Math.sin(a))}g.closePath()}
 function drawMap(g,x0,y0,w,h){
-  g.save();g.beginPath();g.rect(x0,y0,w,h);g.clip();g.fillStyle='#ebe0c2';g.fillRect(x0,y0,w,h);
-  const sc=Math.min(w,h)/(LK*4.4),cx=x0+w/2,cy=y0+h/2,[u,v]=tileUV(G.x,G.y),i0=Math.floor(u),j0=Math.floor(v),X=x=>cx+(x-G.x)*sc,Y=y=>cy+(y-G.y)*sc;
+  g.save();g.beginPath();g.rect(x0,y0,w,h);g.clip();g.fillStyle='#2a2018';g.fillRect(x0,y0,w,h);
+  const sc=Math.min(w,h)/(P*4.6),cx=x0+w/2,cy=y0+h/2,i0=Math.round(G.x/P),j0=Math.round(G.y/P),X=x=>cx+(x-G.x)*sc,Y=y=>cy+(y-G.y)*sc;
+  // catwalks over the open air
+  g.fillStyle='#8a7b5c';
+  for(let i=i0-4;i<=i0+4;i++){g.fillRect(X((i+0.5)*P)-0.8*sc,y0,1.6*sc,h)}
+  for(let j=j0-4;j<=j0+4;j++){g.fillRect(x0,Y((j+0.5)*P)-0.8*sc,w,1.6*sc)}
   g.lineWidth=1.5;
-  for(let i=i0-3;i<=i0+4;i++)for(let j=j0-3;j<=j0+4;j++){
-    for(let k=0;k<3;k++){const[x,y]=galPos(i,j,k);if(Math.abs(X(x)-cx)>w/2+R*sc||Math.abs(Y(y)-cy)>h/2+R*sc)continue;
-      const gid=galId(i,j,k),seen=G.rooms.has(gid+':'+G.floor),here=G.room.id===`g,${i},${j},${k}`;
-      hexPath(g,X(x),Y(y),R*sc*0.98);if(seen||here){g.fillStyle=here?'#c9a46a':'#dcc89c';g.fill()}g.strokeStyle=seen||here?'#6b5a44':'rgba(107,90,68,.3)';g.stroke();
-      g.beginPath();g.arc(X(x),Y(y),RS*sc,0,Math.PI*2);g.strokeStyle=seen||here?'rgba(42,32,24,.45)':'rgba(42,32,24,.15)';g.stroke()}
-    for(let b=0;b<2;b++){const[x,y]=nodePos(i,j,b);if(Math.abs(X(x)-cx)>w/2+5||Math.abs(Y(y)-cy)>h/2+5)continue;hexPath(g,X(x),Y(y),AV*sc);g.strokeStyle='rgba(107,90,68,.55)';g.stroke();g.beginPath();g.arc(X(x),Y(y),RSW*sc,0,Math.PI*2);g.fillStyle='rgba(42,32,24,.35)';g.fill()}}
-  if(G.hints>=2){const P=bioPlan(G.phrase);let best=null;
-    for(const oi of[-NT,0,NT])for(const oj of[-NT,0,NT]){const ti=P.i+NT*Math.round((u-P.i)/NT)+oi,tj=P.j+NT*Math.round((v-P.j)/NT)+oj,[x,y]=galPos(ti,tj,P.k),d=Math.hypot(x-G.x,y-G.y);if(!best||d<best[2])best=[x,y,d]}
-    let mx=X(best[0]),my=Y(best[1]);const off=mx<x0+10||mx>x0+w-10||my<y0+10||my>y0+h-10;
+  for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){
+    const x=i*P,y=j*P;if(Math.abs(X(x)-cx)>w/2+R*sc||Math.abs(Y(y)-cy)>h/2+R*sc)continue;
+    // the communal platform and its stairwell
+    g.fillStyle='#8a7b5c';g.fillRect(X(x+P/2)-1.8*sc,Y(y+P/2)-1.8*sc,3.6*sc,3.6*sc);g.beginPath();g.arc(X(x+P/2),Y(y+P/2),RSW*sc,0,Math.PI*2);g.fillStyle='#2a2018';g.fill();
+    // landings to the doorways
+    g.fillStyle='#8a7b5c';g.fillRect(X(x+A),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);g.fillRect(X(x-CWI),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);
+    const seen=G.rooms.has(galId(i,j)+':'+G.floor),here=G.room.id===i+','+j;
+    hexPath(g,X(x),Y(y),R*sc);g.fillStyle=here?'#c9a46a':seen?'#dcc89c':'#efe5c8';g.fill();g.strokeStyle='#6b5a44';g.stroke();
+    g.beginPath();g.arc(X(x),Y(y),RS*sc,0,Math.PI*2);g.strokeStyle='rgba(42,32,24,.35)';g.stroke()}
+  if(G.hints>=2){const Pl=bioPlan(G.phrase),ti=Pl.i+NT*Math.round((i0-Pl.i)/NT),tj=Pl.j+NT*Math.round((j0-Pl.j)/NT);
+    let mx=X(ti*P),my=Y(tj*P);const off=mx<x0+10||mx>x0+w-10||my<y0+10||my>y0+h-10;
     if(off){const dx=mx-cx,dy=my-cy,k=Math.min((w/2-14)/Math.abs(dx||1e-9),(h/2-14)/Math.abs(dy||1e-9));mx=cx+dx*k;my=cy+dy*k}
     g.strokeStyle='#b3261e';g.lineWidth=3;g.beginPath();g.moveTo(mx-6,my-6);g.lineTo(mx+6,my+6);g.moveTo(mx+6,my-6);g.lineTo(mx-6,my+6);g.stroke();
-    const df=signedD(P.f,G.floor,NF);g.font='bold 12px "Courier New",monospace';g.fillStyle='#b3261e';g.textAlign='center';
+    const df=signedD(Pl.f,G.floor,NF);g.font='bold 12px "Courier New",monospace';g.fillStyle='#ff8f6b';g.textAlign='center';
     g.fillText(df===0?(off?'that way':'your page'):(Math.abs(df)+' floor'+(Math.abs(df)>1?'s ':' ')+(df>0?'up':'down')),Math.max(x0+60,Math.min(x0+w-60,mx)),my+(my>cy?-20:10));g.textAlign='left'}
   g.save();g.translate(cx,cy);g.rotate(G.ang);g.fillStyle='#b3261e';g.beginPath();g.moveTo(9,0);g.lineTo(-6,-6);g.lineTo(-3,0);g.lineTo(-6,6);g.closePath();g.fill();g.restore();
+  g.font='bold 13px "Courier New",monospace';g.fillStyle='#efe5c8';g.textAlign='center';g.fillText('N',x0+w/2,y0+3);g.textAlign='left';
   g.restore();
 }
 function drawStory(t,leftTitle,leftText,rightLines,prompt){
@@ -789,7 +841,7 @@ function drawStory(t,leftTitle,leftText,rightLines,prompt){
   let ry=y2+40;rightLines.forEach(l=>{g.font=l.font;g.fillStyle=l.color||'#2a2018';ry=blockG(g,wrapG(g,l.text,pw-72),x2+36,ry,l.lh)+(l.gap||12)});
   g.font='bold 19px "Courier New",monospace';g.fillStyle='#b3261e';g.fillText(prompt,x2+36,y2+ph-52);
 }
-function drawIntro(){drawStory(TX.intro,'THE ARCHIVES OF MADNESS','You wake on the floor of a hexagonal gallery with no memory of arriving. The Library holds every book that could ever be written. Somewhere in it is the page that tells your story.',[{font:'bold 17px "Courier New",monospace',text:'BURNED INTO YOUR MIND',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:30},{font:'italic 23px Georgia,serif',text:'Find those words on a page and the Library lets you go. The galleries run on in every direction through the vestibules; the spiral stair in each vestibule joins the floors. Feed real sentences to the Index at the railing. Lose your mind and the library keeps you.',lh:32}],FINE?'Open your eyes · E or Read':'Tap to open your eyes')}
+function drawIntro(){drawStory(TX.intro,'THE ARCHIVES OF MADNESS','You wake on the floor of a hexagonal gallery with no memory of arriving. The Library holds every book that could ever be written. Somewhere in it is the page that tells your story.',[{font:'bold 17px "Courier New",monospace',text:'BURNED INTO YOUR MIND',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:30},{font:'italic 23px Georgia,serif',text:'Find those words on a page and the Library lets you go. Open-air catwalks run north, south, east and west between the galleries; the spiral stair on each crossing joins the floors. Feed real sentences to the Index at the railing. Lose your mind and the library keeps you.',lh:32}],FINE?'Open your eyes · E or Read':'Tap to open your eyes')}
 function drawWon(){drawStory(TX.won,'YOUR PAGE',`Your page was in hexagon ${G.winG} on floor ${G.winF}. You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'} to find it. You read your own words back to yourself, and the library let go.`,[{font:'bold 17px "Courier New",monospace',text:'YOUR WORDS',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Behind you, the same books return in the same disorder, and another librarian opens their eyes.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
 function drawDead(){drawStory(TX.dead,'HEALTH 0%',`You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'}. Your copy goes back on the shelf, next to every other version of you.`,[{font:'italic 40px Georgia,serif',text:G.foundBio?'You found your page, but too late.':'The library keeps you.',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Somewhere another copy of you is already opening its eyes.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
 
