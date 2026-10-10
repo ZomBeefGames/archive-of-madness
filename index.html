@@ -17,7 +17,7 @@ body{color:var(--paper);font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
 <div id="room">
   <h1 class="sr">Archives of Madness</h1>
-  <canvas id="view" tabindex="0" aria-label="Archives of Madness. A first-person view filling the screen inside a hexagonal library. Health, sanity, your face and lantern oil float at the top as glowing layered models; a layered glowing thumbstick (push up to walk, sideways to turn) and glowing 3D Journal, Read and Swing icons float at the bottom. Keys: W A S D or arrows to move, drag to look around and up or down (or R and F), Q or 1 2 3 switch weapons (bookpress, shelf rod, oil flask), I burns incense, M toggles sound, E reads the shelf you aim at or uses what is in front of you (the Index, the stair, a closet, the mirror), Space swings, J opens the journal."></canvas>
+  <canvas id="view" tabindex="0" aria-label="Archives of Madness. A third-person view (V for first person) filling the screen inside a hexagonal library. Health, sanity, your face and lantern oil float at the top as glowing layered models; a layered glowing thumbstick (push up to walk, sideways to turn) and glowing 3D Journal, Read and Swing icons float at the bottom. Keys: W A S D or arrows to move, drag to look around and up or down (or R and F), Q or 1 2 3 switch weapons (bookpress, shelf rod, oil flask), I burns incense, M toggles sound, E reads the shelf you aim at or uses what is in front of you (the Index, the stair, a closet, the mirror), Space swings, J opens the journal."></canvas>
   <div id="fx" aria-live="polite"></div>
 </div>
 <div id="safe" aria-hidden="true"></div>
@@ -268,10 +268,11 @@ const PURPH=purLegs.map((l,i)=>buildCard(setPx(purBody.concat(l),torch.concat(fl
 function gridRows(rows,pal){const w=Math.max(...rows.map(r=>r.length)),h=rows.length,col=new Array(w*h).fill(null);
   rows.forEach((r,y)=>[...r].forEach((ch,x)=>{if(ch!=='.')col[y*w+x]=rgb(pal[ch]||PAL[ch])}));return{w,h,col}}
 /* a card from a grid of colours: a paper edge one pixel wide around it (unless glowing), plain paper on the back */
-function cardGrid(g,outline){
+function cardGrid(g,outline,gb){
   const b=outline?1:0,w=g.w+2*b,h=g.h+2*b,front=new Uint8ClampedArray(w*h*4),back=new Uint8ClampedArray(w*h*4),at=(x,y)=>x>=0&&y>=0&&x<g.w&&y<g.h?g.col[y*g.w+x]:null;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const c=at(x-b,y-b),o=(y*w+x)*4;
-    if(c){front[o]=c[0];front[o+1]=c[1];front[o+2]=c[2];front[o+3]=255;const q=(x+y)%5===0?0.48:0.56;back[o]=c[0]*q+14;back[o+1]=c[1]*q+10;back[o+2]=c[2]*q+6;back[o+3]=255}
+    if(c){front[o]=c[0];front[o+1]=c[1];front[o+2]=c[2];front[o+3]=255;const cb=gb&&gb.col[(y-b)*g.w+x-b];
+      if(cb){back[o]=cb[0];back[o+1]=cb[1];back[o+2]=cb[2]}else{const q=(x+y)%5===0?0.48:0.56;back[o]=c[0]*q+14;back[o+1]=c[1]*q+10;back[o+2]=c[2]*q+6}back[o+3]=255}
     else if(outline){let e=false;for(let dy=-1;dy<=1&&!e;dy++)for(let dx=-1;dx<=1;dx++)if(at(x-b+dx,y-b+dy)){e=true;break}
       if(e){front[o]=243;front[o+1]=236;front[o+2]=216;front[o+3]=255;back[o]=196;back[o+1]=188;back[o+2]=166;back[o+3]=255}}}
   return{w,h,front,back};
@@ -280,11 +281,11 @@ function cardGrid(g,outline){
 function turnPart(part,deg){
   const g=part.g,a=deg*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a),px=part.px+0.5,py=part.py+0.5;
   let Rr=0;for(const [x,y] of[[0,0],[g.w,0],[0,g.h],[g.w,g.h]])Rr=Math.max(Rr,Math.hypot(x-px,y-py));Rr=Math.ceil(Rr)+1;
-  const S=2*Rr+1,col=new Array(S*S).fill(null);let x0=S,y0=S,x1=-1,y1=-1;
+  const S=2*Rr+1,col=new Array(S*S).fill(null),bk=part.bk,colB=bk?new Array(S*S).fill(null):null;let x0=S,y0=S,x1=-1,y1=-1;
   for(let y=0;y<S;y++)for(let x=0;x<S;x++){const vx=x+0.5-(Rr+0.5),vy=y+0.5-(Rr+0.5),sx=Math.floor(vx*ca+vy*sa+px),sy=Math.floor(-vx*sa+vy*ca+py);
-    if(sx>=0&&sy>=0&&sx<g.w&&sy<g.h){const c=g.col[sy*g.w+sx];if(c){col[y*S+x]=c;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}}
-  const cw=x1-x0+1,ch=y1-y0+1,cc=new Array(cw*ch);for(let y=0;y<ch;y++)for(let x=0;x<cw;x++)cc[y*cw+x]=col[(y+y0)*S+x+x0];
-  const b=part.glow?0:1;return{card:cardGrid({w:cw,h:ch,col:cc},!part.glow),cx:Rr+0.5-x0+b,cy:Rr+0.5-y0+b};
+    if(sx>=0&&sy>=0&&sx<g.w&&sy<g.h){const c=g.col[sy*g.w+sx];if(c){col[y*S+x]=c;if(bk)colB[y*S+x]=bk.col[sy*g.w+sx];if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}}
+  const cw=x1-x0+1,ch=y1-y0+1,cc=new Array(cw*ch),cb=bk?new Array(cw*ch):null;for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){cc[y*cw+x]=col[(y+y0)*S+x+x0];if(bk)cb[y*cw+x]=colB[(y+y0)*S+x+x0]}
+  const b=part.glow?0:1;return{card:cardGrid({w:cw,h:ch,col:cc},!part.glow,bk&&{w:cw,h:ch,col:cb}),cx:Rr+0.5-x0+b,cy:Rr+0.5-y0+b};
 }
 function mkPart(rows,pal,px,py,glow){return{g:gridRows(rows,pal),px,py,glow:!!glow,cache:new Map()}}
 /* ---- painting the parts: soft shapes shaded from a ramp of a few colours (lit from above and in front), dithered between
@@ -309,12 +310,13 @@ function capsule(g,x0,y0,x1,y1,r0,r1,R,ink,extra){
 }
 function stamp(g,rows,ox,oy,pal){rows.forEach((r,y)=>[...r].forEach((ch,x)=>{const X=ox+x,Y=oy+y;if(ch!=='.'&&X>=0&&Y>=0&&X<g.w&&Y<g.h)g.col[Y*g.w+X]=pal[ch]}))}
 /* a part painted by `draw` on a w×h grid, pinned at (px,py) */
-function part(w,h,px,py,draw,glow){const g=blank(w,h);draw(g);return{g,px,py,glow:!!glow,cache:new Map()}}
+function part(w,h,px,py,draw,glow,drawBack){const g=blank(w,h);draw(g,false);let bk=null;if(drawBack){bk=blank(w,h);drawBack(bk)}return{g,px,py,glow:!!glow,cache:new Map(),bk}}
 /* a bone: pinned at the top, `len` long, pointing down when unturned */
 function bone(len,r0,r1,R,extra,pad){const r=Math.ceil(Math.max(r0,r1)),w=2*r+3+(pad||0),c=r+1.5,top=Math.ceil(r0)+1.5;
   return part(w,Math.ceil(top+len+r1+1.5),Math.floor(c),Math.floor(top),g=>{capsule(g,c,top,c,top+len,r0,r1,R,undefined,extra&&extra.shade);if(extra&&extra.draw)extra.draw(g,c,top)})}
 function mirPart(p){if(!p.m){const g=p.g,col=new Array(g.w*g.h);for(let y=0;y<g.h;y++)for(let x=0;x<g.w;x++)col[y*g.w+x]=g.col[y*g.w+g.w-1-x];
-  p.m={g:{w:g.w,h:g.h,col},px:g.w-1-p.px,py:p.py,glow:p.glow,cache:new Map()}}return p.m}
+  p.m={g:{w:g.w,h:g.h,col},px:g.w-1-p.px,py:p.py,glow:p.glow,cache:new Map()};
+  if(p.bk){const c2=new Array(g.w*g.h);for(let y=0;y<g.h;y++)for(let x=0;x<g.w;x++)c2[y*g.w+x]=p.bk.col[y*g.w+g.w-1-x];p.m.bk={w:g.w,h:g.h,col:c2}}}return p.m}
 function partAt(part,deg){const q=Math.round(deg/3)*3;let v=part.cache.get(q);if(!v){v=turnPart(part,q);part.cache.set(q,v)}return v}
 
 /* two-bone reach: from a root toward a target with bones a and b, bending to one side; gives the joint and the end */
@@ -392,6 +394,7 @@ const SEEKRIG={
    skirts hang on springs, so they trail, swing and settle ---- */
 function gaitUpd(e,dt,legW){
   if(e.ox===undefined){e.ox=e.x;e.oy=e.y;e.vx=e.vy=0;e.gp=0;e.dir=1;e.walk=0;e.spr=[0,0,0,0,0,0,0,0,0,0];e.seed=e.seed??Math.random()*6.28}
+  if(Math.abs(e.x-e.ox)+Math.abs(e.y-e.oy)>1){e.ox=e.x;e.oy=e.y}   // a jump (stairs, a new day): no stride
   const k=Math.min(1,dt*10);e.vx+=((e.x-e.ox)/Math.max(dt,1e-3)-e.vx)*k;e.vy+=((e.y-e.oy)/Math.max(dt,1e-3)-e.vy)*k;e.ox=e.x;e.oy=e.y;
   const sp=Math.hypot(e.vx,e.vy),tX=-Math.sin(e.f),tY=Math.cos(e.f),vin=-(e.vx*tX+e.vy*tY);
   if(vin>0.12)e.dir=1;else if(vin<-0.12)e.dir=-1;
@@ -424,7 +427,7 @@ function armOut(put,R,sx,sz,tx,tz,depth,upL,foL,fdepth){
   const[ex,ez,hx,hz]=ik2(sx,sz,tx,tz,upL,foL,-1),fa=downDeg(hx-ex,hz-ez);
   put(R.upper,downDeg(ex-sx,ez-sz),sx,sz,depth,false);put(R.fore,fa,ex,ez,fdepth??depth+0.002,false);return[hx,hz,fa]}
 /* where the player is in the puppet's own frame: across the paper (forward +), out of it (toward the front +), and up */
-function rel(e){e.dir=e.dir||1;const dx=G.x-e.x,dy=G.y-e.y,tX=-Math.sin(e.f),tY=Math.cos(e.f);return[-(dx*tX+dy*tY)/PS*e.dir,(dx*Math.cos(e.f)+dy*Math.sin(e.f)),EYE/PS]}
+function rel(e){e.dir=e.dir||1;const dx=LX-e.x,dy=LY-e.y,tX=-Math.sin(e.f),tY=Math.cos(e.f);return[-(dx*tX+dy*tY)/PS*e.dir,(dx*Math.cos(e.f)+dy*Math.sin(e.f)),0.5/PS]}
 
 function purLayers(e,out){
   if(e.ox===undefined)gaitUpd(e,0,0.58);
@@ -494,6 +497,70 @@ function seekLayers(e,out){
   const[hx2,hz2]=armOut(put,R,shx+1,shz,...tgt(1),0.04,7.5,9,0.042+outD);
   if(reading)put(R.book,-8+2*Math.sin(T*1.1+seed),(fbx+hx2)/2+0.5,(fbz+hz2)/2+2.5,0.034,false);
   else if(fl&&e.stealCd>1.5)put(R.flask,180+20*Math.sin(T*16),hx2,hz2,0.046,false);
+}
+/* ---- you: a librarian in a long brown coat, a lantern in one hand and your weapon in the other. Seen from behind, so
+   the coat and the head have painted backs (seam, belt, the back of your hair) instead of plain paper ---- */
+const RCOAT=ramp('#26170c','#3f2816','#5c3c22','#7a5432','#966b42'),RTROU=ramp('#17161b','#25242c','#35343f','#474654'),RCREAM=ramp('#9c8f72','#cbbd98','#ece0c0'),
+  LPAL={k:INK,y:rgb('#f2c14e'),Y:rgb('#fff4c2'),f:rgb('#ffd34d'),c:rgb('#5a3a22'),i:rgb('#45413b'),I:rgb('#6e685f'),t:rgb('#6b4227'),T:rgb('#9a6a3c'),n:rgb('#e8e0c8'),a:rgb('#2c2a28'),o:rgb('#ff7a2e')};
+function meChest(back){return g=>{const hw=y=>y<1?0:y<3.5?4.6+y*0.8:7.4-(y-3.5)*0.1;
+  paint(g,(x,y)=>Math.abs(x-8.5)<=hw(y),(x,y)=>0.6-0.36*(x-8.5)/hw(y)-(back&&Math.abs(x-8.5)<0.6&&y>4?0.35:0),RCOAT);
+  if(!back){paint(g,(x,y)=>y<4.2&&y>0.6&&x>7.4&&x<12.6,(x,y)=>0.7-0.1*y,RCREAM);stamp(g,["k","","k","","k"],11,7,LPAL)}  // a cream collar and buttons
+  else paint(g,(x,y)=>y<2.6&&y>0.6&&Math.abs(x-8.5)<3.8,()=>0.6,RCREAM,false);
+  paint(g,(x,y)=>y>=13&&y<15&&Math.abs(x-8.5)<=hw(y),(x,y)=>0.4-0.2*(x-8.5)/7,RBOOT,false);stamp(g,["yy","yy"],back?7:10,13,LPAL)}}  // belt and buckle
+function meHead(back){return g=>{
+  capsule(g,6.6,7.4,6.6,7.8,5.4,5.2,back?RHAIR:RSKIN);
+  if(!back){paint(g,(x,y)=>((x-6.4)/6)**2+((y-6.8)/6)**2<=1&&(y<4.4+((x|0)%3===0?0.8:0)||x<3.8+((y|0)%2)),(x,y)=>0.55-0.3*(x-6)/6-0.2*(y-3)/5,RHAIR);
+    stamp(g,["kk.","k..","..S","..S","kk."],8,6,{k:INK,S:rgb('#a8754f')})}
+  else paint(g,(x,y)=>((x-6.6)/5.3)**2+((y-7.4)/5.3)**2<=1&&((x*3+y*5|0)%7===0),()=>0.85,RHAIR,false)}}       // a few lighter strands
+const MERIG={
+  thigh:bone(11.5,3.0,2.6,RTROU),shin:bone(11,2.6,2.1,RTROU,{draw:(g,c,top)=>paint(g,(x,y)=>y>top+6&&Math.abs(x-c)<2.9,(x,y)=>0.55-0.3*(x-c)/3,RBOOT)}),
+  boot:part(10,6,2,1,g=>paint(g,(x,y)=>y>0.4&&y<5.6&&x>0.3&&(x<7||(x-7)*(x-7)/(2.4*2.4)+(y-3.8)*(y-3.8)/(1.8*1.8)<=1)&&!(y<2.4&&x>5),(x,y)=>y>4.5?0.1:0.6-0.07*y,RBOOT)),
+  chest:part(17,18,8,17,meChest(false),false,meChest(true)),
+  skirt:part(13,16,6,0,g=>{const hw=y=>4.4+y*0.2;paint(g,(x,y)=>Math.abs(x-6.5)<=hw(y)&&y<14.5-((x|0)%5===0?0.8:0),(x,y)=>0.58-0.34*(x-6.5)/hw(y)-(((x|0)+2)%4===0?0.2:0),RCOAT)}),
+  upper:bone(8.5,2.8,2.5,RCOAT),
+  fore:bone(8.5,2.5,2.8,RCOAT,{draw:(g,c,top)=>{paint(g,(x,y)=>y>top+7.6&&y<top+9.2&&Math.abs(x-c)<3.1,()=>0.6,RCREAM,false);capsule(g,c,top+10.4,c+0.3,top+11.2,1.9,1.6,RSKIN)}},1),
+  head:part(14,14,6,13,meHead(false),false,meHead(true)),
+  lantern:part(9,14,4,0,g=>stamp(g,["...kk....","..k..k...","..kkkk...",".kccccck.",".kyyyyk..",".kyfYyk..",".kyYYyk..",".kyyyyk..",".kccccck.","..kkkk..."],0,0,LPAL)),
+  glass:[["","","","","....","..Y.","..YY"],["","","","","..Y.","..YY","..Y."],["","","","","..Y.","..Y.","...."]].map(r=>part(9,14,4,0,g=>stamp(g,r,0,0,LPAL),true)),
+  dim:part(9,14,4,0,g=>stamp(g,["","","","",".....",".....",".kyyk"],0,0,{...LPAL,y:rgb('#5a4a2a')})),
+  press:part(10,11,4,10,g=>stamp(g,["kkkkkkkkkk","kIIIIIIIIk","kiiiiiiiik","kkkkiikkkk","...kiik...","...kttk...","...kTtk...","...kttk...","...kTtk...","...kttk...","...kkkk..."],0,0,LPAL)),
+  rod:part(4,26,1,21,g=>{capsule(g,1.5,1.5,1.5,24,1,1.2,RWOOD);stamp(g,["n","n"],1,0,LPAL)}),
+  flask:part(6,8,3,7,g=>stamp(g,["..kk..","..kk..",".kccck","kyyyyk","kyYyyk","kyyyyk","kyyyyk",".kkkk."],0,0,LPAL))
+};
+// you are mostly seen from behind: every part without painted back art shows its own colours, a little shaded, not bare paper
+for(const p of Object.values(MERIG).flat())if(!p.glow&&!p.bk)p.bk={w:p.g.w,h:p.g.h,col:p.g.col.map(c=>c&&[c[0]*0.8|0,c[1]*0.8|0,c[2]*0.8|0])};
+const ME={type:'me',x:0,y:0,f:0,hit:0,dead:0};
+/* your puppet: built from where you stand and how you move; the weapon arm swings with your strikes */
+function meLayers(out){
+  const e=ME,R=MERIG,T=G.time;e.x=G.x;e.y=G.y;e.f=G.ang;if(e.ox===undefined)gaitUpd(e,0,0.5);
+  const put=rigOut(e,out),walk=e.walk||0,dd=(G.state==='dying'||G.state==='dead')?smooth(Math.min(1,(G.dieT||0)/1.1)):0;
+  const sleep=G.state==='blackout'?smooth(Math.min(1,G.boT/(BLACKOUT*0.8))):0,fall=Math.max(dd,sleep);
+  const A=Math.max(-8,Math.min(8,(e.vin||0)/PS/(4*Math.max(1.1,Math.hypot(e.vx||0,e.vy||0)/(1.45*0.5))))),lift=3.5*walk;
+  const fa=footAt(e.gp||0,A,lift),fb=footAt(((e.gp||0)+0.5)%1,A,lift);
+  const bob=walk*1.1*Math.cos(4*Math.PI*((e.gp||0)-0.25))+0.35*Math.sin(T*2+1);
+  const hz=26+bob-fall*19,hx=0,lean=3*walk*Math.sign(A)+fall*65-(G.flash||0)*8;
+  fa[0]+=1.2;fb[0]-=0.8;if(fall){fa[0]=lerp(fa[0],7,fall);fb[0]=lerp(fb[0],-2,fall);fa[1]*=1-fall;fb[1]*=1-fall;fa[2]*=1-fall;fb[2]*=1-fall}
+  const ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs];
+  const[shx,shz]=at(0.3,13.6+0.25*Math.sin(T*2)),[nkx,nkz]=at(1,16.4),S=e.spr||[0,0,0,0,0,0,0,0,0,0],sw=walk*Math.sin(2*Math.PI*(e.gp||0));
+  // the lantern hand, on the far side: held out and a little up, swinging as you walk
+  const[lx,lz]=armOut(put,R,shx-0.5,shz,shx+8.5+sw*3-fall*5,shz-10+Math.abs(sw)+fall*-6,0.05,8.5,10.5,0.052);
+  const lsw=Math.sin(T*2.3)*4-sw*10-(e.vin||0)*6;
+  put(R.lantern,lsw,lx,lz-0.5,0.056,false);if(G.oil>0&&!fall)put(R.glass[Math.floor(T*8)%3],lsw,lx,lz-0.5,0.055,true);else put(R.dim,lsw,lx,lz-0.5,0.055,false);
+  e.thB=legOut(put,R,hx-1,hz,fb,-0.03,11.5,11,4.5);
+  put(R.skirt,(S[8]||0)+fall*25,hx-1,hz+1,-0.012,false);
+  put(R.chest,lean,hx,hz,0,false);
+  e.thA=legOut(put,R,hx+1.2,hz,fa,0.012,11.5,11,4.5);
+  put(R.skirt,(S[6]||0)+fall*25,hx+1.2,hz+1,0.02,false);
+  put(R.head,lean*0.4+G.pitch*-60+fall*30,nkx,nkz-1,0.028,false);
+  // the weapon hand, on the camera side: a wind-up, then the strike goes out into the room ahead of you
+  const s=G.swing||0,k=1-s,wind=s>0?(k<0.25?k/0.25:Math.max(0,1-(k-0.25)/0.45)):0,hit=s>0&&k>=0.25?Math.sin(Math.min(1,(k-0.25)/0.5)*Math.PI):0;
+  const wpn=G.weapon,rest=[shx+4-sw*5,shz-12],up=[shx-3,shz+9],out_=wpn==='rod'?[shx+17,shz-1]:[shx+15,shz-6];
+  let tx=rest[0],tz=rest[1];tx=lerp(tx,up[0],wind*(1-hit));tz=lerp(tz,up[1],wind*(1-hit));tx=lerp(tx,out_[0],hit);tz=lerp(tz,out_[1],hit);
+  if(fall){tx=lerp(tx,shx+8,fall);tz=lerp(tz,shz-13,fall)}
+  const outD=-0.05+hit*0.3;
+  const[wx,wz,wfa]=armOut(put,R,shx+0.8,shz,tx,tz,-0.05,8.5,10.5,outD);
+  const wa=wpn==='rod'?lerp(lerp(70,-10,wind),95,hit):lerp(lerp(60,-40,wind),130,hit);
+  if(!(wpn==='oil'&&s>0.5))put(wpn==='press'?R.press:wpn==='rod'?R.rod:R.flask,wa+fall*40,wx,wz,outD-0.004,false);
 }
 const seekBody=["....k.kkk.k.....","...khkhhhkhk....","...khhhhhhhk....","...kssssssk.....","...kwpsswpk.....","...ksssSssk.....","...ksmmmsk......","....kssssk......","...kRRRRRRk.....","..kRRnRRRRRk....",".ksRRnnRRRRsk...",".ksRRRRRnRRsk...",".ksRRRRRnRRsk...","..kRRRRRRRRk....","..kRnRRRRRRk....","..kRRRRRRRRk....","..kRRRRkRRRk...."];
 const seekLegs=[["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],["..kRRk..kRRk....",".kssk...kssk....",".kssk....kssk...","kkkk.....kkkk..."],["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],[".kRRk..kRRk.....",".kssk..kssk.....","kssk...kssk.....","kkkk..kkkk......"]];
@@ -666,6 +733,7 @@ function update(dt){
   if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
+  ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);
   for(const e of G.ents){
     if(e.type==='pur'){updPur(e,dt);gaitUpd(e,dt,0.58)}else if(e.type==='seek'){updSeek(e,dt);gaitUpd(e,dt,0.43)}
     else if(e.type==='flask'&&!e.dead){e.f+=dt*0.8;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.oil+=3;sfx('+3 OIL')}}
@@ -876,11 +944,11 @@ function shaftPx(i,t,s,up,r){
   const z2=up?EYE+s*te:EYE-s*te,m=Math.floor(z2/FH),am=m<0?-m:m;
   if(am>MAXLV){buf[i]=buf[i+1]=buf[i+2]=0;return}
   const zl=z2-m*FH,fog=FOG[am];
-  if(zl>WALLH||zl<RAILH){pointAt(te);const dx=PX_-G.x,dy=PY_-G.y,dz=z2-EYE,L=(AMB+lampC(cellAt(te),PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog*1.6;
+  if(zl>WALLH||zl<RAILH){pointAt(te);const dx=PX_-LX,dy=PY_-LY,dz=z2-EYE,L=(AMB+lampC(cellAt(te),PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog*1.6;
     if(zl>WALLH)put(i,70,60,52,L);else put(i,90,58,34,L);return}
   const tn=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;
   if(tn<tw){pointAt(tn);const cn=r==null?cellAt(tn):TV.c[r];if(cn.kind==='g'&&inHoleC(cn,PX_,PY_)){buf[i]=buf[i+1]=buf[i+2]=0;return}
-    const dx=PX_-G.x,dy=PY_-G.y,dz=(up?m*FH+WALLH:m*FH)-EYE,L=(AMB+lampC(cn,PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog;
+    const dx=PX_-LX,dy=PY_-LY,dz=(up?m*FH+WALLH:m*FH)-EYE,L=(AMB+lampC(cn,PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog;
     if(up)ceilPx(i,PX_,PY_,L);else floorPx(i,PX_,PY_,L);return}
   const zw=up?EYE+s*tw:EYE-s*tw,dz=zw-EYE;if(fin)wallPx(i,HIT,zw-m*FH,m,(AMB+CW_LAMP+lanL(Math.sqrt(CW_D2+dz*dz)))*fog);else put(i,74,48,28,(AMB+0.2)*fog*2);
 }
@@ -901,20 +969,35 @@ function airPx(i,s,up,r){
       r++}
     if(r>=TV.n){buf[i]=buf[i+1]=buf[i+2]=0;return}
     while(iv<IVN&&IVB[iv]<tk)iv++;
-    if(iv<IVN&&IVA[iv]<=tk&&TV.c[r].kind==='a'){pointAt(tk);const dx=PX_-G.x,dy=PY_-G.y,dz=(up?k:-k)*FH-EYE,L=(AMB+lampC(TV.c[r],PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
+    if(iv<IVN&&IVA[iv]<=tk&&TV.c[r].kind==='a'){pointAt(tk);const dx=PX_-LX,dy=PY_-LY,dz=(up?k:-k)*FH-EYE,L=(AMB+lampC(TV.c[r],PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
       if(up)ceilPx(i,PX_,PY_,L*0.7);else catPx(i,PX_,PY_,L);return}
   }
   buf[i]=buf[i+1]=buf[i+2]=0;
 }
 function catPx(i,px,py,L){const ti=((((px%1)+1)%1*16|0)*16+(((py%1)+1)%1*16|0))*4;put(i,floorTex[ti]*0.85,floorTex[ti+1]*0.8,floorTex[ti+2]*0.75,L*2.2)}
+/* the camera: in third person it hangs behind your right shoulder and slides in toward you when a wall or the mirror is
+   behind you. While the scene draws, the view origin moves to the camera; light still comes from your lantern (LX,LY) */
+let LX=0,LY=0,THIRD=false;const VIEW={third:true,d:2.35};
+try{if(localStorage.getItem('aom.view')==='first')VIEW.third=false}catch(_){}
+function toggleView(){VIEW.third=!VIEW.third;sfx(VIEW.third?'THIRD PERSON':'FIRST PERSON');try{localStorage.setItem('aom.view',VIEW.third?'third':'first')}catch(_){}}
 function render(){
+  LX=G.x;LY=G.y;THIRD=VIEW.third&&G.state!=='intro'&&G.state!=='start';const MEP=[];if(THIRD)meLayers(MEP);
+  if(!THIRD){renderScene(MEP);return}
+  const cs=Math.cos(G.ang),sn=Math.sin(G.ang),ox=-cs*VIEW.d-sn*0.42,oy=-sn*VIEW.d+cs*0.42,ol=Math.hypot(ox,oy),ux=ox/ol,uy=oy/ol;
+  const h=cast(G.x,G.y,ux,uy);let d=ol;if(LEG.n>1)d=Math.min(d,LEG.t0[1]-0.3);if(h)d=Math.min(d,h.t-0.3);d=Math.max(0.15,d);
+  VIEW.cd=VIEW.cd===undefined?d:(d<VIEW.cd?d:VIEW.cd+(d-VIEW.cd)*0.15);d=Math.min(d,VIEW.cd);    // snap in, ease back out
+  const sx=G.x,sy=G.y,sin_=G.inRoom,se=EYE,cx=G.x+ux*d,cy=G.y+uy*d;
+  G.x=cx;G.y=cy;G.inRoom=placeOf(cx,cy).kind==='g';EYE=se+0.62*Math.min(1,d/0.8);
+  try{renderScene(MEP)}finally{G.x=sx;G.y=sy;G.inRoom=sin_;EYE=se}
+}
+function renderScene(MEP){
   FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=3.2+Math.min(G.oil,10)*0.55;
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);
   const POSE=[];for(const e of G.ents)if(e.type==='pur'&&e.dead<1.6){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek'&&e.dead<1.6)seekLayers(e,POSE);
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.92-low*0.25;TB=0.78+low*0.3;
   {const d=dayLight(hourOf());LDAY=0.4+0.6*d;AMB=0.04+0.045*d;TR*=0.86+0.14*d;TG*=0.9+0.1*d;TB*=1.06-0.06*d}
-  HZ=H/2+G.pitch*H;const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
+  HZ=H/2+G.pitch*H-(THIRD?0.15*H:0);const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
   for(let x=0;x<W;x++){
     const cam=2*x/W-1;let rdx=dirX+plX*cam,rdy=dirY+plY*cam;
     if(low>0){const wv=low*0.06*Math.sin(G.time*3+x*0.07);const c=Math.cos(wv),s=Math.sin(wv);const ax=rdx*c-rdy*s;rdy=rdx*s+rdy*c;rdx=ax}
@@ -924,7 +1007,7 @@ function render(){
     if(!h){zbuf[x]=1e9;for(let y=0;y<H;y++){const i=(y*W+x)*4;buf[i]=buf[i+1]=buf[i+2]=0}continue}
     const tw=h.t;zbuf[x]=tw;LVSTAMP++;walkways();
     const yb=H2+EYE*PROJ/tw,yt=H2-(WALLH-EYE)*PROJ/tw,y0=Math.max(0,Math.ceil(yt)),y1=Math.min(H,Math.ceil(yb));
-    CW_LAMP=lampC(h.cell,h.x,h.y);CW_D2=(h.x-G.x)*(h.x-G.x)+(h.y-G.y)*(h.y-G.y);const Lw=AMB+CW_LAMP+lanL(Math.sqrt(CW_D2));
+    CW_LAMP=lampC(h.cell,h.x,h.y);CW_D2=(h.x-LX)*(h.x-LX)+(h.y-LY)*(h.y-LY);const Lw=AMB+CW_LAMP+lanL(Math.sqrt(CW_D2));
     for(let y=y0;y<y1;y++)wallPx((y*W+x)*4,h,(yb-y)/(yb-yt)*WALLH,0,Lw);
     // floor rows from the bottom up and ceiling rows from the top down: distance only grows, so walk the rooms and legs in order
     for(let pass=0;pass<2;pass++){let ci=0,li=0;const up=pass===1,ya=up?y0-1:H-1,yz=up?0:y1;
@@ -933,8 +1016,8 @@ function render(){
         const t=(up?WALLH-EYE:EYE)/s;while(ci<TV.n-1&&t>TV.t1[ci])ci++;while(li+1<LEG.n&&t>=LEG.t0[li+1])li++;
         const q=t-LEG.t0[li],px=LEG.ox[li]+LEG.dx[li]*q,py=LEG.oy[li]+LEG.dy[li]*q,c=TV.c[ci];
         if(c.kind==='g'){if(inHoleC(c,px,py)){PX_=px;PY_=py;shaftPx(i,t,s,up,ci)}
-          else{const dx=px-G.x,dy=py-G.y,L=AMB+lanL(Math.sqrt(dx*dx+dy*dy))+lampC(c,px,py);if(up)ceilPx(i,px,py,L*0.8);else floorPx(i,px,py,L)}}
-        else if(!up&&onWalk(t)){const dx=px-G.x,dy=py-G.y;catPx(i,px,py,AMB+lanL(Math.sqrt(dx*dx+dy*dy))+lampC(c,px,py))}
+          else{const dx=px-LX,dy=py-LY,L=AMB+lanL(Math.sqrt(dx*dx+dy*dy))+lampC(c,px,py);if(up)ceilPx(i,px,py,L*0.8);else floorPx(i,px,py,L)}}
+        else if(!up&&onWalk(t)){const dx=px-LX,dy=py-LY;catPx(i,px,py,AMB+lanL(Math.sqrt(dx*dx+dy*dy))+lampC(c,px,py))}
         else if(inWell(px,py)){PX_=px;PY_=py;shaftPx(i,t,s,up,null)}
         else airPx(i,s,up,ci)}}
     // railings and the mirror's frame, far to near
@@ -943,7 +1026,7 @@ function render(){
       if(mi<0||(ri>=0&&RH.t[ri]>MH.t[mi])){railCol(x,RH.t[ri],RH.a[ri]);ri--}else{frameCol(x,MH.t[mi],mi===0);mi--}
     }
   }
-  const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek').concat(POSE,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
+  const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
   {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),key=i0+','+j0;
    if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];const lamp=(x,y,z)=>LAMPS.list.push({type:'lamp',x,y,z0:z,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
      for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){for(const q of getRoom(i,j).lamps)lamp(q[0],q[1],LAMPZ);lamp((i+0.5)*P,(j+0.5)*P,isComm(i,j)?JLZ:JLZ+0.2)}}
@@ -952,7 +1035,7 @@ function render(){
    for(const L of LAMPS.list){const dx=L.x-G.x,dy=L.y-G.y,f=dx*cs+dy*sn;if(mir||(f>0.1&&Math.abs(-dx*sn+dy*cs)<f*PLANE+0.6&&f<26))list.push(L)}}
   fires.forEach((F,i)=>list.push({type:'fire',x:F.x,y:F.y,bill:true,hgt:0.6*Math.min(1,F.t/2),cards:FIREC,frame:Math.floor(G.time*10+i)%3,dead:0}));
   if(G.meal&&G.meal.fl===G.floor&&G.time>=G.meal.ready)list.push({type:'meal',x:G.meal.x,y:G.meal.y,z0:0.55,hgt:0.24,bill:true,cards:[MEALC],frame:0,dead:0});
-  if(LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
+  if(!THIRD&&LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
   MCOLS.length=0;for(let x=0;x<W;x++)if(LGN[x]>1)MCOLS.push(x);
   for(const e of list){if(e.type==='pp'){const q=e.pe,dx=q.x-G.x,dy=q.y-G.y,s=Math.cos(q.f)*dx+Math.sin(q.f)*dy<0?1:-1;e._d=dx*dx+dy*dy-s*e.ord*0.05}else e._d=(e.x-G.x)*(e.x-G.x)+(e.y-G.y)*(e.y-G.y)}list.sort((a,b)=>b._d-a._d);
   for(const e of list)drawCard(e);
@@ -961,25 +1044,26 @@ function render(){
   sctx.putImageData(img,0,0);
 }
 function railCol(x,t,a){
-  const yTop=HZ-(RAILH-EYE)*PROJ/t,yBot=HZ+EYE*PROJ/t,post=(((a*24/Math.PI)%2)+2)%2<0.4;pointAt(t);const L=Math.min(1.05,lightP(cellAt(t),PX_,PY_,Math.hypot(PX_-G.x,PY_-G.y)))*2.0;
+  const yTop=HZ-(RAILH-EYE)*PROJ/t,yBot=HZ+EYE*PROJ/t,post=(((a*24/Math.PI)%2)+2)%2<0.4;pointAt(t);const L=Math.min(1.05,lightP(cellAt(t),PX_,PY_,Math.hypot(PX_-LX,PY_-LY)))*2.0;
   for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){const z=EYE-(y-HZ)*t/PROJ,i=(y*W+x)*4;
     if(z>RAILH-0.06)put(i,z>RAILH-0.025?130:96,z>RAILH-0.025?88:62,z>RAILH-0.025?50:36,L);else if(post)put(i,64,40,22,L)}
   const n=NR[x];if(n<4){RT[x*4+n]=t;RY0[x*4+n]=yTop;RY1[x*4+n]=yBot;NR[x]=n+1}
 }
 function frameCol(x,t,first){
-  const yz=z=>HZ+(EYE-z)*PROJ/t;pointAt(t-1e-4);const L=lightP(cellAt(t-1e-4),PX_,PY_,Math.hypot(PX_-G.x,PY_-G.y))*1.8;
+  const yz=z=>HZ+(EYE-z)*PROJ/t;pointAt(t-1e-4);const L=lightP(cellAt(t-1e-4),PX_,PY_,Math.hypot(PX_-LX,PY_-LY))*1.8;
   for(let y=Math.max(0,Math.ceil(yz(WALLH)));y<Math.min(H,Math.ceil(yz(0)));y++){const z=EYE-(y-HZ)*t/PROJ,i=(y*W+x)*4;
     if(z<MZ0-0.03||z>MZ1+0.03)put(i,58,37,22,L);else if(z<MZ0||z>MZ1)put(i,176,138,62,L)}
   if(first){MT[x]=t;MYT[x]=yz(MZ1);MYB[x]=yz(MZ0)}
 }
 /* a paper card standing in the Library: seen straight on, or in the mirror (any leg of the ray's path) */
 function drawCard(e){
+  if(THIRD&&e.pe!==ME&&e._d<0.45)return;   // nothing may stand in the camera's face
   const card=e.cards[e.frame||0];
   const dies=(e.type==='pur'||e.type==='seek')&&e.dead,crumple=dies?Math.max(0.12,1-e.dead*1.4):1;
   const hgt=e.hgt*crumple,wid=e.hgt*card.w/card.h*(dies?1+e.dead*0.3:1);
   const bob=e.type==='pp'?0:(e.type==='flask')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
   const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.glow||e.type==='lamp'||e.type==='ph'||e.type==='fire';
-  const L=glow?1:Math.min(1.45,lightP(e.self?G.cell:G.room,e.x,e.y,Math.max(e.self?1.6:0,Math.hypot(e.x-G.x,e.y-G.y)))*2.1);
+  const L=glow?1:Math.min(1.45,lightP(e.self?G.cell:G.room,e.x,e.y,Math.max(e.self?1.6:e.pe===ME?1.1:0,Math.hypot(e.x-LX,e.y-LY)))*2.1);
   let xa=0,xb=W-1;
   {const cs=Math.cos(G.ang),sn=Math.sin(G.ang),dx=e.x-G.x,dy=e.y-G.y,f=dx*cs+dy*sn,l=-dx*sn+dy*cs,r=wid/2+0.05;
    if(f+r<0.08)xb=-1;else{const fl=Math.max(0.08,f-r),c0=(l-r)/fl,c1=(l+r)/fl;xa=Math.max(0,Math.floor((c0/PLANE+1)*W/2)-3);xb=Math.min(W-1,Math.ceil((c1/PLANE+1)*W/2)+3)}}
@@ -1468,7 +1552,7 @@ function display(dt){
   const back=st==='wake'&&G.wakeT>WAKE-1.6,live=st==='play'||st==='dying'||st==='climb'||st==='sleep'||st==='blackout'||back;if(live)HT+=dt;else HT=0;
   if(live)HUD.forEach((h,i)=>{const ap=CALM?1:backOut((HT-0.05-i*0.09)/0.4);if(ap<=0.01){h.rect=null;return}const a=L.hud[h.key];
     h.alpha=Math.min(1,ap*1.6);hudModel(h,{cx:a.cx,cy:a.cy,h:a.h*(0.55+0.45*ap)},L.dH,(1-Math.min(1,ap))*1.35*(i?1:-1)+(CALM?0:0.14*Math.sin(G.time*0.6+i*2.1)))});
-  if(live)hands();
+  if(live&&!THIRD)hands();
   lag(jr,dA,dF,dt,[-0.08,0.08],0.05,5);
   if(st==='play'&&G.journal&&TX.journal){jr.tex=TX.journal;const a=L.jr,hp=Math.min(a.h*0.94,a.w*0.96*TX.journal.h/TX.journal.w);place(jr,{cx:a.cx,cy:a.cy,h:hp},1.05,0.02,0.3);drawFloat(jr)}
   if(st==='book'||st==='closing'){
@@ -1554,6 +1638,7 @@ addEventListener('keydown',ev=>{
   if(c==='KeyJ'||c==='Tab'){action('journal');ev.preventDefault()}
   if(G.state==='play'){if(c==='KeyQ')cycleWeapon();else if(c==='Digit1')setWeapon('press');else if(c==='Digit2')setWeapon('rod');else if(c==='Digit3')setWeapon('oil');else if(c==='KeyI')useIncense()}
   if(c==='KeyM')soundToggle();
+  if(c==='KeyV')toggleView();
 });
 addEventListener('keyup',ev=>{if(KEYMAP[ev.code])keys[KEYMAP[ev.code]]=false});
 function releaseAll(){for(const k in keys)keys[k]=false;for(const k in CTLS)CTLS[k].held=0;ptrs.clear();releaseStick()}

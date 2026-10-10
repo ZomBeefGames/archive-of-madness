@@ -26,6 +26,7 @@ python3 -m http.server 8000
 | Switch weapon: bookpress, shelf rod, oil flask | Q, or 1 2 3 | Tap your weapon hand |
 | Burn sect incense | I | Tap your face in the mirror |
 | Sound on / off | M | Tap the bottom of the journal |
+| Third / first person | V | — |
 | Journal | J or Tab | Journal button |
 | Turn pages | Left / Right | Tap the page edges |
 | Shelf above / below (in a book) | W / S | Tap the top / bottom edge |
@@ -60,6 +61,7 @@ The rooms follow Borges' story; the space between them is open air:
 - Finding your page wins the run.
 - Paper cut-out characters and a floating, layered 3D-style interface.
 - Paper puppets: the Purifier and the Seeker are jointed paper figures (hips, knees, ankles, shoulders, elbows, neck, a hinged cape), posed every frame with two-bone reaching. Their feet plant and step as they walk, they reach out for you (the Purifier with its torch, the Seeker clawing for your oil), the Seeker reads as it wanders, and both fold up when they die.
+- Third person: the camera follows over your right shoulder and slides in when a wall or the mirror is behind you. You are a jointed paper librarian too, with painted backs to the coat and head, a swinging lantern, and your weapon wound up and struck out into the room. V switches back to first person.
 
 ## Design
 
