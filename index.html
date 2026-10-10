@@ -1138,7 +1138,7 @@ function reset(){
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
-    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
+    phrase,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
@@ -1283,6 +1283,7 @@ function turnToward(e,target,rate,dt){const d=angDiff(target,e.f);const s=Math.s
 function update(dt){
   G.time+=dt;
   if(G.state!=='play')return;
+  G.playClock+=dt;
   const fwd=Math.max(-1,Math.min(1,(keys.up||keys.w?1:0)-(keys.down||keys.s?1:0)+STICK.fwd)),turn=Math.max(-1,Math.min(1,(keys.right||keys.d?1:0)-(keys.left||keys.a?1:0)+STICK.turn));
   G.ang+=turn*2.4*dt;
   if(keys.r||keys.f)G.pitch=Math.max(-0.45,Math.min(0.45,G.pitch+((keys.r?1:0)-(keys.f?1:0))*0.9*dt));
@@ -1306,6 +1307,10 @@ function update(dt){
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
   ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);bgUpd(dt);encUpd(dt);
   if(G.q===2&&G.inRoom&&isNight()){const P=bioPlan(G.phrase);if(G.gal===P.g&&G.floor===P.f){qDone(3);openNote('YOUR HEXAGON','The lamps sink low, and in the dark one wall goes on humming, very quietly, like someone reading under their breath.','It is WALL '+P.wall+'.')}}
+  // Freeze combat while the first Purifier reveal plays; never repeat it this run.
+  if(G.playClock>3.5&&!G.cutSeen.purifier&&G.ents.some(e=>e.type==='pur'&&!e.dead&&Math.hypot(e.x-G.x,e.y-G.y)<3.4)){
+    if(filmBegin('purifier','play'))return;
+  }
   for(const e of G.ents){
     if(e.type==='pur'){updPur(e,dt);gaitUpd(e,dt,0.58)}else if(e.type==='seek'){updSeek(e,dt);gaitUpd(e,dt,0.43)}
     else if(e.type==='flask'&&!e.dead){e.f+=dt*0.8;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.oil+=3;sfx('+3 OIL')}}
@@ -1430,6 +1435,8 @@ function doRead(){
   showPage(true);startle();
 }
 function useIndex(){
+  // First contact plays once, then resumes the exact original Index interaction.
+  if(G.state==='play'&&!G.cutSeen.index&&filmBegin('index','index'))return;
   const P=bioPlan(G.phrase);
   if(G.q>=2){openNote('THE INDEX','The drums turn and settle. It has told you all it will. The rest the Library shows in other ways.',QSTEPS[Math.min(5,G.q)].how);return}
   if(G.q===1&&G.day<2){openNote('THE INDEX','The drums will not turn for that question today. Come back tomorrow, on day 2.');return}
@@ -2259,21 +2266,21 @@ function filmDrawTitle(){
   g.save();g.translate(x,y);g.scale(s,s);
   g.fillStyle='rgba(7,7,11,.53)';g.fillRect(0,0,w,h);filmFrame(g,w,h);
   if(FILM.help){filmHelp(g,w,h,portrait);g.restore();return}
-  const cy=portrait?116:102;
-  filmSeal(g,w/2,cy,portrait?61:58,FILM.clock);
+  const cy=portrait?116:76;
+  filmSeal(g,w/2,cy,portrait?61:49,FILM.clock);
   g.textAlign='center';g.textBaseline='middle';
   g.fillStyle='#a99276';g.font='bold '+(portrait?16:17)+'px "Courier New"';
-  g.fillText('ZOMBEEF GAMES  •  PRESENTS',w/2,portrait?218:196,w-60);
-  const yy=portrait?306:295;
+  g.fillText('ZOMBEEF GAMES  •  PRESENTS',w/2,portrait?218:164,w-60);
+  const yy=portrait?306:243;
   g.save();g.shadowColor='rgba(178,66,42,.53)';g.shadowBlur=CALM?0:25;
   g.fillStyle='#f3e4c5';g.font='bold '+(portrait?59:93)+'px Georgia';
   g.fillText('THE ARCHIVES',w/2,yy,w-58);
   g.fillStyle='#c84f3e';g.font='bold '+(portrait?73:101)+'px Georgia';
-  g.fillText('OF MADNESS',w/2,yy+(portrait?86:102),w-44);g.restore();
-  g.fillStyle='#e0bd81';g.fillRect(w*.25,yy+(portrait?146:163),w*.5,2);
+  g.fillText('OF MADNESS',w/2,yy+(portrait?86:92),w-44);g.restore();
+  g.fillStyle='#e0bd81';g.fillRect(w*.25,yy+(portrait?146:145),w*.5,2);
   g.font='italic '+(portrait?21:25)+'px Georgia';g.fillStyle='#e2d4b4';
-  g.fillText('THE LIBRARY HAS A COPY OF YOU',w/2,yy+(portrait?187:206),w-62);
-  const bw=portrait?w-110:464,bh=portrait?77:64,base=portrait?611:529;
+  g.fillText('THE LIBRARY HAS A COPY OF YOU',w/2,yy+(portrait?187:181),w-62);
+  const bw=portrait?w-110:464,bh=portrait?77:55,base=portrait?611:458;
   filmButton(g,'begin','BEGIN YOUR STORY',(w-bw)/2,base,bw,bh,FILM.selection===0);
   filmButton(g,'help','HOW TO PLAY',(w-bw)/2,base+(bh+16),bw,bh,FILM.selection===1);
   filmButton(g,'sound','SOUND  '+(SND.on?'ON':'OFF'),(w-bw)/2,base+2*(bh+16),bw,bh,FILM.selection===2);
@@ -2716,6 +2723,12 @@ function hands(){
   vctx.save();vctx.imageSmoothingEnabled=true;vctx.drawImage(HANDLAMP[G.oil>0?1:0],lx,ly,5.8*c,8.9*c);vctx.drawImage(HANDGLOVE,lx-.4*c,ly+7.4*c,6.2*c,3.9*c);vctx.restore();
 }
 function display(dt){
+  // Cinematic layers are rendered directly at display resolution, with no HUD or
+  // expensive raycaster running underneath them.
+  if(G.state==='title'){filmDrawTitle();return}
+  if(G.state==='cinematic'){filmDrawCut();return}
+  if(G.state==='wake'){filmDrawDawn();return}
+  if(G.state==='waking'){filmDrawFinale();return}
   const dA=angDiff(G.ang,MOT.ang),mx=G.x-MOT.x,my=G.y-MOT.y;let dF=mx*Math.cos(G.ang)+my*Math.sin(G.ang);if(Math.hypot(mx,my)>0.5)dF=0;MOT.ang=G.ang;MOT.x=G.x;MOT.y=G.y;
   texT-=dt;if(texT<=0){texT=0.1;drawVit();drawFaceTex();drawStat();if(G.journal)drawJournal()}
   vctx.imageSmoothingEnabled=false;vctx.drawImage(scene,0,0,W,H,0,0,DW,DH);
@@ -2786,6 +2799,12 @@ function display(dt){
 function turnPage(d){G.book.page=Math.max(1,Math.min(410,G.book.page+d));showPage(false)}
 function flip(d){G.flipDir=d;G.flip=0.3;turnPage(d)}
 function action(a){
+  if(G.state==='title'){filmTitleAction(a);return}
+  if(G.state==='cinematic'){
+    if(a==='skip'||a==='close')filmAdvance(true);
+    else if(a==='next'||a==='read'||a==='swing')filmAdvance();
+    return;
+  }
   if(CTLS[a]){const c=CTLS[a];c.flash=0.16;c.pressT=0;c.sv-=6;if(a==='read')c.fq=2}
   if(G.state==='intro'){if(a==='read'||a==='swing'){G.state='start';G.startT=0}return}
   if(G.state==='dead'||G.state==='won'){if(a==='read'||a==='swing'){reset();drawIntro();G.state='start';G.startT=0.3}return}
@@ -2802,12 +2821,14 @@ let last=performance.now(),needResize=true;
 function frame(now){
   if(needResize){needResize=false;resize()}
   const dt=Math.min(0.05,Math.max(0,(now-last)/1000));last=now;
-  if(G.state==='dying'){G.dieT+=dt;EYE=0.5-0.42*Math.min(1,G.dieT/1.2);G.time+=dt;if(G.dieT>1.5){G.state='dead';drawDead()}}
+  if(G.state==='title'){FILM.clock+=dt}
+  else if(G.state==='cinematic'){filmTick(dt)}
+  else if(G.state==='dying'){G.dieT+=dt;EYE=0.5-0.42*Math.min(1,G.dieT/1.2);G.time+=dt;if(G.dieT>1.5){G.state='dead';drawDead()}}
   else if(G.state==='dead'||G.state==='intro'){G.dieT+=dt;G.time+=dt}
   else if(G.state==='start'){G.startT+=dt;G.time+=dt;if(G.startT>=0.9){G.state='play';HUD.forEach(h=>{h.da=0;h.dd=0});sfx('FWUMP!')}}
   else if(G.state==='book'){G.bookAnim+=dt;G.time+=dt}
   else if(G.state==='closing'){G.bookAnim+=dt;G.time+=dt;if(G.bookAnim>=0.3){if(G.won){G.state='waking';G.winT=0;G.journal=false}else{G.state='play';if(G.health<=0)die()}}}
-  else if(G.state==='waking'){G.winT+=dt;G.time+=dt;EYE=0.5+0.25*Math.min(1,G.winT/1.6);if(G.winT>1.8){G.state='won';drawWon()}}
+  else if(G.state==='waking'){G.winT+=dt;G.time+=dt;EYE=0.5+0.25*Math.min(1,G.winT/1.6);if(G.winT>4.25){G.state='won';drawWon()}}
   else if(G.state==='won'){G.time+=dt}
   else if(G.state==='blackout'){G.boT+=dt;G.time+=dt;EYE=0.5-0.3*smooth(G.boT/(BLACKOUT*0.8));if(G.boT>=BLACKOUT){newDay();EYE=0.5;G.pitch=0;G.state='wake';G.wakeT=0}}
   else if(G.state==='wake'){G.wakeT+=dt;G.time+=dt;if(G.wakeT>=0.2&&!G.rung){G.rung=true;snd('bell')}if(G.wakeT>=WAKE){G.state='play';G.rung=false}}
@@ -2816,11 +2837,25 @@ function frame(now){
   else update(dt);
   G.flip=Math.max(0,(G.flip||0)-dt);
   for(const k in CTLS)CTLS[k].flash=Math.max(0,CTLS[k].flash-dt);
-  render();display(dt);requestAnimationFrame(frame);
+  if(!['title','cinematic','wake','waking'].includes(G.state))render();
+  display(dt);requestAnimationFrame(frame);
 }
 const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyW:'w',KeyS:'s',KeyA:'a',KeyD:'d',KeyR:'r',KeyF:'f'};
 addEventListener('keydown',ev=>{
   const c=ev.code;
+  if(G.state==='title'){
+    if(c==='ArrowUp'||c==='KeyW'||c==='ArrowLeft')action('up');
+    else if(c==='ArrowDown'||c==='KeyS'||c==='ArrowRight')action('down');
+    else if(c==='Enter'||c==='Space'||c==='KeyE')action('read');
+    else if(c==='Escape')action('back');
+    else if(c==='KeyM')soundToggle();
+    ev.preventDefault();return;
+  }
+  if(G.state==='cinematic'){
+    if(c==='Escape'||c==='KeyX')action('skip');
+    else if(c==='Enter'||c==='Space'||c==='KeyE'||c==='ArrowRight')action('next');
+    ev.preventDefault();return;
+  }
   if(G.state==='book'){
     if(c==='ArrowRight'||c==='KeyD'){action('next');ev.preventDefault()}
     else if(c==='ArrowLeft'||c==='KeyA'){action('prev');ev.preventDefault()}
@@ -2869,7 +2904,15 @@ function endPtr(ev,cancel){
   if(p.kind==='ctl'){letGo(p.key);return}
   if(p.kind==='stick'){releaseStick();return}
   if(cancel||Math.hypot(ev.clientX-p.sx,ev.clientY-p.sy)>10||performance.now()-p.t>500)return;
-  if(G.state==='intro'||G.state==='dead'||G.state==='won')action('read');
+  if(G.state==='title'){
+    const pt=canvasPt(ev),button=filmHit(pt.x,pt.y);
+    if(button)action(button);
+    else if(FILM.help)action('back');
+  }
+  else if(G.state==='cinematic'){
+    const pt=canvasPt(ev);action(filmHit(pt.x,pt.y,'skip')==='skip'?'skip':'next');
+  }
+  else if(G.state==='intro'||G.state==='dead'||G.state==='won')action('read');
   else if(G.state==='play'&&G.journal&&jr.rect){const pt=canvasPt(ev),r=jr.rect;if(pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1)soundToggle()}
   else if(G.state==='book'){const r=bookCard.rect,pt=canvasPt(ev);
     if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0),fy=(pt.y-r.y0)/(r.y1-r.y0);if(G.choice==='hatch'){const tx=fx*TX.book.w,ty=fy*TX.book.h,i=HUI.rows.findIndex(q=>tx>=q[0]&&tx<=q[2]&&ty>=q[1]&&ty<=q[3]),B=HUI.buy;
@@ -2893,10 +2936,12 @@ function resize(){
   const cs=getComputedStyle(safeEl);INS={t:parseFloat(cs.paddingTop)||0,r:parseFloat(cs.paddingRight)||0,b:parseFloat(cs.paddingBottom)||0,l:parseFloat(cs.paddingLeft)||0};
   const port=ASPECT<1;if(port!==PORT||!TX.book){PORT=port;cardTex();drawIntro();drawDead();drawWon();drawJournal();drawBook()}
   LAY=layout();
+  FILM.backdrop=null; // re-render the paper theatre at the new screen size
 }
 if(window.ResizeObserver)new ResizeObserver(()=>{needResize=true}).observe(room);
 addEventListener('resize',()=>{needResize=true});
-reset();resize();MOT.ang=G.ang;MOT.x=G.x;MOT.y=G.y;requestAnimationFrame(frame);
+reset();G.state='title';FILM.selection=0;FILM.help=false;
+resize();MOT.ang=G.ang;MOT.x=G.x;MOT.y=G.y;requestAnimationFrame(frame);
 </script>
 
 </body></html>
