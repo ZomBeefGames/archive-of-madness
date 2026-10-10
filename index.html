@@ -70,42 +70,62 @@ function makeRoom(i,j){let c;const cx=i*P,cy=j*P,id=i+','+j;
 function getAir(i,j){return cached(AIRS,i,j,()=>({kind:'a',id:i+','+j,i,j,cx:i*P,cy:j*P}))}
 function inHexL(lx,ly,ap){for(let w=0;w<6;w++)if(lx*NRM[w][0]+ly*NRM[w][1]>ap)return false;return true}
 
+/* crossings of the catwalks sit between four galleries; every third crossing each way is a communal platform, so
+   between two communal platforms there are always three galleries, north, south, east and west */
+const mod3=n=>((n%3)+3)%3;
+function isComm(ci,cj){return mod3(ci)===0&&mod3(cj)===0}
+/* which corners of square (i,j) touch a communal platform: bit 0 east, bit 1 south */
+function sqMask(i,j){let m=0;for(let b=0;b<4;b++){const sx=b&1?1:-1,sy=b&2?1:-1;if(isComm(i+(sx>0?0:-1),j+(sy>0?0:-1)))m|=1<<b}return m}
+function cornerComm(i,j,lx,ly){return isComm(i+(lx>0?0:-1),j+(ly>0?0:-1))}
 /* the segments of one square of the grid, in coordinates centred on its gallery: the gallery's walls seen from inside,
-   and everything in the open air around it - the gallery's outside, the pillars at the corners, the railings */
-const SQIN=[],SQAIR=[];
+   and everything in the open air around it - the gallery's outside, the platform pillars, the railings. A square's
+   corners differ (platform or plain crossing), so there are sixteen variants */
+const SQIN=[],SQV=[];
 {const sg=(L,ax,ay,bx,by,type,o)=>L.push(Object.assign({ax,ay,bx,by,type,u0:0,u1:1,len:Math.hypot(bx-ax,by-ay)},o));
  const r=A/Math.cos(Math.PI/6),V=[...Array(6)].map((_,w)=>[r*Math.cos((w*60-30)*Math.PI/180),r*Math.sin((w*60-30)*Math.PI/180)]);
+ const BASE=[],RAIL=[];
  for(let w=0;w<6;w++){const a=V[w],b=V[(w+1)%6];
    if(w===0||w===3){const s0=(R/2-HW)/R,s1=(R/2+HW)/R,at=s=>[a[0]+(b[0]-a[0])*s,a[1]+(b[1]-a[1])*s],p=at(s0),q=at(s1);
-     for(const [L,side] of[[SQIN,'plain'],[SQAIR,'ext']]){sg(L,a[0],a[1],p[0],p[1],side,{u0:0,u1:s0,len:R,wall:w});sg(L,p[0],p[1],q[0],q[1],'door',{len:2*HW});sg(L,q[0],q[1],b[0],b[1],side,{u0:s1,u1:1,len:R,wall:w})}}
-   else{sg(SQIN,a[0],a[1],b[0],b[1],'shelf',{wall:w,len:R});sg(SQAIR,a[0],a[1],b[0],b[1],'ext',{wall:w,len:R})}}
- // corner pillars: the one in this square's north-west corner of each crossing... named by which corner of the square
- for(const sx of[-1,1])for(const sy of[-1,1]){
-   const inX=(sx===1&&sy===1)?'sleep':(sx===-1&&sy===-1)?'privy':(sx===1&&sy===-1)?'mirror':'pillar',inY=(sx===1&&sy===-1)?'mirror':'pillar';
-   const x0=sx*PIL0,x1=sx*PIL1,y0=sy*PIL0,y1=sy*PIL1;
-   sg(SQAIR,x1,y0,x1,y1,inX,{});sg(SQAIR,x0,y1,x1,y1,inY,{});sg(SQAIR,x0,y0,x0,y1,'pillar',{});sg(SQAIR,x0,y0,x1,y0,'pillar',{})}
- // railings along every edge between walkway and open air
- for(const sx of[-1,1]){sg(SQAIR,sx*CWI,HW,sx*CWI,PLI,'rail',{});sg(SQAIR,sx*CWI,-HW,sx*CWI,-PLI,'rail',{});
-   sg(SQAIR,sx*A,HW,sx*CWI,HW,'rail',{});sg(SQAIR,sx*A,-HW,sx*CWI,-HW,'rail',{})}
- for(const sy of[-1,1])sg(SQAIR,-PLI,sy*CWI,PLI,sy*CWI,'rail',{});
- for(const sx of[-1,1])for(const sy of[-1,1]){sg(SQAIR,sx*PLI,sy*PIL1,sx*PLI,sy*CWI,'rail',{});sg(SQAIR,sx*PIL1,sy*PLI,sx*CWI,sy*PLI,'rail',{})}
+     for(const [L,side] of[[SQIN,'plain'],[BASE,'ext']]){sg(L,a[0],a[1],p[0],p[1],side,{u0:0,u1:s0,len:R,wall:w});sg(L,p[0],p[1],q[0],q[1],'door',{len:2*HW});sg(L,q[0],q[1],b[0],b[1],side,{u0:s1,u1:1,len:R,wall:w})}}
+   else{sg(SQIN,a[0],a[1],b[0],b[1],'shelf',{wall:w,len:R});sg(BASE,a[0],a[1],b[0],b[1],'ext',{wall:w,len:R})}}
+ // railings every square has: the catwalk edges beside the gallery, and the landing to each doorway
+ for(const sx of[-1,1]){sg(RAIL,sx*CWI,HW,sx*CWI,PLI,'rail',{});sg(RAIL,sx*CWI,-HW,sx*CWI,-PLI,'rail',{});
+   sg(RAIL,sx*A,HW,sx*CWI,HW,'rail',{});sg(RAIL,sx*A,-HW,sx*CWI,-HW,'rail',{})}
+ for(const sy of[-1,1])sg(RAIL,-PLI,sy*CWI,PLI,sy*CWI,'rail',{});
+ for(let mask=0;mask<16;mask++){const solid=BASE.slice(),rails=RAIL.slice(),wells=[];
+   for(let b=0;b<4;b++){const sx=b&1?1:-1,sy=b&2?1:-1;
+     if(mask&(1<<b)){
+       // a corner of a communal platform: a stone pillar (closets, mirror, the food hatch), the stairwell, short railings
+       const inX=(sx===1&&sy===1)?'sleep':(sx===-1&&sy===-1)?'privy':(sx===1&&sy===-1)?'mirror':'food',inY=(sx===1&&sy===-1)?'mirror':'pillar';
+       const x0=sx*PIL0,x1=sx*PIL1,y0=sy*PIL0,y1=sy*PIL1;
+       sg(solid,x1,y0,x1,y1,inX,{});sg(solid,x0,y1,x1,y1,inY,{});sg(solid,x0,y0,x0,y1,'pillar',{});sg(solid,x0,y0,x1,y0,'pillar',{});
+       sg(rails,sx*PLI,sy*PIL1,sx*PLI,sy*CWI,'rail',{});sg(rails,sx*PIL1,sy*PLI,sx*CWI,sy*PLI,'rail',{});wells.push([sx*P/2,sy*P/2]);
+     }else{
+       // a plain crossing of two catwalks: their railings run on to the corner
+       sg(rails,sx*CWI,sy*PLI,sx*CWI,sy*CWI,'rail',{});sg(rails,sx*PLI,sy*CWI,sx*CWI,sy*CWI,'rail',{});
+     }}
+   SQV.push({solid,rails,wells})}
 }
-const SQSOLID=SQAIR.filter(s=>s.type!=='rail'),SQRAIL=SQAIR.filter(s=>s.type==='rail');
-/* is there catwalk, landing or platform floor here (square-local), and is it inside a stairwell */
-function inWellL(lx,ly){const wx=Math.abs(lx)-P/2,wy=Math.abs(ly)-P/2;return wx*wx+wy*wy<RSW*RSW}
-function airFloorL(lx,ly){const ax=Math.abs(lx),ay=Math.abs(ly);if(ay<=HW&&ax>=A&&ax<=CWI)return true;if(ax>=CWI||ay>=CWI||(ax>=PLI&&ay>=PLI))return!inWellL(lx,ly);return false}
-function airFloor(px,py){return airFloorL(px-P*Math.round(px/P),py-P*Math.round(py/P))}
-function inWell(px,py){return inWellL(px-P*Math.round(px/P),py-P*Math.round(py/P))}
+/* is there catwalk, landing or platform floor here, and is it inside a stairwell */
+function inWell(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,ly=py-j*P;if(!cornerComm(i,j,lx,ly))return false;const wx=Math.abs(lx)-P/2,wy=Math.abs(ly)-P/2;return wx*wx+wy*wy<RSW*RSW}
+function airFloor(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,ly=py-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
+  if(ay<=HW&&ax>=A&&ax<=CWI)return true;
+  if(ax>=CWI||ay>=CWI)return!inWell(px,py);
+  if(ax>=PLI&&ay>=PLI&&cornerComm(i,j,lx,ly))return!inWell(px,py);
+  return false}
 /* where you may stand */
 function walkable(x,y,rad){
-  const lx=x-P*Math.round(x/P),ly=y-P*Math.round(y/P),ax=Math.abs(lx),ay=Math.abs(ly);
+  const i=Math.round(x/P),j=Math.round(y/P),lx=x-i*P,ly=y-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
   if(inHexL(lx,ly,A-rad))return lx*lx+ly*ly>=(RS+rad)*(RS+rad);
   if(ay<=HW-rad&&ax>=A-rad-0.05&&ax<=CWI+rad+0.01)return true;
-  if(ax>=PIL0-rad&&ax<=PIL1+rad&&ay>=PIL0-rad&&ay<=PIL1+rad)return false;
-  const wx=ax-P/2,wy=ay-P/2;if(wx*wx+wy*wy<(RSW+rad)*(RSW+rad))return false;
-  return ax>=CWI+rad||ay>=CWI+rad||(ax>=PLI+rad&&ay>=PLI+rad);
+  const comm=cornerComm(i,j,lx,ly);
+  if(comm){if(ax>=PIL0-rad&&ax<=PIL1+rad&&ay>=PIL0-rad&&ay<=PIL1+rad)return false;
+    const wx=ax-P/2,wy=ay-P/2;if(wx*wx+wy*wy<(RSW+rad)*(RSW+rad))return false}
+  return ax>=CWI+rad||ay>=CWI+rad||(comm&&ax>=PLI+rad&&ay>=PLI+rad);
 }
 function placeOf(x,y){const i=Math.round(x/P),j=Math.round(y/P);return inHexL(x-i*P,y-j*P,A)?getRoom(i,j):getAir(i,j)}
+/* the nearest crossing of catwalks to a point, and whether it is communal */
+function crossingAt(px,py){const ci=Math.round(px/P-0.5),cj=Math.round(py/P-0.5);return{ci,cj,x:(ci+0.5)*P,y:(cj+0.5)*P,comm:isComm(ci,cj)}}
 
 /* cast one ray across the grid, square by square, in and out of galleries through their doorways. It bounces off the
    mirror, notes every railing and every stretch of gallery or open air it passes, and stops on the first solid surface */
@@ -120,15 +140,15 @@ function cast(ox,oy,dx,dy){
   LEG.n=1;LEG.ox[0]=ox;LEG.oy[0]=oy;LEG.dx[0]=dx;LEG.dy[0]=dy;LEG.t0[0]=0;RH.n=0;MH.n=0;TV.n=0;
   let si=Math.round(ox/P),sj=Math.round(oy/P),inR=G.inRoom,px=ox,py=oy,t0=0,res=null;
   for(let hop=0;hop<220;hop++){
-    const lx=px-si*P,ly=py-sj*P,sg=inR?SQIN:SQSOLID;let best=1e9,bs=null,bk=0;
+    const lx=px-si*P,ly=py-sj*P,VQ=inR?null:SQV[sqMask(si,sj)],sg=inR?SQIN:VQ.solid;let best=1e9,bs=null,bk=0;
     for(let i=0;i<sg.length;i++){const s=sg[i],ex=s.bx-s.ax,ey=s.by-s.ay,den=dx*ey-dy*ex;if(den>-1e-12&&den<1e-12)continue;
       const wx=s.ax-lx,wy=s.ay-ly,t=(wx*ey-wy*ex)/den;if(t<=1e-5||t>=best)continue;const q=(wx*dy-wy*dx)/den;if(q<0||q>1)continue;best=t;bs=s;bk=q}
     let tp=1e9,ax=0;
     if(!inR){if(dx>1e-12)tp=(P/2-lx)/dx;else if(dx<-1e-12)tp=(-P/2-lx)/dx;let ty=1e9;if(dy>1e-12)ty=(P/2-ly)/dy;else if(dy<-1e-12)ty=(-P/2-ly)/dy;if(ty<tp){tp=ty;ax=1}}
     const lim=Math.min(best,tp);
     if(inR)circ(lx,ly,dx,dy,0,0,RS,lim,t0,0);
-    else{for(let ri=0;ri<SQRAIL.length;ri++){const s=SQRAIL[ri],ex=s.bx-s.ax,ey=s.by-s.ay,den=dx*ey-dy*ex;if(den>-1e-12&&den<1e-12)continue;const wx=s.ax-lx,wy=s.ay-ly,t=(wx*ey-wy*ex)/den;if(t<=1e-5||t>=lim)continue;const q=(wx*dy-wy*dx)/den;if(q<0||q>1)continue;rh(t0+t,q*s.len*0.33,0,0,1)}
-      circ(lx,ly,dx,dy,-P/2,-P/2,RSW,lim,t0,1);circ(lx,ly,dx,dy,P/2,-P/2,RSW,lim,t0,1);circ(lx,ly,dx,dy,-P/2,P/2,RSW,lim,t0,1);circ(lx,ly,dx,dy,P/2,P/2,RSW,lim,t0,1)}
+    else{const RL=VQ.rails;for(let ri=0;ri<RL.length;ri++){const s=RL[ri],ex=s.bx-s.ax,ey=s.by-s.ay,den=dx*ey-dy*ex;if(den>-1e-12&&den<1e-12)continue;const wx=s.ax-lx,wy=s.ay-ly,t=(wx*ey-wy*ex)/den;if(t<=1e-5||t>=lim)continue;const q=(wx*dy-wy*dx)/den;if(q<0||q>1)continue;rh(t0+t,q*s.len*0.33,0,0,1)}
+      const WL=VQ.wells;for(let wi=0;wi<WL.length;wi++)circ(lx,ly,dx,dy,WL[wi][0],WL[wi][1],RSW,lim,t0,1)}
     if(TV.n<200){TV.c[TV.n]=inR?getRoom(si,sj):getAir(si,sj);TV.t1[TV.n]=t0+lim;TV.door[TV.n++]=bs&&bs.type==='door'&&best<=tp?1:0}
     if(tp<best){t0+=tp;px+=dx*tp;py+=dy*tp;if(ax)sj+=dy>0?1:-1;else si+=dx>0?1:-1;if(t0>140)break;continue}
     if(!bs)break;
@@ -193,6 +213,10 @@ function closetTex(sleep){const w=texCanvas(32,64);w.fillStyle='#2a1a10';w.fillR
   else{w.fillRect(13,16,6,1);w.fillRect(13,16,1,3);w.fillRect(18,16,1,3);w.fillRect(14,19,4,1);w.fillRect(15,20,2,1)}
   return w.getImageData(0,0,32,64).data}
 const CLOSET_S=closetTex(true),CLOSET_P=closetTex(false);
+/* the food hatch: a dumbwaiter set in a stone pillar, with a bell, and the menu card beside it */
+const FOODT=(()=>{const w=texCanvas(32,64);w.fillStyle='#4a443c';w.fillRect(0,0,32,64);w.fillStyle='#2a1a10';w.fillRect(4,20,24,26);w.fillStyle='#5a3a22';w.fillRect(6,22,20,22);
+  w.fillStyle='#3a2414';for(let y=24;y<44;y+=4)w.fillRect(6,y,20,1);w.fillStyle='#14100e';w.fillRect(6,40,20,4);w.fillStyle='#d9b45a';w.fillRect(14,14,4,4);w.fillRect(15,12,2,2);w.fillRect(13,18,6,1);
+  w.fillStyle='#e9dfc4';w.fillRect(8,50,16,10);w.fillStyle='#6b5a44';for(let y=52;y<59;y+=2)w.fillRect(10,y,12,1);return w.getImageData(0,0,32,64).data})();
 const EXTT=(()=>{const w=texCanvas(32,32);w.fillStyle='#2e2016';w.fillRect(0,0,32,32);for(let x=0;x<32;x+=4){w.fillStyle=x%8?'#3a2818':'#33231a';w.fillRect(x,0,3,32)}w.fillStyle='#1d140c';w.fillRect(0,0,32,2);w.fillRect(0,30,32,2);return w.getImageData(0,0,32,32).data})();
 const STONE=(()=>{const w=texCanvas(32,32),rnd=prng(91);w.fillStyle='#4a443c';w.fillRect(0,0,32,32);for(let y=0;y<32;y+=8)for(let x=(y/8)%2?-8:0;x<32;x+=16){const c=60+rnd()*20|0;w.fillStyle=`rgb(${c},${c-6},${c-12})`;w.fillRect(x+1,y+1,14,6)}return w.getImageData(0,0,32,32).data})();
 const STAIRT=(()=>{const w=texCanvas(64,64);w.fillStyle='#2a1a10';w.fillRect(0,0,64,64);w.fillStyle='#07050a';w.fillRect(5,0,54,64);
@@ -258,6 +282,7 @@ const INDEXC=buildCard(["..kkkkkkkkkk..",".kyyyyyyyyyyk.",".kyRRRRRRRRyk.",".kyR
 /* sect incense dropped by Purifiers or left on the floor, and the flames of thrown lantern oil */
 const INCC=buildCard(["..n...","...n..","..n...",".kok..",".ktk..",".ktk..",".ktk..",".ktk..","kkkkk."]);
 const FIREC=[["...o....","..of.o..",".ofYo...","ofYYfo..","ofYYYfo.",".ofYYfo.","..offo..","...oo..."],["....o...",".o.fo...","..oYfo..",".ofYYfo.","ofYYYfo.",".ofYYfo.","..offo..","...oo..."],["..o.....","..fo.o..",".ofYfo..","ofYYfo..","ofYYYfo.",".ofYYYo.","..offo..","...oo..."]].map(r=>buildCard(r));
+const MEALC=buildCard(["..n..n..","...n.n..","..n..n..","kkkkkkkk","kyyfyyyk",".kccccck","..kkkkk."]);
 const LAMPC=buildCard(["..kkkk..",".kYYYYk.","kYYYYYyk","kYYYYyyk","kYYYyyyk","kYYyyyyk",".kyyyyk.","..kkkk.."]);
 
 const ALPHA="abcdefghijklmnopqrstuvwxyz, .";
@@ -282,22 +307,34 @@ function makePage(g,f,wall,shelf,book,page,phrase){
 }
 
 const G={};
+/* the day: a clock runs through each day; the lamps sink low at night and more Purifiers walk. At six in the morning
+   a bell rings and the Library resets - every burned shelf whole again, every fire out, the people and the things they
+   carry back where they were, the kitchens and the closets ready again. What you know, and carry, stays with you */
+const DAYLEN=480;
+function hourOf(){return G.clock/DAYLEN*24}
+function clockText(){const h=hourOf(),hh=Math.floor(h),mm=Math.floor((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')}
+function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 1;return(21-h)/3}
+function isNight(){const h=hourOf();return h<5||h>=21}
+function newDay(){G.day++;burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;G.dawnT=2.5;LAMPS.key=null;
+  if(G.state==='play'||G.state==='book'||G.state==='closing')spawnRoom(false);
+  snd('bell');sfx('DAY '+G.day,'mind');setTimeout(()=>sfx('THE LIBRARY RESETS','mind'),500);if(G.journal)drawJournal()}
 const keys={};
 function reset(){
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,dawnT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
   G.room=c;G.gal=c.gid;G.rooms.add(G.gal+':'+G.floor);spawnRoom(false);
 }
 function spawnRoom(first){
-  const h=hashStr('room|'+G.gal+'|'+G.floor),rnd=prng(h);G.ents=[];G.alerted=false;
+  const h=hashStr('room|'+G.gal+'|'+G.floor+'|'+G.day),rnd=prng(h);G.ents=[];G.alerted=false;
   const C=G.room,at=(x,y)=>[C.cx+x,C.cy+y],spot=()=>{const r=RS+0.6+rnd()*(A-RS-1.3),a=rnd()*Math.PI*2;return at(Math.cos(a)*r,Math.sin(a)*r)};
   if(first||h%3===0){const[x,y]=first?at(-1.8,-2.4):spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6})}
+  if(!first&&isNight()&&(h>>>9)%2===0){const[x,y]=spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6})}
   if(first||h%2===0){const[x,y]=first?at(2.6,-0.9):spot();G.ents.push({type:'seek',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,scared:0,hit:0,dead:0,hgt:1.15,cards:SEEK,stealCd:0,flee:0,hp:3})}
   if(first||h%4===1){const[x,y]=first?at(1.4,2.7):spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
   if(first||(h>>>6)%5===0){const[x,y]=first?at(-2.7,1.3):spot();G.ents.push({type:'incense',x,y,f:rnd()*6.28,frame:0,hgt:0.5,cards:[INCC],dead:0})}
@@ -354,6 +391,8 @@ function snd(name){
     case'stairs':for(let i=0;i<6;i++)nz(t+i*0.12,0.06,'lowpass',600,200,0.1);break;
     case'incense':tone(t,2.2,'sine',294,294,0.05);tone(t+0.2,2,'sine',440,440,0.035);break;
     case'sleep':tone(t,2,'sine',196,147,0.05);break;
+    case'bell':tone(t,1.6,'sine',1320,1300,0.08);tone(t,1.2,'sine',1760,1740,0.05);break;
+    case'eat':for(let i=0;i<4;i++)nz(t+i*0.13,0.08,'bandpass',900,600,0.12,2);break;
     case'heart':tone(t,0.12,'sine',62,40,0.4);tone(t+0.18,0.12,'sine',56,38,0.28);break;
   }
 }
@@ -384,6 +423,9 @@ function update(dt){
   if(keys.read){keys.read=false;doRead()}
   G.swing=Math.max(0,G.swing-dt*4);G.swingCd=Math.max(0,G.swingCd-dt);G.hurtCd=Math.max(0,G.hurtCd-dt);G.flash=Math.max(0,G.flash-dt*2);G.sleepCd=Math.max(0,G.sleepCd-dt);
   G.oilTimer+=dt;if(G.oilTimer>40&&G.oil>0){G.oilTimer=0;G.oil--}
+  {const h0=hourOf();G.clock=(G.clock+dt)%DAYLEN;const h1=hourOf();if(h0<6&&h1>=6)newDay()}
+  G.dawnT=Math.max(0,G.dawnT-dt);
+  if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
   for(const e of G.ents){
@@ -487,13 +529,14 @@ function sin(kind,wallN,gid){const at=placeWords(gid==null?G.gal:gid,G.floor);
 /* Read does whatever is in front of you: a shelf, the Index, the stair, a closet, the mirror */
 function doRead(){
   for(const e of G.ents)if(e.type==='index'){const dx=e.x-G.x,dy=e.y-G.y;if(Math.hypot(dx,dy)<1.25&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.7){G.lastHit={t:Math.hypot(dx,dy)};useIndex();return}}
-  if(!G.inRoom){const dx=P*(Math.round(G.x/P-0.5)+0.5)-G.x,dy=P*(Math.round(G.y/P-0.5)+0.5)-G.y;if(Math.hypot(dx,dy)<RSW+1.3&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.75){G.lastHit={t:Math.hypot(dx,dy)-RSW};G.choice='stairs';openNote('THE SPIRAL STAIR','It sinks into the abyss and climbs out of sight. Every floor is the same.');return}}
+  if(!G.inRoom){const c=crossingAt(G.x,G.y),dx=c.x-G.x,dy=c.y-G.y;if(c.comm&&Math.hypot(dx,dy)<RSW+1.3&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.75){G.lastHit={t:Math.hypot(dx,dy)-RSW};openNote('THE SPIRAL STAIR','It sinks into the abyss and climbs out of sight. Every floor is the same.','','stairs');return}}
   const h=cast(G.x,G.y,Math.cos(G.ang),Math.sin(G.ang));
   if(MH.n&&MH.t[0]<=1.9){G.lastHit={t:MH.t[0]};openNote('THE MIRROR','Set into a stone pillar of the platform, it doubles the catwalks, the open air and you, faithfully. Some librarians take it as proof that the Library is not infinite: why else would it need the illusion? Others say it proves the opposite.');return}
   if(!h||h.t>1.9){sfx('NOTHING TO READ');return}
   G.lastHit={t:h.t};
   const f=G.floor;
   if(h.type==='sleep'){doSleep();return}
+  if(h.type==='food'){useHatch(h.x,h.y);return}
   if(h.type==='privy'){openNote('A VERY SMALL CLOSET','The other closet in the pillars of the platform, for necessities. For once, nothing in here to read.');return}
   if(h.type==='frame'){openNote('THE MIRROR','A gilt frame. In the glass, another platform, another you.');return}
   if(h.type!=='shelf'){sfx('NO SHELVES HERE');return}
@@ -515,6 +558,19 @@ function indexHint(i,P){
   if(i===1)return'Your page lies in HEXAGON '+P.g+'. It is marked on the map in your journal.';
   return'Your page favours WALLS '+P.walls[0]+' and '+P.walls[1]+'.';
 }
+const MEALS={bread:{name:'BREAD AND WATER',hp:20,wait:5},soup:{name:'LENTIL SOUP',hp:45,wait:12}},FULLT=45;
+function useHatch(hx,hy){
+  const c=crossingAt(hx,hy),id=c.ci+','+c.cj+','+G.floor,M=G.meal;
+  if(M&&M.id===id){if(G.time<M.ready){openNote('THE FOOD HATCH','Your order is on its way up the shaft. Listen for the bell.');return}
+    const m=MEALS[M.kind];G.health=Math.min(100,G.health+m.hp);G.sanity=Math.min(100,G.sanity+5);G.fedAt=G.time;G.meal=null;snd('eat');sfx('+'+m.hp+' HEALTH');
+    openNote('THE FOOD HATCH','You eat standing up at the hatch: '+m.name.toLowerCase()+'. Somewhere below, a kitchen you will never see.','+'+m.hp+' health · +5 sanity');return}
+  if(M){openNote('THE FOOD HATCH','You already have a meal waiting at another hatch'+(M.fl!==G.floor?' on floor '+M.fl:'')+'.');return}
+  if(G.time-G.fedAt<FULLT){openNote('THE FOOD HATCH','You are still full. Come back in a while.');return}
+  G.hatch={id,x:c.x+1.0,y:c.y-1.45};
+  openNote('THE FOOD HATCH','A dumbwaiter in the stone pillar, a brass bell, and a menu card nailed beside it. Somewhere far below there is a kitchen. Order, and the meal comes up on the rope.','','food');
+}
+function orderMeal(kind){const m=MEALS[kind],H=G.hatch;G.choice=null;G.meal={id:H.id,kind,ready:G.time+m.wait*(isNight()?1.6:1),rang:false,x:H.x,y:H.y,fl:G.floor};
+  snd('clack');sfx('ORDERED');closeBook()}
 function doSleep(){
   if(G.sleepCd>0){openNote('THE SLEEPING CLOSET','You are not tired enough to sleep standing up again yet.');return}
   G.state='sleep';G.sleepT=0;G.journal=false;snd('sleep');
@@ -533,7 +589,7 @@ function showPage(isNew){
   }else verdict=p.kind==='noise'?'You read this one already. Still noise.':'You remember this page.';
   G.note=null;G.choice=null;openBookUI(p,verdict);
 }
-function openNote(title,text,verdict){G.note={title,text};if(title!=='THE SPIRAL STAIR')G.choice=null;openBookUI(null,verdict||'')}
+function openNote(title,text,verdict,choice){G.note={title,text};G.choice=choice||null;openBookUI(null,verdict||'')}
 function openBookUI(p,verdict){G.page=p;G.verdict=verdict;if(G.state!=='book'){G.state='book';G.bookAnim=0;const t=G.lastHit?Math.min(G.lastHit.t,1.9)*0.9:1;G.bookFrom={x:G.x+Math.cos(G.ang)*t,y:G.y+Math.sin(G.ang)*t}}drawBook()}
 function closeBook(){if(G.state==='book'){G.state='closing';G.bookAnim=0}}
 function climb(dir){snd('stairs');G.choice=null;G.note=null;G.state='climb';G.climbT=0;G.climbDir=dir;G.climbed=false;sfx(dir>0?'UP THE STAIR':'DOWN THE STAIR','mind')}
@@ -542,10 +598,10 @@ function die(){if(G.state==='dying'||G.state==='dead')return;snd('bad');G.state=
 /* ---- the renderer ---- */
 const LAMPS={key:null,list:[]},MCOLS=[];let TR=1,TG=1,TB=1,FLICK=1,LANR=4,HZ=100; // HZ: the horizon row, moved by looking up and down
 const LAMPR2=4.6*4.6;
-let FIREL=[];const AMB=0.085,LAMPI=0.62;
-const JR2=6.5*6.5,JLI=0.75;
-function lampC(c,px,py){let L=0,w;if(c&&c.kind==='a'){const jx=P*(Math.round(px/P-0.5)+0.5)-px,jy=P*(Math.round(py/P-0.5)+0.5)-py;w=1-(jx*jx+jy*jy)/JR2;if(w>0)L+=JLI*w*w*w}
-  else if(c&&c.kind==='g'){const q=c.lamps;let dx=px-q[0][0],dy=py-q[0][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*w*w*w;dx=px-q[1][0];dy=py-q[1][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*w*w*w}
+let FIREL=[],AMB=0.085,LDAY=1;const LAMPI=0.62;
+const JR2=6.5*6.5,JLI=0.75,JR2P=4.8*4.8,JLIP=0.45;
+function lampC(c,px,py){let L=0,w;if(c&&c.kind==='a'){const ci=Math.round(px/P-0.5),cj=Math.round(py/P-0.5),jx=P*(ci+0.5)-px,jy=P*(cj+0.5)-py,cm=isComm(ci,cj);w=1-(jx*jx+jy*jy)/(cm?JR2:JR2P);if(w>0)L+=(cm?JLI:JLIP)*LDAY*w*w*w}
+  else if(c&&c.kind==='g'){const q=c.lamps;let dx=px-q[0][0],dy=py-q[0][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*LDAY*w*w*w;dx=px-q[1][0];dy=py-q[1][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*LDAY*w*w*w}
   if(FIREL.length)
   for(let i=0;i<FIREL.length;i+=2){const dx=px-FIREL[i],dy=py-FIREL[i+1];w=1-(dx*dx+dy*dy)/7;if(w>0)L+=0.65*FLICK*w*w*w}return L}
 function lanL(d){const v=d<LANR?1-d/LANR:0;return FLICK*v*v}
@@ -561,6 +617,7 @@ function wallPx(i,h,z,lv,L){
   if(h.type==='shelf'){tex=colTex(h,lv);ti=((63-(zz/WALLH*64|0))*64+Math.min(63,h.u*64|0))*4}
   else if(h.type==='ext'||h.type==='pillar'){tex=h.type==='ext'?EXTT:STONE;ti=((31-(zz/WALLH*32|0))*32+((((h.u*s.len/(h.type==='ext'?1.2:0.7))%1)*32)|0))*4}
   else if(h.type==='plain'){tex=PANEL;ti=((31-(zz/WALLH*32|0))*32+((((h.u*s.len/0.85)%1)*32)|0))*4}
+  else if(h.type==='food'){tex=FOODT;ti=((63-(zz/WALLH*64|0))*32+Math.min(31,h.u*32|0))*4}
   else if(h.type==='sleep'||h.type==='privy'){tex=h.type==='sleep'?CLOSET_S:CLOSET_P;ti=((63-(zz/WALLH*64|0))*32+Math.min(31,h.u*32|0))*4}
   else if(h.type==='stair'){tex=STAIRT;ti=((63-(zz/WALLH*64|0))*64+Math.min(63,h.u*64|0))*4}
   else{put(i,176,138,62,L);return}
@@ -616,6 +673,7 @@ function render(){
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.92-low*0.25;TB=0.78+low*0.3;
+  {const d=dayLight(hourOf());LDAY=0.4+0.6*d;AMB=0.04+0.045*d;TR*=0.86+0.14*d;TG*=0.9+0.1*d;TB*=1.06-0.06*d}
   HZ=H/2+G.pitch*H;const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
   for(let x=0;x<W;x++){
     const cam=2*x/W-1;let rdx=dirX+plX*cam,rdy=dirY+plY*cam;
@@ -648,11 +706,12 @@ function render(){
   const list=G.ents.filter(e=>!(e.type==='pur'&&e.dead>=1.6)).concat((G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
   {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),key=i0+','+j0;
    if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];const lamp=(x,y,z)=>LAMPS.list.push({type:'lamp',x,y,z0:z,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
-     for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){for(const q of getRoom(i,j).lamps)lamp(q[0],q[1],LAMPZ);lamp((i+0.5)*P,(j+0.5)*P,JLZ)}}
+     for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){for(const q of getRoom(i,j).lamps)lamp(q[0],q[1],LAMPZ);lamp((i+0.5)*P,(j+0.5)*P,isComm(i,j)?JLZ:JLZ+0.2)}}
    // with no mirror in view, lamps behind you or far off to the side cannot show
    const mir=LGN.some(n=>n>1),cs=Math.cos(G.ang),sn=Math.sin(G.ang);
    for(const L of LAMPS.list){const dx=L.x-G.x,dy=L.y-G.y,f=dx*cs+dy*sn;if(mir||(f>0.1&&Math.abs(-dx*sn+dy*cs)<f*PLANE+0.6&&f<26))list.push(L)}}
   fires.forEach((F,i)=>list.push({type:'fire',x:F.x,y:F.y,bill:true,hgt:0.6*Math.min(1,F.t/2),cards:FIREC,frame:Math.floor(G.time*10+i)%3,dead:0}));
+  if(G.meal&&G.meal.fl===G.floor&&G.time>=G.meal.ready)list.push({type:'meal',x:G.meal.x,y:G.meal.y,z0:0.55,hgt:0.24,bill:true,cards:[MEALC],frame:0,dead:0});
   if(LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
   MCOLS.length=0;for(let x=0;x<W;x++)if(LGN[x]>1)MCOLS.push(x);
   for(const e of list)e._d=(e.x-G.x)*(e.x-G.x)+(e.y-G.y)*(e.y-G.y);list.sort((a,b)=>b._d-a._d);
@@ -777,8 +836,13 @@ function drawBook(){
 /* a note card: the mirror, a closet, the Index, ash - or the stair, where each page is a way to go */
 function drawNote(g,px,py,pw,ph,x2,y2){
   const n=G.note,st=G.choice==='stairs';
+
   g.font='bold 17px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(n.title,px+34,py+30);
   g.font='italic 25px Georgia,serif';g.fillStyle='#2a2018';blockG(g,wrapG(g,n.text,pw-68),px+34,py+74,34);
+  if(G.choice==='food'){
+    g.font='bold 30px Georgia,serif';g.fillStyle='#b3261e';g.fillText('▲ '+MEALS.bread.name,px+34,py+ph-140);g.fillText('▼ '+MEALS.soup.name,x2+34,y2+ph-140);
+    g.font='italic 23px Georgia,serif';g.fillStyle='#2a2018';g.fillText('+'+MEALS.bread.hp+' health · comes up quickly',px+38,py+ph-90);g.fillText('+'+MEALS.soup.hp+' health · takes a while',x2+38,y2+ph-90);
+    g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'W bread · S soup · E close':'tap a page · tap outside · close',x2+34,y2+30);return}
   if(st){
     g.font='bold 44px Georgia,serif';g.fillStyle='#b3261e';g.fillText('▲ CLIMB',px+34,py+ph-130);g.fillText('▼ DESCEND',x2+34,y2+ph-130);
     g.font='italic 23px Georgia,serif';g.fillStyle='#2a2018';g.fillText('to floor '+(G.floor+1),px+38,py+ph-74);g.fillText('to floor '+(G.floor-1),x2+38,y2+ph-74);
@@ -800,7 +864,7 @@ function drawJournal(){
   const t=TX.journal,{g,px,py,pw,ph,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+20);
   g.font='italic 17px Georgia,serif';
-  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor}`,`Rooms ${G.rooms.size} · Books ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Oil ${G.oil} · Incense ${G.incense} · ${WNAME[G.weapon].toLowerCase()}`,`Fragments ${G.frags} · Index XP ${G.xp}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,22);
+  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor}`,`Day ${G.day} · ${clockText()}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Oil ${G.oil} · Incense ${G.incense} · ${WNAME[G.weapon].toLowerCase()}`,`Fragments ${G.frags} · Index XP ${G.xp}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,22);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
   g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+G.phrase+'"',px+26,yy+28);
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE INDEX SAYS',px+26,yy+64);
@@ -823,7 +887,7 @@ function drawMap(g,x0,y0,w,h){
   for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){
     const x=i*P,y=j*P;if(Math.abs(X(x)-cx)>w/2+R*sc||Math.abs(Y(y)-cy)>h/2+R*sc)continue;
     // the communal platform and its stairwell
-    g.fillStyle='#8a7b5c';g.fillRect(X(x+P/2)-1.8*sc,Y(y+P/2)-1.8*sc,3.6*sc,3.6*sc);g.beginPath();g.arc(X(x+P/2),Y(y+P/2),RSW*sc,0,Math.PI*2);g.fillStyle='#2a2018';g.fill();
+    if(isComm(i,j)){g.fillStyle='#c9a46a';g.fillRect(X(x+P/2)-1.8*sc,Y(y+P/2)-1.8*sc,3.6*sc,3.6*sc);g.beginPath();g.arc(X(x+P/2),Y(y+P/2),RSW*sc,0,Math.PI*2);g.fillStyle='#2a2018';g.fill()}
     // landings to the doorways
     g.fillStyle='#8a7b5c';g.fillRect(X(x+A),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);g.fillRect(X(x-CWI),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);
     const seen=G.rooms.has(galId(i,j)+':'+G.floor),here=G.room.id===i+','+j;
@@ -1026,8 +1090,8 @@ function drawStat(){
   hudText(q,dark?'DARK':'OIL '+String(G.oil).padStart(2,'0'),104,30,'bold 34px Impact,"Arial Black",sans-serif',dark?'#ff8f6b':'#f6ecd2');
   hudText(q,'HEX '+G.gal,104,76,'bold 13px "Courier New",monospace','#f6ecd2');
   hudText(q,'FLOOR '+G.floor,104,96,'bold 13px "Courier New",monospace','#f6ecd2');
-  hudText(q,'rooms '+G.rooms.size+' · books '+G.books,104,116,'bold 13px "Courier New",monospace','#e2d6b4');
-  hudText(q,'incense '+G.incense+(G.incenseT>0?' · burning':''),104,136,'bold 13px "Courier New",monospace','#c9b88f');
+  hudText(q,'DAY '+G.day+' · '+clockText()+(isNight()?' night':''),104,116,'bold 13px "Courier New",monospace','#e2d6b4');
+  hudText(q,'incense '+G.incense+(G.incenseT>0?' · burning':'')+(G.meal&&G.time>=G.meal.ready?' · meal!':''),104,136,'bold 13px "Courier New",monospace','#c9b88f');
   silInto(HST.sil,[HST.glass,HST.front]);haloInto(HST.halo,HST.sil,0)}
 function hudModel(h,an,d,yaw){
   const M=mBegin(h,an,d,0.03,0.3,yaw);
@@ -1150,6 +1214,7 @@ function display(dt){
   const low=G.sanity<25?(25-G.sanity)/25:0,L=LAY,st=G.state;
   if(st==='play'){const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r)}
   if(G.flash>0){vctx.fillStyle='rgba(200,40,20,'+(G.flash*0.35)+')';vctx.fillRect(0,0,DW,DH)}
+  if(G.dawnT>0){vctx.fillStyle='rgba(255,236,190,'+(0.35*Math.min(1,G.dawnT/1.5))+')';vctx.fillRect(0,0,DW,DH)}
   if(G.incenseT>0){vctx.fillStyle='rgba(215,205,235,'+(0.07*Math.min(1,G.incenseT))+')';vctx.fillRect(0,0,DW,DH)}
   if(low>0){vctx.fillStyle='rgba(60,20,90,'+(low*0.25)+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='intro'||st==='start'){
@@ -1201,6 +1266,7 @@ function action(a){
   if(CTLS[a]){const c=CTLS[a];c.flash=0.16;c.pressT=0;c.sv-=6;if(a==='read')c.fq=2}
   if(G.state==='intro'){if(a==='read'||a==='swing'){G.state='start';G.startT=0}return}
   if(G.state==='dead'||G.state==='won'){if(a==='read'||a==='swing'){reset();drawIntro();G.state='start';G.startT=0.3}return}
+  if(G.state==='book'&&G.choice==='food'){if(a==='up'||a==='prev')orderMeal('bread');else if(a==='down'||a==='next')orderMeal('soup');else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
@@ -1276,7 +1342,7 @@ function endPtr(ev,cancel){
   if(G.state==='intro'||G.state==='dead'||G.state==='won')action('read');
   else if(G.state==='play'&&G.journal&&jr.rect){const pt=canvasPt(ev),r=jr.rect;if(pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1)soundToggle()}
   else if(G.state==='book'){const r=bookCard.rect,pt=canvasPt(ev);
-    if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0),fy=(pt.y-r.y0)/(r.y1-r.y0);if(G.choice==='stairs')action((PORT?fy:fx)<0.5?'up':'down');else if(G.page&&fx>=0.3&&fx<=0.7&&(fy<0.1||fy>0.9))action(fy<0.1?'up':'down');else action(fx<0.3?'prev':fx>0.7?'next':'close')}else action('close')}
+    if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0),fy=(pt.y-r.y0)/(r.y1-r.y0);if(G.choice)action((PORT?fy:fx)<0.5?'up':'down');else if(G.page&&fx>=0.3&&fx<=0.7&&(fy<0.1||fy>0.9))action(fy<0.1?'up':'down');else action(fx<0.3?'prev':fx>0.7?'next':'close')}else action('close')}
 }
 view.addEventListener('pointerup',ev=>endPtr(ev,false));
 view.addEventListener('pointercancel',ev=>endPtr(ev,true));

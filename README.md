@@ -30,14 +30,17 @@ python3 -m http.server 8000
 | Turn pages | Left / Right | Tap the page edges |
 | Shelf above / below (in a book) | W / S | Tap the top / bottom edge |
 | Climb / descend (at the stair) | W / S | Tap the upper / lower page |
+| Order bread / soup (at the food hatch) | W / S | Tap the upper / lower page |
 
 ## The Library
 
 The rooms follow Borges' story; the space between them is open air:
 
 - Every gallery is a hexagon with twenty shelves (five on each of four walls) of thirty-two books; every book has 410 pages of 40 lines of 80 characters. A vast air shaft with a low railing sits in the middle, two spherical lamps hang overhead, and the two free sides have doorways facing east and west.
-- The galleries stand apart on a square grid, separated by open air. Railed catwalks run north-south and east-west between them, and a short landing joins each doorway to the catwalk beside it.
-- Where four catwalks cross is the communal platform: the spiral stairwell in the middle under a hanging lamp, and four stone pillars at its corners that rise through every floor. One holds the closet for sleeping standing up, one the closet for necessities, one carries the mirror.
+- The galleries stand apart on a square grid, separated by open air. Railed catwalks run north-south and east-west between them, and a short landing joins each doorway to the catwalk beside it. Each crossing of two catwalks has a small lamp.
+- Every third crossing each way is a communal platform, so between two communal areas there are always three galleries, north, south, east and west. The platform has the spiral stairwell in the middle under a hanging lamp, and four stone pillars at its corners that rise through every floor: one holds the closet for sleeping standing up, one the closet for necessities, one carries the mirror, and one the food hatch.
+- The food hatch is a dumbwaiter: order bread and water (+20 health, quick) or lentil soup (+45 health, slow), wait for the bell, and eat at the hatch. Food is the only way to get health back.
+- The day: a clock runs through each day (eight minutes long). The lamps sink low at night and more Purifiers walk. At six in the morning a bell rings and the Library resets: burned shelves are whole again, fires go out, the people and things in the galleries are back, and the kitchens and closets are ready again. What you know and carry stays with you.
 - Every floor has the same plan, so from a catwalk you look down and up past the catwalks, platforms and galleries of every other floor.
 - Every gallery is the same room; only its books differ, and those are calculated from the gallery's address (its place east-west and north-south, and its floor). So the Library goes on without end in every direction and up and down, at least as large as Borges' Library, and the same shelf always holds the same books. You wake somewhere among hundreds of thousands of galleries and a couple of thousand floors, a few galleries from your page.
 - The journal (J) keeps a sketch map of the floor around you with north at the top, the galleries you have searched shaded. Once the Index has told you, a red cross marks the gallery of your page.
