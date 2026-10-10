@@ -15,10 +15,19 @@ python3 -m http.server 8000
 # then open http://localhost:8000
 ```
 
+## Title screen & cinematic scenes
+
+A new illustrated **ZomBeef Games** title screen opens before the Library. It uses the game's own pixel-paper, ink, brass and lantern palette, with animated archive shelves and a responsive **Begin Your Story / How to Play / Sound** menu. Use W/S or the arrow keys and Enter on desktop, or tap a menu choice on mobile.
+
+Beginning a new run now plays a four-shot opening sequence before the familiar "burned into your mind" introduction. The first nearby Purifier triggers a two-shot warning; your first interaction with the Index triggers another two-shot reveal. Daybreak and finding your page have animated book-and-parchment interludes. All story scenes pause active combat and game time, then return to the original action. **E / Enter / Space or tap to advance; Escape, X or the top-right SKIP label to skip**. Scene reveals occur once per run, and the animation respects reduced-motion preferences.
+
 ## Controls
 
 | Action | Keyboard | Touch |
 | --- | --- | --- |
+| Title menu | W/S or arrows, Enter to select | Tap menu choices |
+| Advance a cinematic | E, Enter or Space | Tap screen |
+| Skip a cinematic | Escape or X | Tap SKIP (top right) |
 | Walk / turn | W A S D or arrows | Thumbstick (bottom left) |
 | Look around, up and down | Drag, or R / F | Drag |
 | Read shelves, search bodies, or use what is in front of you | E or Enter | Read button |
@@ -48,6 +57,7 @@ The rooms follow Borges' story; the space between them is open air:
 
 ## What is in the prototype
 
+- A new responsive animated ZomBeef Games title/menu: parchment and brass lettering, receding bookshelf theatre, embossed studio crest, controls panel and a sound toggle. Animated cutscenes at opening, first Purifier encounter, first Index interaction, dawn and the finale, with tap/keyboard advance and skip.
 - Adaptive pixel-art raycaster (about 192,000 scene pixels on desktop and 112,000 on touch devices) that steps across the grid and through the doorways and follows each ray up and down through the open air, so other storeys show past the catwalks and down the shafts and stairwells; mirror reflections (you see yourself) and railings.
 - Deterministic pages: every page is calculated from its address (hexagon, floor, wall, shelf, book and page) (FNV-1a + mulberry32), so the same shelf always reads the same on every device.
 - Sanity, health and lantern oil; psychosis at zero sanity with phantom Purifiers. Sleeping in the closet restores sanity at the cost of oil.
@@ -94,6 +104,6 @@ The game is the single file `index.html`. On Railway it is served by `server.mjs
 
 ## Checks
 
-Run `npm run check` (Node 18 or newer; no dependencies). It checks server syntax, parses the inline game JavaScript, and runs focused tests for sermons, body searching, one-time loot, torch inventory and coat-tail depth. The tests use production game logic with rendering and audio stubbed; they do not replace browser gameplay tests. The tests execute production logic with rendering and audio stubbed; they do not replace a browser gameplay test.
+Run `npm run check` (Node 18 or newer; no dependencies). It checks server syntax, parses the inline game JavaScript, and runs focused tests for sermons, corpse loot, torch inventory, coat-tail ordering, title navigation, desktop/mobile touch hit-testing, cinematic progression and skip behavior. Tests exercise production logic with rendering and audio stubbed; they do not replace visual browser playtests.
 
 The visual presentation uses detailed jointed paper-cutout characters, engraved brass gauges, leather-bound journal covers, layered parchment pages, and illustrated lanterns and hand tools. Character textures render at twice their original sampling density while retaining their existing world size and animation pivots.
