@@ -581,7 +581,7 @@ const FIGRIG=[MERIG,recolorRig(MERIG,c=>COATS.has(c)?hue(150,230,190)(c):c),reco
   recolorRig(MERIG,c=>c===INK?c:[c[0]*0.22|0,c[1]*0.19|0,c[2]*0.17|0])];
 /* a librarian figure (your own rig, in other coats): running, flailing, falling, hanging or lying dead */
 function figLayers(e,out){
-  const R=FIGRIG[e.burnt?3:e.coat||0],T=G.time,put=rigOut(e,out),seed=e.seed||0,pose=e.pose,walk=e.walk||0;
+  const R=e.rig||FIGRIG[e.burnt?3:e.coat||0],T=G.time,put=rigOut(e,out),seed=e.seed||0,pose=e.pose,walk=e.walk||0;
   const S=e.spr||[0,0,0,0,0,0,0,0,0,0];
   if(pose==='dead'){   // lying along the floor, face down, one arm thrown out
     const hx=-4,hz=3.2;put(R.chest,92,hx,hz,0,false);
@@ -599,14 +599,16 @@ function figLayers(e,out){
   const A=Math.max(-9,Math.min(9,(e.vin||0)/PS/(4*Math.max(1.1,Math.hypot(e.vx||0,e.vy||0)/(1.45*0.5))))),lift=4.5*walk,fl=pose==='flail'||pose==='fall';
   const fa=footAt(e.gp||0,A,lift),fb=footAt(((e.gp||0)+0.5)%1,A,lift);
   if(pose==='fall'){const k=Math.sin(T*9+seed);fa[0]=6*k;fa[1]=4+3*k;fb[0]=-6*k;fb[1]=4-3*k}
-  const bob=walk*1.4*Math.cos(4*Math.PI*((e.gp||0)-0.25)),hz=26+bob+(pose==='fall'?2:0),hx=0,lean=(pose==='fall'?e.spin||0:8*walk*Math.sign(A))+(e.lunge||0)*-20;
+  const bob=walk*1.4*Math.cos(4*Math.PI*((e.gp||0)-0.25))+(pose==='laugh'?Math.abs(Math.sin(G.time*16))*0.9:0),hz=26+bob+(pose==='fall'?2:0),hx=0,lean=(pose==='fall'?e.spin||0:8*walk*Math.sign(A))+(e.lunge||0)*-20;
   const ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs],[shx,shz]=at(0.3,13.6),[nkx,nkz]=at(1,16.4),sw=walk*Math.sin(2*Math.PI*(e.gp||0));
-  const flap=k=>fl?[shx+Math.sin(T*13+k*2+seed)*7,shz+6+Math.cos(T*11+k)*7]:[shx+(k?-1:1)*sw*7+2,shz-11+Math.abs(sw)*3];
+  const PT={laugh:k=>[shx+4+k,shz-9+Math.sin(T*16+k)*1.5],weep:k=>[nkx+5-k,nkz-1.5],count:k=>k?[shx+13,shz-3+Math.sin(T*6)*2]:[shx+2,shz-15],sleep:k=>[shx+16,shz-1-k],
+      fly:k=>k?[shx+17,shz+1]:[shx-17,shz+1],stand:k=>[shx+2+k,shz-15]}[pose],HA={laugh:-18+8*Math.sin(T*15),weep:35,count:20,sleep:10,fly:-15}[pose]||0;
+  const flap=k=>PT&&!walk?PT(k):PT&&pose!=='stand'?PT(k):fl?[shx+Math.sin(T*13+k*2+seed)*7,shz+6+Math.cos(T*11+k)*7]:[shx+(k?-1:1)*sw*7+2,shz-11+Math.abs(sw)*3];
   armOut(put,R,shx-0.5,shz,...flap(0),-0.05,8.5,10.5);
   legOut(put,R,hx-1,hz,fb,-0.03,11.5,11,4.5);put(R.skirt,(S[8]||0),hx-1,hz+1,-0.012,false);
   put(R.chest,lean,hx,hz,0,false);
   legOut(put,R,hx+1.2,hz,fa,0.012,11.5,11,4.5);put(R.skirt,(S[6]||0),hx+1.2,hz+1,0.02,false);
-  put(R.head,lean*0.5+(fl?-15:0),nkx,nkz-1,0.028,false);
+  put(R.head,lean*0.5+(fl?-15:0)+HA,nkx,nkz-1,0.028,false);
   armOut(put,R,shx+0.8,shz,...flap(1),0.05,8.5,10.5);
   if(e.burning){for(let k=0;k<3;k++){const[fx,fz]=at(-2+k*2.5,6+k*5+Math.sin(T*7+k)*1.5);put(PURIG.flame[Math.floor(T*10+k+seed*3)%4],Math.sin(T*5+k)*8,fx,fz+6,0.035+k*0.002,true)}}
 }
@@ -634,7 +636,7 @@ function bgStart(force){
   e[al]=start;e.ox=e.x;e.oy=e.y;BG.acts.push(e);
   if(kind==='push'){const p={type:'pur',x:e.x,y:e.y,zw:e.zw,lvl:sp.k,f:e.f,seed:Math.random()*6.28,hit:0,dead:0,raise:0,chasing:false,bgp:true};p[al]=e[al]-dir*1.6;gaitUpd(p,0,0.58);e.pusher=p}
   return true}
-function bgYell(e,what){if(!e.yell)return;e.yell=false;snd('scream');sfx(what,'mind')}
+function bgYell(e,what){if(!e.yell)return;e.yell=false;voice(/jump|push/.test(what)?'fallscream':'scream',{x:e.x,y:e.y,z:e.zw},{vol:1.4});sfx(what,'mind')}
 function bgUpd(dt){
   BG.t-=dt;if(BG.t<=0&&BG.acts.length<2&&G.state==='play'){BG.t=bgStart()?22+Math.random()*26:3}
   for(const e of BG.acts){e.t+=dt;const al=e.al,ax=al==='x'?1:0;let spd=0;
@@ -677,9 +679,98 @@ function worldDead(){const i0=Math.round(G.x/P-0.5),j0=Math.round(G.y/P-0.5),hr=
 function lifeLayers(out){
   const C=BG.cam,cs=Math.cos(C.ang),sn=Math.sin(C.ang);
   const vis=e=>{const dx=e.x-C.x,dy=e.y-C.y,f=dx*cs+dy*sn;return f>-0.5&&f<34&&Math.abs(-dx*sn+dy*cs)<f*PLANE+2};
+  for(const e of ENC.list)if(vis(e))figLayers(e,out);
   for(const e of BG.acts){if(e.pusher&&vis(e.pusher))purLayers(e.pusher,out);if(e.hide||!vis(e))continue;figLayers(e,out);if(e.burning&&e.lvl===0)FIREL.push(e.x,e.y)}
   // the dead are still: draw one only if last frame's depth says some of it can be seen
   for(const e of worldDead())if(vis(e)){const z=e.zw+(e.pose==='hang'?-0.5:0.12);if(seeAt(e.x,e.y,z)||seeAt(e.x,e.y,z+0.25)||seeAt(e.x+0.4,e.y+0.4,z)||seeAt(e.x-0.4,e.y-0.4,z))figLayers(e,out)}}
+/* ---- encounters: now and then someone is standing a few steps ahead of you. Walk up and Read to speak to them. Some
+   want something, some give something, one is very old and has been waiting a long time ---- */
+const HAIRS=new Set(RHAIR);
+const ENCRIG={
+  rose:recolorRig(MERIG,c=>COATS.has(c)?hue(205,200,220)(c):HAIRS.has(c)?hue(255,252,245)(c):c),
+  laugh:recolorRig(MERIG,c=>COATS.has(c)?hue(240,200,90)(c):c),
+  count:recolorRig(MERIG,c=>COATS.has(c)?hue(150,230,190)(c):c),
+  weep:recolorRig(MERIG,c=>COATS.has(c)?hue(150,180,250)(c):c),
+  peddler:recolorRig(MERIG,c=>COATS.has(c)?hue(250,120,90)(c):c),
+  sleep:recolorRig(MERIG,c=>COATS.has(c)?hue(250,245,225)(c):c)};
+const ENCS={
+  rose:{title:'AN OLD WOMAN',pose:'stand',rail:true,idle:'hum',every:6,
+    text:()=>'She is very, very old, in a grey shawl, one hand on the rail. She looks at you as if you have kept her waiting, and then as if you were someone else entirely.\n\n"It\'s been 84 years..."',
+    verdict:'She smiles, and opens her hand over the drop. Something small and blue falls away into the dark.',close:e=>{e.state='fly';e.t=0}},
+  laugh:{title:'THE LAUGHING MAN',pose:'laugh',idle:'laugh',every:3.6,
+    text:()=>'He cannot stop. Between breaths he holds up a page: every line of it is the letter h.\n\n"I found it! The book that explains everything! It\'s THIS! It\'s all THIS!"',
+    a:'▲ LAUGH WITH HIM',ad:'−8 sanity · he tips you 4 type',b:'▼ BACK AWAY',bd:'he laughs at your back',
+    A:e=>{G.sanity=Math.max(0,G.sanity-8);G.type+=4;voice('laugh',e,{vol:1.2});sfx('+4 TYPE');return'You laugh until it hurts. He presses four letters of type into your hand, wipes his eyes, and wanders off, still going.'},
+    B:e=>'You back away. The laughing follows you a long way.'},
+  count:{title:'THE COUNTER',pose:'count',idle:'murmur',every:2.4,
+    text:()=>'"...three hundred and ninety-nine, four hundred... DON\'T. Don\'t speak. I am counting the letters on this floor. I have been counting since before the lamps were lit."',
+    a:'▲ ASK HIM THE TOTAL',ad:'he loses count',b:'▼ LEAVE HIM BE',bd:'+3 sanity',
+    A:e=>{voice('scream',e);G.frags+=G.tr.key?2:1;sfx('+1 SENTENCE','mind');return'He loses his place. He screams once, then tears out the only real sentence he ever found and pushes it at you. "Take it. I have to start again." The Index will want it.'},
+    B:e=>{G.sanity=Math.min(100,G.sanity+3);return'You leave him counting. There is a strange comfort in it.'}},
+  weep:{title:'A WEEPING LIBRARIAN',pose:'weep',idle:'sob',every:4.2,
+    text:()=>'She is crying into a book with no words in it at all. "It was the only one that didn\'t lie to me," she says, "because it didn\'t say anything."',
+    a:'▲ COMFORT HER',ad:'+10 sanity · she gives you incense',b:'▼ ROB HER',bd:'+5 type · −10 sanity · it will be written down',
+    A:e=>{G.sanity=Math.min(100,G.sanity+10);G.incense++;sfx('+1 INCENSE');return'You sit with her a while. When she can speak she gives you a stick of sect incense, "for the bad nights".'},
+    B:e=>{G.type+=5;G.sanity=Math.max(0,G.sanity-10);G.sins.push(placeWords(G.gal,G.floor)+'you robbed a weeping librarian of five letters of type.');voice('sob',e,{vol:1.3});return'You take the type from her apron. She does not stop crying, or look up. Somewhere a page writes this down.'}},
+  peddler:{title:'A PEDDLER',pose:'stand',idle:'murmur',every:7,
+    text:()=>'A librarian with a pack of oddments and a lamp-oil can. "Oil, friend? Smoke? The kitchen robs you. I only rob you a little."',
+    a:'▲ 2 OIL FOR 4 TYPE',ad:()=>G.type>=4?'':'you have '+G.type+' type',b:'▼ INCENSE FOR 5 TYPE',bd:()=>G.type>=5?'':'you have '+G.type+' type',
+    A:e=>{if(G.type<4){e.keep=true;return'"Four, friend. Not '+G.type+'."'}G.type-=4;G.oil+=2;sfx('+2 OIL');return'He tops up your lantern from the can, two good measures.'},
+    B:e=>{if(G.type<5){e.keep=true;return'"Five, friend. Not '+G.type+'."'}G.type-=5;G.incense++;sfx('+1 INCENSE');return'He hands you a stick of incense wrapped in a torn-out page.'}},
+  sleep:{title:'A SLEEPWALKER',pose:'sleep',idle:'whisper',every:3,walk:true,
+    text:()=>'His eyes are shut. He is walking very slowly, reciting under his breath, and what he is reciting is "'+G.phrase+'".',
+    a:'▲ WAKE HIM',ad:'he will not like it',b:'▼ LISTEN',bd:'your own words, said for you',
+    A:e=>{G.sanity=Math.max(0,G.sanity-5);voice('scream',e,{vol:1.3});e.state='flee';e.t=0;e.keep=true;return'His eyes open. He looks at you and screams, "WHO TOLD YOU MY NAME," and runs. −5 sanity.'},
+    B:e=>{const back=G.echo>0;G.echo=Math.max(0,G.echo-1);return back?'You walk beside him and listen. Hearing your words in another mouth, you remember them a little better.':'You walk beside him and listen until he turns a corner you do not.'}}
+};
+const ENC={list:[],t:45};
+/* a spot a few steps ahead that you could walk to; for the old woman it must be at a railing */
+function encSpot(rail){
+  for(let tries=0;tries<24;tries++){
+    const a=G.ang+(Math.random()-0.5)*0.9,d=3.2+Math.random()*2.6;let x=G.x+Math.cos(a)*d,y=G.y+Math.sin(a)*d;
+    if(rail){if(G.inRoom){const c=G.room,ang=Math.atan2(y-c.cy,x-c.cx);x=c.cx+Math.cos(ang)*(RS+0.36);y=c.cy+Math.sin(ang)*(RS+0.36);
+        if(!walkable(x,y,0.25))continue;return{x,y,out:ang+Math.PI}}           // the rail round the gallery's shaft: she faces the drop
+      if(!walkable(x,y,0.3))continue;
+      for(const s of[1,-1])for(const[px,py]of[[1,0],[0,1]]){let k=0;while(k<1.6&&walkable(x+px*s*(k+0.1),y+py*s*(k+0.1),0.2))k+=0.1;
+        if(k<1.6&&!walkable(x+px*s*(k+0.6),y+py*s*(k+0.6),0.05)&&!inWell(x+px*s*(k+0.6),y+py*s*(k+0.6))){const ex=x+px*s*(k-0.05),ey=y+py*s*(k-0.05);if(Math.hypot(ex-G.x,ey-G.y)>2.4)return{x:ex,y:ey,out:Math.atan2(py*s,px*s)}}}
+      continue}
+    if(walkable(x,y,0.35)&&Math.hypot(x-G.x,y-G.y)>2.6)return{x,y,out:a+Math.PI}}
+  return null}
+function encStart(force){
+  const pool=['laugh','count','weep','peddler','sleep'];if(!G.met.rose&&(G.day>=2||force==='rose')&&Math.random()<0.35)pool.push('rose','rose');
+  const id=force||pool[Math.floor(Math.random()*pool.length)],D=ENCS[id],sp=encSpot(D.rail);if(!sp)return false;
+  const e={type:'fig',enc:id,rig:ENCRIG[id],pose:D.pose,x:sp.x,y:sp.y,out:sp.out,f:sp.out+Math.PI/2,seed:Math.random()*6.28,state:'idle',t:0,said:0,lvl:0,zw:0};
+  gaitUpd(e,0,0.5);ENC.list.push(e);if(id==='rose')G.met.rose=true;return true}
+function encUpd(dt){
+  ENC.t-=dt;if(ENC.t<=0&&!ENC.list.length&&G.state==='play'){ENC.t=encStart()?80+Math.random()*60:6}
+  for(const e of ENC.list){const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=dt;
+    if(e.state==='idle'||e.state==='talked'){e.said-=dt;if(e.said<=0&&d<14){e.said=D.every*(0.8+Math.random()*0.5);voice(D.idle,e)}
+      if(D.walk){const v=0.35;e.x+=Math.cos(e.out+Math.PI)*v*dt;e.y+=Math.sin(e.out+Math.PI)*v*dt;if(!walkable(e.x,e.y,0.3)){e.out+=Math.PI}}
+      if(e.state==='talked'&&e.t>1.2){e.state='leave';e.t=0}
+      if(d>30)e.gone=true}
+    else if(e.state==='leave'||e.state==='flee'){const v=e.state==='flee'?2.6:0.9,a=Math.atan2(e.y-G.y,e.x-G.x);e.pose=e.state==='flee'?'flail':D.pose==='weep'?'weep':'run';
+      const nx=e.x+Math.cos(a)*v*dt,ny=e.y+Math.sin(a)*v*dt;if(walkable(nx,ny,0.25)){e.x=nx;e.y=ny}else e.gone=true;if(d>14||e.t>9)e.gone=true}
+    else if(e.state==='fly'){   // arms out over the drop, then she lets go
+      e.pose=e.t<0.9?'flail':'fly';if(e.t<0.9){const k=dt/0.9;e.x+=Math.cos(e.out)*0.75*k;e.y+=Math.sin(e.out)*0.75*k;e.zw=Math.min(RAILH,e.zw+RAILH*k)}   // up onto the rail and over it
+      if(e.t>3.2){e.state='fall';e.t=0;e.vz=0.6;voice('fallscream',e,{vol:0.6})}}
+    else if(e.state==='fall'){e.pose='fall';e.x+=Math.cos(e.out)*0.7*dt;e.y+=Math.sin(e.out)*0.7*dt;e.vz-=9.8*0.55*dt;e.zw+=e.vz*dt;e.lvl=Math.round(e.zw/FH)||0.001;e.spin=(e.spin||0)+dt*30;
+      if(e.zw<-3*FH&&!e.thud){e.thud=true;setTimeout(()=>voice('thud',{x:e.x,y:e.y,z:-12},{vol:2}),900)}if(e.zw<-6*FH)e.gone=true}
+    if(e.state!=='fall')e.lvl=0;
+    gaitUpd(e,dt,0.5);
+    if(e.state==='idle'||e.state==='talked'){const tp=Math.atan2(G.y-e.y,G.x-e.x);e.f=d<4?tp+Math.PI/2*(Math.sin(e.seed)>0?1:-1)*0.7:e.out+Math.PI/2}}
+  ENC.list=ENC.list.filter(e=>!e.gone)}
+/* Read near someone: they speak first */
+function encTalk(){
+  for(const e of ENC.list){if(e.state!=='idle')continue;const dx=e.x-G.x,dy=e.y-G.y,d=Math.hypot(dx,dy);
+    if(d<1.9&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.85){const D=ENCS[e.enc];G.encOn=e;G.lastHit={t:d};
+      if(D.a){G.choice='enc';G.note={title:D.title,text:D.text()};openBookUI(null,'')}
+      else{e.state='said';openNote(D.title,D.text(),D.verdict)}
+      return true}}
+  return false}
+function encChoose(up){const e=G.encOn,D=e&&ENCS[e.enc];if(!D){closeBook();return}
+  e.keep=false;const msg=(up?D.A:D.B)(e);G.choice=null;if(!e.keep){e.state='talked';e.t=0}else if(e.state==='idle'){/* try again */}
+  G.note={title:D.title,text:msg};G.verdict='';drawBook()}
+function encClosed(){const e=G.encOn;if(!e)return;G.encOn=null;const D=ENCS[e.enc];if(e.state==='said'){if(D.close)D.close(e);else{e.state='talked';e.t=0}}}
 const seekBody=["....k.kkk.k.....","...khkhhhkhk....","...khhhhhhhk....","...kssssssk.....","...kwpsswpk.....","...ksssSssk.....","...ksmmmsk......","....kssssk......","...kRRRRRRk.....","..kRRnRRRRRk....",".ksRRnnRRRRsk...",".ksRRRRRnRRsk...",".ksRRRRRnRRsk...","..kRRRRRRRRk....","..kRnRRRRRRk....","..kRRRRRRRRk....","..kRRRRkRRRk...."];
 const seekLegs=[["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],["..kRRk..kRRk....",".kssk...kssk....",".kssk....kssk...","kkkk.....kkkk..."],["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],[".kRRk..kRRk.....",".kssk..kssk.....","kssk...kssk.....","kkkk..kkkk......"]];
 const SEEK=seekLegs.map((l,i)=>buildCard(setPx(seekBody.concat(l),i%2?[[4,4,'p'],[5,4,'w'],[8,4,'p'],[9,4,'w']]:[])));
@@ -815,16 +906,16 @@ function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 
 function isNight(){const h=hourOf();return h<5||h>=21}
 /* fades: into the blackout, then out of it, with the day's number over the dark */
 const smooth=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
-function newDay(){G.day++;G.corpses={};G.wcorpse={};BG.acts=[];BG.t=8;if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
+function newDay(){G.day++;G.corpses={};G.wcorpse={};BG.acts=[];BG.t=8;ENC.list=[];ENC.t=30;if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
   G.clock=DAYLEN*6/24;if(G.room)spawnRoom(false)}
 function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
 function reset(){
-  BG.acts=[];BG.t=8;
+  BG.acts=[];BG.t=8;ENC.list=[];ENC.t=45;
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
-    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,corpses:{},wcorpse:{},type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
+    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
@@ -865,6 +956,7 @@ function audioStart(){
   const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=170;f.Q.value=4;const g=c.createGain();g.gain.value=0.045;f.connect(g);g.connect(SND.out);
   for(const hz of[55,55.6,82.4]){const o=c.createOscillator();o.type='sawtooth';o.frequency.value=hz;o.connect(f);o.start()}
   const lfo=c.createOscillator(),lg=c.createGain();lfo.frequency.value=0.07;lg.gain.value=60;lfo.connect(lg);lg.connect(f.frequency);lfo.start();SND.droneG=g;
+  loadSamples();
 }
 function droneTick(){if(!SND.ctx||G.time<SND.droneT)return;SND.droneT=G.time+0.5;SND.droneG.gain.setTargetAtTime(0.04+0.07*(1-G.sanity/100),SND.ctx.currentTime,0.6)}
 function soundToggle(){SND.on=!SND.on;try{localStorage.setItem('aom-sound',SND.on?'on':'off')}catch(e){}if(SND.out)SND.out.gain.setTargetAtTime(SND.on?0.7:0,SND.ctx.currentTime,0.05);sfx(SND.on?'SOUND ON':'SOUND OFF');if(G.journal)drawJournal()}
@@ -873,7 +965,50 @@ function nz(t,dur,type,f0,f1,vol,q){const c=SND.ctx,s=c.createBufferSource(),f=c
   s.connect(f);f.connect(g);g.connect(SND.out);s.start(t,Math.random()*0.5);s.stop(t+dur+0.05)}
 function tone(t,dur,type,f0,f1,vol){const c=SND.ctx,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
   g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(SND.out);o.start(t);o.stop(t+dur+0.05)}
+/* ---- voices: a small formant synthesiser. A buzzing throat (a sawtooth with vibrato, grit and breath) sung through
+   three resonances shaped like a vowel; screams, cackles, sobs, whispers, murmurs and humming are all made of it. Every
+   voice can sit somewhere in the Library: it is quieter with distance and panned to the side it comes from. If a real
+   recording is published beside the page as sfx/<name>.ogg (or sfx/<name>2.ogg, ...), that is played instead ---- */
+const VOW={a:[800,1150,2900],ah:[700,1220,2600],o:[450,800,2830],e:[400,2000,2550],i:[300,2300,3000],u:[350,600,2700],uh:[600,1040,2250]};
+const SAMP={},SAMPN=['scream','fallscream','laugh','sob','whisper','hum','thud'];
+function loadSamples(){if(!SND.ctx||location.protocol==='file:')return;for(const n of SAMPN)for(const k of['','2','3'])
+  fetch('sfx/'+n+k+'.ogg').then(r=>r.ok?r.arrayBuffer():null).then(b=>b&&SND.ctx.decodeAudioData(b)).then(buf=>{if(buf)(SAMP[n]=SAMP[n]||[]).push(buf)}).catch(()=>{})}
+/* where a sound is: {x,y} in the Library, or nothing for right here */
+function vplace(at){if(!at)return{v:1,pan:0};const dx=at.x-G.x,dy=at.y-G.y,dz=(at.z||0),d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+  return{v:Math.min(1,2.2/(1.6+d*0.55)),pan:Math.max(-0.9,Math.min(0.9,Math.sin(Math.atan2(dy,dx)-G.ang)))}}
+function vsink(v,pan,t){const c=SND.ctx,g=c.createGain();g.gain.value=v;let n=g;
+  if(c.createStereoPanner){const p=c.createStereoPanner();p.pan.value=pan;g.connect(p);p.connect(SND.out)}else g.connect(SND.out);
+  if(v<0.5){const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=900+3600*v*2;f.connect(g);n=f}   // far off: duller
+  return n}
+function vox(t,dur,vowel,p0,p1,vol,o,dst){o=o||{};const c=SND.ctx,F=VOW[vowel]||VOW.a,src=c.createOscillator(),env=c.createGain(),mix=c.createGain();
+  src.type='sawtooth';src.frequency.setValueAtTime(p0,t);if(o.peak)src.frequency.exponentialRampToValueAtTime(o.peak,t+dur*0.35);src.frequency.exponentialRampToValueAtTime(Math.max(30,p1),t+dur);
+  const lfo=c.createOscillator(),lg=c.createGain();lfo.frequency.value=o.vib||5.5;lg.gain.value=p0*(o.vd||0.025);lfo.connect(lg);lg.connect(src.frequency);lfo.start(t);lfo.stop(t+dur+0.1);
+  if(o.rough){const r=c.createOscillator(),rg=c.createGain();r.type='square';r.frequency.value=31+Math.random()*9;rg.gain.value=p0*o.rough;r.connect(rg);rg.connect(src.frequency);r.start(t);r.stop(t+dur+0.1)}
+  const sg=c.createGain();sg.gain.value=o.breathOnly?0:1;src.connect(sg);
+  const br=c.createBufferSource(),bf=c.createBiquadFilter(),bg=c.createGain();br.buffer=SND.noise;bf.type='highpass';bf.frequency.value=900;bg.gain.value=o.breath||0.15;br.connect(bf);bf.connect(bg);
+  F.forEach((f,k)=>{const bp=c.createBiquadFilter(),fg=c.createGain();bp.type='bandpass';bp.frequency.value=f*(o.shift||1);bp.Q.value=k?11:7;fg.gain.value=[1,0.55,0.28][k];sg.connect(bp);bg.connect(bp);bp.connect(fg);fg.connect(mix)});
+  const a=o.atk||0.03;env.gain.setValueAtTime(0.0001,t);env.gain.exponentialRampToValueAtTime(vol,t+a);env.gain.setValueAtTime(vol,t+Math.max(a,dur*0.7));env.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  mix.connect(env);env.connect(dst||SND.out);src.start(t);src.stop(t+dur+0.05);br.start(t,Math.random()*0.5);br.stop(t+dur+0.05)}
+function voice(name,at,o){
+  if(!SND.ctx||!SND.on)return;o=o||{};const c=SND.ctx,t=c.currentTime+0.02,{v,pan}=vplace(at),vol=v*(o.vol||1);if(vol<0.02)return;
+  const S=SAMP[name];if(S&&S.length){const s=c.createBufferSource();s.buffer=S[Math.floor(Math.random()*S.length)];s.playbackRate.value=0.9+Math.random()*0.2;s.connect(vsink(vol,pan,t));s.start(t);return}
+  const d=vsink(vol,pan,t),hi=Math.random()<0.5,R=()=>Math.random();
+  switch(name){
+    case'scream':{const p=hi?520:300;vox(t,1.1+R()*0.6,'a',p,p*1.1,0.5,{peak:p*1.9,vib:7,vd:0.04,rough:0.06,breath:0.35},d);vox(t,1.2,'ah',p*1.01,p*1.05,0.25,{peak:p*1.85,vib:6.3,breath:0.2,shift:1.08},d);break}
+    case'fallscream':{const p=hi?600:360;vox(t,2.6,'a',p*1.4,p*0.55,0.5,{peak:p*1.7,vib:6,vd:0.05,rough:0.05,breath:0.3,atk:0.08},d);break}
+    case'laugh':{const p=(hi?330:170)*(0.9+R()*0.25);let tt=t;const n=7+Math.floor(R()*5);
+      for(let k=0;k<n;k++){const up=k>n-3?1.5:1+0.12*Math.sin(k*1.7),dur=0.11+R()*0.05;vox(tt,dur,k%3===2?'e':'ah',p*up,p*up*0.82,0.42,{breath:0.7,vib:9,atk:0.012},d);tt+=dur+0.05+R()*0.04}
+      vox(tt,0.6,'i',p*1.7,p*2.3,0.32,{breath:0.6,vib:11,vd:0.06,rough:0.04},d);nz(tt+0.62,0.35,'bandpass',1200,500,0.06*vol,1.5);break}
+    case'sob':{const p=hi?300:190;let tt=t;for(let k=0;k<3;k++){nz(tt,0.28,'bandpass',600,2200,0.09*vol,2);tt+=0.32;vox(tt,0.45,'uh',p,p*0.7,0.32,{vib:12,vd:0.07,breath:0.55,atk:0.05},d);tt+=0.6+R()*0.3}break}
+    case'whisper':{let tt=t;const n=4+Math.floor(R()*5),V=['e','a','o','i','u','uh'];for(let k=0;k<n;k++){const dur=0.12+R()*0.12;vox(tt,dur,V[Math.floor(R()*V.length)],150,140,0.5,{breathOnly:true,breath:1,atk:0.02},d);tt+=dur+0.04+(k%3===2?0.18:0)}break}
+    case'murmur':{let tt=t;const n=6+Math.floor(R()*4),V=['e','a','o','uh'];for(let k=0;k<n;k++){const dur=0.09+R()*0.07,p=110+R()*25;vox(tt,dur,V[Math.floor(R()*V.length)],p,p*0.95,0.35,{breath:0.5,vib:4,atk:0.015},d);tt+=dur+0.03}break}
+    case'hum':{const N=[0,2,4,2,0,-1,0],b=262;let tt=t;N.forEach((s,k)=>{const f=b*Math.pow(2,s/12),dur=k===N.length-1?1.1:0.42;vox(tt,dur,'u',f,f,0.3,{vib:4.8,vd:0.018,breath:0.25,atk:0.06},d);tt+=dur+0.04});break}
+    case'thud':{const g=d;nz(t,0.4,'lowpass',400,80,0.3*vol,1);const os=c.createOscillator(),og=c.createGain();os.frequency.setValueAtTime(70,t);os.frequency.exponentialRampToValueAtTime(30,t+0.35);og.gain.setValueAtTime(0.5,t);og.gain.exponentialRampToValueAtTime(0.0001,t+0.4);os.connect(og);og.connect(g);os.start(t);os.stop(t+0.45);break}
+    case'creak':nz(t,0.5,'bandpass',420,380,0.08*vol,25);break;
+  }
+}
 function snd(name){
+  if(name==='scream'){voice('scream',null,{vol:0.55});return}
   if(!SND.ctx||!SND.on||!name)return;const t=SND.ctx.currentTime;
   switch(name){
     case'step':nz(t,0.07,'lowpass',500,200,0.12);break;
@@ -930,7 +1065,7 @@ function update(dt){
   if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
-  ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);bgUpd(dt);
+  ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);bgUpd(dt);encUpd(dt);
   if(G.q===2&&G.inRoom&&isNight()){const P=bioPlan(G.phrase);if(G.gal===P.g&&G.floor===P.f){qDone(3);openNote('YOUR HEXAGON','The lamps sink low, and in the dark one wall goes on humming, very quietly, like someone reading under their breath.','It is WALL '+P.wall+'.')}}
   for(const e of G.ents){
     if(e.type==='pur'){updPur(e,dt);gaitUpd(e,dt,0.58)}else if(e.type==='seek'){updSeek(e,dt);gaitUpd(e,dt,0.43)}
@@ -1034,6 +1169,7 @@ function sin(kind,wallN,gid){const at=placeWords(gid==null?G.gal:gid,G.floor);
   G.sins.push(at+(kind==='kill'?'you struck down a weeping librarian and took their oil.':'you burned wall '+numWords(wallN)+' and every book on it.'))}
 /* Read does whatever is in front of you: a shelf, the Index, the stair, a closet, the mirror */
 function doRead(){
+  if(encTalk())return;
   for(const e of G.ents)if(e.type==='index'){const dx=e.x-G.x,dy=e.y-G.y;if(Math.hypot(dx,dy)<1.25&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.7){G.lastHit={t:Math.hypot(dx,dy)};useIndex();return}}
   if(!G.inRoom){const c=crossingAt(G.x,G.y),dx=c.x-G.x,dy=c.y-G.y;if(c.comm&&Math.hypot(dx,dy)<RSW+1.3&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.75){G.lastHit={t:Math.hypot(dx,dy)-RSW};openNote('THE SPIRAL STAIR','It sinks into the abyss and climbs out of sight. Every floor is the same.','','stairs');return}}
   const h=cast(G.x,G.y,Math.cos(G.ang),Math.sin(G.ang));
@@ -1136,7 +1272,7 @@ function showPage(isNew){
 function page1Mine(b){return G.q<6&&b.page===1&&isMyBook(b.g,b.f,b.wall,b.shelf,b.book,G.phrase)}
 function openNote(title,text,verdict,choice){G.note={title,text};G.choice=choice||null;openBookUI(null,verdict||'')}
 function openBookUI(p,verdict){G.page=p;G.verdict=verdict;if(G.state!=='book'){G.state='book';G.bookAnim=0;const t=G.lastHit?Math.min(G.lastHit.t,1.9)*0.9:1;G.bookFrom={x:G.x+Math.cos(G.ang)*t,y:G.y+Math.sin(G.ang)*t}}drawBook()}
-function closeBook(){if(G.state==='book'){G.state='closing';G.bookAnim=0}}
+function closeBook(){if(G.state==='book'){G.state='closing';G.bookAnim=0;encClosed()}}
 function climb(dir){snd('stairs');G.choice=null;G.note=null;G.state='climb';G.climbT=0;G.climbDir=dir;G.climbed=false;sfx(dir>0?'UP THE STAIR':'DOWN THE STAIR','mind')}
 function die(){if(G.state==='dying'||G.state==='dead')return;snd('bad');G.state='dying';G.dieT=0;G.journal=false}
 
@@ -1222,7 +1358,7 @@ function toggleView(){VIEW.third=!VIEW.third;sfx(VIEW.third?'THIRD PERSON':'FIRS
 function render(){
   LX=G.x;LY=G.y;THIRD=VIEW.third&&G.state!=='intro'&&G.state!=='start';const MEP=[];if(THIRD)meLayers(MEP);
   if(!THIRD){renderScene(MEP);return}
-  const cs=Math.cos(G.ang),sn=Math.sin(G.ang),ox=-cs*VIEW.d-sn*0.42,oy=-sn*VIEW.d+cs*0.42,ol=Math.hypot(ox,oy),ux=ox/ol,uy=oy/ol;
+  const cs=Math.cos(G.ang),sn=Math.sin(G.ang),ox=-cs*VIEW.d-sn*0.6,oy=-sn*VIEW.d+cs*0.6,ol=Math.hypot(ox,oy),ux=ox/ol,uy=oy/ol;
   const h=cast(G.x,G.y,ux,uy);let d=ol;if(LEG.n>1)d=Math.min(d,LEG.t0[1]-0.3);if(h)d=Math.min(d,h.t-0.3);d=Math.max(0.15,d);
   VIEW.cd=VIEW.cd===undefined?d:(d<VIEW.cd?d:VIEW.cd+(d-VIEW.cd)*0.15);d=Math.min(d,VIEW.cd);    // snap in, ease back out
   if(d<0.75)MEP.length=0;   // squeezed against a wall: look past your own shoulder rather than into your coat
@@ -1407,7 +1543,11 @@ function drawNote(g,px,py,pw,ph,x2,y2){
   const n=G.note,st=G.choice==='stairs';
 
   g.font='bold 17px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(n.title,px+34,py+30);
-  g.font='italic 25px Georgia,serif';g.fillStyle='#2a2018';blockG(g,wrapG(g,n.text,pw-68),px+34,py+74,34);
+  g.font='italic 25px Georgia,serif';g.fillStyle='#2a2018';{let yy=py+74;for(const para of n.text.split('\n\n')){yy=blockG(g,wrapG(g,para,pw-68),px+34,yy,34)+16}}
+  if(G.choice==='enc'&&G.encOn){const D=ENCS[G.encOn.enc],f=v=>typeof v==='function'?v():v||'';
+    g.font='bold 28px Georgia,serif';g.fillStyle='#b3261e';g.fillText(D.a,x2+34,y2+ph*0.42);g.fillText(D.b,x2+34,y2+ph*0.68);
+    g.font='italic 21px Georgia,serif';g.fillStyle='#2a2018';g.fillText(f(D.ad),x2+38,y2+ph*0.42+34);g.fillText(f(D.bd),x2+38,y2+ph*0.68+34);
+    g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'W / S choose · E walk away':'tap a page · tap outside to walk away',x2+34,y2+30);return}
   if(G.choice==='hatch'){
     const L=hatchItems(),sel=Math.min(G.hsel,L.length-1),it=L[sel];HUI.rows=[];
     g.font='bold 16px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText('TYPE '+G.type,px+pw-130,py+30);
@@ -1856,10 +1996,11 @@ function action(a){
   if(G.state==='dead'||G.state==='won'){if(a==='read'||a==='swing'){reset();drawIntro();G.state='start';G.startT=0.3}return}
   if(G.state==='book'&&G.choice==='food'){if(a==='up'||a==='prev')orderMeal('bread');else if(a==='down'||a==='next')orderMeal('soup');else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.choice==='hatch'){const n=hatchItems().length;if(a==='up'||a==='prev'){G.hsel=(Math.min(G.hsel,n-1)+n-1)%n;snd('page');drawBook()}else if(a==='down'){G.hsel=(Math.min(G.hsel,n-1)+1)%n;snd('page');drawBook()}else if(a==='next'||a==='buy')hatchBuy();else if(a==='read'||a==='close'||a==='swing'){G.choice=null;closeBook()}return}
+  if(G.state==='book'&&G.choice==='enc'){if(a==='up'||a==='prev')encChoose(true);else if(a==='down'||a==='next')encChoose(false);else if(a==='read'||a==='close'||a==='swing'){G.choice=null;closeBook()}return}
   if(G.state==='book'&&G.choice==='ending'){if(a==='up'||a==='prev')readEnding();else if(a==='down'||a==='next'||a==='read'||a==='close'||a==='swing'){G.choice=null;closeBook()}return}
   if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
-  if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
+  if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0;encClosed()}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
   if(G.state==='play'){if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
 }
 let last=performance.now(),needResize=true;
