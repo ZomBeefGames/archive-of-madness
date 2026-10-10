@@ -186,15 +186,25 @@ function texCanvas(w,h){const c=document.createElement('canvas');c.width=w;c.hei
 const BOOKC=['#7a2a26','#2f5d6e','#b08a3e','#4b6b3a','#6a3458','#8c5a2b','#3e4a6e','#5d2f22'];
 const BURNC=['#2b2420','#3a2c24','#241d19','#4a3326','#1d1714'];
 function makeCaseTex(g,f,wall,burnt){
-  const w=texCanvas(64,64),rnd=prng(hashStr('case|'+g+'.'+f+'|'+wall)),cols=burnt?BURNC:BOOKC;
-  w.fillStyle='#120c09';w.fillRect(0,0,64,64);w.fillStyle=burnt?'#24180f':'#4a2f1c';w.fillRect(0,0,64,4);w.fillStyle='#2a1a10';w.fillRect(0,3,64,1);
-  for(let sh=0;sh<5;sh++){const top=4+sh*12;
-    for(let b=0;b<32;b++){const bh=6+Math.floor(rnd()*4),col=cols[Math.floor(rnd()*cols.length)],x=b*2;
-      w.fillStyle=col;w.fillRect(x,top+10-bh,2,bh);w.fillStyle='rgba(255,255,255,0.15)';w.fillRect(x,top+10-bh,1,bh);
-      if(!burnt&&rnd()<0.55){w.fillStyle='#d9b45a';w.fillRect(x,top+12-bh,2,1)}}
-    w.fillStyle=burnt?'#2a1c12':'#5a3a22';w.fillRect(0,top+10,64,2);w.fillStyle='#3a2414';w.fillRect(0,top+11,64,1)}
-  if(burnt)for(let i=0;i<22;i++){w.fillStyle=rnd()<0.5?'#ff7a2e':'#ffd34d';w.fillRect(Math.floor(rnd()*64),Math.floor(rnd()*64),1,1)}
-  return w.getImageData(0,0,64,64).data;
+  const w=texCanvas(128,128),rnd=prng(hashStr('case|'+g+'.'+f+'|'+wall)),cols=burnt?BURNC:BOOKC;
+  w.fillStyle=burnt?'#151210':'#211b19';w.fillRect(0,0,128,128);
+  for(let sh=0;sh<5;sh++){const top=8+sh*24;
+    for(let b=0;b<32;b++){const bh=13+Math.floor(rnd()*7),col=cols[Math.floor(rnd()*cols.length)],x=b*4,y=top+19-bh;
+      w.fillStyle=col;w.fillRect(x,y,3,bh);
+      w.fillStyle='rgba(255,235,189,.24)';w.fillRect(x,y,1,bh);w.fillRect(x,y,3,1);
+      w.fillStyle='rgba(0,0,0,.24)';w.fillRect(x+2,y+1,1,bh-1);
+      if(!burnt){w.fillStyle=rnd()<0.55?'#c5a96b':'#b9b29b';w.fillRect(x,y+3,3,1);w.fillRect(x,y+bh-3,3,1);
+        if(rnd()<0.35){w.fillStyle='#d9c8a2';w.fillRect(x+1,y+6,1,3)}}}
+    w.fillStyle=burnt?'#36261c':'#745239';w.fillRect(0,top+20,128,4);
+    w.fillStyle=burnt?'#503226':'#ad8552';w.fillRect(0,top+20,128,1);
+    w.fillStyle='#291b14';w.fillRect(0,top+23,128,1);
+    w.fillStyle='rgba(0,0,0,.3)';w.fillRect(0,top,128,2);}
+  // Oak uprights and an inset cornice frame the rows without hiding book addresses.
+  w.fillStyle=burnt?'#35281e':'#68442b';w.fillRect(0,0,128,6);w.fillRect(0,6,2,122);w.fillRect(126,6,2,122);
+  w.fillStyle=burnt?'#493329':'#bd9258';w.fillRect(0,1,128,1);w.fillRect(0,5,128,1);
+  for(let i=0;i<180;i++){w.fillStyle=rnd()<0.5?'rgba(255,230,175,.045)':'rgba(0,0,0,.09)';w.fillRect(rnd()*128|0,rnd()*128|0,1,1)}
+  if(burnt)for(let i=0;i<35;i++){w.fillStyle=rnd()<0.5?'#b54924':'#eea441';w.fillRect(rnd()*128|0,rnd()*128|0,1,1)}
+  return w.getImageData(0,0,128,128).data;
 }
 const texCache=new Map(),burned=new Set();
 function wallTex(g,f,wall){
@@ -225,10 +235,12 @@ const STAIRT=(()=>{const w=texCanvas(64,64);w.fillStyle='#2a1a10';w.fillRect(0,0
     w.fillStyle='rgba(0,0,0,.5)';if(side>0)w.fillRect(34,y+2,len,1);else w.fillRect(30-len,y+2,len,1)}
   w.fillStyle='#4a3a2a';w.fillRect(29,0,6,64);w.fillStyle='#6b5640';w.fillRect(30,0,2,64);
   w.fillStyle='#3a2414';w.fillRect(4,0,2,64);w.fillRect(58,0,2,64);return w.getImageData(0,0,64,64).data})();
-const floorTex=(()=>{const w=texCanvas(16,16),rnd=prng(55);
-  for(let y=0;y<16;y++){const plank=Math.floor(y/4);for(let x=0;x<16;x++){const base=[[58,38,24],[66,44,28],[52,34,21],[62,41,26]][plank];const n=(rnd()-.5)*10;w.fillStyle=`rgb(${base[0]+n|0},${base[1]+n|0},${base[2]+n|0})`;w.fillRect(x,y,1,1)}w.fillStyle='rgba(0,0,0,.55)';if(y%4===3)w.fillRect(0,y,16,1)}
-  w.fillStyle='rgba(0,0,0,.5)';w.fillRect(5,0,1,4);w.fillRect(12,4,1,4);w.fillRect(2,8,1,4);w.fillRect(9,12,1,4);
-  return w.getImageData(0,0,16,16).data})();
+const floorTex=(()=>{const w=texCanvas(32,32),rnd=prng(55),seams=[11,26,5,19];
+  for(let y=0;y<32;y++)for(let x=0;x<32;x++){const plank=y>>3,base=[[70,49,34],[79,56,38],[65,45,32],[75,53,36]][plank],grain=Math.sin(x*0.7+plank*2+y*0.3)*3+(rnd()-.5)*7;
+    const edge=(y&7)===7||x===seams[plank],light=(y&7)===0?6:0;
+    w.fillStyle=`rgb(${base[0]+grain+light-(edge?26:0)|0},${base[1]+grain+light-(edge?20:0)|0},${base[2]+grain+light-(edge?14:0)|0})`;w.fillRect(x,y,1,1)}
+  for(let row=0;row<4;row++){const x=seams[row],y=row*8;w.fillStyle='#261e19';w.fillRect((x+2)%32,y+2,1,1);w.fillRect((x+30)%32,y+5,1,1)}
+  return w.getImageData(0,0,32,32).data})();
 const ceilTex=(()=>{const w=texCanvas(16,16),rnd=prng(77);
   for(let y=0;y<16;y++)for(let x=0;x<16;x++){const n=(rnd()-.5)*6,beam=x%8<2;w.fillStyle=beam?`rgb(${22+n|0},${14+n|0},${9+n|0})`:`rgb(${38+n|0},${25+n|0},${16+n|0})`;w.fillRect(x,y,1,1)}
   return w.getImageData(0,0,16,16).data})();
@@ -271,10 +283,10 @@ function gridRows(rows,pal){const w=Math.max(...rows.map(r=>r.length)),h=rows.le
 function cardGrid(g,outline,gb){
   const b=outline?1:0,w=g.w+2*b,h=g.h+2*b,front=new Uint8ClampedArray(w*h*4),back=new Uint8ClampedArray(w*h*4),at=(x,y)=>x>=0&&y>=0&&x<g.w&&y<g.h?g.col[y*g.w+x]:null;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const c=at(x-b,y-b),o=(y*w+x)*4;
-    if(c){front[o]=c[0];front[o+1]=c[1];front[o+2]=c[2];front[o+3]=255;const cb=gb&&gb.col[(y-b)*g.w+x-b];
+    if(c){const grain=c===INK?0:((x*13+y*7)%5)-2;front[o]=c[0]+grain;front[o+1]=c[1]+grain;front[o+2]=c[2]+grain;front[o+3]=255;const cb=gb&&gb.col[(y-b)*g.w+x-b];
       if(cb){back[o]=cb[0];back[o+1]=cb[1];back[o+2]=cb[2]}else{const q=(x+y)%5===0?0.48:0.56;back[o]=c[0]*q+14;back[o+1]=c[1]*q+10;back[o+2]=c[2]*q+6}back[o+3]=255}
     else if(outline){let e=false;for(let dy=-1;dy<=1&&!e;dy++)for(let dx=-1;dx<=1;dx++)if(at(x-b+dx,y-b+dy)){e=true;break}
-      if(e){front[o]=243;front[o+1]=236;front[o+2]=216;front[o+3]=255;back[o]=196;back[o+1]=188;back[o+2]=166;back[o+3]=255}}}
+      if(e){const lit=!!(at(x-b+1,y-b)||at(x-b,y-b+1));front[o]=lit?229:141;front[o+1]=lit?215:123;front[o+2]=lit?185:99;front[o+3]=255;back[o]=lit?198:133;back[o+1]=lit?185:117;back[o+2]=lit?157:95;back[o+3]=255}}}
   return{w,h,front,back};
 }
 /* a part turned by `deg` about its pin (px,py), cropped; returns the card and where the pin sits on it */
@@ -331,7 +343,7 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 
 /* ---- the Purifier: ash-grey hood and robe split at the waist, a red sash and hem, a three-piece cape, wrapped legs,
    a torch in the near hand and an iron brand in the far ---- */
-const RASH=ramp('#2b2825','#45413b','#5f5a53','#7d776e','#9c958a'),RRED=ramp('#3d0d0a','#6e1612','#a3231b','#d0402c'),
+const RASH=ramp('#282a30','#454a50','#697073','#919794','#bdc0b2'),RRED=ramp('#3d0d0a','#6e1612','#a3231b','#d0402c'),
   RLEG=ramp('#1a1715','#28241f','#38332d','#4a443c'),RBOOT=ramp('#140f0c','#271e18','#3d2f25','#55432f'),
   RCAPE=ramp('#110f0d','#1d1a17','#2b2724','#3d3833'),RIRON=ramp('#26231f','#45413b','#6e685f','#9a9286'),RWOOD=ramp('#2e1c10','#5a3820','#8a5a32','#b0804c'),
   HOT={o:rgb('#ff7a2e'),O:rgb('#ffd34d'),Y:rgb('#fff4c2'),e:rgb('#ff5a2a'),k:INK,d:rgb('#0c0a09'),r:rgb('#b3261e'),R:rgb('#6e1612'),c:rgb('#3a2a1e')};
@@ -365,14 +377,23 @@ const PURIG={
   flame:[["..o...","..oo..",".oOo..",".oOOo.","oOYOo.","oOYYOo",".oYYo.","..oo.."],["...o..","..oo..","..oOo.",".oOOo.",".oOYOo","oOYYOo",".oYYo.","..oo.."],
     [".o....","..oo..",".oOoo.",".oOOo.","oOYOo.","oOYYOo",".oYYOo","..oo.."],["..o...",".oo...",".oOo..","oOOOo.","oOYOo.","oOYYo.",".oYYo.","..oo.."]].map(r=>mkPart(r,PPAL,3,7,false))
 };
+// Worn hems, a brass clasp and stitched binding make the sect's uniform readable close up.
+stamp(PURIG.chest.g,['Yy...','y....','.....','..n..','..n..'],3,3,{Y:rgb('#d8c396'),y:rgb('#96815c'),n:rgb('#b3b5a5')});
+stamp(PURIG.chest.g,['n.n.n'],5,20,{n:rgb('#b1aaa0')});
+stamp(PURIG.hood.g,['n.....','n.....','.n....'],4,6,{n:rgb('#c2c2af')});
+stamp(PURIG.skirt.g,['n.n.n.n'],3,15,{n:rgb('#928b7b')});
 /* the Seeker: a small hunched scholar in a dun robe, barefoot, reading as they walk */
-const RDUN=ramp('#3a3224','#5a4f3b','#7f7255','#a4956f','#c4b48a'),RSKIN=ramp('#6e452f','#a8754f','#d6a57c','#f0c8a0'),RHAIR=ramp('#1e130c','#3a2418','#573826'),
+const RDUN=ramp('#36302a','#59503f','#827559','#b4a17b','#d9c59b'),RSKIN=ramp('#6e452f','#a8754f','#d6a57c','#f0c8a0'),RHAIR=ramp('#1e130c','#3a2418','#573826'),
   RPAGE=ramp('#a89c80','#d8ccae','#f2e9d2'),SPAL={k:INK,w:rgb('#f4f0e6'),p:INK,m:rgb('#3a0d10'),S:rgb('#a8754f'),n:rgb('#8a7b5c'),c:rgb('#5a3a22'),y:rgb('#f2c14e'),Y:rgb('#fff4c2')};
-function seekHead(scared){return part(14,15,6,14,g=>{
-  capsule(g,7,8,7,8.6,5.6,5.4,RSKIN);
-  paint(g,(x,y)=>((x-6.6)/6.2)**2+((y-7.4)/6.2)**2<=1&&(y<4.6+((x|0)%2)||x<4.2+((y|0)%3===0?1:0)),(x,y)=>0.55-0.3*(x-7)/6-0.2*(y-3)/5,RHAIR);   // hair, swept back
-  stamp(g,scared?["kkk.kkk","kwk.kwk","kpk.kpk","kkk.kkk"]:["kk..kk.","wp..wp."],scared?6:7,6,SPAL);
-  stamp(g,scared?[".kk.","kmmk",".kk."]:["S..","kk."],scared?8:8,scared?10:11,SPAL)})}
+function seekHead(scared){return part(16,18,7,17,g=>{
+  capsule(g,7.5,9,7.8,11,5.8,4.9,RSKIN);
+  capsule(g,3,10,3,11,1.5,1.2,RSKIN, false);
+  paint(g,(x,y)=>((x-7)/6.5)**2+((y-7.5)/6.5)**2<=1&&(y<5+((x|0)%3)*0.5||x<3.7),(x,y)=>0.65-0.3*(x-6)/6-0.12*y/8,RHAIR);
+  stamp(g,scared?['kkk.kkk','kwY.kwY','kpk.kpk']:['kk..kk.','wp..wp.'],6,7,SPAL);
+  stamp(g,['S..','SY.','.S.'],10,10,SPAL);
+  stamp(g,scared?['.kk.','kmmk','kmmk','.kk.']:['SS.S','kkk.','.S..'],8,scared?12:13,SPAL);
+  stamp(g,['n.n','...','n..'],3,3,SPAL);
+})}
 const SEEKRIG={
   thigh:bone(9.5,2.6,2.1,RDUN),shin:bone(9,1.9,1.5,RSKIN),
   foot:part(8,4,2,1,g=>paint(g,(x,y)=>y>0.4&&y<3.6&&x>0.4&&x<7.4&&!(y<1.6&&x>4.5),(x,y)=>0.6-0.1*y,RSKIN)),
@@ -389,6 +410,9 @@ const SEEKRIG={
   flask:mkPart(["..kk..","..kk..",".kccck","kyyyyk","kyYyyk","kyyyyk",".kkkk."],{...PAL},3,0)
 };
 
+stamp(SEEKRIG.chest.g,['kkkk','knnk','knnk','kkkk'],2,6,{k:rgb('#534837'),n:rgb('#bbaa86')});
+stamp(SEEKRIG.chest.g,['..n','n..','..n'],3,7,{n:rgb('#ded1ad')});
+stamp(SEEKRIG.book.g,['....k....','....k....','....k....','....k....'],1,1,{k:rgb('#9b8464')});
 /* ---- walking: each foot is planted while the body passes over it, then lifted and swung ahead; the step rate follows
    the speed, and only the part of the motion that lies in the paper's plane moves the feet across it. The cape and the
    skirts hang on springs, so they trail, swing and settle ---- */
@@ -505,18 +529,33 @@ function seekLayers(e,out){
 }
 /* ---- you: a librarian in a long brown coat, a lantern in one hand and your weapon in the other. Seen from behind, so
    the coat and the head have painted backs (seam, belt, the back of your hair) instead of plain paper ---- */
-const RCOAT=ramp('#26170c','#3f2816','#5c3c22','#7a5432','#966b42'),RTROU=ramp('#17161b','#25242c','#35343f','#474654'),RCREAM=ramp('#9c8f72','#cbbd98','#ece0c0'),
+const RCOAT=ramp('#291d19','#493127','#72503a','#9b7050','#bd9465'),RTROU=ramp('#17161b','#25242c','#35343f','#474654'),RCREAM=ramp('#9c8f72','#cbbd98','#ece0c0'),
   LPAL={k:INK,y:rgb('#f2c14e'),Y:rgb('#fff4c2'),f:rgb('#ffd34d'),c:rgb('#5a3a22'),i:rgb('#45413b'),I:rgb('#6e685f'),t:rgb('#6b4227'),T:rgb('#9a6a3c'),n:rgb('#e8e0c8'),a:rgb('#2c2a28'),o:rgb('#ff7a2e')};
 function meChest(back){return g=>{const hw=y=>y<1?0:y<3.5?4.6+y*0.8:7.4-(y-3.5)*0.1;
   paint(g,(x,y)=>Math.abs(x-8.5)<=hw(y),(x,y)=>0.6-0.36*(x-8.5)/hw(y)-(back&&Math.abs(x-8.5)<0.6&&y>4?0.35:0),RCOAT);
   if(!back){paint(g,(x,y)=>y<4.2&&y>0.6&&x>7.4&&x<12.6,(x,y)=>0.7-0.1*y,RCREAM);stamp(g,["k","","k","","k"],11,7,LPAL)}  // a cream collar and buttons
   else paint(g,(x,y)=>y<2.6&&y>0.6&&Math.abs(x-8.5)<3.8,()=>0.6,RCREAM,false);
   paint(g,(x,y)=>y>=13&&y<15&&Math.abs(x-8.5)<=hw(y),(x,y)=>0.4-0.2*(x-8.5)/7,RBOOT,false);stamp(g,["yy","yy"],back?7:10,13,LPAL)}}  // belt and buckle
-function meHead(back){return g=>{
-  capsule(g,6.6,7.4,6.6,7.8,5.4,5.2,back?RHAIR:RSKIN);
-  if(!back){paint(g,(x,y)=>((x-6.4)/6)**2+((y-6.8)/6)**2<=1&&(y<4.4+((x|0)%3===0?0.8:0)||x<3.8+((y|0)%2)),(x,y)=>0.55-0.3*(x-6)/6-0.2*(y-3)/5,RHAIR);
-    stamp(g,["kk.","k..","..S","..S","kk."],8,6,{k:INK,S:rgb('#a8754f')})}
-  else paint(g,(x,y)=>((x-6.6)/5.3)**2+((y-7.4)/5.3)**2<=1&&((x*3+y*5|0)%7===0),()=>0.85,RHAIR,false)}}       // a few lighter strands
+/* Portraits stay small and hand-pixelled, but age, hair, eyes and accessories differ by role. */
+function portraitPart(kind){const old=kind==='rose'||kind==='elder',grey=ramp('#514d49','#827d71','#b8b1a0','#e2d9c3'),hair=old?grey:RHAIR;
+  const draw=back=>g=>{
+    capsule(g,7.3,9,7.7,10.8,5.6,4.7,back?hair:RSKIN);
+    if(kind==='rose')capsule(g,3.5,4,3.5,5,2.7,2.3,hair);
+    paint(g,(x,y)=>((x-7)/6.3)**2+((y-7.3)/6.3)**2<=1&&(back||y<4.8+((x|0)%3)*0.5||x<3.4),(x,y)=>0.72-0.32*x/14-0.1*y/18,hair);
+    if(back){stamp(g,['n..n','..n.','n...'],4,5,{n:hair[hair.length-1]});return}
+    capsule(g,3,10,3,10.8,1.3,1.1,RSKIN,false);
+    const ink={k:INK,w:rgb('#eee2c3'),s:rgb('#b58366'),p:rgb('#3b2924'),n:rgb('#dcc9a7'),r:rgb('#793b30')};
+    stamp(g,kind==='sleep'?['kk..kk.']:['kk..kk.','wp..wp.'],6,7,ink);
+    stamp(g,['s.','sn','.s'],10,10,ink);
+    stamp(g,kind==='laugh'?['kkkk','rwwr','.rr.']:kind==='weep'?['.ss.','k..k']:['.ss.','kkk.'],8,13,ink);
+    if(old)stamp(g,['s..s','....','.ss.'],5,10,ink);
+    if(kind==='count'||kind==='scholar')stamp(g,['yyyyyyy','y..y..y','.yy.yy.'],5,7,{y:rgb('#c9b074')});
+    if(kind==='weep')stamp(g,['b','b'],8,10,{b:rgb('#9cb9c1')});
+    if(kind==='peddler'){paint(g,(x,y)=>y>1&&y<5.6&&x>1.5&&x<14.8,(x,y)=>0.7-y*0.07,RRED);stamp(g,['yyyyyyyyyyyy'],2,5,{y:rgb('#b18c50')})}
+    if(kind==='elder')stamp(g,['nnnn','nnn.','.n..'],7,14,{n:grey[2]});
+  };
+  return part(16,18,7,17,draw(false),false,draw(true));
+}
 const MERIG={
   thigh:bone(11.5,3.0,2.6,RTROU),shin:bone(11,2.6,2.1,RTROU,{draw:(g,c,top)=>paint(g,(x,y)=>y>top+6&&Math.abs(x-c)<2.9,(x,y)=>0.55-0.3*(x-c)/3,RBOOT)}),
   boot:part(10,6,2,1,g=>paint(g,(x,y)=>y>0.4&&y<5.6&&x>0.3&&(x<7||(x-7)*(x-7)/(2.4*2.4)+(y-3.8)*(y-3.8)/(1.8*1.8)<=1)&&!(y<2.4&&x>5),(x,y)=>y>4.5?0.1:0.6-0.07*y,RBOOT)),
@@ -524,7 +563,7 @@ const MERIG={
   skirt:part(13,16,6,0,g=>{const hw=y=>4.4+y*0.2;paint(g,(x,y)=>Math.abs(x-6.5)<=hw(y)&&y<14.5-((x|0)%5===0?0.8:0),(x,y)=>0.58-0.34*(x-6.5)/hw(y)-(((x|0)+2)%4===0?0.2:0),RCOAT)}),
   upper:bone(8.5,2.8,2.5,RCOAT),
   fore:bone(8.5,2.5,2.8,RCOAT,{draw:(g,c,top)=>{paint(g,(x,y)=>y>top+7.6&&y<top+9.2&&Math.abs(x-c)<3.1,()=>0.6,RCREAM,false);capsule(g,c,top+10.4,c+0.3,top+11.2,1.9,1.6,RSKIN)}},1),
-  head:part(14,14,6,13,meHead(false),false,meHead(true)),
+  head:portraitPart('player'),
   lantern:part(9,14,4,0,g=>stamp(g,["...kk....","..k..k...","..kkkk...",".kccccck.",".kyyyyk..",".kyfYyk..",".kyYYyk..",".kyyyyk..",".kccccck.","..kkkk..."],0,0,LPAL)),
   glass:[["","","","","....","..Y.","..YY"],["","","","","..Y.","..YY","..Y."],["","","","","..Y.","..Y.","...."]].map(r=>part(9,14,4,0,g=>stamp(g,r,0,0,LPAL),true)),
   dim:part(9,14,4,0,g=>stamp(g,["","","","",".....",".....",".kyyk"],0,0,{...LPAL,y:rgb('#5a4a2a')})),
@@ -532,6 +571,11 @@ const MERIG={
   rod:part(4,26,1,21,g=>{capsule(g,1.5,1.5,1.5,24,1,1.2,RWOOD);stamp(g,["n","n"],1,0,LPAL)}),
   flask:part(6,8,3,7,g=>stamp(g,["..kk..","..kk..",".kccck","kyyyyk","kyYyyk","kyyyyk","kyyyyk",".kkkk."],0,0,LPAL))
 };
+// Lapels, pocket stitching and a diagonal leather satchel strap.
+for(const g of [MERIG.chest.g,MERIG.chest.bk]){if(!g)continue;
+  for(let y=3;y<13;y++){const x=3+Math.floor(y*0.65);stamp(g,['kt'],x,y,{k:rgb('#34251b'),t:rgb('#af8656')})}}
+stamp(MERIG.chest.g,['nnn','n.n','nnn'],3,8,{n:rgb('#c8ab7a')});
+stamp(MERIG.chest.bk,['n.n.n'],5,16,{n:rgb('#ad835c')});
 // you are mostly seen from behind: every part without painted back art shows its own colours, a little shaded, not bare paper
 for(const p of Object.values(MERIG).flat())if(!p.glow&&!p.bk)p.bk={w:p.g.w,h:p.g.h,col:p.g.col.map(c=>c&&[c[0]*0.8|0,c[1]*0.8|0,c[2]*0.8|0])};
 const ME={type:'me',x:0,y:0,f:0,hit:0,dead:0};
@@ -579,6 +623,7 @@ const hue=(r,g,b)=>c=>{const l=(c[0]*0.3+c[1]*0.5+c[2]*0.2)/255;return c===INK?c
 const COATS=new Set(RCOAT);
 const FIGRIG=[MERIG,recolorRig(MERIG,c=>COATS.has(c)?hue(150,230,190)(c):c),recolorRig(MERIG,c=>COATS.has(c)?hue(230,150,240)(c):c),
   recolorRig(MERIG,c=>c===INK?c:[c[0]*0.22|0,c[1]*0.19|0,c[2]*0.17|0])];
+FIGRIG[1].head=portraitPart('scholar');FIGRIG[2].head=portraitPart('elder');
 /* a librarian figure (your own rig, in other coats): running, flailing, falling, hanging or lying dead */
 function figLayers(e,out){
   const R=e.rig||FIGRIG[e.burnt?3:e.coat||0],T=G.time,put=rigOut(e,out),seed=e.seed||0,pose=e.pose,walk=e.walk||0;
@@ -695,6 +740,11 @@ const ENCRIG={
   weep:recolorRig(MERIG,c=>COATS.has(c)?hue(150,180,250)(c):c),
   peddler:recolorRig(MERIG,c=>COATS.has(c)?hue(250,120,90)(c):c),
   sleep:recolorRig(MERIG,c=>COATS.has(c)?hue(250,245,225)(c):c)};
+for(const kind of Object.keys(ENCRIG))ENCRIG[kind].head=portraitPart(kind);
+// Each recurring encounter has a small identifying costume detail.
+stamp(ENCRIG.rose.chest.g,['nnnnnnnnn','..nnnnn..','...nnn...'],4,2,{n:rgb('#c0b6c9')});
+stamp(ENCRIG.count.chest.g,['kkkkk','knnnk','knnnk','kkkkk'],2,6,{k:INK,n:rgb('#d4c79e')});
+stamp(ENCRIG.peddler.chest.g,['kkkkk','ktttk','ktYtk','ktttk','kkkkk'],1,9,{k:INK,t:rgb('#82613c'),Y:rgb('#d9b96b')});
 const ENCS={
   rose:{title:'AN OLD WOMAN',pose:'stand',rail:true,idle:'hum',every:6,
     text:()=>'She is very, very old, in a grey shawl, one hand on the rail. She looks at you as if you have kept her waiting, and then as if you were someone else entirely.\n\n"It\'s been 84 years..."',
@@ -1367,14 +1417,18 @@ function lampC(c,px,py){let L=0,w;if(c&&c.kind==='a'){const ci=Math.round(px/P-0
 function lanL(d){const v=d<LANR?1-d/LANR:0;return FLICK*v*v}
 function lightP(c,px,py,d){return AMB+lanL(d)+lampC(c,px,py)}
 const AIRLV=9,FOG=[...Array(AIRLV+2)].map((_,m)=>Math.pow(0.86,m+0.2));let CW_LAMP=0,CW_D2=0;
-function put(i,r,g,b,L){buf[i]=r*L*TR;buf[i+1]=g*L*TG;buf[i+2]=b*L*TB}
+function put(i,r,g,b,L){
+  // Soft highlight rolloff; cool ink shadows keep the amber light from washing out every material.
+  L=L>1?1+(L-1)/(1+(L-1)*0.35):L;const cool=Math.max(0,1-L)*3;
+  buf[i]=r*L*TR;buf[i+1]=g*L*TG+cool*0.7;buf[i+2]=b*L*TB+cool;
+}
 /* a wall pixel at height z on the floor lv levels from yours */
 const LVTEX=new Array(2*MAXLV+3);let LVSTAMP=0;const LVAT=new Int32Array(2*MAXLV+3);
 function colTex(h,lv){const j=lv+MAXLV+1;if(LVAT[j]!==LVSTAMP){LVAT[j]=LVSTAMP;LVTEX[j]=wallTex(h.cell.gid,G.floor+lv,h.seg.wall)}return LVTEX[j]}
 function wallPx(i,h,z,lv,L){
   if(h.type==='void'){buf[i]=buf[i+1]=buf[i+2]=0;return}
-  const s=h.seg,zz=Math.max(0,Math.min(WALLH-1e-6,z));let tex,ti;L*=(1-zz/WALLH*0.55)*2.0;
-  if(h.type==='shelf'){tex=colTex(h,lv);ti=((63-(zz/WALLH*64|0))*64+Math.min(63,h.u*64|0))*4}
+  const s=h.seg,zz=Math.max(0,Math.min(WALLH-1e-6,z));let tex,ti;L*=(1-zz/WALLH*0.38)*1.9;L*=0.88+0.12*Math.abs(Math.cos((s.wall||0)*Math.PI/3));
+  if(h.type==='shelf'){tex=colTex(h,lv);ti=((127-(zz/WALLH*128|0))*128+Math.min(127,h.u*128|0))*4}
   else if(h.type==='ext'||h.type==='pillar'){tex=h.type==='ext'?EXTT:STONE;ti=((31-(zz/WALLH*32|0))*32+((((h.u*s.len/(h.type==='ext'?1.2:0.7))%1)*32)|0))*4}
   else if(h.type==='plain'){tex=PANEL;ti=((31-(zz/WALLH*32|0))*32+((((h.u*s.len/0.85)%1)*32)|0))*4}
   else if(h.type==='food'){tex=FOODT;ti=((63-(zz/WALLH*64|0))*32+Math.min(31,h.u*32|0))*4}
@@ -1383,7 +1437,7 @@ function wallPx(i,h,z,lv,L){
   else{put(i,176,138,62,L);return}
   put(i,tex[ti],tex[ti+1],tex[ti+2],L);
 }
-function floorPx(i,px,py,L){const ti=((((py%1)+1)%1*16|0)*16+(((px%1)+1)%1*16|0))*4;put(i,floorTex[ti],floorTex[ti+1],floorTex[ti+2],L*2.2)}
+function floorPx(i,px,py,L){const ti=((((py%1)+1)%1*32|0)*32+(((px%1)+1)%1*32|0))*4;put(i,floorTex[ti],floorTex[ti+1],floorTex[ti+2],L*2.2)}
 function ceilPx(i,px,py,L){const ti=((((py%1)+1)%1*16|0)*16+(((px%1)+1)%1*16|0))*4;put(i,ceilTex[ti],ceilTex[ti+1],ceilTex[ti+2],L*2.2)}
 /* a ray that went into an air shaft: it falls (or rises) past the other floors until it leaves the shaft, then lands on
    whatever is there - the shaft's stone lip, a railing, or the floor, ceiling or shelves of another storey */
@@ -1428,7 +1482,7 @@ function airPx(i,s,up,r){
   }
   buf[i]=buf[i+1]=buf[i+2]=0;
 }
-function catPx(i,px,py,L){const ti=((((px%1)+1)%1*16|0)*16+(((py%1)+1)%1*16|0))*4;put(i,floorTex[ti]*0.85,floorTex[ti+1]*0.8,floorTex[ti+2]*0.75,L*2.2)}
+function catPx(i,px,py,L){const ti=((((px%1)+1)%1*32|0)*32+(((py%1)+1)%1*32|0))*4;put(i,floorTex[ti]*0.85,floorTex[ti+1]*0.8,floorTex[ti+2]*0.75,L*2.2)}
 /* the camera: in third person it hangs behind your right shoulder and slides in toward you when a wall or the mirror is
    behind you. While the scene draws, the view origin moves to the camera; light still comes from your lantern (LX,LY) */
 let LX=0,LY=0,THIRD=false;const VIEW={third:true,d:2.35};
@@ -1452,7 +1506,7 @@ function renderScene(MEP){
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
   lifeLayers(POSE);
   const low=G.sanity<25?(25-G.sanity)/25:0;
-  TR=1-low*0.15;TG=0.92-low*0.25;TB=0.78+low*0.3;
+  TR=1-low*0.15;TG=0.97-low*0.25;TB=0.9+low*0.2;
   {const d=dayLight(hourOf());LDAY=0.6+0.55*d;AMB=0.12+0.085*d;TR*=0.86+0.14*d;TG*=0.9+0.1*d;TB*=1.06-0.06*d}
   HZ=H/2+G.pitch*H-(THIRD?0.15*H:0);BG.cam.x=G.x;BG.cam.y=G.y;BG.cam.eye=EYE;BG.cam.ang=G.ang;BG.cam.hz=HZ;const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
   for(let x=0;x<W;x++){
@@ -1497,10 +1551,23 @@ function renderScene(MEP){
   if(!THIRD&&LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
   MCOLS.length=0;for(let x=0;x<W;x++)if(LGN[x]>1)MCOLS.push(x);
   for(const e of list){if(e.type==='pp'){const q=e.pe,dx=q.x-G.x,dy=q.y-G.y,s=Math.cos(q.f)*dx+Math.sin(q.f)*dy<0?1:-1;e._d=dx*dx+dy*dy-s*e.ord*0.05}else e._d=(e.x-G.x)*(e.x-G.x)+(e.y-G.y)*(e.y-G.y)}list.sort((a,b)=>b._d-a._d);
+  for(const e of list)if(e.type==='lamp')lampHalo(e);
   for(const e of list)drawCard(e);
   // the glass of the mirror is a little cold and dim
   for(let x=0;x<W;x++)if(MT[x]<1e9){for(let y=Math.max(0,Math.ceil(MYT[x]));y<Math.min(H,Math.ceil(MYB[x]));y++){const i=(y*W+x)*4;buf[i]*=0.8;buf[i+1]*=0.86;buf[i+2]=buf[i+2]*0.9+6}}
   sctx.putImageData(img,0,0);
+}
+/* Small depth-tested pools of amber around the hanging lamps; characters cover them normally. */
+function lampHalo(e){
+  const dx=e.x-G.x,dy=e.y-G.y,cs=Math.cos(G.ang),sn=Math.sin(G.ang),d=dx*cs+dy*sn;
+  if(d<0.3||d>26)return;
+  const sx=W/2+(-dx*sn+dy*cs)*PROJ/d,sy=HZ-(e.z0+e.hgt*0.5-EYE)*PROJ/d,
+    r=Math.min(18,Math.max(1.5,0.3*PROJ/d)),r2=r*r;
+  for(let y=Math.max(0,Math.floor(sy-r));y<Math.min(H,sy+r);y++)for(let x=Math.max(0,Math.floor(sx-r));x<Math.min(W,sx+r);x++){
+    const q=((x-sx)*(x-sx)+(y-sy)*(y-sy))/r2;if(q>=1||d>DEP[y*W+x]+0.06)continue;
+    let hidden=false;for(let k=0;k<NR[x];k++)if(d>RT[x*4+k]&&y>=RY0[x*4+k]&&y<RY1[x*4+k]){hidden=true;break}if(hidden)continue;
+    const a=(1-q)*(1-q)*22*LDAY,i=(y*W+x)*4;buf[i]+=a;buf[i+1]+=a*0.65;buf[i+2]+=a*0.23;
+  }
 }
 function railCol(x,t,a){
   const yTop=HZ-(RAILH-EYE)*PROJ/t,yBot=HZ+EYE*PROJ/t,post=(((a*24/Math.PI)%2)+2)%2<0.4;pointAt(t);const L=Math.min(1.05,lightP(cellAt(t),PX_,PY_,Math.hypot(PX_-LX,PY_-LY)))*2.0;
@@ -1555,7 +1622,7 @@ function drawCard(e){
 }
 
 
-let DW=960,DH=600,SX=3,SY=3;
+let DW=960,DH=600,SX=3,SY=3,SCENEVIGNETTE=null;
 function mkTex(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return{c,g:c.getContext('2d'),w,h}}
 function gridC(g,rows,ox,oy,s,pal){for(let y=0;y<rows.length;y++){const r=rows[y];for(let x=0;x<r.length;x++){const ch=r[x];if(ch!=='.'){g.fillStyle=(pal&&pal[ch])||PAL[ch];g.fillRect(Math.round(ox+x*s),Math.round(oy+y*s),s,s)}}}}
 function discC(g,cx,cy,r,s,fill){g.fillStyle=fill;for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++)if(x*x+y*y<=r*r+r*0.8)g.fillRect(Math.round(cx+x*s-s/2),Math.round(cy+y*s-s/2),s,s)}
@@ -2013,6 +2080,7 @@ function display(dt){
   const dA=angDiff(G.ang,MOT.ang),mx=G.x-MOT.x,my=G.y-MOT.y;let dF=mx*Math.cos(G.ang)+my*Math.sin(G.ang);if(Math.hypot(mx,my)>0.5)dF=0;MOT.ang=G.ang;MOT.x=G.x;MOT.y=G.y;
   texT-=dt;if(texT<=0){texT=0.1;drawVit();drawFaceTex();drawStat();if(G.journal)drawJournal()}
   vctx.imageSmoothingEnabled=false;vctx.drawImage(scene,0,0,W,H,0,0,DW,DH);
+  if(SCENEVIGNETTE){vctx.fillStyle=SCENEVIGNETTE;vctx.fillRect(0,0,DW,DH)}
   const low=G.sanity<25?(25-G.sanity)/25:0,L=LAY,st=G.state;
   if(st==='play'){const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r)}
   if(G.flash>0){vctx.fillStyle='rgba(200,40,20,'+(G.flash*0.35)+')';vctx.fillRect(0,0,DW,DH)}
@@ -2167,11 +2235,13 @@ room.addEventListener('contextmenu',ev=>ev.preventDefault());
 /* size everything to the screen: scene pixels, field of view, canvas, cards and the floating layout */
 function resize(){
   const r=room.getBoundingClientRect();CW=Math.max(1,r.width);CH=Math.max(1,r.height);ASPECT=CW/CH;
-  H=Math.max(120,Math.round(Math.sqrt(64000/ASPECT)/2)*2);W=Math.max(80,Math.round(H*ASPECT/2)*2);
+  H=Math.max(120,Math.round(Math.sqrt((FINE?96000:72000)/ASPECT)/2)*2);W=Math.max(80,Math.round(H*ASPECT/2)*2);
   PLANE=Math.min(Math.tan(37.5*Math.PI/180),Math.max(Math.tan(27*Math.PI/180),0.3608*ASPECT));PROJ=(W/2)/PLANE;
   scene.width=W;scene.height=H;img=sctx.createImageData(W,H);buf=img.data;allocCols();for(let i=3;i<buf.length;i+=4)buf[i]=255;
   let s=Math.min(2,window.devicePixelRatio||1);const lg=Math.max(CW,CH)*s;if(lg>2400)s*=2400/lg;
   DW=Math.max(2,Math.round(CW*s));DH=Math.max(2,Math.round(CH*s));view.width=DW;view.height=DH;SX=DW/W;SY=DH/H;
+  SCENEVIGNETTE=vctx.createRadialGradient(DW*0.5,DH*0.46,Math.min(DW,DH)*0.25,DW*0.5,DH*0.46,Math.hypot(DW,DH)*0.57);
+  SCENEVIGNETTE.addColorStop(0,'rgba(16,12,21,0)');SCENEVIGNETTE.addColorStop(1,'rgba(16,12,21,0.22)');
   const cs=getComputedStyle(safeEl);INS={t:parseFloat(cs.paddingTop)||0,r:parseFloat(cs.paddingRight)||0,b:parseFloat(cs.paddingBottom)||0,l:parseFloat(cs.paddingLeft)||0};
   const port=ASPECT<1;if(port!==PORT||!TX.book){PORT=port;cardTex();drawIntro();drawDead();drawWon();drawJournal();drawBook()}
   LAY=layout();

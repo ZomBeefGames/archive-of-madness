@@ -48,7 +48,7 @@ The rooms follow Borges' story; the space between them is open air:
 
 ## What is in the prototype
 
-- Raycaster at roughly 320×200 that steps across the grid and through the doorways and follows each ray up and down through the open air, so other storeys show past the catwalks and down the shafts and stairwells; mirror reflections (you see yourself) and railings.
+- Adaptive pixel-art raycaster (about 96,000 scene pixels on desktop and 72,000 on touch devices) that steps across the grid and through the doorways and follows each ray up and down through the open air, so other storeys show past the catwalks and down the shafts and stairwells; mirror reflections (you see yourself) and railings.
 - Deterministic pages: every page is calculated from its address (hexagon, floor, wall, shelf, book and page) (FNV-1a + mulberry32), so the same shelf always reads the same on every device.
 - Sanity, health and lantern oil; psychosis at zero sanity with phantom Purifiers. Sleeping in the closet restores sanity at the cost of oil.
 - Purifiers (patrol, chase, burn shelves) and Seekers (charge to steal oil when startled).
@@ -59,7 +59,8 @@ The rooms follow Borges' story; the space between them is open air:
 - The Prophecy Trap: kill a Seeker (and take their oil) or burn a wall of books, and the next coherent page you find tells you what you did, in the past tense. −30 sanity, but each one wakes a dark power: harder hits, and the Seekers flee from you.
 - Sound, synthesised in the browser with the Web Audio API: the Library's hum, footsteps, pages, weapons, fire, screams, a heartbeat when your mind is going.
 - Finding your page wins the run.
-- Paper cut-out characters and a floating, layered 3D-style interface.
+- Paper cut-out characters and a floating, layered 3D-style interface. Detailed book bindings, oak shelves and nailed floorboards, softer light highlights, depth-tested amber lamp halos and subtle edge shading preserve the retro look.
+- Distinct hand-pixelled character portraits: the counter’s spectacles, the peddler’s cap and pouch, Rose’s grey hair and shawl, and different sleeping, laughing and weeping expressions. Purifiers have ash-grey robes with stitched trim and brass details; the player wears a tailored coat with a leather strap.
 - Paper puppets: the Purifier and the Seeker are jointed paper figures (hips, knees, ankles, shoulders, elbows, neck, a hinged cape), posed every frame with two-bone reaching. Their feet plant and step as they walk, they reach out for you (the Purifier with its torch, the Seeker clawing for your oil), the Seeker reads as it wanders, and both fold up when they die.
 - Third person: the camera follows over your right shoulder and slides in when a wall or the mirror is behind you. You are a jointed paper librarian too, with painted backs to the coat and head, a swinging lantern, and your weapon wound up and struck out into the room. V switches back to first person.
 - Other lives: some pages hold the stories of other librarians (six of them, five pages each, found in order, highlighted in green). Each page is a comfort (+8 sanity, and the Index takes it like a sentence), but it settles into you and your own words fade: the journal shows your phrase losing letters and the HUD counts how faded you are (out of 6). The fifth page is an ending, and the book asks before you read it. Read it with your words still holding and you let that life go (+25 sanity, some of your words come back); read it when they are 5 of 6 faded and its ending becomes yours, and the game is over. Each new day gives two letters back.
