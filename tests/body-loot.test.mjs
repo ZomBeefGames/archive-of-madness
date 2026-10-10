@@ -28,7 +28,7 @@ function setup(){
     placeOf(x){return x<10?{kind:'g',gid:'g1'}:{kind:'a'}},
     worldDead(){return other},
     cast(){return blocked?{t:0.25}:null},
-    snd(){},sfx(s){effects.push(s)},openNote:(title,content,reward)=>notes.push({title,content,reward}),
+    snd(){},rememberSentence(){},sfx(s){effects.push(s)},openNote:(title,content,reward)=>notes.push({title,content,reward}),
     hashStr(str){let h=2166136261;for(const ch of str)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0},
     prng(seed){return()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296}},
     angDiff(a,b){let d=a-b;while(d>Math.PI)d-=2*Math.PI;while(d< -Math.PI)d+=2*Math.PI;return d}
