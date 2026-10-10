@@ -25,7 +25,7 @@ function game(inRoom) {
   const context = vm.createContext({ G, voices, ENCS: {}, PUR: [],
     FIGRIG: [[], [], []], ENCRIG: { sleep: [], weep: [], peddler: [], count: [] },
     gaitUpd() {}, voice: (...args) => voices.push(args), sfx() {}, snd() {}, rememberSentence() {},
-    drawBook() {}, closeBook() {}, burned: new Set() });
+    drawBook() {}, closeBook() {}, galleryBarricadeAt(){return null}, burned: new Set() });
   vm.runInContext([
     between('const R=5,', 'const MAXLV='), line('const NRM='),
     line('function inHexL('), between('function hubStride()', '/* the segments of one square'), between('function walkable(', 'function placeOf('),
