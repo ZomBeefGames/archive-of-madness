@@ -59,7 +59,7 @@ The rooms follow Borges' story; the space between them is open air:
 - Sound, synthesised in the browser with the Web Audio API: the Library's hum, footsteps, pages, weapons, fire, screams, a heartbeat when your mind is going.
 - Finding your page wins the run.
 - Paper cut-out characters and a floating, layered 3D-style interface.
-- Paper puppets: characters are built from hand-pixelled paper parts (robe, hood, arms, legs, torch) on a frame, layered at different depths and posed each frame, so they walk, turn, raise their torches and crumple while still looking like flat paper. The Purifier is the first.
+- Paper puppets: the Purifier and the Seeker are jointed paper figures (hips, knees, ankles, shoulders, elbows, neck, a hinged cape), posed every frame with two-bone reaching. Their feet plant and step as they walk, they reach out for you (the Purifier with its torch, the Seeker clawing for your oil), the Seeker reads as it wanders, and both fold up when they die.
 
 ## Design
 
