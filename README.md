@@ -86,3 +86,7 @@ The full game design document is in [`docs/GDD.md`](docs/GDD.md), including plan
 ## Hosting
 
 The game is the single file `index.html`. On Railway it is served by `server.mjs` (Node, no dependencies): `railway.toml` builds it with Railpack and starts `node server.mjs`, which listens on `$PORT`, serves `index.html` at `/` and the files beside it (such as `sfx/`), and refuses dotfiles and its own server files. Locally: `npm start`, then open http://localhost:3000.
+
+## Checks
+
+Run `npm run check` (Node 18 or newer; no dependencies). It checks server syntax, parses the inline game JavaScript, and runs focused sermon regressions for catwalk and gallery pursuit, congregation flight, combat, floor collision and the peaceful LISTEN choice. The tests execute production logic with rendering and audio stubbed; they do not replace a browser gameplay test.
