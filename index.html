@@ -853,7 +853,7 @@ const ENCS={
   count:{title:'THE COUNTER',pose:'count',idle:'murmur',every:2.4,
     text:()=>'"...three hundred and ninety-nine, four hundred... DON\'T. Don\'t speak. I am counting the letters on this floor. I have been counting since before the lamps were lit."',
     a:'▲ ASK HIM THE TOTAL',ad:'he loses count',b:'▼ LEAVE HIM BE',bd:'+3 sanity',
-    A:e=>{voice('scream',e);G.frags+=G.tr.key?2:1;sfx('+1 SENTENCE','mind');return'He loses his place. He screams once, then tears out the only real sentence he ever found and pushes it at you. "Take it. I have to start again." The Index will want it.'},
+    A:e=>{voice('scream',e);G.frags+=G.tr.key?2:1;rememberSentence('enc|count|'+G.resetEpoch+'|'+e.x+','+e.y);sfx('+1 SENTENCE','mind');return'He loses his place. He screams once, then tears out the only real sentence he ever found and pushes it at you. "Take it. I have to start again." The Index will want it.'},
     B:e=>{G.sanity=Math.min(100,G.sanity+3);return'You leave him counting. There is a strange comfort in it.'}},
   weep:{title:'A WEEPING LIBRARIAN',pose:'weep',idle:'sob',every:4.2,
     text:()=>'She is crying into a book with no words in it at all. "It was the only one that didn\'t lie to me," she says, "because it didn\'t say anything."',
@@ -980,7 +980,7 @@ Object.assign(ENCS,{
       return[pr,...S.map(([x,y])=>{const m=mkFig(x,y,0,[FIGRIG[1],FIGRIG[2],ENCRIG.sleep][Math.floor(Math.random()*3)],'kneel');m.f=toward(m,c.x,c.y);return m})]},
     text:()=>'A Purifier is preaching to three kneeling librarians, his torch raised over them.\n\n"The Library is infinite, and the Library is sick. Every false book is a fever. We are the cure." His listeners nod with their eyes closed.',
     a:'▲ LISTEN',ad:'he quotes a real sentence · −8 sanity',b:'▼ HECKLE',bd:'he will not take it well',
-    A:e=>{G.frags+=G.tr.key?2:1;G.sanity=Math.max(0,G.sanity-8);sfx('+1 SENTENCE','mind');return'You kneel with them. In the middle of the sermon he quotes a real sentence, perfectly, and you keep it. The rest of it stays with you less kindly.'},
+    A:e=>{G.frags+=G.tr.key?2:1;rememberSentence('enc|sermon|'+G.resetEpoch+'|'+e.x+','+e.y);G.sanity=Math.max(0,G.sanity-8);sfx('+1 SENTENCE','mind');return'You kneel with them. In the middle of the sermon he quotes a real sentence, perfectly, and you keep it. The rest of it stays with you less kindly.'},
     B:e=>{const pr=e.members.find(m=>m.preach);convertHostile(pr);e.members=e.members.filter(m=>m!==pr);e.flee=true;voice('scream',e,{vol:0.7});
       return'"Heretic," he says, quite softly, and lowers the torch toward you. His congregation runs.'}}
 });
@@ -1122,7 +1122,7 @@ function readEnding(){
   const tl=TALES[T.s];T.read=true;G.taleN[T.s]=5;taleOverlay(p,T);G.choice=null;
   if((G.echo||0)>=ECHO_MAX-1){G.lostTo=T.s;G.verdict='It fits you better than your own story did. You cannot remember yours.';sfx('YOUR STORY IS GONE','red');snd('bad');drawBook();
     setTimeout(()=>{if(G.state==='book'||G.state==='closing'||G.state==='play'){G.state='play';die()}},2600);return}
-  G.taleDone[T.s]=true;G.echo=Math.max(0,G.echo-3);G.sanity=Math.min(100,G.sanity+25);G.frags+=2;G.found.push(tl.frags[4]);
+  G.taleDone[T.s]=true;G.echo=Math.max(0,G.echo-3);G.sanity=Math.min(100,G.sanity+25);G.frags+=2;G.found.push(tl.frags[4]);rememberSentence('ending|'+T.s);
   G.verdict='You let the life of '+tl.name+' go, and some of your words come back. +25 sanity, the Index takes it twice.'+(G.q===4?' Their last line names a book: BOOK '+bioPlan(G.phrase).book+'.':'');if(G.q===4)qDone(5);sfx('AN ENDING','mind');snd('pickup');drawBook()}
 
 const G={};
@@ -1535,7 +1535,7 @@ function searchBody(body){
   }else if(seek){
     text='The Seeker has tucked small things inside the binding of a battered book.';
     if(r()<0.65){G.oil+=1;finds.push('1 OIL')}else{G.type+=2;finds.push('2 TYPE')}
-    if(r()<0.2){G.frags+=G.tr.key?2:1;finds.push('A REAL SENTENCE')}
+    if(r()<0.2){G.frags+=G.tr.key?2:1;rememberSentence('body|'+body.lootId);finds.push('A REAL SENTENCE')}
   }else if(burnt){
     text='Only ash and a few pages fused together remain.';
     if(r()<0.3){G.type++;finds.push('1 SCORCHED TYPE')}
@@ -1545,7 +1545,7 @@ function searchBody(body){
     if(roll<0.35){const n=1+Math.floor(r()*3);G.type+=n;finds.push(n+' TYPE')}
     else if(roll<0.57){G.oil++;finds.push('1 OIL')}
     else if(roll<0.75){G.incense++;finds.push('SECT INCENSE')}
-    else if(roll<0.9){G.frags+=G.tr.key?2:1;finds.push('A REAL SENTENCE')}
+    else if(roll<0.9){G.frags+=G.tr.key?2:1;rememberSentence('body|'+body.lootId);finds.push('A REAL SENTENCE')}
   }
   const result=finds.length?finds.join(' · '):'NOTHING WORTH TAKING';
   G.lastHit={t:Math.hypot(body.x-G.x,body.y-G.y)};
@@ -1594,7 +1594,7 @@ function showPage(isNew){
       const lethal=G.echo>=ECHO_MAX-1;
       G.choice='ending';openBookUI(p,'The ending of '+tl.name+'. '+(lethal?'Your words are '+G.echo+'/'+ECHO_MAX+' faded: it would take the rest.':'Your words are '+G.echo+'/'+ECHO_MAX+' faded, still holding.')+(FINE?' W read · E close':' Left page read · middle close'));sfx('AN ENDING?','red');return}
     taleOverlay(p,T);let verdict;
-    if(!T.read){T.read=true;G.taleN[T.s]=Math.max(G.taleN[T.s],T.i+1);G.echo=Math.min(ECHO_MAX,(G.echo||0)+1);G.sanity=Math.min(100,G.sanity+TALE_GAIN);G.frags+=G.tr.key?2:1;G.xp++;G.found.push(TALES[T.s].frags[T.i]);
+    if(!T.read){T.read=true;G.taleN[T.s]=Math.max(G.taleN[T.s],T.i+1);G.echo=Math.min(ECHO_MAX,(G.echo||0)+1);G.sanity=Math.min(100,G.sanity+TALE_GAIN);G.frags+=G.tr.key?2:1;G.xp++;G.found.push(TALES[T.s].frags[T.i]);rememberSentence('tale|'+p.key);
       verdict=tl.name+', page '+(T.i+1)+' of 5'+(T.i===3?' (the ending is next)':'')+'. +'+TALE_GAIN+' sanity. Your words fade '+G.echo+'/'+ECHO_MAX+'.';sfx('ANOTHER LIFE','mind');snd('pickup')}
     else verdict='You remember this page of '+tl.name+'.';
     G.choice=null;openBookUI(p,verdict);return}
@@ -1604,8 +1604,8 @@ function showPage(isNew){
     if(p.kind==='prophecy'){G.sanity=Math.max(0,G.sanity-30);G.dark=Math.min(3,G.dark+1);G.written++;verdict='It describes what you did, in the past tense. −30 sanity. Something dark wakes in your hands.';sfx('PROPHECY','red');snd('bad')}
     else if(p.kind==='noise'&&page1Mine(b)){G.opened.delete(p.key);verdict='This is your book. Page one is blank, waiting'+(G.q>=5?' for a dawn on day 5 or later.':'.')}
     else if(p.kind==='noise'){const loss=G.tr.specs?0:isNew?2:1;G.sanity=Math.max(0,G.sanity-loss);verdict=loss?'Noise. Pure noise. −'+loss+' sanity':'Noise. Your grey spectacles blur it kindly.'}
-    else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);G.frags+=G.tr.key?2:1;G.xp++;verdict='A real sentence! +6 sanity. The Index will want this.';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));sfx('+6 SANITY','mind')}
-    else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;G.won=true;G.winG=b.g;G.winF=b.f;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
+    else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);G.frags+=G.tr.key?2:1;G.xp++;verdict='A real sentence! +6 sanity. The Index will want this.';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));rememberSentence('page|'+p.key);sfx('+6 SANITY','mind')}
+    else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;rememberSentence('personal|'+p.key);G.won=true;G.winG=b.g;G.winF=b.f;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
   }else verdict=p.kind==='noise'?'You read this one already. Still noise.':'You remember this page.';
   if(page1Mine(b)){p.chars.fill(' ');p.at=-1}
   G.note=null;G.choice=null;openBookUI(p,verdict);
