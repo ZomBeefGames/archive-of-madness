@@ -60,8 +60,8 @@ test('library/gallery variants are deterministic with stable identities during t
   for(let i=-35;i<35;i++)for(let j=-5;j<5;j++)
     examples.add(s.run('galleryZone('+i+','+j+').type'));
   assert.deepEqual([...examples].sort(),['barricaded','burned','burning','normal','refuge']);
-  s.G.startGallery='2,4:0';
-  assert.equal(s.run('galleryZone(2,4).type'),'normal','first gallery is guaranteed safe');
+  s.G.startGallery='100,200:0';
+  assert.equal(s.run('galleryZone(100,200).type'),'normal','first gallery is guaranteed safe');
 });
 test('blocked library entrance is solid but the opposite door stays open; Read pries it apart',()=>{
   const s=setup();
