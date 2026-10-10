@@ -17,7 +17,7 @@ body{color:var(--paper);font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
 <div id="room">
   <h1 class="sr">Archives of Madness</h1>
-  <canvas id="view" tabindex="0" aria-label="Archives of Madness, WEIGHTS game over mode. A first-person view filling the screen inside a hexagonal library. Health, sanity, your face and lantern oil float at the top as glowing layered models; a layered glowing thumbstick (push up to walk, sideways to turn) and glowing 3D Journal, Read and Swing icons float at the bottom. Keys: W A S D or arrows to move, drag to look around and up or down (or R and F), E reads the shelf you aim at or uses what is in front of you (the Index, the stair, a closet, the mirror), Space swings, J opens the journal."></canvas>
+  <canvas id="view" tabindex="0" aria-label="Archives of Madness, WEIGHTS game over mode. A first-person view filling the screen inside a hexagonal library. Health, sanity, your face and lantern oil float at the top as glowing layered models; a layered glowing thumbstick (push up to walk, sideways to turn) and glowing 3D Journal, Read and Swing icons float at the bottom. Keys: W A S D or arrows to move, drag to look around and up or down (or R and F), Q or 1 2 3 switch weapons (bookpress, shelf rod, oil flask), I burns incense, M toggles sound, E reads the shelf you aim at or uses what is in front of you (the Index, the stair, a closet, the mirror), Space swings, J opens the journal."></canvas>
   <div id="fx" aria-live="polite"></div>
 </div>
 <div id="safe" aria-hidden="true"></div>
@@ -195,6 +195,9 @@ const LIBC=buildCard(setPx(["....kkkkkk......","...khhhhhhk.....","...khsssshk..
   [[13,8,'k'],[14,8,'k'],[15,8,'k'],[13,9,'k'],[14,9,'y'],[15,9,'k'],[13,10,'y'],[14,10,'Y'],[15,10,'y'],[13,11,'k'],[14,11,'f'],[15,11,'k'],[14,12,'k']]));
 /* the Index: a brass machine of lettered drums on a lectern at the railing of the air shaft */
 const INDEXC=buildCard(["..kkkkkkkkkk..",".kyyyyyyyyyyk.",".kyRRRRRRRRyk.",".kyRwRnRwRRyk.",".kyRRRRRRRRyk.",".kyyyyyyyyyyk.","..kkkkkkkkkk..","...kttttttk...","....kttttk....","....kttttk....","....kttttk....","....kttttk....","...kttttttk...","..kkkkkkkkkk.."]);
+/* sect incense dropped by Purifiers or left on the floor, and the flames of thrown lantern oil */
+const INCC=buildCard(["..n...","...n..","..n...",".kok..",".ktk..",".ktk..",".ktk..",".ktk..","kkkkk."]);
+const FIREC=[["...o....","..of.o..",".ofYo...","ofYYfo..","ofYYYfo.",".ofYYfo.","..offo..","...oo..."],["....o...",".o.fo...","..oYfo..",".ofYYfo.","ofYYYfo.",".ofYYfo.","..offo..","...oo..."],["..o.....","..fo.o..",".ofYfo..","ofYYfo..","ofYYYfo.",".ofYYYo.","..offo..","...oo..."]].map(r=>buildCard(r));
 const LAMPC=buildCard(["..kkkk..",".kYYYYk.","kYYYYYyk","kYYYYyyk","kYYYyyyk","kYYyyyyk",".kyyyyk.","..kkkk.."]);
 
 const ALPHA="abcdefghijklmnopqrstuvwxyz, .";
@@ -226,7 +229,7 @@ function reset(){
   let g,f;do{g=Math.floor(Math.random()*NG);f=Math.floor(Math.random()*NF)}while(torusD(g,P.g,NG)+torusD(f,P.f,NF)<6||torusD(g,P.g,NG)+torusD(f,P.f,NF)>10);
   Object.assign(G,{x:0,y:2.6,ang:-Math.PI/2+0.35,gal:g,floor:f,ug:0,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([g+':'+f]),seen:new Map([[g+':'+f,'0:0']]),
     phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,order:false,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,order:false,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(){
@@ -237,9 +240,10 @@ function enterRoom(){
 function spawnRoom(first){
   const h=hashStr('room|'+G.gal+'|'+G.floor),rnd=prng(h);G.ents=[];G.alerted=false;
   const spot=()=>{const r=RS+0.6+rnd()*(A-RS-1.3),a=rnd()*Math.PI*2;return[Math.cos(a)*r,Math.sin(a)*r]};
-  if(first||h%3===0){const[x,y]=first?[-1.8,-2.4]:spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,hp:3,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2})}
-  if(first||h%2===0){const[x,y]=first?[2.6,-0.9]:spot();G.ents.push({type:'seek',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,scared:0,hit:0,dead:0,hgt:1.15,cards:SEEK,stealCd:0,flee:0})}
+  if(first||h%3===0){const[x,y]=first?[-1.8,-2.4]:spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,hp:3,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6})}
+  if(first||h%2===0){const[x,y]=first?[2.6,-0.9]:spot();G.ents.push({type:'seek',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,scared:0,hit:0,dead:0,hgt:1.15,cards:SEEK,stealCd:0,flee:0,hp:3})}
   if(first||h%4===1){const[x,y]=first?[1.4,2.7]:spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
+  if(first||(h>>>6)%5===0){const[x,y]=first?[-2.7,1.3]:spot();G.ents.push({type:'incense',x,y,f:rnd()*6.28,frame:0,hgt:0.5,cards:[INCC],dead:0})}
   if(first||(h>>>3)%3===0){const a=first?Math.PI*0.75:rnd()*Math.PI*2;G.ents.push({type:'index',x:Math.cos(a)*(RS+0.32),y:Math.sin(a)*(RS+0.32),f:a,frame:0,hgt:0.9,cards:[INDEXC],dead:0})}
 }
 
@@ -257,7 +261,55 @@ function collideP(x,y,rad){
 }
 function wallHitIndex(x,y,rad){for(let i=0;i<6;i++){const nx=Math.cos(i*Math.PI/3),ny=Math.sin(i*Math.PI/3);if(x*nx+y*ny>A-rad-0.02)return i}return -1}
 
+/* ---- sound: everything is synthesised with the Web Audio API, nothing is downloaded. It starts on your first tap or key ---- */
+const SND={ctx:null,on:true,out:null,noise:null,droneG:null,droneT:0};
+try{SND.on=localStorage.getItem('aom-sound')!=='off'}catch(e){}
+function audioStart(){
+  if(SND.ctx){if(SND.ctx.state==='suspended')SND.ctx.resume();return}
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  try{SND.ctx=new AC()}catch(e){return}
+  const c=SND.ctx;SND.out=c.createGain();SND.out.gain.value=SND.on?0.7:0;SND.out.connect(c.destination);
+  const nb=c.createBuffer(1,c.sampleRate,c.sampleRate),d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;SND.noise=nb;
+  // the hum of the Library: slow detuned saws through a low, breathing filter
+  const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=170;f.Q.value=4;const g=c.createGain();g.gain.value=0.045;f.connect(g);g.connect(SND.out);
+  for(const hz of[55,55.6,82.4]){const o=c.createOscillator();o.type='sawtooth';o.frequency.value=hz;o.connect(f);o.start()}
+  const lfo=c.createOscillator(),lg=c.createGain();lfo.frequency.value=0.07;lg.gain.value=60;lfo.connect(lg);lg.connect(f.frequency);lfo.start();SND.droneG=g;
+}
+function droneTick(){if(!SND.ctx||G.time<SND.droneT)return;SND.droneT=G.time+0.5;SND.droneG.gain.setTargetAtTime(0.04+0.07*(1-G.sanity/100),SND.ctx.currentTime,0.6)}
+function soundToggle(){SND.on=!SND.on;try{localStorage.setItem('aom-sound',SND.on?'on':'off')}catch(e){}if(SND.out)SND.out.gain.setTargetAtTime(SND.on?0.7:0,SND.ctx.currentTime,0.05);sfx(SND.on?'SOUND ON':'SOUND OFF');if(G.journal)drawJournal()}
+function nz(t,dur,type,f0,f1,vol,q){const c=SND.ctx,s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=SND.noise;f.type=type;f.Q.value=q||1;
+  f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(f1,t+dur);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+Math.min(0.02,dur/4));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  s.connect(f);f.connect(g);g.connect(SND.out);s.start(t,Math.random()*0.5);s.stop(t+dur+0.05)}
+function tone(t,dur,type,f0,f1,vol){const c=SND.ctx,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(SND.out);o.start(t);o.stop(t+dur+0.05)}
+function snd(name){
+  if(!SND.ctx||!SND.on||!name)return;const t=SND.ctx.currentTime;
+  switch(name){
+    case'step':nz(t,0.07,'lowpass',500,200,0.12);break;
+    case'page':nz(t,0.14,'bandpass',1800,3200,0.1,0.8);break;
+    case'swing':nz(t,0.22,'bandpass',300,1600,0.16,1.5);break;
+    case'poke':nz(t,0.09,'highpass',1500,3000,0.1);break;
+    case'hit':tone(t,0.16,'sine',110,40,0.45);nz(t,0.08,'lowpass',900,200,0.2);break;
+    case'fwoosh':nz(t,0.6,'lowpass',300,2400,0.22,0.7);break;
+    case'fire':nz(t,0.9,'lowpass',200,1800,0.3,0.5);tone(t,0.4,'sine',70,40,0.3);break;
+    case'crackle':nz(t,0.03,'highpass',2000,4000,0.05);break;
+    case'throw':nz(t,0.25,'bandpass',600,1200,0.12);break;
+    case'scream':tone(t,0.5,'sawtooth',620,1150,0.05);tone(t,0.5,'sawtooth',640,1180,0.035);break;
+    case'pickup':tone(t,0.09,'square',660,660,0.04);tone(t+0.08,0.12,'square',990,990,0.04);break;
+    case'snatch':tone(t,0.15,'square',800,300,0.05);break;
+    case'good':[523,659,784].forEach((f,i)=>tone(t+i*0.09,0.4,'triangle',f,f,0.08));break;
+    case'bad':tone(t,0.9,'sawtooth',110,52,0.09);tone(t,0.9,'sawtooth',117,55,0.07);break;
+    case'clack':for(let i=0;i<5;i++)tone(t+i*0.06,0.04,'square',180+i*40,160+i*40,0.05);break;
+    case'stairs':for(let i=0;i<6;i++)nz(t+i*0.12,0.06,'lowpass',600,200,0.1);break;
+    case'incense':tone(t,2.2,'sine',294,294,0.05);tone(t+0.2,2,'sine',440,440,0.035);break;
+    case'sleep':tone(t,2,'sine',196,147,0.05);break;
+    case'heart':tone(t,0.12,'sine',62,40,0.4);tone(t+0.18,0.12,'sine',56,38,0.28);break;
+  }
+}
+const SFXSND={'FWOOSH!':'fwoosh','KRAK!':'hit','DARK KRAK!':'hit','RRRIP!':'hit','AAAAAH!':'scream','+3 OIL':'pickup','+2 OIL':'pickup','+1 INCENSE':'pickup','SNATCH!':'snatch','+6 SANITY':'good','INDEXED!':'clack','YOUR STORY!':'good','WHUFF':'swing','HOT!':'hit','FSSS!':'crackle','FWUMP!':'step'};
+addEventListener('pointerdown',audioStart,true);addEventListener('keydown',audioStart,true);
 function sfx(text,cls){
+  snd(SFXSND[text]);
   const fx=document.getElementById('fx'),el=document.createElement('div');el.className='sfx '+(cls||'');el.textContent=text;
   el.style.left=(12+Math.random()*40)+'%';el.style.top=(14+Math.random()*40)+'%';el.style.setProperty('--r',(Math.random()*16-8)+'deg');
   fx.appendChild(el);setTimeout(()=>el.remove(),950);
@@ -285,8 +337,22 @@ function update(dt){
   for(const e of G.ents){
     if(e.type==='pur')updPur(e,dt);else if(e.type==='seek')updSeek(e,dt);
     else if(e.type==='flask'&&!e.dead){e.f+=dt*0.8;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.oil+=3;sfx('+3 OIL')}}
+    else if(e.type==='incense'&&!e.dead){e.f+=dt*0.6;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.incense++;sfx('+1 INCENSE')}}
   }
-  G.ents=G.ents.filter(e=>!(e.dead>=1&&e.type!=='pur')&&!(e.type==='pur'&&e.dead>=1.6));
+  // thrown oil burns for a while: it scorches Purifiers, scares Seekers off, blocks the way, and hurts you too
+  const room=G.gal+':'+G.floor;let lit=false;
+  for(const F of G.fires){F.t-=dt;if(F.room!==room||F.t<=0)continue;lit=true;
+    if(Math.hypot(F.x-G.x,F.y-G.y)<0.55&&G.hurtCd<=0){G.hurtCd=0.7;G.health-=5;G.flash=1;sfx('HOT!','red')}
+    for(const e of G.ents){if(e.dead||Math.hypot(e.x-F.x,e.y-F.y)>0.8)continue;
+      if(e.type==='pur'){e.fireCd=(e.fireCd||0)-dt;if(e.fireCd<=0){e.fireCd=0.8;e.hp--;e.hit=1;sfx('FSSS!','red');if(e.hp<=0)killPur(e)}}
+      else if(e.type==='seek'&&e.flee<=0){e.scared=Math.max(e.scared,2);e.flee=2}}}
+  G.fires=G.fires.filter(F=>F.t>0);
+  if(lit){G.crackT-=dt;if(G.crackT<=0){G.crackT=0.05+Math.random()*0.2;snd('crackle')}}
+  if(G.incenseT>0){G.incenseT-=dt;G.sanity=Math.min(100,G.sanity+5*dt)}
+  if(fwd){const ph=Math.floor(G.walkT/Math.PI);if(ph!==G.stepPh){G.stepPh=ph;snd('step')}}
+  if(G.sanity<25){G.heartT-=dt;if(G.heartT<=0){G.heartT=G.sanity<=0?0.6:0.95;snd('heart')}}
+  droneTick();
+  G.ents=G.ents.filter(e=>(e.type==='pur'||e.type==='seek')?e.dead<1.6:e.dead<1);
   if(G.health<=0){G.health=0;die()}
 }
 function updPur(e,dt){
@@ -305,17 +371,18 @@ function updPur(e,dt){
     if(wi>=0&&wi!==0&&wi!==3&&e.burnCd<=0&&!burned.has(key)&&Math.random()<0.5){burned.add(key);e.burnCd=8;sfx('FWOOSH!','red')}
     e.head+=Math.PI*(0.6+Math.random()*0.8);
   }
-  e.x=cx;e.y=cy;
+  if(nearFire(cx,cy)&&!nearFire(e.x,e.y))e.head+=Math.PI;else{e.x=cx;e.y=cy}
   if(dist<0.95&&G.hurtCd<=0){G.hurtCd=1.2;G.health-=7;G.flash=1;sfx('FWOOSH!','red')}
 }
 function updSeek(e,dt){
   if(e.dead){e.dead+=dt;return}
   e.hit=Math.max(0,e.hit-dt*3);e.stealCd=Math.max(0,e.stealCd-dt);
   const dx=G.x-e.x,dy=G.y-e.y,dist=Math.hypot(dx,dy),toP=Math.atan2(dy,dx);
+  if(G.dark>0&&e.scared<=0&&dist<3.2){e.scared=1;e.flee=1}
   if(e.scared>0){
     // startled: charge at you for your oil, and scamper off once they have snatched some
     e.scared-=dt;e.flee=Math.max(0,e.flee-dt);const fl=e.flee>0,hd=fl?toP+Math.PI:toP,spd=fl?1.4:(dist>0.6?1.7:0);
-    const[cx,cy]=collideHex(e.x+Math.cos(hd)*spd*dt,e.y+Math.sin(hd)*spd*dt,0.35);e.x=cx;e.y=cy;
+    const[cx,cy]=collideHex(e.x+Math.cos(hd)*spd*dt,e.y+Math.sin(hd)*spd*dt,0.35);if(!(nearFire(cx,cy)&&!nearFire(e.x,e.y))){e.x=cx;e.y=cy}
     e.ft2+=dt*8;e.frame=Math.floor(e.ft2)%4;turnToward(e,hd+Math.PI/2,6,dt);
     if(!fl&&dist<0.8&&e.stealCd<=0&&G.oil>0){G.oil--;e.stealCd=3;e.flee=2;sfx('SNATCH!','mind')}
   }else{e.ft2+=dt*1.5;e.frame=Math.floor(e.ft2)%2===0?0:2;e.f+=Math.sin(G.time*0.7)*dt*0.4}
@@ -323,20 +390,45 @@ function updSeek(e,dt){
 function startle(){
   for(const e of G.ents){if(e.type==='seek'&&!e.dead&&Math.hypot(e.x-G.x,e.y-G.y)<3.6&&e.scared<=0){e.scared=5;sfx('AAAAAH!','mind');G.alerted=true}}
 }
+/* weapons: the heavy bookpress (slow, crushing), the sharpened shelf rod (fast, long reach), and lantern oil,
+   thrown and lit (a fire that blocks the way, paid for with your light) */
+const WNAME={press:'BOOKPRESS',rod:'SHELF ROD',oil:'OIL FLASK'};
+function hasWeapon(w){return w==='press'||w==='oil'||(w==='rod'&&G.hasRod)}
+function setWeapon(w){if(!hasWeapon(w)){sfx('NO ROD YET');return}if(G.weapon!==w){G.weapon=w;G.swing=0.6;sfx(WNAME[w]);snd('pickup')}}
+function cycleWeapon(){const L=['press','rod','oil'];let i=L.indexOf(G.weapon);for(let k=0;k<3;k++){i=(i+1)%3;if(hasWeapon(L[i])){setWeapon(L[i]);return}}}
 function doSwing(){
-  if(G.swingCd>0)return;G.swingCd=0.6;G.swing=1;
-  for(const e of G.ents){
-    if(e.dead||e.type==='flask'||e.type==='index')continue;
-    const dx=e.x-G.x,dy=e.y-G.y,dist=Math.hypot(dx,dy);
-    if(dist<1.35&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.65){
-      e.hit=1;
-      if(e.type==='pur'){e.hp--;sfx(e.hp>0?'KRAK!':'RRRIP!');if(e.hp<=0)e.dead=0.001}
-      else{e.scared=5;sfx('KRAK!');G.alerted=true;G.sanity=Math.max(0,G.sanity-8);sfx('-8 SANITY','mind')}
-      return;
-    }
-  }
-  sfx('WHUFF');
+  if(G.swingCd>0)return;
+  if(G.weapon==='oil'){throwOil();return}
+  const rod=G.weapon==='rod',reach=rod?2.1:1.35,cone=rod?0.3:0.65,dmg=(rod?1:2)+Math.min(2,G.dark);
+  G.swingCd=rod?0.35:0.6;G.swing=1;snd(rod?'poke':'swing');
+  let e=null,bd=1e9;
+  for(const q of G.ents){if(q.dead||(q.type!=='pur'&&q.type!=='seek'))continue;const dx=q.x-G.x,dy=q.y-G.y,d=Math.hypot(dx,dy);
+    if(d<reach&&d<bd&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<cone){e=q;bd=d}}
+  if(!e){sfx('WHUFF');return}
+  e.hit=1;e.hp-=dmg;
+  if(e.type==='pur'){sfx(e.hp>0?(G.dark?'DARK KRAK!':'KRAK!'):'RRRIP!',G.dark?'mind':'');if(e.hp<=0)killPur(e)}
+  else{G.alerted=true;G.sanity=Math.max(0,G.sanity-8);sfx('KRAK!');sfx('-8 SANITY','mind');
+    if(e.hp<=0){e.dead=0.001;G.oil+=2;setTimeout(()=>sfx('+2 OIL'),250);sin('kill')}else e.scared=5}
 }
+function killPur(e){e.dead=0.001;if(Math.random()<0.6)G.ents.push({type:'incense',x:e.x,y:e.y,f:e.f,frame:0,hgt:0.5,cards:[INCC],dead:0})}
+function nearFire(x,y){const room=G.gal+':'+G.floor;for(const F of G.fires)if(F.room===room&&F.t>0&&Math.hypot(F.x-x,F.y-y)<0.75)return true;return false}
+function throwOil(){
+  if(G.oil<2){sfx('NOT ENOUGH OIL');return}
+  G.oil-=2;G.swingCd=0.8;G.swing=1;snd('throw');
+  const dx=Math.cos(G.ang),dy=Math.sin(G.ang),h=cast(G.x,G.y,dx,dy);let d=2.6;if(h&&h.t-0.35<d)d=Math.max(0.5,h.t-0.35);
+  const fx=Math.max(-S/2+0.05,Math.min(S/2-0.05,G.x+dx*d)),fy=G.y+dy*d;
+  if(inHole(fx,fy)){sfx('IT FALLS AWAY','mind');return}
+  G.fires.push({x:fx,y:fy,t:12,room:G.gal+':'+G.floor});sfx('FWOOMP!','red');snd('fire');
+  // oil splashed against a bookcase sets the whole wall alight, and that is a sin
+  if(Math.abs(fx)<A)for(const i of[1,2,4,5]){const nx=Math.cos(i*Math.PI/3),ny=Math.sin(i*Math.PI/3),key=G.gal+'.'+G.floor+':'+i;
+    if(fx*nx+fy*ny>A-0.9&&!burned.has(key)){burned.add(key);sfx('FWOOSH!','red');sin('burn',i)}}
+}
+/* sect incense: burn it to calm the mind, +30 sanity over six seconds, and the phantoms go */
+function useIncense(){if(G.state!=='play')return;if(G.incense<=0){sfx('NO INCENSE');return}if(G.incenseT>0)return;G.incense--;G.incenseT=6;G.phantoms=[];sfx('SECT INCENSE','mind');snd('incense')}
+/* the Prophecy Trap: what you do is written down. The next coherent page you find tells it back to you in the past tense */
+const NUMW=['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty','twenty one','twenty two','twenty three'];
+function sin(kind,wall){const at='in hexagon '+NUMW[G.gal]+', floor '+NUMW[G.floor]+', ';
+  G.sins.push(at+(kind==='kill'?'you struck down a weeping librarian and took their oil.':'you burned wall '+NUMW[WALLNO[wall]]+' and every book on it.'))}
 /* Read does whatever is in front of you: a shelf, the Index, the stair, a closet, the mirror */
 function doRead(){
   for(const e of G.ents)if(e.type==='index'){const dx=e.x-G.x,dy=e.y-G.y;if(Math.hypot(dx,dy)<1.25&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.7){G.lastHit={t:Math.hypot(dx,dy)};useIndex();return}}
@@ -351,7 +443,7 @@ function doRead(){
   if(h.type==='frame'){openNote('THE MIRROR','A gilt frame. In the glass, another hallway, another you.');return}
   if(h.type!=='shelf'){sfx('NO SHELVES HERE');return}
   const wall=h.seg.wall,key=g+'.'+f+':'+wall;
-  if(burned.has(key)){G.sanity=Math.max(0,G.sanity-1);openNote('BURNED SHELF','. . . ash . . .','Only ash. These books are lost forever. −1 sanity');return}
+  if(burned.has(key)){G.sanity=Math.max(0,G.sanity-1);if(!G.hasRod){G.hasRod=true;G.weapon='rod';openNote('BURNED SHELF','. . . ash . . . Among the cinders a shelf rod comes loose. You sharpen it on the stone lip of the shaft.','You found a SHELF ROD: quick, with a long reach. '+(FINE?'Q or 1 2 3':'Tap your hand')+' to switch weapons.')}else openNote('BURNED SHELF','. . . ash . . .','Only ash. These books are lost forever. −1 sanity');return}
   const z=EYE+G.pitch*H/PROJ*h.t,row=63-Math.max(0,Math.min(63,z/WALLH*64|0)),shelf=Math.max(1,Math.min(5,Math.floor((row-4)/12)+1)),book=1+Math.min(31,Math.floor(h.u*32));
   G.book={g,f,wall,shelf,book,page:1};
   showPage(true);startle();
@@ -370,14 +462,17 @@ function indexHint(i,P){
 }
 function doSleep(){
   if(G.sleepCd>0){openNote('THE SLEEPING CLOSET','You are not tired enough to sleep standing up again yet.');return}
-  G.state='sleep';G.sleepT=0;G.journal=false;
+  G.state='sleep';G.sleepT=0;G.journal=false;snd('sleep');
 }
 function showPage(isNew){
-  const b=G.book,p=makePage(b.g,b.f,b.wall,b.shelf,b.book,b.page,G.phrase);
+  const b=G.book,p=makePage(b.g,b.f,b.wall,b.shelf,b.book,b.page,G.phrase);snd('page');
+  if(!G.over[p.key]&&p.kind==='sentence'&&G.sins.length&&!G.opened.has(p.key)){const txt=G.sins.shift();G.over[p.key]={at:Math.min(p.at,3200-txt.length),txt}}
+  const ov=G.over[p.key];if(ov){for(let i=0;i<ov.txt.length;i++)p.chars[ov.at+i]=ov.txt[i];p.at=ov.at;p.len=ov.txt.length;p.kind='prophecy'}
   let verdict;
   if(!G.opened.has(p.key)){
     G.opened.add(p.key);if(isNew)G.books++;
-    if(p.kind==='noise'){const loss=isNew?2:1;G.sanity=Math.max(0,G.sanity-loss);verdict='Noise. Pure noise. −'+loss+' sanity'}
+    if(p.kind==='prophecy'){G.sanity=Math.max(0,G.sanity-30);G.dark=Math.min(3,G.dark+1);G.written++;verdict='It describes what you did, in the past tense. −30 sanity. Something dark wakes in your hands.';sfx('PROPHECY','red');snd('bad')}
+    else if(p.kind==='noise'){const loss=isNew?2:1;G.sanity=Math.max(0,G.sanity-loss);verdict='Noise. Pure noise. −'+loss+' sanity'}
     else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);G.frags++;G.xp++;verdict='A real sentence! +6 sanity. The Index will want this.';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));sfx('+6 SANITY','mind')}
     else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;G.won=true;G.winG=b.g;G.winF=b.f;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
   }else verdict=p.kind==='noise'?'You read this one already. Still noise.':'You remember this page.';
@@ -386,13 +481,15 @@ function showPage(isNew){
 function openNote(title,text,verdict){G.note={title,text};if(title!=='THE SPIRAL STAIR')G.choice=null;openBookUI(null,verdict||'')}
 function openBookUI(p,verdict){G.page=p;G.verdict=verdict;if(G.state!=='book'){G.state='book';G.bookAnim=0;const t=G.lastHit?Math.min(G.lastHit.t,1.9)*0.9:1;G.bookFrom={x:G.x+Math.cos(G.ang)*t,y:G.y+Math.sin(G.ang)*t}}drawBook()}
 function closeBook(){if(G.state==='book'){G.state='closing';G.bookAnim=0}}
-function climb(dir){G.choice=null;G.note=null;G.state='climb';G.climbT=0;G.climbDir=dir;G.climbed=false;sfx(dir>0?'UP THE STAIR':'DOWN THE STAIR','mind')}
-function die(){if(G.state==='dying'||G.state==='dead')return;G.state='dying';G.dieT=0;G.journal=false}
+function climb(dir){snd('stairs');G.choice=null;G.note=null;G.state='climb';G.climbT=0;G.climbDir=dir;G.climbed=false;sfx(dir>0?'UP THE STAIR':'DOWN THE STAIR','mind')}
+function die(){if(G.state==='dying'||G.state==='dead')return;snd('bad');G.state='dying';G.dieT=0;G.journal=false}
 
 /* ---- the renderer ---- */
 let TR=1,TG=1,TB=1,FLICK=1,LANR=4,HZ=100; // HZ: the horizon row, moved by looking up and down
 const LAMPR2=3.6*3.6;
-function lampL(px,py){const lx=px-S*Math.round(px/S),l2=lx*lx;let L=0,w=1-(l2+(py-LAMPY)*(py-LAMPY))/LAMPR2;if(w>0)L+=0.42*w*w*w;w=1-(l2+(py+LAMPY)*(py+LAMPY))/LAMPR2;if(w>0)L+=0.42*w*w*w;return L}
+let FIREL=[];
+function lampL(px,py){const lx=px-S*Math.round(px/S),l2=lx*lx;let L=0,w=1-(l2+(py-LAMPY)*(py-LAMPY))/LAMPR2;if(w>0)L+=0.42*w*w*w;w=1-(l2+(py+LAMPY)*(py+LAMPY))/LAMPR2;if(w>0)L+=0.42*w*w*w;
+  for(let i=0;i<FIREL.length;i+=2){const dx=px-FIREL[i],dy=py-FIREL[i+1];w=1-(dx*dx+dy*dy)/7;if(w>0)L+=0.65*FLICK*w*w*w}return L}
 function lanL(d){const v=d<LANR?1-d/LANR:0;return FLICK*v*v}
 function lightP(px,py,d){return 0.03+lanL(d)+lampL(px,py)}
 const FOG=[...Array(MAXLV+2)].map((_,m)=>Math.pow(0.78,m+0.3));let CW_LAMP=0,CW_D2=0;
@@ -429,6 +526,7 @@ function shaftPx(i,t,s,tw,up){
 }
 function render(){
   FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=2.6+Math.min(G.oil,10)*0.55;
+  const room=G.gal+':'+G.floor,fires=G.fires.filter(F=>F.room===room);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.92-low*0.25;TB=0.78+low*0.3;
   HZ=H/2+G.pitch*H;const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
@@ -455,6 +553,7 @@ function render(){
   }
   const list=G.ents.filter(e=>!(e.type==='pur'&&e.dead>=1.6)).concat((G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
   for(let k=-3;k<=3;k++)for(const sy of[LAMPY,-LAMPY])list.push({type:'lamp',x:k*S,y:sy,z0:LAMPZ,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
+  fires.forEach((F,i)=>list.push({type:'fire',x:F.x,y:F.y,bill:true,hgt:0.6*Math.min(1,F.t/2),cards:FIREC,frame:Math.floor(G.time*10+i)%3,dead:0}));
   if(LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
   list.sort((a,b)=>Math.hypot(b.x-G.x,b.y-G.y)-Math.hypot(a.x-G.x,a.y-G.y));
   for(const e of list)drawCard(e);
@@ -477,10 +576,10 @@ function frameCol(x,t,first){
 /* a paper card standing in the Library: seen straight on, or in the mirror (any leg of the ray's path) */
 function drawCard(e){
   const card=e.cards[e.frame||0];
-  const crumple=e.type==='pur'&&e.dead?Math.max(0.12,1-e.dead*1.4):1;
-  const hgt=e.hgt*crumple,wid=e.hgt*card.w/card.h*(e.type==='pur'&&e.dead?1+e.dead*0.3:1);
+  const dies=(e.type==='pur'||e.type==='seek')&&e.dead,crumple=dies?Math.max(0.12,1-e.dead*1.4):1;
+  const hgt=e.hgt*crumple,wid=e.hgt*card.w/card.h*(dies?1+e.dead*0.3:1);
   const bob=(e.type==='flask')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
-  const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.type==='lamp'||e.type==='ph';
+  const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.type==='lamp'||e.type==='ph'||e.type==='fire';
   const L=glow?1:Math.min(1.45,lightP(e.x,e.y,Math.max(e.self?1.6:0,Math.hypot(e.x-G.x,e.y-G.y)))*2.1);
   for(let x=0;x<W;x++){
     const n=LGN[x];
@@ -501,7 +600,7 @@ function drawCard(e){
         const i=(y*W+x)*4;
         if(flashOn){buf[i]=255;buf[i+1]=240;buf[i+2]=220;continue}
         if(e.type==='ph'){buf[i]=data[ti]*0.9;buf[i+1]=data[ti+1]*0.8;buf[i+2]=data[ti+2];continue}
-        if(e.type==='lamp'){buf[i]=data[ti];buf[i+1]=data[ti+1];buf[i+2]=data[ti+2];continue}
+        if(e.type==='lamp'||e.type==='fire'){buf[i]=data[ti];buf[i+1]=data[ti+1];buf[i+2]=data[ti+2];continue}
         put(i,data[ti],data[ti+1],data[ti+2],L);
       }
     }
@@ -562,7 +661,7 @@ function drawBook(){
   g.fillText(`HEX ${b.g} · FLOOR ${b.f} · WALL ${WALLNO[b.wall]} · SHELF ${b.shelf} · BOOK ${b.book}`,px+30,py+22);
   g.font='bold 19px Georgia,serif';g.fillStyle='#b3261e';const vy=blockG(g,wrapG(g,G.verdict,pw-64),x2+30,y2+18,23);
   g.font=fs+'px "Courier New",monospace';const cw=g.measureText('m').width,tw=cw*40,lx=px+(pw-tw)/2,rx=x2+(pw-tw)/2,ty1=py+(PORT?56:76),ty2=PORT?Math.max(y2+96,vy+14):y2+76;
-  if(p.at>=0){g.fillStyle='#ffd34d';for(let i=p.at;i<p.at+p.len;i++){const side=i<1600?0:1,j=i-side*1600;g.fillRect((side?rx:lx)+(j%40)*cw-1,(side?ty2:ty1)+Math.floor(j/40)*lh-1,cw+2,lh)}}
+  if(p.at>=0){g.fillStyle=p.kind==='prophecy'?'#c9a3f2':'#ffd34d';for(let i=p.at;i<p.at+p.len;i++){const side=i<1600?0:1,j=i-side*1600;g.fillRect((side?rx:lx)+(j%40)*cw-1,(side?ty2:ty1)+Math.floor(j/40)*lh-1,cw+2,lh)}}
   g.fillStyle='#3a332a';for(let ln=0;ln<40;ln++){g.fillText(p.chars.slice(ln*40,ln*40+40).join(''),lx,ty1+ln*lh);g.fillText(p.chars.slice(1600+ln*40,1600+ln*40+40).join(''),rx,ty2+ln*lh)}
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.textAlign='right';g.fillText('page '+b.page+' of 410',px+pw-28,py+ph-28);
   g.font='bold 16px "Courier New",monospace';g.fillStyle='#b3261e';g.fillText('NEXT ▶',x2+pw-28,y2+ph-28);g.textAlign='left';g.fillText('◀ PREV',px+28,py+ph-28);
@@ -593,9 +692,9 @@ function hintLines(){
 }
 function drawJournal(){
   if(!TX.journal)return;
-  const t=TX.journal,{g,px,py,pw,x2,y2}=spread(t);g.fillStyle='#2a2018';
+  const t=TX.journal,{g,px,py,pw,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+22);
-  g.font='italic 21px Georgia,serif';blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor}`,`Rooms searched: ${G.rooms.size}`,`Books opened: ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Lantern oil: ${G.oil}`,`Fragments: ${G.frags} · Index XP: ${G.xp}`].concat(G.order?['The same books again.']:[]),px+26,py+58,31);
+  g.font='italic 21px Georgia,serif';blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor}`,`Rooms searched: ${G.rooms.size}`,`Books opened: ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Lantern oil: ${G.oil}`,`Fragments: ${G.frags} · Index XP: ${G.xp}`,`Incense: ${G.incense} · ${WNAME[G.weapon].toLowerCase()}`].concat(G.written?[`Sins written: ${G.written} · Dark ${G.dark}`]:[],G.order?['The same books again.']:[]),px+26,py+58,31);
   g.font='bold 15px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',x2+24,y2+22);
   g.font='italic 25px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+G.phrase+'"',x2+24,y2+48);
   g.font='bold 15px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE INDEX SAYS',x2+24,y2+92);
@@ -603,6 +702,7 @@ function drawJournal(){
   g.font='bold 15px "Courier New",monospace';g.fillText('SENTENCES FOUND',x2+24,yy+12);
   g.font='italic 16px Georgia,serif';yy+=36;if(!G.found.length)g.fillText('None yet.',x2+24,yy);
   G.found.slice(-3).forEach(s=>{yy=blockG(g,wrapG(g,s,pw-50),x2+24,yy,19)+4});
+  g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText('♪ sound '+(SND.on?'on':'off')+(FINE?' · M':' · tap here'),x2+24,t.h-48);
 }
 function drawStory(t,leftTitle,leftText,rightLines,prompt){
   if(!t)return;
@@ -710,16 +810,19 @@ function modelRead(o,a,d,yawX,down,dt,T){
 /* swing: the press as a thick cut-out - several dark side layers behind the coloured face. It turns slowly to show its depth;
    pressed: wind up, strike with a blur trail, settle */
 const PRESSF=gridCanvas(PRESS,8,{a:'#77716a',t:'#8c5a2b'}),PRESSS=gridCanvas(PRESS,8,{k:'#0e0b09',a:'#3a3632',t:'#4a2f1a'});
-const SW={front:mkTex(176,160),side:mkTex(176,160),ang:null,tr:null};SW.halo=haloTex(SW.front,24);
+const RODI=["........kn",".......knk","......ktk.",".....ktk..","....ktk...","...ktk....","..ktk.....",".ktk......","kkk......."],FLASKR=["..kk..","..kk..",".kccck","kyyyyk","kyYyyk","kyyyyk","kyyyyk",".kkkk."];
+const WSRC={press:[PRESSF,PRESSS],rod:[gridCanvas(RODI,8,{t:'#8c5a2b',n:'#e8e0c8'}),gridCanvas(RODI,8,{k:'#0e0b09',t:'#4a2f1a',n:'#3a3632'})],oil:[gridCanvas(FLASKR,9),gridCanvas(FLASKR,9,{k:'#0e0b09',c:'#3a2414',y:'#5a4a2a',Y:'#5a4a2a'})]};
+const SW={front:mkTex(176,160),side:mkTex(176,160),ang:null,tr:null,wp:null};SW.halo=haloTex(SW.front,24);
 function swingTex(ang,trail){
-  for(const [t,src] of[[SW.front,PRESSF],[SW.side,PRESSS]]){const g=t.g;g.clearRect(0,0,t.w,t.h);
-    if(trail&&t===SW.front)for(const [x,al] of[[0.42,0.14],[0.21,0.28]]){g.save();g.globalAlpha=al;g.translate(88,116);g.rotate(ang+x);g.drawImage(src,-40,-72);g.restore()}
-    g.save();g.translate(88,116);g.rotate(ang);g.drawImage(src,-40,-72);g.restore()}
-  SW.ang=ang;SW.tr=trail;SW.halo.lt=null;
+  const ws=WSRC[G.weapon]||WSRC.press;
+  for(const [t,src] of[[SW.front,ws[0]],[SW.side,ws[1]]]){const g=t.g,ox=-src.width/2,oy=-src.height;g.clearRect(0,0,t.w,t.h);
+    if(trail&&t===SW.front)for(const [x,al] of[[0.42,0.14],[0.21,0.28]]){g.save();g.globalAlpha=al;g.translate(88,116);g.rotate(ang+x);g.drawImage(src,ox,oy);g.restore()}
+    g.save();g.translate(88,116);g.rotate(ang);g.drawImage(src,ox,oy);g.restore()}
+  SW.ang=ang;SW.tr=trail;SW.wp=G.weapon;SW.halo.lt=null;
 }
 function modelSwing(o,a,d,yawX,down,dt,T){
   const pt=CTLS.swing.pressT,ang=pt<0.5?keyAt(SWK,pt):0,trail=pt>0.1&&pt<0.3&&!CALM;
-  if(ang!==SW.ang||trail!==SW.tr)swingTex(ang,trail);
+  if(ang!==SW.ang||trail!==SW.tr||G.weapon!==SW.wp)swingTex(ang,trail);
   haloTick(SW.halo,SW.front,down?1:0);
   const hh=0.66*160/72,M=mBegin(o,a,d,0.025,0.2,yawX+(CALM?0:0.5*Math.sin(T*0.9)));
   mLayer(M,SW.halo,hh*SW.halo.h/SW.front.h,0,0,-0.15,0,null,1);
@@ -788,7 +891,7 @@ function drawStat(){
   hudText(q,dark?'DARK':'OIL '+String(G.oil).padStart(2,'0'),104,30,'bold 34px Impact,"Arial Black",sans-serif',dark?'#ff8f6b':'#f6ecd2');
   hudText(q,'HEX '+G.gal+' · FLOOR '+G.floor,104,82,'bold 15px "Courier New",monospace','#f6ecd2');
   hudText(q,'rooms '+G.rooms.size+' · books '+G.books,104,110,'bold 13px "Courier New",monospace','#e2d6b4');
-  if(FINE)hudText(q,'J journal',104,134,'bold 13px "Courier New",monospace','#c9b88f');
+  hudText(q,'incense '+G.incense+(G.incenseT>0?' · burning':''),104,134,'bold 13px "Courier New",monospace','#c9b88f');
   silInto(HST.sil,[HST.glass,HST.front]);haloInto(HST.halo,HST.sil,0)}
 function hudModel(h,an,d,yaw){
   const M=mBegin(h,an,d,0.03,0.3,yaw);
@@ -894,8 +997,12 @@ const HUD=[{key:'vit',tex:TX.vit,ph:0},{key:'face',tex:TX.face,ph:1.3},{key:'sta
 let texT=0,HT=0;const UI={show:false,t:9},jr={hgt:0.4,ph:0.7},bookCard={hgt:0.6},introCard={hgt:0.8},deadCard={hgt:0.58},wonCard={hgt:0.58};
 function hands(){
   const {c,lantX,pressX}=LAY.hands,bobX=Math.sin(G.walkT)*c*0.5,bobY=Math.abs(Math.cos(G.walkT))*c*0.5,sw=G.swing;
-  const wx=pressX+bobX-sw*c*9.4,wy=DH-8.3*c+bobY-sw*c*6.9;
-  gridC(vctx,PRESS,wx,wy,c);gridC(vctx,["sssssss","sSssSss","sssssss"],wx+2*c,wy+6*c,Math.round(c*13/16));
+  const dk=G.dark?{a:'#4a3a66',t:'#3a2c50',n:'#c9b3f2',c:'#3a2c50'}:null,fist=["sssssss","sSssSss","sssssss"],fc=Math.round(c*13/16);
+  if(G.weapon==='rod'){const wx=pressX+bobX+2*c-sw*c*5,wy=DH-13*c+bobY-sw*c*6;
+    for(let i=0;i<14;i++){vctx.fillStyle=i<2?(dk?dk.n:'#e8e0c8'):(dk?dk.t:'#8c5a2b');vctx.fillRect(Math.round(wx+(13-i)*c*0.45),Math.round(wy+i*c),c,c)}
+    gridC(vctx,fist,wx+3*c,wy+11*c,fc)}
+  else if(G.weapon==='oil'){const wx=pressX+bobX+2*c-sw*c*3,wy=DH-9*c+bobY-sw*c*7;gridC(vctx,FLASKR,wx,wy,c,dk);gridC(vctx,fist,wx-0.5*c,wy+6*c,fc)}
+  else{const wx=pressX+bobX-sw*c*9.4,wy=DH-8.3*c+bobY-sw*c*6.9;gridC(vctx,PRESS,wx,wy,c,dk);gridC(vctx,fist,wx+2*c,wy+6*c,fc)}
   let lrows=LANT;const fl=Math.floor(G.time*8)%3,lc=Math.max(2,Math.round(c/2));
   if(G.oil<=0)lrows=setPx(LANT,[[3,5,'y'],[4,5,'y'],[3,6,'y'],[4,6,'y']]);else if(fl===1)lrows=setPx(LANT,[[3,5,'Y'],[4,5,'f'],[3,6,'f']]);else if(fl===2)lrows=setPx(LANT,[[4,6,'f']]);
   gridC(vctx,lrows,lantX-bobX*0.35,DH-14.75*lc+bobY*0.6,lc,G.oil<=0?{y:'#5a4a2a'}:null);
@@ -907,6 +1014,7 @@ function display(dt){
   const low=G.sanity<25?(25-G.sanity)/25:0,L=LAY,st=G.state;
   if(st==='play'){const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r)}
   if(G.flash>0){vctx.fillStyle='rgba(200,40,20,'+(G.flash*0.35)+')';vctx.fillRect(0,0,DW,DH)}
+  if(G.incenseT>0){vctx.fillStyle='rgba(215,205,235,'+(0.07*Math.min(1,G.incenseT))+')';vctx.fillRect(0,0,DW,DH)}
   if(low>0){vctx.fillStyle='rgba(60,20,90,'+(low*0.25)+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='intro'||st==='start'){
     const k=st==='start'?Math.min(1,G.startT/0.9):0;
@@ -995,6 +1103,8 @@ addEventListener('keydown',ev=>{
   if(c==='Space'){action('swing');ev.preventDefault()}
   if(c==='KeyE'||c==='Enter'){action('read');ev.preventDefault()}
   if(c==='KeyJ'||c==='Tab'){action('journal');ev.preventDefault()}
+  if(G.state==='play'){if(c==='KeyQ')cycleWeapon();else if(c==='Digit1')setWeapon('press');else if(c==='Digit2')setWeapon('rod');else if(c==='Digit3')setWeapon('oil');else if(c==='KeyI')useIncense()}
+  if(c==='KeyM')soundToggle();
 });
 addEventListener('keyup',ev=>{if(KEYMAP[ev.code])keys[KEYMAP[ev.code]]=false});
 function releaseAll(){for(const k in keys)keys[k]=false;for(const k in CTLS)CTLS[k].held=0;ptrs.clear();releaseStick()}
@@ -1008,7 +1118,10 @@ view.addEventListener('pointerdown',ev=>{
   ev.preventDefault();try{view.focus({preventScroll:true})}catch(e){}
   try{view.setPointerCapture(ev.pointerId)}catch(e){}
   const pt=canvasPt(ev);
-  if(G.state==='play'&&ctlA>0.5){const k=hitCtl(pt.x,pt.y);if(k){holdCtl(k,ev.pointerId);return}if(STICK.id==null&&inStickZone(pt.x,pt.y)){grabStick(ev.pointerId,pt);return}}
+  if(G.state==='play'&&ctlA>0.5){const k=hitCtl(pt.x,pt.y);if(k){holdCtl(k,ev.pointerId);return}if(STICK.id==null&&inStickZone(pt.x,pt.y)){grabStick(ev.pointerId,pt);return}
+    // tap your weapon hand to switch weapons, tap your face in the mirror to burn incense
+    const hc=LAY.hands.c;if(pt.x>=LAY.hands.pressX-hc&&pt.x<=LAY.hands.pressX+11*hc&&pt.y>=DH-10*hc){cycleWeapon();return}
+    const fr=HUD[1].rect;if(fr&&pt.x>=fr.x0&&pt.x<=fr.x1&&pt.y>=fr.y0&&pt.y<=fr.y1){useIncense();return}}
   ptrs.set(ev.pointerId,{kind:'look',x:ev.clientX,y:ev.clientY,sx:ev.clientX,sy:ev.clientY,t:performance.now()});
 });
 view.addEventListener('pointermove',ev=>{
@@ -1025,6 +1138,7 @@ function endPtr(ev,cancel){
   if(p.kind==='stick'){releaseStick();return}
   if(cancel||Math.hypot(ev.clientX-p.sx,ev.clientY-p.sy)>10||performance.now()-p.t>500)return;
   if(G.state==='intro'||G.state==='dead'||G.state==='won')action('read');
+  else if(G.state==='play'&&G.journal&&jr.rect){const pt=canvasPt(ev),r=jr.rect;if(pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1)soundToggle()}
   else if(G.state==='book'){const r=bookCard.rect,pt=canvasPt(ev);
     if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0),fy=(pt.y-r.y0)/(r.y1-r.y0);if(G.choice==='stairs')action((PORT?fy:fx)<0.5?'up':'down');else if(G.page&&fx>=0.3&&fx<=0.7&&(fy<0.1||fy>0.9))action(fy<0.1?'up':'down');else action(fx<0.3?'prev':fx>0.7?'next':'close')}else action('close')}
 }

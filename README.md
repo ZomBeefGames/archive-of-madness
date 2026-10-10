@@ -22,7 +22,10 @@ python3 -m http.server 8000
 | Walk / turn | W A S D or arrows | Thumbstick (bottom left) |
 | Look around, up and down | Drag, or R / F | Drag |
 | Read the shelf you aim at, or use what is in front of you | E or Enter | Read button |
-| Swing the bookpress | Space | Swing button |
+| Attack with your weapon (or throw oil) | Space | Swing button |
+| Switch weapon: bookpress, shelf rod, oil flask | Q, or 1 2 3 | Tap your weapon hand |
+| Burn sect incense | I | Tap your face in the mirror |
+| Sound on / off | M | Tap the bottom of the journal |
 | Journal | J or Tab | Journal button |
 | Turn pages | Left / Right | Tap the page edges |
 | Shelf above / below (in a book) | W / S | Tap the top / bottom edge |
@@ -46,6 +49,10 @@ The world follows Borges' story closely:
 - Purifiers (patrol, chase, burn shelves) and Seekers (charge to steal oil when startled).
 - Your biography page clusters around one hexagon and floor tied to your phrase and favours two walls, so it can be learned.
 - The Index, a brass machine at some railings: feed it coherent sentences you find and it tells you the floor, the hexagon, then the walls of your page.
+- Weapons: the heavy bookpress (slow, three hits fell a Purifier), the sharpened shelf rod (fast, long reach; pry one loose from a burned shelf), and lantern oil thrown and lit (a fire that blocks the way, scorches Purifiers and costs 2 oil). Oil splashed on a bookcase burns the whole wall.
+- Sect incense, left on floors and dropped by fallen Purifiers: +30 sanity over six seconds and the phantoms go.
+- The Prophecy Trap: kill a Seeker (and take their oil) or burn a wall of books, and the next coherent page you find tells you what you did, in the past tense. −30 sanity, but each one wakes a dark power: harder hits, and the Seekers flee from you.
+- Sound, synthesised in the browser with the Web Audio API: the Library's hum, footsteps, pages, weapons, fire, screams, a heartbeat when your mind is going.
 - Finding your page wins the run and returns you to WEIGHTS.
 - Paper cut-out characters and a floating, layered 3D-style interface.
 
