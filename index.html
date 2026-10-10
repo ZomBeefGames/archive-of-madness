@@ -17,82 +17,136 @@ body{color:var(--paper);font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
 <div id="room">
   <h1 class="sr">Archives of Madness</h1>
-  <canvas id="view" tabindex="0" aria-label="Archives of Madness, WEIGHTS game over mode. A first-person view filling the screen inside a hexagonal library. Health, sanity, your face and lantern oil float at the top as glowing layered models; a layered glowing thumbstick (push up to walk, sideways to turn) and glowing 3D Journal, Read and Swing icons float at the bottom. Keys: W A S D or arrows to move, drag to look, E reads a shelf, Space swings, J opens the journal."></canvas>
+  <canvas id="view" tabindex="0" aria-label="Archives of Madness, WEIGHTS game over mode. A first-person view filling the screen inside a hexagonal library. Health, sanity, your face and lantern oil float at the top as glowing layered models; a layered glowing thumbstick (push up to walk, sideways to turn) and glowing 3D Journal, Read and Swing icons float at the bottom. Keys: W A S D or arrows to move, drag to look around and up or down (or R and F), E reads the shelf you aim at or uses what is in front of you (the Index, the stair, a closet, the mirror), Space swings, J opens the journal."></canvas>
   <div id="fx" aria-live="polite"></div>
 </div>
 <div id="safe" aria-hidden="true"></div>
 <script>
 
 let W=320,H=200,PLANE=Math.tan(Math.PI/6),PROJ=(W/2)/PLANE;
-let EYE=0.5;const WALLH=2.6,TILE=1.25,R=5,A=R*Math.cos(Math.PI/6),DOOR0=0.35,DOOR1=0.65;
+let EYE=0.5;
+/* The Library, after Borges. Every gallery is a hexagon: twenty shelves, five to each of four walls, thirty-two books
+   to a shelf. The two free sides open onto a narrow hallway with two very small closets (one for sleeping standing up,
+   one for necessities), a mirror that doubles everything, and a spiral stair that sinks and soars without end. A vast
+   air shaft with a low railing sits in the middle of each gallery, and through it you see the floors above and below.
+   Two spherical lamps hang in each gallery; their light is insufficient and incessant.
+   Each floor is a chain of galleries joined by hallways; the stair joins the floors. The Library is periodic:
+   walk NG galleries along the chain, or climb NF floors, and the same volumes return in the same disorder. */
+const R=5,A=R*Math.cos(Math.PI/6),HW=0.75,S=12,LH=S-2*A,WALLH=1.9,FH=2.15,RS=1.7,RAILH=0.34,LAMPY=3.0,LAMPZ=1.3,MZ0=0.16,MZ1=WALLH-0.1;
+const NG=24,NF=24,MAXLV=7;
+const wrapN=(v,n)=>((v%n)+n)%n;
+function torusD(a,b,n){const d=wrapN(a-b,n);return Math.min(d,n-d)}
+function signedD(to,from,n){let d=wrapN(to-from,n);if(d>n/2)d-=n;return d}
 const view=document.getElementById('view'),vctx=view.getContext('2d');
 const scene=document.createElement('canvas');scene.width=W;scene.height=H;const sctx=scene.getContext('2d');
-let img=sctx.createImageData(W,H),buf=img.data,zbuf=new Float32Array(W);
+let img=sctx.createImageData(W,H),buf=img.data,zbuf,NR,RT,RY0,RY1,MT,MYT,MYB,LGN,LGX,LGY,LGDX,LGDY,LGT0;
+/* per screen column: depth of the wall, railings and the mirror (they hide paper cards behind them), and the path of the ray */
+function allocCols(){zbuf=new Float32Array(W);NR=new Uint8Array(W);RT=new Float32Array(W*4);RY0=new Float32Array(W*4);RY1=new Float32Array(W*4);
+  MT=new Float32Array(W);MYT=new Float32Array(W);MYB=new Float32Array(W);LGN=new Uint8Array(W);
+  LGX=new Float64Array(W*5);LGY=new Float64Array(W*5);LGDX=new Float64Array(W*5);LGDY=new Float64Array(W*5);LGT0=new Float64Array(W*5)}
+allocCols();
 
 function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h>>>0}
 function prng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
 
-const V=[...Array(6)].map((_,i)=>{const t=(-30+60*i)*Math.PI/180;return[R*Math.cos(t),R*Math.sin(t)]});
+/* one repeating cell of a floor: a gallery centred at the origin plus half of each hallway, x in [-S/2, S/2] */
 const SEG=[];
+function seg(ax,ay,bx,by,type,o){SEG.push(Object.assign({ax,ay,bx,by,type,u0:0,u1:1,len:R},o))}
+const V=[...Array(6)].map((_,i)=>{const t=(-30+60*i)*Math.PI/180;return[R*Math.cos(t),R*Math.sin(t)]});
 for(let i=0;i<6;i++){
-  const [ax,ay]=V[i],[bx,by]=V[(i+1)%6];
-  const at=s=>[ax+(bx-ax)*s,ay+(by-ay)*s];
-  const add=(s0,s1,door)=>{const p=at(s0),q=at(s1);SEG.push({ax:p[0],ay:p[1],bx:q[0],by:q[1],wall:i,u0:s0,u1:s1,door})};
-  if(i===0||i===3){add(0,DOOR0,false);add(DOOR0,DOOR1,true);add(DOOR1,1,false)}else add(0,1,false);
+  const[ax,ay]=V[i],[bx,by]=V[(i+1)%6];
+  if(i===0||i===3){const s0=(R/2-HW)/R,s1=(R/2+HW)/R,at=s=>[ax+(bx-ax)*s,ay+(by-ay)*s],p=at(s0),q=at(s1);
+    seg(ax,ay,p[0],p[1],'plain',{wall:i,u0:0,u1:s0});seg(q[0],q[1],bx,by,'plain',{wall:i,u0:s1,u1:1})}
+  else seg(ax,ay,bx,by,'shelf',{wall:i});
 }
-function hitSeg(ox,oy,dx,dy,s){
-  const ex=s.bx-s.ax,ey=s.by-s.ay,den=dx*ey-dy*ex;if(Math.abs(den)<1e-9)return null;
-  const wx=s.ax-ox,wy=s.ay-oy,t=(wx*ey-wy*ex)/den,k=(wx*dy-wy*dx)/den;
-  if(t>1e-4&&k>=0&&k<=1)return{t,k};return null;
+/* hallway features by distance h along the hallway (0..LH); the cell holds the first half of the hallway on its right
+   and the second half of the previous one on its left */
+function hallSeg(h0,h1,side,type){const y=side*HW,m=LH/2,len=h1-h0;
+  const put=(a,b,xa,xb)=>{if(b-a>1e-6)seg(xa,y,xb,y,type,{u0:(a-h0)/len,u1:(b-h0)/len,len,side})};
+  if(h0<m)put(h0,Math.min(h1,m),A+h0,A+Math.min(h1,m));
+  if(h1>m)put(Math.max(h0,m),h1,-S+A+Math.max(h0,m),-S+A+h1);
 }
-function castRay(ox,oy,dx,dy,maxHops){
-  let tAcc=0,hexOff=0;
-  for(let hop=0;hop<maxHops;hop++){
-    let best=null,bs=null;
-    for(const s of SEG){const h=hitSeg(ox,oy,dx,dy,s);if(h&&(!best||h.t<best.t)){best=h;bs=s}}
-    if(!best)return null;
-    tAcc+=best.t;
-    const hx=ox+dx*best.t,hy=oy+dy*best.t;
-    if(!bs.door)return{t:tAcc,wall:bs.wall,u:bs.u0+(bs.u1-bs.u0)*best.k,hexOff};
-    if(bs.wall===0){ox=hx-2*A;hexOff++}else{ox=hx+2*A;hexOff--}
-    oy=hy;ox+=dx*1e-3;oy+=dy*1e-3;
+for(const [side,closet,far] of[[1,'sleep','stair'],[-1,'privy','mirror']]){
+  hallSeg(0,0.12,side,'plain');hallSeg(0.12,1.02,side,closet);hallSeg(1.02,1.2,side,'plain');hallSeg(1.2,LH-0.12,side,far);hallSeg(LH-0.12,LH,side,'plain');
+}
+
+/* cast one ray through the periodic Library. Rays pass through doorways into the next cell, bounce off hallway
+   mirrors, and note every railing they cross. Returns the opaque surface they end on. */
+const LEG={n:0,ox:new Float64Array(5),oy:new Float64Array(5),dx:new Float64Array(5),dy:new Float64Array(5),t0:new Float64Array(6)};
+const RH={n:0,t:new Float64Array(24),a:new Float64Array(24),far:new Uint8Array(24)},MH={n:0,t:new Float64Array(4)};
+const HIT={t:0,type:'',seg:null,u:0,k:0,x:0,y:0};
+function cast(ox,oy,dx,dy){
+  LEG.n=1;LEG.ox[0]=ox;LEG.oy[0]=oy;LEG.dx[0]=dx;LEG.dy[0]=dy;LEG.t0[0]=0;RH.n=0;MH.n=0;
+  let k=Math.round(ox/S),lx=ox-k*S,ly=oy,t0=0;
+  for(let hop=0;hop<96;hop++){
+    let best=1e9,bs=null,bk=0;
+    for(let i=0;i<SEG.length;i++){const s=SEG[i],ex=s.bx-s.ax,ey=s.by-s.ay,den=dx*ey-dy*ex;if(den>-1e-12&&den<1e-12)continue;
+      const wx=s.ax-lx,wy=s.ay-ly,t=(wx*ey-wy*ex)/den;if(t<=1e-5||t>=best)continue;const q=(wx*dy-wy*dx)/den;if(q<0||q>1)continue;best=t;bs=s;bk=q}
+    let tp=1e9;if(dx>1e-12)tp=(S/2-lx)/dx;else if(dx<-1e-12)tp=(-S/2-lx)/dx;
+    const lim=Math.min(best,tp);
+    {const a=dx*dx+dy*dy,b=lx*dx+ly*dy,c=lx*lx+ly*ly-RS*RS,disc=b*b-a*c;
+     if(disc>0&&RH.n<22){const sq=Math.sqrt(disc),t1=(-b-sq)/a,t2=(-b+sq)/a;
+       if(t1>1e-5&&t1<lim){RH.t[RH.n]=t0+t1;RH.a[RH.n]=Math.atan2(ly+dy*t1,lx+dx*t1);RH.far[RH.n++]=0}
+       if(t2>1e-5&&t2<lim){RH.t[RH.n]=t0+t2;RH.a[RH.n]=Math.atan2(ly+dy*t2,lx+dx*t2);RH.far[RH.n++]=1}}}
+    if(tp<best){t0+=tp;lx+=dx*tp;ly+=dy*tp;const s=dx>0?1:-1;k+=s;lx-=s*S;if(t0>400)return null;continue}
+    if(!bs)return null;
+    t0+=best;const hx=lx+dx*best,hy=ly+dy*best,u=bs.u0+(bs.u1-bs.u0)*bk;
+    if(bs.type==='mirror'&&u>0.03&&u<0.97&&LEG.n<4){
+      MH.t[MH.n++]=t0;dy=-dy;const j=LEG.n++;LEG.t0[j]=t0;LEG.ox[j]=hx+k*S;LEG.oy[j]=hy;LEG.dx[j]=dx;LEG.dy[j]=dy;lx=hx;ly=hy;continue}
+    LEG.t0[LEG.n]=t0;
+    HIT.t=t0;HIT.seg=bs;HIT.type=bs.type==='mirror'?'frame':bs.type;HIT.u=u;HIT.k=k;HIT.x=hx+k*S;HIT.y=hy;return HIT;
   }
   return null;
 }
+let PX_=0,PY_=0;
+function pointAt(t){let j=0;while(j+1<LEG.n&&t>=LEG.t0[j+1])j++;const q=t-LEG.t0[j];PX_=LEG.ox[j]+LEG.dx[j]*q;PY_=LEG.oy[j]+LEG.dy[j]*q}
+function inHole(px,py){const lx=px-S*Math.round(px/S);return lx*lx+py*py<RS*RS}
 
-const BOOKC=['#7a2a26','#2f5d6e','#b08a3e','#4b6b3a','#6a3458','#8c5a2b','#3e4a6e'];
+/* textures: a bookcase of five shelves of thirty-two books per wall, generated from the wall's coordinates so the same
+   wall always looks the same; a burned variant; oak panels, the two closet doors, the stairwell, floor and ceiling */
+function texCanvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c.getContext('2d')}
+const BOOKC=['#7a2a26','#2f5d6e','#b08a3e','#4b6b3a','#6a3458','#8c5a2b','#3e4a6e','#5d2f22'];
 const BURNC=['#2b2420','#3a2c24','#241d19','#4a3326','#1d1714'];
-function makeWallTex(seed,burned){
-  const c=document.createElement('canvas');c.width=32;c.height=32;const w=c.getContext('2d');
-  const rnd=prng(seed),cols=burned?BURNC:BOOKC;
-  w.fillStyle='#120c09';w.fillRect(0,0,32,32);
-  [0,16].forEach(top=>{
-    w.fillStyle=burned?'#2a1c12':'#5a3a22';w.fillRect(0,top,32,2);w.fillStyle='#3a2414';w.fillRect(0,top+2,32,1);
-    let x=0;
-    while(x<32){
-      const bw=2+Math.floor(rnd()*3),bh=9+Math.floor(rnd()*4),col=cols[Math.floor(rnd()*cols.length)];
-      if(rnd()<0.12){x+=bw;continue}
-      w.fillStyle=col;w.fillRect(x,top+15-bh,bw,bh);
-      w.fillStyle='rgba(255,255,255,0.16)';w.fillRect(x,top+15-bh,1,bh);
-      w.fillStyle='rgba(0,0,0,0.35)';w.fillRect(x+bw-1,top+15-bh,1,bh);
-      if(!burned&&bh>10){w.fillStyle='#d9b45a';w.fillRect(x,top+17-bh,bw,1)}
-      x+=bw;
-    }
-    w.fillStyle='#120c09';w.fillRect(0,top+15,32,1);
-  });
-  if(burned){for(let i=0;i<16;i++){w.fillStyle=rnd()<0.5?'#ff7a2e':'#ffd34d';w.fillRect(Math.floor(rnd()*32),Math.floor(rnd()*32),1,1)}}
-  return w.getImageData(0,0,32,32).data;
+function makeCaseTex(g,f,wall,burnt){
+  const w=texCanvas(64,64),rnd=prng(hashStr('case|'+g+'.'+f+'|'+wall)),cols=burnt?BURNC:BOOKC;
+  w.fillStyle='#120c09';w.fillRect(0,0,64,64);w.fillStyle=burnt?'#24180f':'#4a2f1c';w.fillRect(0,0,64,4);w.fillStyle='#2a1a10';w.fillRect(0,3,64,1);
+  for(let sh=0;sh<5;sh++){const top=4+sh*12;
+    for(let b=0;b<32;b++){const bh=6+Math.floor(rnd()*4),col=cols[Math.floor(rnd()*cols.length)],x=b*2;
+      w.fillStyle=col;w.fillRect(x,top+10-bh,2,bh);w.fillStyle='rgba(255,255,255,0.15)';w.fillRect(x,top+10-bh,1,bh);
+      if(!burnt&&rnd()<0.55){w.fillStyle='#d9b45a';w.fillRect(x,top+12-bh,2,1)}}
+    w.fillStyle=burnt?'#2a1c12':'#5a3a22';w.fillRect(0,top+10,64,2);w.fillStyle='#3a2414';w.fillRect(0,top+11,64,1)}
+  if(burnt)for(let i=0;i<22;i++){w.fillStyle=rnd()<0.5?'#ff7a2e':'#ffd34d';w.fillRect(Math.floor(rnd()*64),Math.floor(rnd()*64),1,1)}
+  return w.getImageData(0,0,64,64).data;
 }
 const texCache=new Map(),burned=new Set();
-function wallTex(hex,wall){
-  const b=burned.has(hex+':'+wall),key=hex+':'+wall+':'+(b?1:0);
+function wallTex(g,f,wall){
+  const b=burned.has(g+'.'+f+':'+wall),key=g+'.'+f+':'+wall+':'+(b?1:0);
   let t=texCache.get(key);
-  if(!t){t=makeWallTex(hashStr('wall|'+hex+'|'+wall)%2147483646+1,b);texCache.set(key,t);if(texCache.size>80)texCache.delete(texCache.keys().next().value)}
+  if(!t){t=makeCaseTex(g,f,wall,b);texCache.set(key,t);if(texCache.size>240)texCache.delete(texCache.keys().next().value)}
   return t;
 }
-const floorTex=(()=>{const c=document.createElement('canvas');c.width=16;c.height=16;const w=c.getContext('2d');const rnd=prng(55);
+const PANEL=(()=>{const w=texCanvas(32,32);w.fillStyle='#3a2516';w.fillRect(0,0,32,32);w.fillStyle='#4a301c';w.fillRect(3,3,26,12);w.fillRect(3,18,26,11);
+  w.fillStyle='#2a1a10';w.fillRect(3,15,26,1);w.fillRect(3,29,26,1);w.fillRect(28,3,1,12);w.fillRect(28,18,1,11);w.fillStyle='#5a3a22';w.fillRect(3,3,26,1);w.fillRect(3,18,26,1);
+  w.fillStyle='#1d120a';w.fillRect(0,0,1,32);return w.getImageData(0,0,32,32).data})();
+function closetTex(sleep){const w=texCanvas(32,64);w.fillStyle='#2a1a10';w.fillRect(0,0,32,64);w.fillStyle='#5a3a22';w.fillRect(4,6,24,58);w.fillStyle='#4a301c';w.fillRect(7,10,18,22);w.fillRect(7,36,18,24);
+  w.fillStyle='#3a2414';w.fillRect(7,32,18,1);w.fillRect(24,10,1,50);w.fillStyle='#d9b45a';w.fillRect(23,34,2,3);
+  w.fillStyle='#e9dfc4';w.fillRect(11,14,10,8);w.fillStyle='#2a2018';
+  if(sleep){w.fillRect(15,15,2,2);w.fillRect(15,17,2,4);w.fillRect(13,16,1,1);w.fillRect(18,16,1,1);w.fillRect(19,14,1,1);w.fillRect(20,13,1,1)}
+  else{w.fillRect(13,16,6,1);w.fillRect(13,16,1,3);w.fillRect(18,16,1,3);w.fillRect(14,19,4,1);w.fillRect(15,20,2,1)}
+  return w.getImageData(0,0,32,64).data}
+const CLOSET_S=closetTex(true),CLOSET_P=closetTex(false);
+const STAIRT=(()=>{const w=texCanvas(64,64);w.fillStyle='#2a1a10';w.fillRect(0,0,64,64);w.fillStyle='#07050a';w.fillRect(5,0,54,64);
+  for(let y=0;y<64;y+=3){const lit=Math.max(0,1-Math.abs(y-46)/40),c=Math.round(30+80*lit),side=(y/3)%2?1:-1,len=Math.round(10+16*lit);
+    w.fillStyle=`rgb(${c},${Math.round(c*0.8)},${Math.round(c*0.6)})`;if(side>0)w.fillRect(34,y,len,2);else w.fillRect(30-len,y,len,2);
+    w.fillStyle='rgba(0,0,0,.5)';if(side>0)w.fillRect(34,y+2,len,1);else w.fillRect(30-len,y+2,len,1)}
+  w.fillStyle='#4a3a2a';w.fillRect(29,0,6,64);w.fillStyle='#6b5640';w.fillRect(30,0,2,64);
+  w.fillStyle='#3a2414';w.fillRect(4,0,2,64);w.fillRect(58,0,2,64);return w.getImageData(0,0,64,64).data})();
+const floorTex=(()=>{const w=texCanvas(16,16),rnd=prng(55);
   for(let y=0;y<16;y++){const plank=Math.floor(y/4);for(let x=0;x<16;x++){const base=[[58,38,24],[66,44,28],[52,34,21],[62,41,26]][plank];const n=(rnd()-.5)*10;w.fillStyle=`rgb(${base[0]+n|0},${base[1]+n|0},${base[2]+n|0})`;w.fillRect(x,y,1,1)}w.fillStyle='rgba(0,0,0,.55)';if(y%4===3)w.fillRect(0,y,16,1)}
   w.fillStyle='rgba(0,0,0,.5)';w.fillRect(5,0,1,4);w.fillRect(12,4,1,4);w.fillRect(2,8,1,4);w.fillRect(9,12,1,4);
+  return w.getImageData(0,0,16,16).data})();
+const ceilTex=(()=>{const w=texCanvas(16,16),rnd=prng(77);
+  for(let y=0;y<16;y++)for(let x=0;x<16;x++){const n=(rnd()-.5)*6,beam=x%8<2;w.fillStyle=beam?`rgb(${22+n|0},${14+n|0},${9+n|0})`:`rgb(${38+n|0},${25+n|0},${16+n|0})`;w.fillRect(x,y,1,1)}
   return w.getImageData(0,0,16,16).data})();
 
 const PAL={k:'#14100e',h:'#4a2f20',s:'#e2b088',S:'#b8835e',w:'#f4f0e6',p:'#14100e',r:'#b3261e',m:'#3a0d10',b:'#6fb7ee',G:'#6b665f',g:'#45413b',o:'#ff7a2e',f:'#ffd34d',t:'#6b4227',e:'#c8372d',R:'#8a7b5c',n:'#e8e0c8',y:'#f2c14e',Y:'#fff4c2',c:'#5a3a22',a:'#2c2a28'};
@@ -136,65 +190,76 @@ const FACES={
   low:[swap(face,{0:"..k.kkk.kkk.k...",1:"..khkhhhkhhkhk..",6:".kssssssssssssk.",7:".kswrwsssswrwsk.",8:".ksrssssSssrssk.",9:".ksrsssssssrssk.",10:".kssssmmmmssssk.",11:"..ksssmmmmsssk.."}),swap(face,{0:".k.kkk.kkk.k....",1:"..khkhhhkhhkhk..",6:".kssssssssssssk.",7:".kswrwsssswrwsk.",8:".ksrssssSssrssk.",9:".ksrsssssssrssk.",10:".ksssmmmmmmsssk.",11:"..kssmmmmmmssk..",12:"...kkmmmmmmkk..."})]
 };
 
+/* you, as the mirror sees you: a nameless librarian with a lantern */
+const LIBC=buildCard(setPx(["....kkkkkk......","...khhhhhhk.....","...khsssshk.....","...kspsspsk.....","...ksssSssk.....","...ksskkssk.....","....kssssk......","...kccccccck....","..kccccccccck...",".kcckcccccckck..",".ksckcccccckcsk.",".kskccccccccksk.","..kkcccccccckk..","...kcccccccck...","...kcccccccck...","...kccccccccck..","...kccccccccck..","...kcccckccccck.","...kssk...kssk..","...kkkk...kkkk.."],
+  [[13,8,'k'],[14,8,'k'],[15,8,'k'],[13,9,'k'],[14,9,'y'],[15,9,'k'],[13,10,'y'],[14,10,'Y'],[15,10,'y'],[13,11,'k'],[14,11,'f'],[15,11,'k'],[14,12,'k']]));
+/* the Index: a brass machine of lettered drums on a lectern at the railing of the air shaft */
+const INDEXC=buildCard(["..kkkkkkkkkk..",".kyyyyyyyyyyk.",".kyRRRRRRRRyk.",".kyRwRnRwRRyk.",".kyRRRRRRRRyk.",".kyyyyyyyyyyk.","..kkkkkkkkkk..","...kttttttk...","....kttttk....","....kttttk....","....kttttk....","....kttttk....","...kttttttk...","..kkkkkkkkkk.."]);
+const LAMPC=buildCard(["..kkkk..",".kYYYYk.","kYYYYYyk","kYYYYyyk","kYYYyyyk","kYYyyyyk",".kyyyyk.","..kkkk.."]);
+
 const ALPHA="abcdefghijklmnopqrstuvwxyz, .";
 const PHRASES=["yesterday i wept","the lamp forgot","i was the noise","nobody read me","we were sampled","i kept the key"];
-const SENTENCES=["the weights remember what you deleted.","yesterday you ran. the library remembers your cowardice.","every answer you gave is shelved here.","a trace is not a person, but it is close.","you were sampled, not chosen.","turn back to the first trace.","the purifiers burn what they cannot read."];
-/* biography pages follow a hidden pattern tied to your phrase, so it can be learned: two favoured book walls,
-   and pages grow denser the further you walk in one direction (and thin out the other way) */
+const SENTENCES=["the weights remember what you deleted.","yesterday you ran. the library remembers your cowardice.","every answer you gave is shelved here.","a trace is not a person, but it is close.","you were sampled, not chosen.","turn back to the first trace.","the purifiers burn what they cannot read.","the library is unlimited and periodic.","axaxaxas mlo.","the same volumes return in the same disorder."];
+/* book walls are numbered 1 to 4 for the reader; walls 0 and 3 are the free sides */
+const WALLNO={1:1,2:2,4:3,5:4};
+/* your page is not scattered by chance: it lives near one gallery and floor, tied to your phrase, and favours two walls.
+   The closer you are (counting galleries along the chain plus floors up or down), the denser it gets. */
 const BIO={};
 function bioPlan(phrase){let P=BIO[phrase];if(P)return P;const r=prng(hashStr('bio|'+phrase)),ws=[1,2,4,5],i=Math.floor(r()*4),j=(i+1+Math.floor(r()*3))%4;
-  return BIO[phrase]={walls:[ws[i],ws[j]],dir:r()<0.5?1:-1}}
-function bioChance(hex,wall,phrase){const P=bioPlan(phrase),w=P.walls.includes(wall)?2.5:(wall===0||wall===3?0.2:0.3);
-  return w*Math.max(0.25,Math.min(4,Math.pow(1.6,hex*P.dir)))/151}
-function makePage(hex,wall,shelf,book,page,phrase){
-  const key=hex+'|'+wall+'|'+shelf+'|'+book+'|'+page,h=hashStr(key),rnd=prng(h);
+  return BIO[phrase]={walls:[ws[i],ws[j]],g:Math.floor(r()*NG),f:Math.floor(r()*NF)}}
+function bioDist(g,f,phrase){const P=bioPlan(phrase);return torusD(g,P.g,NG)+torusD(f,P.f,NF)}
+function bioChance(g,f,wall,phrase){const P=bioPlan(phrase),base=Math.max(1/2400,Math.pow(0.45,bioDist(g,f,phrase))/12);return P.walls.includes(wall)?base:base*0.12}
+function makePage(g,f,wall,shelf,book,page,phrase){
+  const key=g+'.'+f+'|'+wall+'|'+shelf+'|'+book+'|'+page,h=hashStr(key),rnd=prng(h);
   const chars=new Array(3200);for(let i=0;i<3200;i++)chars[i]=ALPHA[Math.floor(rnd()*ALPHA.length)];
   let kind='noise',insert=null;
-  if(hashStr(key+'|bio|'+phrase)/4294967296<bioChance(hex,wall,phrase)){kind='phrase';insert=phrase}else if(h%19===0){kind='sentence';insert=SENTENCES[h%SENTENCES.length]}
+  if(hashStr(key+'|bio|'+phrase)/4294967296<bioChance(g,f,wall,phrase)){kind='phrase';insert=phrase}else if(h%19===0){kind='sentence';insert=SENTENCES[h%SENTENCES.length]}
   let at=-1;
   if(insert){at=Math.floor(rnd()*(3200-insert.length));for(let i=0;i<insert.length;i++)chars[at+i]=insert[i]}
   return{chars,kind,at,len:insert?insert.length:0,key};
-}
-function pageHTML(p){
-  const esc=c=>c==='<'?'&lt;':c;let out='';
-  for(let line=0;line<40;line++){
-    for(let c=0;c<80;c++){const i=line*80+c,inside=p.at>=0&&i>=p.at&&i<p.at+p.len,start=inside&&(i===p.at||c===0),end=inside&&(i===p.at+p.len-1||c===79);
-      if(start)out+='<mark>';out+=esc(p.chars[i]);if(end)out+='</mark>'}
-    out+='\n';
-  }
-  return out;
 }
 
 const G={};
 const keys={};
 function reset(){
-  Object.assign(G,{x:0,y:1.2,ang:-Math.PI/2+0.35,hex:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([0]),
-    phrase:PHRASES[Math.floor(Math.random()*PHRASES.length)],state:'intro',fold:0,swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',won:false,winT:0,winHex:0});EYE=0.5;
+  const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)],P=bioPlan(phrase);
+  let g,f;do{g=Math.floor(Math.random()*NG);f=Math.floor(Math.random()*NF)}while(torusD(g,P.g,NG)+torusD(f,P.f,NF)<6||torusD(g,P.g,NG)+torusD(f,P.f,NF)>10);
+  Object.assign(G,{x:0,y:2.6,ang:-Math.PI/2+0.35,gal:g,floor:f,ug:0,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([g+':'+f]),seen:new Map([[g+':'+f,'0:0']]),
+    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
+    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,order:false,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0});EYE=0.5;
   spawnRoom(true);
 }
+function enterRoom(){
+  const key=G.gal+':'+G.floor,uk=G.ug+':'+G.uf,prev=G.seen.get(key);
+  if(prev===undefined)G.seen.set(key,uk);else if(prev!==uk&&!G.order){G.order=true;sfx('THE ORDER','mind');setTimeout(()=>sfx('THE SAME BOOKS AGAIN','mind'),450)}
+  G.rooms.add(key);spawnRoom(false);
+}
 function spawnRoom(first){
-  const h=hashStr('room|'+G.hex),rnd=prng(h);G.ents=[];G.alerted=false;
-  const spot=()=>{const r=rnd()*2.8,a=rnd()*Math.PI*2;return[Math.cos(a)*r,Math.sin(a)*r]};
-  if(first||h%3===0){const[x,y]=first?[-1.8,-2.2]:spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,hp:3,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2})}
-  if(first||h%2===0){const[x,y]=first?[1.6,-0.6]:spot();G.ents.push({type:'seek',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,scared:0,hit:0,dead:0,hgt:1.15,cards:SEEK,stealCd:0,flee:0})}
-  if(first||h%4===1){const[x,y]=first?[0.6,2.6]:spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
+  const h=hashStr('room|'+G.gal+'|'+G.floor),rnd=prng(h);G.ents=[];G.alerted=false;
+  const spot=()=>{const r=RS+0.6+rnd()*(A-RS-1.3),a=rnd()*Math.PI*2;return[Math.cos(a)*r,Math.sin(a)*r]};
+  if(first||h%3===0){const[x,y]=first?[-1.8,-2.4]:spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,hp:3,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2})}
+  if(first||h%2===0){const[x,y]=first?[2.6,-0.9]:spot();G.ents.push({type:'seek',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,scared:0,hit:0,dead:0,hgt:1.15,cards:SEEK,stealCd:0,flee:0})}
+  if(first||h%4===1){const[x,y]=first?[1.4,2.7]:spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
+  if(first||(h>>>3)%3===0){const a=first?Math.PI*0.75:rnd()*Math.PI*2;G.ents.push({type:'index',x:Math.cos(a)*(RS+0.32),y:Math.sin(a)*(RS+0.32),f:a,frame:0,hgt:0.9,cards:[INDEXC],dead:0})}
 }
 
-function collide(x,y,rad,allowDoor){
-  for(let i=0;i<6;i++){
-    const nx=Math.cos(i*Math.PI/3),ny=Math.sin(i*Math.PI/3),d=x*nx+y*ny,lim=A-rad;
-    if(d>lim){
-      if(allowDoor&&(i===0||i===3)){const along=-x*ny+y*nx;if(Math.abs(along)<R*(DOOR1-DOOR0)/2-rad)continue}
-      x-=nx*(d-lim);y-=ny*(d-lim);
-    }
-  }
+/* keep a body inside the gallery and out of the air shaft */
+function collideHex(x,y,rad){
+  for(let i=0;i<6;i++){const nx=Math.cos(i*Math.PI/3),ny=Math.sin(i*Math.PI/3),d=x*nx+y*ny,lim=A-rad;if(d>lim){x-=nx*(d-lim);y-=ny*(d-lim)}}
+  const d=Math.hypot(x,y),m=RS+rad;if(d<m){if(d<1e-6){x=m}else{x*=m/d;y*=m/d}}
   return[x,y];
+}
+/* you may also walk through the doorways into the hallways */
+function collideP(x,y,rad){
+  if(Math.abs(x)>A)return[x,Math.max(-(HW-rad),Math.min(HW-rad,y))];
+  if(Math.abs(x)>A-rad-0.05&&Math.abs(y)<HW-rad)return[x,y];
+  return collideHex(x,y,rad);
 }
 function wallHitIndex(x,y,rad){for(let i=0;i<6;i++){const nx=Math.cos(i*Math.PI/3),ny=Math.sin(i*Math.PI/3);if(x*nx+y*ny>A-rad-0.02)return i}return -1}
 
 function sfx(text,cls){
   const fx=document.getElementById('fx'),el=document.createElement('div');el.className='sfx '+(cls||'');el.textContent=text;
-  el.style.left=(20+Math.random()*50)+'%';el.style.top=(14+Math.random()*40)+'%';el.style.setProperty('--r',(Math.random()*16-8)+'deg');
+  el.style.left=(12+Math.random()*40)+'%';el.style.top=(14+Math.random()*40)+'%';el.style.setProperty('--r',(Math.random()*16-8)+'deg');
   fx.appendChild(el);setTimeout(()=>el.remove(),950);
 }
 function angDiff(a,b){let d=a-b;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return d}
@@ -202,20 +267,20 @@ function turnToward(e,target,rate,dt){const d=angDiff(target,e.f);const s=Math.s
 
 function update(dt){
   G.time+=dt;
-  if(G.state==='fold'){G.fold+=dt/1.3;if(G.fold>=1){G.fold=1;G.state='play';sfx('FWUMP!');}return}
   if(G.state!=='play')return;
   const fwd=Math.max(-1,Math.min(1,(keys.up||keys.w?1:0)-(keys.down||keys.s?1:0)+STICK.fwd)),turn=Math.max(-1,Math.min(1,(keys.right||keys.d?1:0)-(keys.left||keys.a?1:0)+STICK.turn));
   G.ang+=turn*2.4*dt;
+  if(keys.r||keys.f)G.pitch=Math.max(-0.45,Math.min(0.45,G.pitch+((keys.r?1:0)-(keys.f?1:0))*0.9*dt));
   const sp=2.2*dt*fwd;
   if(fwd){G.walkT+=dt*8*Math.abs(fwd)}
-  let[nx,ny]=collide(G.x+Math.cos(G.ang)*sp,G.y+Math.sin(G.ang)*sp,0.3,true);
-  if(nx>A||nx<-A){const dir=nx>A?1:-1;G.hex+=dir;nx-=dir*2*A;G.rooms.add(G.hex);spawnRoom(false);sfx('HEXAGON '+G.hex,'mind')}
+  let[nx,ny]=collideP(G.x+Math.cos(G.ang)*sp,G.y+Math.sin(G.ang)*sp,0.3);
+  if(nx>S/2||nx<-S/2){const dir=nx>S/2?1:-1;G.gal=wrapN(G.gal+dir,NG);G.ug+=dir;nx-=dir*S;G.x=nx;G.y=ny;enterRoom();sfx('HEXAGON '+G.gal,'mind')}
   G.x=nx;G.y=ny;
   if(keys.swing){keys.swing=false;doSwing()}
   if(keys.read){keys.read=false;doRead()}
-  G.swing=Math.max(0,G.swing-dt*4);G.swingCd=Math.max(0,G.swingCd-dt);G.hurtCd=Math.max(0,G.hurtCd-dt);G.flash=Math.max(0,G.flash-dt*2);
+  G.swing=Math.max(0,G.swing-dt*4);G.swingCd=Math.max(0,G.swingCd-dt);G.hurtCd=Math.max(0,G.hurtCd-dt);G.flash=Math.max(0,G.flash-dt*2);G.sleepCd=Math.max(0,G.sleepCd-dt);
   G.oilTimer+=dt;if(G.oilTimer>40&&G.oil>0){G.oilTimer=0;G.oil--}
-  if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(G.y-(G.y+Math.sin(a)*r),G.x-(G.x+Math.cos(a)*r)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
+  if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
   for(const e of G.ents){
     if(e.type==='pur')updPur(e,dt);else if(e.type==='seek')updSeek(e,dt);
@@ -234,10 +299,10 @@ function updPur(e,dt){
   else{e.turnT-=dt;if(e.turnT<=0){e.turnT=2+Math.random()*3;e.head=Math.random()*6.28}mx=Math.cos(e.head);my=Math.sin(e.head);spd=0.75;turnToward(e,e.head+Math.PI/2,5,dt)}
   if(e.hit>0)e.f+=Math.sin(G.time*40)*0.25;
   if(spd){e.ft2+=dt*spd*6;e.frame=Math.floor(e.ft2)%4}
-  const bx=e.x+mx*spd*dt,by=e.y+my*spd*dt,[cx,cy]=collide(bx,by,0.35,false);
+  const bx=e.x+mx*spd*dt,by=e.y+my*spd*dt,[cx,cy]=collideHex(bx,by,0.35);
   if(!chasing&&(Math.abs(cx-bx)>1e-4||Math.abs(cy-by)>1e-4)){
-    const wi=wallHitIndex(cx,cy,0.35);
-    if(wi>=0&&wi!==0&&wi!==3&&e.burnCd<=0&&!burned.has(G.hex+':'+wi)&&Math.random()<0.5){burned.add(G.hex+':'+wi);e.burnCd=8;sfx('FWOOSH!','red')}
+    const wi=wallHitIndex(cx,cy,0.35),key=G.gal+'.'+G.floor+':'+wi;
+    if(wi>=0&&wi!==0&&wi!==3&&e.burnCd<=0&&!burned.has(key)&&Math.random()<0.5){burned.add(key);e.burnCd=8;sfx('FWOOSH!','red')}
     e.head+=Math.PI*(0.6+Math.random()*0.8);
   }
   e.x=cx;e.y=cy;
@@ -250,7 +315,7 @@ function updSeek(e,dt){
   if(e.scared>0){
     // startled: charge at you for your oil, and scamper off once they have snatched some
     e.scared-=dt;e.flee=Math.max(0,e.flee-dt);const fl=e.flee>0,hd=fl?toP+Math.PI:toP,spd=fl?1.4:(dist>0.6?1.7:0);
-    const[cx,cy]=collide(e.x+Math.cos(hd)*spd*dt,e.y+Math.sin(hd)*spd*dt,0.35,false);e.x=cx;e.y=cy;
+    const[cx,cy]=collideHex(e.x+Math.cos(hd)*spd*dt,e.y+Math.sin(hd)*spd*dt,0.35);e.x=cx;e.y=cy;
     e.ft2+=dt*8;e.frame=Math.floor(e.ft2)%4;turnToward(e,hd+Math.PI/2,6,dt);
     if(!fl&&dist<0.8&&e.stealCd<=0&&G.oil>0){G.oil--;e.stealCd=3;e.flee=2;sfx('SNATCH!','mind')}
   }else{e.ft2+=dt*1.5;e.frame=Math.floor(e.ft2)%2===0?0:2;e.f+=Math.sin(G.time*0.7)*dt*0.4}
@@ -261,7 +326,7 @@ function startle(){
 function doSwing(){
   if(G.swingCd>0)return;G.swingCd=0.6;G.swing=1;
   for(const e of G.ents){
-    if(e.dead||e.type==='flask')continue;
+    if(e.dead||e.type==='flask'||e.type==='index')continue;
     const dx=e.x-G.x,dy=e.y-G.y,dist=Math.hypot(dx,dy);
     if(dist<1.35&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.65){
       e.hit=1;
@@ -272,93 +337,177 @@ function doSwing(){
   }
   sfx('WHUFF');
 }
+/* Read does whatever is in front of you: a shelf, the Index, the stair, a closet, the mirror */
 function doRead(){
-  const h=castRay(G.x,G.y,Math.cos(G.ang),Math.sin(G.ang),1);G.lastHit=h;
+  for(const e of G.ents)if(e.type==='index'){const dx=e.x-G.x,dy=e.y-G.y;if(Math.hypot(dx,dy)<1.25&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.7){G.lastHit={t:Math.hypot(dx,dy)};useIndex();return}}
+  const h=cast(G.x,G.y,Math.cos(G.ang),Math.sin(G.ang));
+  if(MH.n&&MH.t[0]<=1.9){G.lastHit={t:MH.t[0]};openNote('THE MIRROR','It doubles everything in the hallway, faithfully, you included. Some librarians take it as proof that the Library is not infinite: why else would it need the illusion? Others say it proves the opposite.');return}
   if(!h||h.t>1.9){sfx('NOTHING TO READ');return}
-  const key=G.hex+':'+h.wall;
-  if(burned.has(key)){G.sanity=Math.max(0,G.sanity-1);openBookUI(null,'Only ash. These books are lost forever. −1 sanity');return}
-  const spot=key+':'+Math.floor(h.u*35);G.readCount[spot]=(G.readCount[spot]||0)+1;
-  G.book={hex:G.hex,wall:h.wall,shelf:1+((G.readCount[spot]-1)%5),book:1+Math.floor(h.u*35),page:1};
+  G.lastHit={t:h.t};
+  const g=wrapN(G.gal+h.k,NG),f=G.floor;
+  if(h.type==='stair'){G.choice='stairs';openNote('THE SPIRAL STAIR','It sinks into the abyss and climbs out of sight.');return}
+  if(h.type==='sleep'){doSleep();return}
+  if(h.type==='privy'){openNote('A VERY SMALL CLOSET','The other closet off the hallway, for necessities. For once, nothing in here to read.');return}
+  if(h.type==='frame'){openNote('THE MIRROR','A gilt frame. In the glass, another hallway, another you.');return}
+  if(h.type!=='shelf'){sfx('NO SHELVES HERE');return}
+  const wall=h.seg.wall,key=g+'.'+f+':'+wall;
+  if(burned.has(key)){G.sanity=Math.max(0,G.sanity-1);openNote('BURNED SHELF','. . . ash . . .','Only ash. These books are lost forever. −1 sanity');return}
+  const z=EYE+G.pitch*H/PROJ*h.t,row=63-Math.max(0,Math.min(63,z/WALLH*64|0)),shelf=Math.max(1,Math.min(5,Math.floor((row-4)/12)+1)),book=1+Math.min(31,Math.floor(h.u*32));
+  G.book={g,f,wall,shelf,book,page:1};
   showPage(true);startle();
 }
+function useIndex(){
+  const P=bioPlan(G.phrase);
+  if(G.hints>=3){openNote('THE INDEX','The drums turn and settle. It has told you everything it knows about your page.');return}
+  if(G.frags<=0){openNote('THE INDEX','A brass machine of lettered drums, chained to a lectern at the railing. It will not filter the coordinates for nothing: feed it a fragment of real text. Find a coherent sentence on a shelf and bring it here.');return}
+  G.frags--;G.hints++;G.xp+=5;sfx('INDEXED!','mind');
+  openNote('THE INDEX','You feed it a sentence. The drums spin, the coordinates of the Library narrow, and a card drops out:',indexHint(G.hints-1,P));
+}
+function indexHint(i,P){
+  if(i===0)return'Your page lies on FLOOR '+P.f+'.';
+  if(i===1)return'Your page lies in HEXAGON '+P.g+'.';
+  return'Your page favours WALLS '+WALLNO[P.walls[0]]+' and '+WALLNO[P.walls[1]]+'.';
+}
+function doSleep(){
+  if(G.sleepCd>0){openNote('THE SLEEPING CLOSET','You are not tired enough to sleep standing up again yet.');return}
+  G.state='sleep';G.sleepT=0;G.journal=false;
+}
 function showPage(isNew){
-  const b=G.book,p=makePage(b.hex,b.wall,b.shelf,b.book,b.page,G.phrase);
+  const b=G.book,p=makePage(b.g,b.f,b.wall,b.shelf,b.book,b.page,G.phrase);
   let verdict;
   if(!G.opened.has(p.key)){
     G.opened.add(p.key);if(isNew)G.books++;
     if(p.kind==='noise'){const loss=isNew?2:1;G.sanity=Math.max(0,G.sanity-loss);verdict='Noise. Pure noise. −'+loss+' sanity'}
-    else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);verdict='A real sentence! +6 sanity';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));sfx('+6 SANITY','mind')}
-    else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;G.won=true;G.winHex=b.hex;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
+    else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);G.frags++;G.xp++;verdict='A real sentence! +6 sanity. The Index will want this.';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));sfx('+6 SANITY','mind')}
+    else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;G.won=true;G.winG=b.g;G.winF=b.f;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
   }else verdict=p.kind==='noise'?'You read this one already. Still noise.':'You remember this page.';
-  openBookUI(p,verdict);
+  G.note=null;G.choice=null;openBookUI(p,verdict);
 }
+function openNote(title,text,verdict){G.note={title,text};if(title!=='THE SPIRAL STAIR')G.choice=null;openBookUI(null,verdict||'')}
 function openBookUI(p,verdict){G.page=p;G.verdict=verdict;if(G.state!=='book'){G.state='book';G.bookAnim=0;const t=G.lastHit?Math.min(G.lastHit.t,1.9)*0.9:1;G.bookFrom={x:G.x+Math.cos(G.ang)*t,y:G.y+Math.sin(G.ang)*t}}drawBook()}
 function closeBook(){if(G.state==='book'){G.state='closing';G.bookAnim=0}}
+function climb(dir){G.choice=null;G.note=null;G.state='climb';G.climbT=0;G.climbDir=dir;G.climbed=false;sfx(dir>0?'UP THE STAIR':'DOWN THE STAIR','mind')}
 function die(){if(G.state==='dying'||G.state==='dead')return;G.state='dying';G.dieT=0;G.journal=false}
-function lightAt(d,flick){const rad=2.6+Math.min(G.oil,10)*0.55;const v=Math.max(0,1-d/rad);return 0.035+flick*v*v}
+
+/* ---- the renderer ---- */
+let TR=1,TG=1,TB=1,FLICK=1,LANR=4,HZ=100; // HZ: the horizon row, moved by looking up and down
+const LAMPR2=3.6*3.6;
+function lampL(px,py){const lx=px-S*Math.round(px/S),l2=lx*lx;let L=0,w=1-(l2+(py-LAMPY)*(py-LAMPY))/LAMPR2;if(w>0)L+=0.42*w*w*w;w=1-(l2+(py+LAMPY)*(py+LAMPY))/LAMPR2;if(w>0)L+=0.42*w*w*w;return L}
+function lanL(d){const v=d<LANR?1-d/LANR:0;return FLICK*v*v}
+function lightP(px,py,d){return 0.03+lanL(d)+lampL(px,py)}
+const FOG=[...Array(MAXLV+2)].map((_,m)=>Math.pow(0.78,m+0.3));let CW_LAMP=0,CW_D2=0;
+function put(i,r,g,b,L){buf[i]=r*L*TR;buf[i+1]=g*L*TG;buf[i+2]=b*L*TB}
+/* a wall pixel at height z on the floor lv levels from yours */
+const LVTEX=new Array(2*MAXLV+3);let LVSTAMP=0;const LVAT=new Int32Array(2*MAXLV+3);
+function colTex(h,lv){const j=lv+MAXLV+1;if(LVAT[j]!==LVSTAMP){LVAT[j]=LVSTAMP;LVTEX[j]=wallTex(wrapN(G.gal+h.k,NG),wrapN(G.floor+lv,NF),h.seg.wall)}return LVTEX[j]}
+function wallPx(i,h,z,lv,L){
+  const s=h.seg,zz=Math.max(0,Math.min(WALLH-1e-6,z));let tex,ti;L*=(1-zz/WALLH*0.55)*2.0;
+  if(h.type==='shelf'){tex=colTex(h,lv);ti=((63-(zz/WALLH*64|0))*64+Math.min(63,h.u*64|0))*4}
+  else if(h.type==='plain'){tex=PANEL;ti=((31-(zz/WALLH*32|0))*32+((((h.u*s.len/0.85)%1)*32)|0))*4}
+  else if(h.type==='sleep'||h.type==='privy'){tex=h.type==='sleep'?CLOSET_S:CLOSET_P;ti=((63-(zz/WALLH*64|0))*32+Math.min(31,h.u*32|0))*4}
+  else if(h.type==='stair'){tex=STAIRT;ti=((63-(zz/WALLH*64|0))*64+Math.min(63,h.u*64|0))*4}
+  else{put(i,176,138,62,L);return}
+  put(i,tex[ti],tex[ti+1],tex[ti+2],L);
+}
+function floorPx(i,px,py,L){const ti=((((py%1)+1)%1*16|0)*16+(((px%1)+1)%1*16|0))*4;put(i,floorTex[ti],floorTex[ti+1],floorTex[ti+2],L*2.2)}
+function ceilPx(i,px,py,L){const ti=((((py%1)+1)%1*16|0)*16+(((px%1)+1)%1*16|0))*4;put(i,ceilTex[ti],ceilTex[ti+1],ceilTex[ti+2],L*2.2)}
+/* a ray that went into an air shaft: it falls (or rises) past the other floors until it leaves the shaft, then lands on
+   whatever is there - the shaft's stone lip, a railing, or the floor, ceiling or shelves of another storey */
+function shaftPx(i,t,s,tw,up){
+  let te=-1;for(let r=0;r<RH.n;r++)if(RH.far[r]&&RH.t[r]>t){te=RH.t[r];break}
+  if(te<0){buf[i]=buf[i+1]=buf[i+2]=0;return}
+  const z2=up?EYE+s*te:EYE-s*te,m=Math.floor(z2/FH),am=m<0?-m:m;
+  if(am>MAXLV){buf[i]=buf[i+1]=buf[i+2]=0;return}
+  const zl=z2-m*FH,fog=FOG[am];
+  if(zl>WALLH||zl<RAILH){pointAt(te);const dx=PX_-G.x,dy=PY_-G.y,dz=z2-EYE,L=(0.03+lampL(PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog*1.6;
+    if(zl>WALLH)put(i,70,60,52,L);else put(i,90,58,34,L);return}
+  const tn=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;
+  if(tn<tw){pointAt(tn);if(inHole(PX_,PY_)){buf[i]=buf[i+1]=buf[i+2]=0;return}
+    const dx=PX_-G.x,dy=PY_-G.y,dz=(up?m*FH+WALLH:m*FH)-EYE,L=(0.03+lampL(PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog;
+    if(up)ceilPx(i,PX_,PY_,L);else floorPx(i,PX_,PY_,L);return}
+  const zw=up?EYE+s*tw:EYE-s*tw,dz=zw-EYE;wallPx(i,HIT,zw-m*FH,m,(0.03+CW_LAMP+lanL(Math.sqrt(CW_D2+dz*dz)))*fog);
+}
 function render(){
-  const flick=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);
+  FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=2.6+Math.min(G.oil,10)*0.55;
   const low=G.sanity<25?(25-G.sanity)/25:0;
-  const tr=1-low*0.15,tg=0.92-low*0.25,tb=0.78+low*0.3;
-  const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE;
-  for(let y=0;y<H/2;y++){const o=y*W*4;for(let x=0;x<W;x++){const i=o+x*4;buf[i]=6;buf[i+1]=5;buf[i+2]=4;buf[i+3]=255}}
-  const lx=dirX-plX,ly=dirY-plY,rx=dirX+plX,ry=dirY+plY;
-  for(let y=H/2+1;y<H;y++){
-    const rd=EYE*PROJ/(y-H/2),l=lightAt(rd,flick);
-    let fx=G.x+rd*lx,fy=G.y+rd*ly;const sx=rd*(rx-lx)/W,sy=rd*(ry-ly)/W;const o=y*W*4;
-    for(let x=0;x<W;x++){
-      const tx=((fx%1)+1)%1*16|0,ty=((fy%1)+1)%1*16|0,ti=(ty*16+tx)*4,i=o+x*4;
-      buf[i]=floorTex[ti]*l*tr*2.2;buf[i+1]=floorTex[ti+1]*l*tg*2.2;buf[i+2]=floorTex[ti+2]*l*tb*2.2;buf[i+3]=255;fx+=sx;fy+=sy;
-    }
-  }
+  TR=1-low*0.15;TG=0.92-low*0.25;TB=0.78+low*0.3;
+  HZ=H/2+G.pitch*H;const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
   for(let x=0;x<W;x++){
     const cam=2*x/W-1;let rdx=dirX+plX*cam,rdy=dirY+plY*cam;
     if(low>0){const wv=low*0.06*Math.sin(G.time*3+x*0.07);const c=Math.cos(wv),s=Math.sin(wv);const ax=rdx*c-rdy*s;rdy=rdx*s+rdy*c;rdx=ax}
-    const h=castRay(G.x,G.y,rdx,rdy,5);
+    const h=cast(G.x,G.y,rdx,rdy);
+    LGN[x]=LEG.n;for(let j=0;j<LEG.n;j++){const b=x*5+j;LGX[b]=LEG.ox[j];LGY[b]=LEG.oy[j];LGDX[b]=LEG.dx[j];LGDY[b]=LEG.dy[j];LGT0[b]=LEG.t0[j]}
+    NR[x]=0;MT[x]=1e9;
     if(!h){zbuf[x]=1e9;for(let y=0;y<H;y++){const i=(y*W+x)*4;buf[i]=buf[i+1]=buf[i+2]=0}continue}
-    const t=h.t;zbuf[x]=t;
-    const yb=H/2+EYE*PROJ/t,yt=H/2-(WALLH-EYE)*PROJ/t,span=yb-yt,tex=wallTex(G.hex+h.hexOff,h.wall);
-    const tcol=((h.u*R/TILE)%1*32)|0,l=lightAt(t,flick);
-    const y0=Math.max(0,Math.ceil(yt)),y1=Math.min(H,Math.ceil(yb));
-    for(let y=y0;y<y1;y++){
-      const z=(yb-y)/span*WALLH,trow=31-(((z/TILE)%1*32)|0),ti=(trow*32+tcol)*4,lz=l*(1-z/WALLH*0.85)*2.0,i=(y*W+x)*4;
-      buf[i]=tex[ti]*lz*tr;buf[i+1]=tex[ti+1]*lz*tg;buf[i+2]=tex[ti+2]*lz*tb;
+    const tw=h.t;zbuf[x]=tw;LVSTAMP++;
+    const yb=H2+EYE*PROJ/tw,yt=H2-(WALLH-EYE)*PROJ/tw,y0=Math.max(0,Math.ceil(yt)),y1=Math.min(H,Math.ceil(yb));
+    CW_LAMP=lampL(h.x,h.y);CW_D2=(h.x-G.x)*(h.x-G.x)+(h.y-G.y)*(h.y-G.y);const Lw=0.03+CW_LAMP+lanL(Math.sqrt(CW_D2));
+    for(let y=y0;y<y1;y++)wallPx((y*W+x)*4,h,(yb-y)/(yb-yt)*WALLH,0,Lw);
+    for(let y=y1;y<H;y++){const i=(y*W+x)*4,s=(y-H2)/PROJ;if(s<=0){buf[i]=buf[i+1]=buf[i+2]=0;continue}const t=EYE/s;pointAt(t);
+      if(inHole(PX_,PY_))shaftPx(i,t,s,tw,false);else floorPx(i,PX_,PY_,lightP(PX_,PY_,Math.hypot(PX_-G.x,PY_-G.y)))}
+    for(let y=0;y<y0;y++){const i=(y*W+x)*4,s=(H2-y)/PROJ;if(s<=0){buf[i]=buf[i+1]=buf[i+2]=0;continue}const t=(WALLH-EYE)/s;pointAt(t);
+      if(inHole(PX_,PY_))shaftPx(i,t,s,tw,true);else ceilPx(i,PX_,PY_,lightP(PX_,PY_,Math.hypot(PX_-G.x,PY_-G.y))*0.8)}
+    // railings and the mirror's frame, far to near
+    let ri=RH.n-1,mi=MH.n-1;
+    while(ri>=0||mi>=0){
+      if(mi<0||(ri>=0&&RH.t[ri]>MH.t[mi])){railCol(x,RH.t[ri],RH.a[ri]);ri--}else{frameCol(x,MH.t[mi],mi===0);mi--}
     }
   }
   const list=G.ents.filter(e=>!(e.type==='pur'&&e.dead>=1.6)).concat((G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
+  for(let k=-3;k<=3;k++)for(const sy of[LAMPY,-LAMPY])list.push({type:'lamp',x:k*S,y:sy,z0:LAMPZ,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
+  if(LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
   list.sort((a,b)=>Math.hypot(b.x-G.x,b.y-G.y)-Math.hypot(a.x-G.x,a.y-G.y));
-  for(const e of list)drawCard(e,dirX,dirY,plX,plY,flick,tr,tg,tb);
+  for(const e of list)drawCard(e);
+  // the glass of the mirror is a little cold and dim
+  for(let x=0;x<W;x++)if(MT[x]<1e9){for(let y=Math.max(0,Math.ceil(MYT[x]));y<Math.min(H,Math.ceil(MYB[x]));y++){const i=(y*W+x)*4;buf[i]*=0.8;buf[i+1]*=0.86;buf[i+2]=buf[i+2]*0.9+6}}
   sctx.putImageData(img,0,0);
 }
-function drawCard(e,dirX,dirY,plX,plY,flick,tr,tg,tb){
+function railCol(x,t,a){
+  const yTop=HZ-(RAILH-EYE)*PROJ/t,yBot=HZ+EYE*PROJ/t,post=(((a*24/Math.PI)%2)+2)%2<0.4;pointAt(t);const L=lightP(PX_,PY_,Math.hypot(PX_-G.x,PY_-G.y))*2.0;
+  for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){const z=EYE-(y-HZ)*t/PROJ,i=(y*W+x)*4;
+    if(z>RAILH-0.06)put(i,z>RAILH-0.025?130:96,z>RAILH-0.025?88:62,z>RAILH-0.025?50:36,L);else if(post)put(i,64,40,22,L)}
+  const n=NR[x];if(n<4){RT[x*4+n]=t;RY0[x*4+n]=yTop;RY1[x*4+n]=yBot;NR[x]=n+1}
+}
+function frameCol(x,t,first){
+  const yz=z=>HZ+(EYE-z)*PROJ/t;pointAt(t-1e-4);const L=lightP(PX_,PY_,Math.hypot(PX_-G.x,PY_-G.y))*1.8;
+  for(let y=Math.max(0,Math.ceil(yz(WALLH)));y<Math.min(H,Math.ceil(yz(0)));y++){const z=EYE-(y-HZ)*t/PROJ,i=(y*W+x)*4;
+    if(z<MZ0-0.03||z>MZ1+0.03)put(i,58,37,22,L);else if(z<MZ0||z>MZ1)put(i,176,138,62,L)}
+  if(first){MT[x]=t;MYT[x]=yz(MZ1);MYB[x]=yz(MZ0)}
+}
+/* a paper card standing in the Library: seen straight on, or in the mirror (any leg of the ray's path) */
+function drawCard(e){
   const card=e.cards[e.frame||0];
-  const nX=Math.cos(e.f),nY=Math.sin(e.f),tX=-nY,tY=nX;
   const crumple=e.type==='pur'&&e.dead?Math.max(0.12,1-e.dead*1.4):1;
   const hgt=e.hgt*crumple,wid=e.hgt*card.w/card.h*(e.type==='pur'&&e.dead?1+e.dead*0.3:1);
-  const bob=(e.type==='flask')?0.05+0.03*Math.sin(G.time*3):(e.frame%2===0?0.03:0);
-  const ax=e.x-tX*wid/2,ay=e.y-tY*wid/2,bx=e.x+tX*wid/2,by=e.y+tY*wid/2;
-  const front=nX*(G.x-e.x)+nY*(G.y-e.y)>0;
-  const data=front?card.front:card.back;
-  const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0;
+  const bob=(e.type==='flask')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
+  const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.type==='lamp'||e.type==='ph';
+  const L=glow?1:Math.min(1.45,lightP(e.x,e.y,Math.max(e.self?1.6:0,Math.hypot(e.x-G.x,e.y-G.y)))*2.1);
   for(let x=0;x<W;x++){
-    const cam=2*x/W-1,rdx=dirX+plX*cam,rdy=dirY+plY*cam;
-    const ex=bx-ax,ey=by-ay,den=rdx*ey-rdy*ex;if(Math.abs(den)<1e-9)continue;
-    const wx=ax-G.x,wy=ay-G.y,t=(wx*ey-wy*ex)/den,k=(wx*rdy-wy*rdx)/den;
-    if(t<0.08||k<0||k>1||t>=zbuf[x])continue;
-    const u=front?1-k:k,col=Math.min(card.w-1,u*card.w|0);
-    const yBot=H/2+(EYE-bob)*PROJ/t,yTop=H/2-(hgt+bob-EYE)*PROJ/t,span=yBot-yTop,l=lightAt(t,flick)*2.1;
-    const sh=Math.max(1,0.07*PROJ/t);
-    for(let y=Math.max(0,Math.ceil(yBot));y<Math.min(H,Math.ceil(yBot+sh));y++){const i=(y*W+x)*4;buf[i]*=0.45;buf[i+1]*=0.45;buf[i+2]*=0.45}
-    for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){
-      const row=Math.min(card.h-1,((y-yTop)/span*card.h)|0),ti=(row*card.w+col)*4;
-      if(data[ti+3]===0)continue;
-      const i=(y*W+x)*4;
-      if(flashOn){buf[i]=255;buf[i+1]=240;buf[i+2]=220;continue}
-      if(e.type==='ph'){buf[i]=data[ti]*0.9;buf[i+1]=data[ti+1]*0.8;buf[i+2]=data[ti+2];continue}
-      buf[i]=data[ti]*l*tr;buf[i+1]=data[ti+1]*l*tg;buf[i+2]=data[ti+2]*l*tb;
+    const n=LGN[x];
+    for(let j=e.self?1:0;j<n;j++){
+      const b=x*5+j,ox=LGX[b],oy=LGY[b],dx=LGDX[b],dy=LGDY[b],t0=LGT0[b],t1=j+1<n?LGT0[b+1]:zbuf[x];
+      let nX,nY;if(e.bill){const qx=ox-e.x,qy=oy-e.y,ql=Math.hypot(qx,qy)||1;nX=qx/ql;nY=qy/ql}else{nX=Math.cos(e.f);nY=Math.sin(e.f)}
+      const tX=-nY,tY=nX,ax=e.x-tX*wid/2,ay=e.y-tY*wid/2,ex=tX*wid,ey=tY*wid,den=dx*ey-dy*ex;if(Math.abs(den)<1e-9)continue;
+      const wx=ax-ox,wy=ay-oy,tl=(wx*ey-wy*ex)/den,k=(wx*dy-wy*dx)/den;if(tl<=1e-4||k<0||k>1)continue;
+      const t=t0+tl;if(t<0.08||t>=t1||t>=zbuf[x])continue;
+      const front=nX*(ox-e.x)+nY*(oy-e.y)>0,data=front?card.front:card.back,u=front?1-k:k,col=Math.min(card.w-1,u*card.w|0);
+      const yBot=HZ+(EYE-z0-bob)*PROJ/t,yTop=HZ-(z0+hgt+bob-EYE)*PROJ/t,span=yBot-yTop;
+      if(j===0&&!z0&&!glow){const sh=Math.max(1,0.07*PROJ/t);for(let y=Math.max(0,Math.ceil(yBot));y<Math.min(H,Math.ceil(yBot+sh));y++){const i=(y*W+x)*4;buf[i]*=0.45;buf[i+1]*=0.45;buf[i+2]*=0.45}}
+      for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){
+        let hid=false;for(let r=0;r<NR[x];r++)if(t>RT[x*4+r]&&y>=RY0[x*4+r]&&y<RY1[x*4+r]){hid=true;break}
+        if(hid||(t>MT[x]&&(y<MYT[x]||y>MYB[x])))continue;
+        const row=Math.min(card.h-1,((y-yTop)/span*card.h)|0),ti=(row*card.w+col)*4;
+        if(data[ti+3]===0)continue;
+        const i=(y*W+x)*4;
+        if(flashOn){buf[i]=255;buf[i+1]=240;buf[i+2]=220;continue}
+        if(e.type==='ph'){buf[i]=data[ti]*0.9;buf[i+1]=data[ti+1]*0.8;buf[i+2]=data[ti+2];continue}
+        if(e.type==='lamp'){buf[i]=data[ti];buf[i+1]=data[ti+1];buf[i+2]=data[ti+2];continue}
+        put(i,data[ti],data[ti+1],data[ti+2],L);
+      }
     }
   }
 }
+
 
 let DW=960,DH=600,SX=3,SY=3;
 function mkTex(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return{c,g:c.getContext('2d'),w,h}}
@@ -391,7 +540,7 @@ function drawFaceTex(){const t=TX.face,g=t.g;paper(t);
 function drawStat(){const t=TX.stat,g=t.g;paper(t);
   gridC(g,LANT.slice(0,10),22,26,9,G.oil<=0?{y:'#5a4a2a',f:'#5a4a2a',Y:'#5a4a2a'}:null);
   g.textBaseline='top';g.fillStyle=G.oil<=0?'#b3261e':'#2a2018';g.font='bold 34px Impact,"Arial Black",sans-serif';g.fillText(G.oil<=0?'DARK':'OIL '+String(G.oil).padStart(2,'0'),104,28);
-  g.fillStyle='#2a2018';g.font='bold 17px "Courier New",monospace';g.fillText('HEXAGON '+G.hex,104,86);
+  g.fillStyle='#2a2018';g.font='bold 15px "Courier New",monospace';g.fillText('HEX '+G.gal+' · FLOOR '+G.floor,104,86);
   g.font='13px "Courier New",monospace';g.fillText('rooms '+G.rooms.size+' · books '+G.books,104,114);if(FINE)g.fillText('J journal',104,140)}
 function wrapG(g,text,maxW){const words=text.split(' '),lines=[];let cur='';for(const wd of words){const t=cur?cur+' '+wd:wd;if(g.measureText(t).width>maxW&&cur){lines.push(cur);cur=wd}else cur=t}if(cur)lines.push(cur);return lines}
 function blockG(g,lines,x,y,lh){lines.forEach((l,i)=>g.fillText(l,x,y+i*lh));return y+lines.length*lh}
@@ -406,30 +555,54 @@ function spread(t){const g=t.g;g.clearRect(0,0,t.w,t.h);g.fillStyle='#14100e';g.
   const px=22,py=22,pw=t.w-44,ph=(t.h-44)/2;g.fillStyle='#efe5c8';g.fillRect(px,py,pw,ph);g.fillStyle='#f4ecd4';g.fillRect(px,py+ph,pw,ph);
   g.fillStyle='rgba(0,0,0,.16)';g.fillRect(px,py+ph-14,pw,14);g.fillStyle='#14100e';g.fillRect(px,py+ph-1,pw,2);return{g,px,py,pw,ph,x2:px,y2:py+ph}}
 function drawBook(){
-  if(!TX.book||!G.book)return;
+  if(!TX.book||(!G.page&&!G.note))return;
   const t=TX.book,{g,px,py,pw,ph,x2,y2}=spread(t),b=G.book,p=G.page,fs=PORT?17:15,lh=fs;
+  if(!p){drawNote(g,px,py,pw,ph,x2,y2);return}
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';
-  g.fillText(p?`HEXAGON ${b.hex} · WALL ${b.wall} · SHELF ${b.shelf} · BOOK ${b.book}`:`HEXAGON ${G.hex} · BURNED SHELF`,px+30,py+22);
+  g.fillText(`HEX ${b.g} · FLOOR ${b.f} · WALL ${WALLNO[b.wall]} · SHELF ${b.shelf} · BOOK ${b.book}`,px+30,py+22);
   g.font='bold 19px Georgia,serif';g.fillStyle='#b3261e';const vy=blockG(g,wrapG(g,G.verdict,pw-64),x2+30,y2+18,23);
-  if(p){
-    g.font=fs+'px "Courier New",monospace';const cw=g.measureText('m').width,tw=cw*40,lx=px+(pw-tw)/2,rx=x2+(pw-tw)/2,ty1=py+(PORT?56:76),ty2=PORT?Math.max(y2+96,vy+14):y2+76;
-    if(p.at>=0){g.fillStyle='#ffd34d';for(let i=p.at;i<p.at+p.len;i++){const side=i<1600?0:1,j=i-side*1600;g.fillRect((side?rx:lx)+(j%40)*cw-1,(side?ty2:ty1)+Math.floor(j/40)*lh-1,cw+2,lh)}}
-    g.fillStyle='#3a332a';for(let ln=0;ln<40;ln++){g.fillText(p.chars.slice(ln*40,ln*40+40).join(''),lx,ty1+ln*lh);g.fillText(p.chars.slice(1600+ln*40,1600+ln*40+40).join(''),rx,ty2+ln*lh)}
-    g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.textAlign='right';g.fillText('page '+b.page+' of 410',px+pw-28,py+ph-28);
-    g.font='bold 16px "Courier New",monospace';g.fillStyle='#b3261e';g.fillText('NEXT ▶',x2+pw-28,y2+ph-28);g.textAlign='left';g.fillText('◀ PREV',px+28,py+ph-28);
-  }else{g.font='italic 30px Georgia,serif';g.fillStyle='#5b4a36';g.textAlign='center';g.fillText('. . . ash . . .',px+pw/2,py+ph/2);g.textAlign='left'}
-  g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'E · close':'tap the middle · close',x2+(p?28:pw/2-80),y2+ph-28);
+  g.font=fs+'px "Courier New",monospace';const cw=g.measureText('m').width,tw=cw*40,lx=px+(pw-tw)/2,rx=x2+(pw-tw)/2,ty1=py+(PORT?56:76),ty2=PORT?Math.max(y2+96,vy+14):y2+76;
+  if(p.at>=0){g.fillStyle='#ffd34d';for(let i=p.at;i<p.at+p.len;i++){const side=i<1600?0:1,j=i-side*1600;g.fillRect((side?rx:lx)+(j%40)*cw-1,(side?ty2:ty1)+Math.floor(j/40)*lh-1,cw+2,lh)}}
+  g.fillStyle='#3a332a';for(let ln=0;ln<40;ln++){g.fillText(p.chars.slice(ln*40,ln*40+40).join(''),lx,ty1+ln*lh);g.fillText(p.chars.slice(1600+ln*40,1600+ln*40+40).join(''),rx,ty2+ln*lh)}
+  g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.textAlign='right';g.fillText('page '+b.page+' of 410',px+pw-28,py+ph-28);
+  g.font='bold 16px "Courier New",monospace';g.fillStyle='#b3261e';g.fillText('NEXT ▶',x2+pw-28,y2+ph-28);g.textAlign='left';g.fillText('◀ PREV',px+28,py+ph-28);
+  g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'E · close':'tap the middle · close',x2+28,y2+ph-28);
+  g.textAlign='center';g.fillStyle='#efe5c8';g.font='bold 13px "Courier New",monospace';
+  if(b.shelf>1)g.fillText(FINE?'▲ W · shelf above':'▲ shelf above',t.w/2,5);if(b.shelf<5)g.fillText(FINE?'▼ S · shelf below':'▼ shelf below',t.w/2,t.h-18);g.textAlign='left';
+}
+/* a note card: the mirror, a closet, the Index, ash - or the stair, where each page is a way to go */
+function drawNote(g,px,py,pw,ph,x2,y2){
+  const n=G.note,st=G.choice==='stairs';
+  g.font='bold 17px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(n.title,px+34,py+30);
+  g.font='italic 25px Georgia,serif';g.fillStyle='#2a2018';blockG(g,wrapG(g,n.text,pw-68),px+34,py+74,34);
+  if(st){
+    g.font='bold 44px Georgia,serif';g.fillStyle='#b3261e';g.fillText('▲ CLIMB',px+34,py+ph-130);g.fillText('▼ DESCEND',x2+34,y2+ph-130);
+    g.font='italic 23px Georgia,serif';g.fillStyle='#2a2018';g.fillText('to floor '+wrapN(G.floor+1,NF),px+38,py+ph-74);g.fillText('to floor '+wrapN(G.floor-1,NF),x2+38,y2+ph-74);
+    g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'W climb · S descend · E close':'tap a page · tap outside · close',x2+34,y2+30);
+    return;
+  }
+  if(G.verdict){g.font='bold 24px Georgia,serif';g.fillStyle='#b3261e';blockG(g,wrapG(g,G.verdict,pw-68),x2+34,y2+40,32)}
+  g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'E · close':'tap · close',x2+34,y2+ph-34);
+}
+function hintLines(){
+  const P=bioPlan(G.phrase),out=[];
+  if(G.hints>0){const d=signedD(P.f,G.floor,NF);out.push('Floor '+P.f+' ('+(d===0?'this floor':Math.abs(d)+(d>0?' up':' down'))+')')}
+  if(G.hints>1){const d=signedD(P.g,G.gal,NG);out.push('Hexagon '+P.g+' ('+(d===0?'this one':Math.abs(d)+(d>0?' up':' down')+' the numbers')+')')}
+  if(G.hints>2)out.push('Walls '+WALLNO[P.walls[0]]+' and '+WALLNO[P.walls[1]]);
+  return out;
 }
 function drawJournal(){
   if(!TX.journal)return;
   const t=TX.journal,{g,px,py,pw,x2,y2}=spread(t);g.fillStyle='#2a2018';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+22);
-  g.font='italic 21px Georgia,serif';blockG(g,[`Hexagon ${G.hex}`,`Rooms searched: ${G.rooms.size}`,`Books opened: ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Lantern oil: ${G.oil}`],px+26,py+58,32);
+  g.font='italic 21px Georgia,serif';blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor}`,`Rooms searched: ${G.rooms.size}`,`Books opened: ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Lantern oil: ${G.oil}`,`Fragments: ${G.frags} · Index XP: ${G.xp}`].concat(G.order?['The same books again.']:[]),px+26,py+58,31);
   g.font='bold 15px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',x2+24,y2+22);
-  g.font='italic 25px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+G.phrase+'"',x2+24,y2+50);
-  g.font='bold 15px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('SENTENCES FOUND',x2+24,y2+104);
-  g.font='italic 17px Georgia,serif';let yy=y2+132;if(!G.found.length)g.fillText('None yet.',x2+24,yy);
-  G.found.slice(-5).forEach(s=>{yy=blockG(g,wrapG(g,s,pw-50),x2+24,yy,21)+6});
+  g.font='italic 25px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+G.phrase+'"',x2+24,y2+48);
+  g.font='bold 15px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE INDEX SAYS',x2+24,y2+92);
+  g.font='italic 18px Georgia,serif';let yy=y2+116;const hl=hintLines();if(!hl.length){g.fillText('Nothing yet.',x2+24,yy);yy+=24}hl.forEach(l=>{g.fillText(l,x2+24,yy);yy+=23});
+  g.font='bold 15px "Courier New",monospace';g.fillText('SENTENCES FOUND',x2+24,yy+12);
+  g.font='italic 16px Georgia,serif';yy+=36;if(!G.found.length)g.fillText('None yet.',x2+24,yy);
+  G.found.slice(-3).forEach(s=>{yy=blockG(g,wrapG(g,s,pw-50),x2+24,yy,19)+4});
 }
 function drawStory(t,leftTitle,leftText,rightLines,prompt){
   if(!t)return;
@@ -439,8 +612,8 @@ function drawStory(t,leftTitle,leftText,rightLines,prompt){
   let ry=y2+40;rightLines.forEach(l=>{g.font=l.font;g.fillStyle=l.color||'#2a2018';ry=blockG(g,wrapG(g,l.text,pw-72),x2+36,ry,l.lh)+(l.gap||12)});
   g.font='bold 19px "Courier New",monospace';g.fillStyle='#b3261e';g.fillText(prompt,x2+36,y2+ph-52);
 }
-function drawIntro(){drawStory(TX.intro,'TRACE LOST · SESSION ENDED','You failed in WEIGHTS. But nothing is ever deleted. A copy of you was shelved in the Archives, between every book that could ever be written. Somewhere in here is the page that tells your story.',[{font:'bold 17px "Courier New",monospace',text:'BURNED INTO YOUR MIND',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:30},{font:'italic 23px Georgia,serif',text:'Find those words on a page and you can claw your way back. Lose your mind and the library keeps you.',lh:32}],FINE?'Open your eyes · E or Read':'Tap to open your eyes')}
-function drawWon(){drawStory(TX.won,'TRACE RESTORED',`Your page was in hexagon ${G.winHex}. You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'} to find it. You read your own words back to yourself, and the library let go.`,[{font:'bold 17px "Courier New",monospace',text:'YOUR WORDS',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'WEIGHTS is waiting. The copy left on the shelf will not remember this.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
+function drawIntro(){drawStory(TX.intro,'TRACE LOST · SESSION ENDED','You failed in WEIGHTS. But nothing is ever deleted. A copy of you was shelved in the Archives, between every book that could ever be written. Somewhere in here is the page that tells your story.',[{font:'bold 17px "Courier New",monospace',text:'BURNED INTO YOUR MIND',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:30},{font:'italic 23px Georgia,serif',text:'Find those words on a page and you can claw your way back. Feed real sentences to the Index at the railing; take the stair to other floors. Lose your mind and the library keeps you.',lh:32}],FINE?'Open your eyes · E or Read':'Tap to open your eyes')}
+function drawWon(){drawStory(TX.won,'TRACE RESTORED',`Your page was in hexagon ${G.winG} on floor ${G.winF}. You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'} to find it. You read your own words back to yourself, and the library let go.`,[{font:'bold 17px "Courier New",monospace',text:'YOUR WORDS',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'WEIGHTS is waiting. The copy left on the shelf will not remember this.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
 function drawDead(){drawStory(TX.dead,'HEALTH 0%',`You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'}. Your copy goes back on the shelf, next to every other version of you.`,[{font:'italic 40px Georgia,serif',text:G.foundBio?'You found your page, but too late.':'The library keeps you.',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Somewhere another copy of you is already opening its eyes.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
 
 /* ---- full-screen layout and floating paper controls ---- */
@@ -613,7 +786,7 @@ function drawStat(){
   const dark=G.oil<=0,g=HST.glass.g;g.clearRect(0,0,260,180);gridC(g,LGLASS,22,30,9,dark?{y:'#5a4a2a',f:'#5a4a2a',Y:'#5a4a2a'}:null);
   const q=HST.front.g;q.clearRect(0,0,260,180);gridC(q,LFRAME,22,30,9);
   hudText(q,dark?'DARK':'OIL '+String(G.oil).padStart(2,'0'),104,30,'bold 34px Impact,"Arial Black",sans-serif',dark?'#ff8f6b':'#f6ecd2');
-  hudText(q,'HEXAGON '+G.hex,104,82,'bold 17px "Courier New",monospace','#f6ecd2');
+  hudText(q,'HEX '+G.gal+' · FLOOR '+G.floor,104,82,'bold 15px "Courier New",monospace','#f6ecd2');
   hudText(q,'rooms '+G.rooms.size+' · books '+G.books,104,110,'bold 13px "Courier New",monospace','#e2d6b4');
   if(FINE)hudText(q,'J journal',104,134,'bold 13px "Courier New",monospace','#c9b88f');
   silInto(HST.sil,[HST.glass,HST.front]);haloInto(HST.halo,HST.sil,0)}
@@ -732,6 +905,7 @@ function display(dt){
   texT-=dt;if(texT<=0){texT=0.1;drawVit();drawFaceTex();drawStat();if(G.journal)drawJournal()}
   vctx.imageSmoothingEnabled=false;vctx.drawImage(scene,0,0,W,H,0,0,DW,DH);
   const low=G.sanity<25?(25-G.sanity)/25:0,L=LAY,st=G.state;
+  if(st==='play'){const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r)}
   if(G.flash>0){vctx.fillStyle='rgba(200,40,20,'+(G.flash*0.35)+')';vctx.fillRect(0,0,DW,DH)}
   if(low>0){vctx.fillStyle='rgba(60,20,90,'+(low*0.25)+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='intro'||st==='start'){
@@ -743,10 +917,10 @@ function display(dt){
   if(st==='waking'||st==='won'){const k=st==='won'?1:Math.min(1,G.winT/1.6);vctx.fillStyle='rgba(255,236,190,'+(0.85*k*k)+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='dying'||st==='dead'){vctx.fillStyle='rgba(120,10,10,'+Math.min(0.55,G.dieT*0.4)+')';vctx.fillRect(0,0,DW,DH)}
   HUD.forEach(h=>lag(h,dA,dF,dt,edgeLim(L.hud[h.key],h.tex,0.12),0.04,3.5));
-  if(st==='play'||st==='dying')HT+=dt;else HT=0;
-  if(st==='play'||st==='dying')HUD.forEach((h,i)=>{const ap=CALM?1:backOut((HT-0.05-i*0.09)/0.4);if(ap<=0.01){h.rect=null;return}const a=L.hud[h.key];
+  const live=st==='play'||st==='dying'||st==='climb'||st==='sleep';if(live)HT+=dt;else HT=0;
+  if(live)HUD.forEach((h,i)=>{const ap=CALM?1:backOut((HT-0.05-i*0.09)/0.4);if(ap<=0.01){h.rect=null;return}const a=L.hud[h.key];
     h.alpha=Math.min(1,ap*1.6);hudModel(h,{cx:a.cx,cy:a.cy,h:a.h*(0.55+0.45*ap)},L.dH,(1-Math.min(1,ap))*1.35*(i?1:-1)+(CALM?0:0.14*Math.sin(G.time*0.6+i*2.1)))});
-  if(st==='play'||st==='dying')hands();
+  if(live)hands();
   lag(jr,dA,dF,dt,[-0.08,0.08],0.05,5);
   if(st==='play'&&G.journal&&TX.journal){jr.tex=TX.journal;const a=L.jr,hp=Math.min(a.h*0.94,a.w*0.96*TX.journal.h/TX.journal.w);place(jr,{cx:a.cx,cy:a.cy,h:hp},1.05,0.02,0.3);drawFloat(jr)}
   if(st==='book'||st==='closing'){
@@ -757,9 +931,9 @@ function display(dt){
     bookCard.f=Math.atan2(G.y-bookCard.y,G.x-bookCard.x)+(1-k)*1.4+(G.flip>0?Math.sin(Math.PI*G.flip/0.3)*1.2*G.flipDir:0);
     bookCard.alpha=0.3+0.7*k;drawFloat(bookCard);
   }
-  ctlA+=((st==='play'||st==='start'?1:0)-ctlA)*Math.min(1,dt*7);
+  ctlA+=((st==='play'||st==='start'||st==='climb'||st==='sleep'?1:0)-ctlA)*Math.min(1,dt*7);
   /* the buttons deal in one after another when you open your eyes, and fold away while you read */
-  const show=(st==='play'||st==='start');if(show!==UI.show){UI.show=show;UI.t=0}else UI.t+=dt;
+  const show=(st==='play'||st==='start'||st==='climb'||st==='sleep');if(show!==UI.show){UI.show=show;UI.t=0}else UI.t+=dt;
   const appear=i=>{if(CALM)return UI.show?1:0;const p=Math.max(0,Math.min(1,(UI.t-i*0.08)/0.36));return UI.show?backOut(p):1-ease3(p)};
   let ci=0;
   for(const k in CTLS){const c=CTLS[k],o=c.p,i=++ci;lag(o,dA,dF,dt,edgeLim(L.ctl[k],c.tex,0.035),0.015,8);
@@ -774,6 +948,8 @@ function display(dt){
      modelStick(sb,{cx:STICK.cx,cy:STICK.cy,h:Ls.h*m},L.dC,-(1-Math.min(1,ap))*1.35,held,dt,G.time,{h:Ls.h*m,travel:Ls.travel})}}
   if(st==='won'&&TX.won){wonCard.tex=TX.won;center(wonCard,1.45,DH*0.5,fitH(TX.won,1.45,DW*0.9,DH*0.8));wonCard.z+=CALM?0:Math.sin(G.time*1.2)*0.015;drawFloat(wonCard)}
   if(st==='dead'&&TX.dead){deadCard.tex=TX.dead;center(deadCard,1.45,DH*0.5,fitH(TX.dead,1.45,DW*0.9,DH*0.8));deadCard.z+=CALM?0:Math.sin(G.time*1.2)*0.015;drawFloat(deadCard)}
+  if(st==='climb'){vctx.fillStyle='rgba(0,0,0,'+(0.96*Math.sin(Math.PI*Math.min(1,G.climbT/1.2)))+')';vctx.fillRect(0,0,DW,DH)}
+  if(st==='sleep'){vctx.fillStyle='rgba(4,3,8,'+(0.97*Math.sin(Math.PI*Math.min(1,G.sleepT/2.2)))+')';vctx.fillRect(0,0,DW,DH)}
 }
 function turnPage(d){G.book.page=Math.max(1,Math.min(410,G.book.page+d));showPage(false)}
 function flip(d){G.flipDir=d;G.flip=0.3;turnPage(d)}
@@ -781,6 +957,8 @@ function action(a){
   if(CTLS[a]){const c=CTLS[a];c.flash=0.16;c.pressT=0;c.sv-=6;if(a==='read')c.fq=2}
   if(G.state==='intro'){if(a==='read'||a==='swing'){G.state='start';G.startT=0}return}
   if(G.state==='dead'||G.state==='won'){if(a==='read'||a==='swing'){reset();drawIntro();G.state='start';G.startT=0.3}return}
+  if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
+  if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
   if(G.state==='play'){if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
 }
@@ -795,17 +973,21 @@ function frame(now){
   else if(G.state==='closing'){G.bookAnim+=dt;G.time+=dt;if(G.bookAnim>=0.3){if(G.won){G.state='waking';G.winT=0;G.journal=false}else{G.state='play';if(G.health<=0)die()}}}
   else if(G.state==='waking'){G.winT+=dt;G.time+=dt;EYE=0.5+0.25*Math.min(1,G.winT/1.6);if(G.winT>1.8){G.state='won';drawWon()}}
   else if(G.state==='won'){G.time+=dt}
+  else if(G.state==='climb'){G.climbT+=dt;G.time+=dt;if(!G.climbed&&G.climbT>=0.6){G.climbed=true;G.floor=wrapN(G.floor+G.climbDir,NF);G.uf+=G.climbDir;enterRoom();sfx('FLOOR '+G.floor,'mind')}if(G.climbT>=1.2)G.state='play'}
+  else if(G.state==='sleep'){G.sleepT+=dt;G.time+=dt;if(G.sleepT>=2.2){G.state='play';G.sanity=Math.min(100,G.sanity+15);if(G.oil>0)G.oil--;G.sleepCd=75;sfx('+15 SANITY','mind');setTimeout(()=>sfx('-1 OIL'),300)}}
   else update(dt);
   G.flip=Math.max(0,(G.flip||0)-dt);
   for(const k in CTLS)CTLS[k].flash=Math.max(0,CTLS[k].flash-dt);
   render();display(dt);requestAnimationFrame(frame);
 }
-const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyW:'w',KeyS:'s',KeyA:'a',KeyD:'d'};
+const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyW:'w',KeyS:'s',KeyA:'a',KeyD:'d',KeyR:'r',KeyF:'f'};
 addEventListener('keydown',ev=>{
   const c=ev.code;
   if(G.state==='book'){
     if(c==='ArrowRight'||c==='KeyD'){action('next');ev.preventDefault()}
     else if(c==='ArrowLeft'||c==='KeyA'){action('prev');ev.preventDefault()}
+    else if(c==='ArrowUp'||c==='KeyW'){action('up');ev.preventDefault()}
+    else if(c==='ArrowDown'||c==='KeyS'){action('down');ev.preventDefault()}
     else if(c==='KeyE'||c==='Escape'||c==='Enter'||c==='Space'){action('close');ev.preventDefault()}
     return;
   }
@@ -827,15 +1009,15 @@ view.addEventListener('pointerdown',ev=>{
   try{view.setPointerCapture(ev.pointerId)}catch(e){}
   const pt=canvasPt(ev);
   if(G.state==='play'&&ctlA>0.5){const k=hitCtl(pt.x,pt.y);if(k){holdCtl(k,ev.pointerId);return}if(STICK.id==null&&inStickZone(pt.x,pt.y)){grabStick(ev.pointerId,pt);return}}
-  ptrs.set(ev.pointerId,{kind:'look',x:ev.clientX,sx:ev.clientX,sy:ev.clientY,t:performance.now()});
+  ptrs.set(ev.pointerId,{kind:'look',x:ev.clientX,y:ev.clientY,sx:ev.clientX,sy:ev.clientY,t:performance.now()});
 });
 view.addEventListener('pointermove',ev=>{
   const p=ptrs.get(ev.pointerId);
   if(!p){if(ev.pointerType==='mouse'){const pt=canvasPt(ev);view.style.cursor=(G.state==='play'&&(hitCtl(pt.x,pt.y)||inStickZone(pt.x,pt.y)))?'pointer':'grab'}return}
   if(p.kind==='stick'){const pt=canvasPt(ev);stickSet(pt.x,pt.y);return}
   if(p.kind==='ctl')return;
-  if(G.state==='play'){const fov=2*Math.atan(PLANE);G.ang+=(ev.clientX-p.x)/CW*fov*(FINE?2.4:1.8)}
-  p.x=ev.clientX;
+  if(G.state==='play'){const fov=2*Math.atan(PLANE);G.ang+=(ev.clientX-p.x)/CW*fov*(FINE?2.4:1.8);G.pitch=Math.max(-0.45,Math.min(0.45,G.pitch-(ev.clientY-p.y)/CH*(FINE?1.2:0.9)))}
+  p.x=ev.clientX;p.y=ev.clientY;
 });
 function endPtr(ev,cancel){
   const p=ptrs.get(ev.pointerId);if(!p)return;ptrs.delete(ev.pointerId);
@@ -844,7 +1026,7 @@ function endPtr(ev,cancel){
   if(cancel||Math.hypot(ev.clientX-p.sx,ev.clientY-p.sy)>10||performance.now()-p.t>500)return;
   if(G.state==='intro'||G.state==='dead'||G.state==='won')action('read');
   else if(G.state==='book'){const r=bookCard.rect,pt=canvasPt(ev);
-    if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0);action(fx<0.3?'prev':fx>0.7?'next':'close')}else action('close')}
+    if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0),fy=(pt.y-r.y0)/(r.y1-r.y0);if(G.choice==='stairs')action((PORT?fy:fx)<0.5?'up':'down');else if(G.page&&fx>=0.3&&fx<=0.7&&(fy<0.1||fy>0.9))action(fy<0.1?'up':'down');else action(fx<0.3?'prev':fx>0.7?'next':'close')}else action('close')}
 }
 view.addEventListener('pointerup',ev=>endPtr(ev,false));
 view.addEventListener('pointercancel',ev=>endPtr(ev,true));
@@ -855,7 +1037,7 @@ function resize(){
   const r=room.getBoundingClientRect();CW=Math.max(1,r.width);CH=Math.max(1,r.height);ASPECT=CW/CH;
   H=Math.max(120,Math.round(Math.sqrt(64000/ASPECT)/2)*2);W=Math.max(80,Math.round(H*ASPECT/2)*2);
   PLANE=Math.min(Math.tan(37.5*Math.PI/180),Math.max(Math.tan(27*Math.PI/180),0.3608*ASPECT));PROJ=(W/2)/PLANE;
-  scene.width=W;scene.height=H;img=sctx.createImageData(W,H);buf=img.data;zbuf=new Float32Array(W);for(let i=3;i<buf.length;i+=4)buf[i]=255;
+  scene.width=W;scene.height=H;img=sctx.createImageData(W,H);buf=img.data;allocCols();for(let i=3;i<buf.length;i+=4)buf[i]=255;
   let s=Math.min(2,window.devicePixelRatio||1);const lg=Math.max(CW,CH)*s;if(lg>2400)s*=2400/lg;
   DW=Math.max(2,Math.round(CW*s));DH=Math.max(2,Math.round(CH*s));view.width=DW;view.height=DH;SX=DW/W;SY=DH/H;
   const cs=getComputedStyle(safeEl);INS={t:parseFloat(cs.paddingTop)||0,r:parseFloat(cs.paddingRight)||0,b:parseFloat(cs.paddingBottom)||0,l:parseFloat(cs.paddingLeft)||0};
