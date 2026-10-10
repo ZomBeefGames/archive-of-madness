@@ -163,7 +163,7 @@ function galleryZone(i,j,fl=G.floor){
 function crossingZone(ci,cj,fl=G.floor){
   if(!isStair(ci,cj))return null;
   const hub=isComm(ci,cj,fl);
-  const key=G.resetEpoch+'|'+(hub?'hub':'transit')+'|'+ci+','+cj+'|'+fl+'|'+hubStride();
+  const key=G.resetEpoch+'|'+(hub?'hub':'transit')+'|'+ci+','+cj+'|'+fl;
   let z=G.zoneState.get(key);if(z)return z;
   const seed=hashStr('condition|'+key),r=prng(seed),v=r();
   const type=hub?(v<.58?'plain':v<.82?'barricaded':v<.93?'scorched':'vigil')
