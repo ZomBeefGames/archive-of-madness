@@ -18,6 +18,7 @@ const production=[
   part('function hashStr(','/* cast one ray'),
   part('const ZSPR=','const ALPHA='),
   part('function zoneHazards(dt){','function update(dt){'),
+  part('const DAYLEN=480','function clockText('),
   part('function newDay(){','function blackout(){')
 ].join('\n');
 function setup(){
