@@ -599,10 +599,12 @@ function figLayers(e,out){
   const A=Math.max(-9,Math.min(9,(e.vin||0)/PS/(4*Math.max(1.1,Math.hypot(e.vx||0,e.vy||0)/(1.45*0.5))))),lift=4.5*walk,fl=pose==='flail'||pose==='fall';
   const fa=footAt(e.gp||0,A,lift),fb=footAt(((e.gp||0)+0.5)%1,A,lift);
   if(pose==='fall'){const k=Math.sin(T*9+seed);fa[0]=6*k;fa[1]=4+3*k;fb[0]=-6*k;fb[1]=4-3*k}
-  const bob=walk*1.4*Math.cos(4*Math.PI*((e.gp||0)-0.25))+(pose==='laugh'?Math.abs(Math.sin(G.time*16))*0.9:0),hz=26+bob+(pose==='fall'?2:0),hx=0,lean=(pose==='fall'?e.spin||0:8*walk*Math.sign(A))+(e.lunge||0)*-20;
+  if(pose==='kneel'){fa[0]=-8;fa[1]=0;fa[2]=75;fb[0]=-10.5;fb[1]=0;fb[2]=75}
+  const bob=walk*1.4*Math.cos(4*Math.PI*((e.gp||0)-0.25))+(pose==='laugh'?Math.abs(Math.sin(G.time*16))*0.9:0),hz=26+bob+(pose==='fall'?2:0)+(pose==='kneel'?-12:0),hx=0,lean=(pose==='fall'?e.spin||0:8*walk*Math.sign(A))+(e.lunge||0)*-20+(pose==='beat'?16+6*Math.sin(T*9+seed):pose==='kneel'?12+3*Math.sin(T*1.3+seed):0);
   const ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs],[shx,shz]=at(0.3,13.6),[nkx,nkz]=at(1,16.4),sw=walk*Math.sin(2*Math.PI*(e.gp||0));
   const PT={laugh:k=>[shx+4+k,shz-9+Math.sin(T*16+k)*1.5],weep:k=>[nkx+5-k,nkz-1.5],count:k=>k?[shx+13,shz-3+Math.sin(T*6)*2]:[shx+2,shz-15],sleep:k=>[shx+16,shz-1-k],
-      fly:k=>k?[shx+17,shz+1]:[shx-17,shz+1],stand:k=>[shx+2+k,shz-15]}[pose],HA={laugh:-18+8*Math.sin(T*15),weep:35,count:20,sleep:10,fly:-15}[pose]||0;
+      fly:k=>k?[shx+17,shz+1]:[shx-17,shz+1],stand:k=>[shx+2+k,shz-15],kneel:k=>[shx+6,shz-4-k],carry:k=>[shx+4+k*2,shz+3],
+      beat:k=>k?[shx+11,shz+(Math.sin(T*9+seed)>0?9:-9)]:[shx+3,shz-13]}[pose],HA={laugh:-18+8*Math.sin(T*15),weep:35,count:20,sleep:10,fly:-15,kneel:30,beat:12,carry:8}[pose]||0;
   const flap=k=>PT&&!walk?PT(k):PT&&pose!=='stand'?PT(k):fl?[shx+Math.sin(T*13+k*2+seed)*7,shz+6+Math.cos(T*11+k)*7]:[shx+(k?-1:1)*sw*7+2,shz-11+Math.abs(sw)*3];
   armOut(put,R,shx-0.5,shz,...flap(0),-0.05,8.5,10.5);
   legOut(put,R,hx-1,hz,fb,-0.03,11.5,11,4.5);put(R.skirt,(S[8]||0),hx-1,hz+1,-0.012,false);
@@ -668,7 +670,7 @@ function worldDead(){const i0=Math.round(G.x/P-0.5),j0=Math.round(G.y/P-0.5),hr=
   if(WD.key===key)return WD.list;WD.key=key;const L=[];
   for(let i=i0-2;i<=i0+2;i++)for(let j=j0-2;j<=j0+2;j++)for(let k=-2;k<=2;k++){
     const fl=G.floor+k,h=hashStr('wd|'+i+'|'+j+'|'+fl+'|'+G.day),r=prng(h);
-    for(const c of G.wcorpse[i+','+j+','+fl]||[])L.push({type:'fig',pose:'dead',x:c.x,y:c.y,f:c.f,zw:k*FH,lvl:k,seed:h%97,coat:0,burnt:c.burnt});
+    for(const c of G.wcorpse[i+','+j+','+fl]||[])L.push(c.kind==='pur'?{type:'pur',x:c.x,y:c.y,f:c.f,zw:k*FH,lvl:k,hit:0,dead:9,seed:h%97}:{type:'fig',pose:'dead',x:c.x,y:c.y,f:c.f,zw:k*FH,lvl:k,seed:h%97,coat:0,burnt:c.burnt});
     if(h%9!==0)continue;const at=6+r()*17;if(hr<at)continue;
     const ns=r()<0.5,al=(Math.floor(r()*2)?0.28:0.72)*P,hang=r()<0.45,side=r()<0.5?1:-1;
     let x=ns?(i+0.5)*P:(i+0.5)*P+al-P/2,y=ns?(j+0.5)*P+al-P/2:(j+0.5)*P;
@@ -679,10 +681,10 @@ function worldDead(){const i0=Math.round(G.x/P-0.5),j0=Math.round(G.y/P-0.5),hr=
 function lifeLayers(out){
   const C=BG.cam,cs=Math.cos(C.ang),sn=Math.sin(C.ang);
   const vis=e=>{const dx=e.x-C.x,dy=e.y-C.y,f=dx*cs+dy*sn;return f>-0.5&&f<34&&Math.abs(-dx*sn+dy*cs)<f*PLANE+2};
-  for(const e of ENC.list)if(vis(e))figLayers(e,out);
+  for(const e of ENC.list){if(e.members){for(const m of e.members)if(vis(m)){if(m.type==='pur'){purLayers(m,out);if(m._tx!==undefined)FIREL.push(m._tx,m._ty)}else figLayers(m,out)}}else if(vis(e))figLayers(e,out)}
   for(const e of BG.acts){if(e.pusher&&vis(e.pusher))purLayers(e.pusher,out);if(e.hide||!vis(e))continue;figLayers(e,out);if(e.burning&&e.lvl===0)FIREL.push(e.x,e.y)}
   // the dead are still: draw one only if last frame's depth says some of it can be seen
-  for(const e of worldDead())if(vis(e)){const z=e.zw+(e.pose==='hang'?-0.5:0.12);if(seeAt(e.x,e.y,z)||seeAt(e.x,e.y,z+0.25)||seeAt(e.x+0.4,e.y+0.4,z)||seeAt(e.x-0.4,e.y-0.4,z))figLayers(e,out)}}
+  for(const e of worldDead())if(vis(e)){const z=e.zw+(e.pose==='hang'?-0.5:0.12);if(seeAt(e.x,e.y,z)||seeAt(e.x,e.y,z+0.25)||seeAt(e.x+0.4,e.y+0.4,z)||seeAt(e.x-0.4,e.y-0.4,z))(e.type==='pur'?purLayers:figLayers)(e,out)}}
 /* ---- encounters: now and then someone is standing a few steps ahead of you. Walk up and Read to speak to them. Some
    want something, some give something, one is very old and has been waiting a long time ---- */
 const HAIRS=new Set(RHAIR);
@@ -737,13 +739,13 @@ function encSpot(rail){
     if(walkable(x,y,0.35)&&Math.hypot(x-G.x,y-G.y)>2.6)return{x,y,out:a+Math.PI}}
   return null}
 function encStart(force){
-  const pool=['laugh','count','weep','peddler','sleep'];if(!G.met.rose&&(G.day>=2||force==='rose')&&Math.random()<0.35)pool.push('rose','rose');
-  const id=force||pool[Math.floor(Math.random()*pool.length)],D=ENCS[id],sp=encSpot(D.rail);if(!sp)return false;
+  const pool=['laugh','count','weep','peddler','sleep','mob','funeral','sermon','mob'].concat(G.inRoom?['ritual','ritual']:[]);if(!G.met.rose&&(G.day>=2||force==='rose')&&Math.random()<0.35)pool.push('rose','rose');
+  const id=force||pool[Math.floor(Math.random()*pool.length)],D=ENCS[id];if(D.scene)return sceneStart(id);const sp=encSpot(D.rail);if(!sp)return false;
   const e={type:'fig',enc:id,rig:ENCRIG[id],pose:D.pose,x:sp.x,y:sp.y,out:sp.out,f:sp.out+Math.PI/2,seed:Math.random()*6.28,state:'idle',t:0,said:0,lvl:0,zw:0};
   gaitUpd(e,0,0.5);ENC.list.push(e);if(id==='rose')G.met.rose=true;return true}
 function encUpd(dt){
-  ENC.t-=dt;if(ENC.t<=0&&!ENC.list.length&&G.state==='play'){ENC.t=encStart()?80+Math.random()*60:6}
-  for(const e of ENC.list){const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=dt;
+  ENC.t-=dt;if(ENC.t<=0&&!ENC.list.length&&G.state==='play'){ENC.t=encStart()?55+Math.random()*45:6}
+  for(const e of ENC.list){if(e.members){sceneUpd(e,dt);continue}const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=dt;
     if(e.state==='idle'||e.state==='talked'){e.said-=dt;if(e.said<=0&&d<14){e.said=D.every*(0.8+Math.random()*0.5);voice(D.idle,e)}
       if(D.walk){const v=0.35;e.x+=Math.cos(e.out+Math.PI)*v*dt;e.y+=Math.sin(e.out+Math.PI)*v*dt;if(!walkable(e.x,e.y,0.3)){e.out+=Math.PI}}
       if(e.state==='talked'&&e.t>1.2){e.state='leave';e.t=0}
@@ -762,7 +764,7 @@ function encUpd(dt){
 /* Read near someone: they speak first */
 function encTalk(){
   for(const e of ENC.list){if(e.state!=='idle')continue;const dx=e.x-G.x,dy=e.y-G.y,d=Math.hypot(dx,dy);
-    if(d<1.9&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.85){const D=ENCS[e.enc];G.encOn=e;G.lastHit={t:d};
+    if(d<(e.members?2.9:1.9)&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<(e.members?1:0.85)){const D=ENCS[e.enc];G.encOn=e;G.lastHit={t:d};
       if(D.a){G.choice='enc';G.note={title:D.title,text:D.text()};openBookUI(null,'')}
       else{e.state='said';openNote(D.title,D.text(),D.verdict)}
       return true}}
@@ -771,6 +773,76 @@ function encChoose(up){const e=G.encOn,D=e&&ENCS[e.enc];if(!D){closeBook();retur
   e.keep=false;const msg=(up?D.A:D.B)(e);G.choice=null;if(!e.keep){e.state='talked';e.t=0}else if(e.state==='idle'){/* try again */}
   G.note={title:D.title,text:msg};G.verdict='';drawBook()}
 function encClosed(){const e=G.encOn;if(!e)return;G.encOn=null;const D=ENCS[e.enc];if(e.state==='said'){if(D.close)D.close(e);else{e.state='talked';e.t=0}}}
+/* ---- scenes: a group you stumble on a few steps ahead. A mob beating a Purifier; the sect about to burn a kneeling
+   librarian; a funeral carrying someone to the drop; a Purifier preaching to the kneeling. Walk up and Read: you can
+   join in, step in, or walk on, and what you choose stays done ---- */
+function mkFig(x,y,f,rig,pose){const e={type:'fig',rig,pose,x,y,f,seed:Math.random()*6.28,lvl:0,zw:0};gaitUpd(e,0,0.5);return e}
+function mkPur(x,y,f,raise){const e={type:'pur',x,y,f,hit:0,dead:0,raise,chasing:true,seed:Math.random()*6.28,lvl:0,zw:0,burnCd:9};gaitUpd(e,0,0.58);return e}
+const toward=(m,x,y)=>Math.atan2(y-m.y,x-m.x)+Math.PI/2;   // paper turned so the figure's front (+x) points at (x,y)
+/* places for n people around a centre (a ring) or, on a narrow catwalk, in a line along it */
+function sceneSlots(c,n,r){
+  const a0=Math.atan2(G.y-c.y,G.x-c.x),ring=[...Array(n)].map((_,k)=>{const a=a0+Math.PI*(0.35+1.3*k/Math.max(1,n-1));return[c.x+Math.cos(a)*r,c.y+Math.sin(a)*r]});
+  if(ring.every(([x,y])=>walkable(x,y,0.22)))return ring;
+  for(const[ax,ay]of[[1,0],[0,1]]){const L=[...Array(n)].map((_,k)=>{const o=(k-(n-1)/2)*0.95+(k>=n/2?0.5:-0.5);return[c.x+ax*o,c.y+ay*o]});if(L.every(([x,y])=>walkable(x,y,0.22)))return L}
+  return null}
+function convertHostile(m){G.ents.push({type:'pur',x:m.x,y:m.y,f:m.f,ft:0,frame:0,ft2:0,head:0,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6,seed:m.seed});G.alerted=true}
+function corpseHere(kind,m,burnt){if(G.inRoom){const k=G.gal+'|'+G.floor;(G.corpses[k]=G.corpses[k]||[]).push({kind,x:m.x,y:m.y,f:m.f,burnt});
+    G.ents.push(kind==='pur'?{type:'pur',x:m.x,y:m.y,f:m.f,hit:0,dead:9,hp:0,burnCd:9,seed:m.seed}:{type:'fig',pose:'dead',x:m.x,y:m.y,f:m.f,burnt,seed:m.seed,dead:0})}
+  else{const i=Math.round(m.x/P-0.5),j=Math.round(m.y/P-0.5),key=i+','+j+','+G.floor;(G.wcorpse[key]=G.wcorpse[key]||[]).push({x:m.x,y:m.y,f:m.f,burnt,kind})}}
+Object.assign(ENCS,{
+  mob:{scene:true,title:'A MOB',idle:'murmur',every:1.3,
+    build:c=>{const S=sceneSlots(c,3,1.0);if(!S)return null;const v=mkPur(c.x,c.y,0,0);v.dead=0.5;v.vic=true;
+      return[v,...S.map(([x,y],k)=>{const m=mkFig(x,y,0,[FIGRIG[1],FIGRIG[2],ENCRIG.peddler][k],'beat');m.f=toward(m,c.x,c.y);return m})]},
+    text:()=>'Three librarians have a Purifier down on the boards. They are beating him with shelf rods and the spines of books, and he has stopped trying to get up.\n\n"For the Ninth Hexagon!" one of them shouts. "For every page he burned!"',
+    a:'▲ JOIN IN',ad:'4 type from his robe · −6 sanity',b:'▼ STOP THEM',bd:'they might listen',
+    A:e=>{const v=e.members.find(m=>m.vic);e.members=e.members.filter(m=>!m.vic);corpseHere('pur',v);G.type+=4;G.sanity=Math.max(0,G.sanity-6);voice('laugh',e,{vol:0.8});sfx('+4 TYPE');
+      return'You find out what it feels like. When he is still, they cheer, go through his robe, give you your share, and drift away arguing about the next one.'},
+    B:e=>{G.incense+=2;G.sanity=Math.min(100,G.sanity+4);e.flee=true;const v=e.members.find(m=>m.vic);v.dead=0;v.hurt=true;
+      return'You step in with your weapon up. They look at you, at each other, and scatter. The Purifier gets up very slowly, presses two sticks of sect incense into your hand without a word, and limps away. +2 incense.'}},
+  ritual:{scene:true,room:true,title:'THE SECT AT PRAYER',idle:'murmur',every:1.8,
+    build:c=>{const S=sceneSlots(c,3,1.15);if(!S)return null;const v=mkFig(c.x,c.y,0,ENCRIG.weep,'kneel');v.vic=true;v.f=toward(v,G.x,G.y);
+      return[v,...S.map(([x,y])=>{const m=mkPur(x,y,0,1);m.f=toward(m,c.x,c.y);return m})]},
+    text:()=>'Three Purifiers stand over a kneeling librarian with their torches held above her head. One reads her sins aloud from a book that has not been written yet. She is very quiet.\n\n"Burn it clean," they answer, together. "Burn it clean."',
+    a:'▲ ATTACK THEM',ad:'three Purifiers · she will repay you',b:'▼ WALK AWAY',bd:'they will burn her',
+    A:e=>{for(const m of e.members)if(m.type==='pur')convertHostile(m);e.members=e.members.filter(m=>m.type!=='pur');G.type+=6;sfx('+6 TYPE');e.flee=true;voice('scream',e);
+      return'You go at them. As the torches turn on you she throws her purse of type at your feet, "for after," and runs. +6 type. Now fight.'},
+    B:e=>{e.burn=2.2;return'You turn away. Behind you the chanting stops, and the light changes.'}},
+  funeral:{scene:true,title:'A FUNERAL',idle:'hum',every:5,walk:0.5,
+    build:c=>{const S=sceneSlots(c,4,0.8);if(!S)return null;const ax=Math.abs(S[0][0]-S[3][0])>Math.abs(S[0][1]-S[3][1])?[Math.sign(S[3][0]-S[0][0])||1,0]:[0,Math.sign(S[3][1]-S[0][1])||1];
+      const rigs=[FIGRIG[1],ENCRIG.sleep,FIGRIG[2],ENCRIG.count],ms=S.map(([x,y],k)=>{const m=mkFig(x,y,0,rigs[k],'carry');m.f=Math.atan2(ax[1],ax[0])+Math.PI/2;return m});
+      const body=mkFig(c.x,c.y,ms[0].f,ENCRIG.weep,'dead');body.zw=0.95;body.body=true;ms.push(body);ms.ax=ax;return ms},
+    text:()=>'Four librarians are carrying a fifth between them, shoulder high, to the nearest railing. That is how it is done here: the drop takes the dead.\n\n"Will you say a word for her?" the oldest asks. "Anyone\'s word will do. We have forgotten her name."',
+    a:'▲ SAY A WORD',ad:'+8 sanity · saying a name helps you hold your own',b:'▼ STAY SILENT',bd:'they walk on',
+    A:e=>{G.sanity=Math.min(100,G.sanity+8);G.echo=Math.max(0,G.echo-1);e.keepWalk=true;return'You give her a name. They repeat it, carefully, and walk on with her. You find you remember your own words a little better.'},
+    B:e=>{e.keepWalk=true;return'They nod as if they expected that, and walk on.'}},
+  sermon:{scene:true,title:'THE SERMON',idle:'murmur',every:2.2,
+    build:c=>{const S=sceneSlots(c,3,1.1);if(!S)return null;const pr=mkPur(c.x,c.y,0,0.8);pr.f=toward(pr,G.x,G.y);pr.preach=true;
+      return[pr,...S.map(([x,y])=>{const m=mkFig(x,y,0,[FIGRIG[1],FIGRIG[2],ENCRIG.sleep][Math.floor(Math.random()*3)],'kneel');m.f=toward(m,c.x,c.y);return m})]},
+    text:()=>'A Purifier is preaching to three kneeling librarians, his torch raised over them.\n\n"The Library is infinite, and the Library is sick. Every false book is a fever. We are the cure." His listeners nod with their eyes closed.',
+    a:'▲ LISTEN',ad:'he quotes a real sentence · −8 sanity',b:'▼ HECKLE',bd:'he will not take it well',
+    A:e=>{G.frags+=G.tr.key?2:1;G.sanity=Math.max(0,G.sanity-8);sfx('+1 SENTENCE','mind');return'You kneel with them. In the middle of the sermon he quotes a real sentence, perfectly, and you keep it. The rest of it stays with you less kindly.'},
+    B:e=>{const pr=e.members.find(m=>m.preach);if(G.inRoom){convertHostile(pr);e.members=e.members.filter(m=>m!==pr)}e.flee=true;voice('scream',e,{vol:0.7});
+      return G.inRoom?'"Heretic," he says, quite softly, and lowers the torch toward you. His congregation runs.':'He stops. His congregation scatters, and he follows them, looking back at you the whole way.'}}
+});
+function sceneUpd(e,dt){const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=dt;
+  if(e.state==='idle'||e.state==='talked'){e.said-=dt;if(e.said<=0&&d<16){e.said=D.every*(0.8+Math.random()*0.5);voice(Math.random()<0.25&&e.enc==='mob'?'scream':D.idle,e,{vol:0.8});if(e.enc==='mob')voice('thud',e,{vol:0.6})}}
+  if(e.burn!==undefined){e.burn-=dt;if(e.burn<=0&&!e.burnt){e.burnt=true;const v=e.members.find(m=>m.vic);voice('scream',v,{vol:1.3});G.fires.push({x:v.x,y:v.y,t:7,fl:G.floor});G.sanity=Math.max(0,G.sanity-8);
+      e.members=e.members.filter(m=>m!==v);corpseHere('fig',v,true);e.flee=false;e.state='leave';e.t=0}}
+  const ax=e.members.ax;
+  if(D.walk&&(e.state!=='leave'||e.keepWalk)){const v=D.walk;let ok=true;for(const m of e.members){const nx=m.x+ax[0]*v*dt,ny=m.y+ax[1]*v*dt;if(!m.body&&!walkable(nx,ny,0.2))ok=false}
+    if(ok){for(const m of e.members){m.x+=ax[0]*v*dt;m.y+=ax[1]*v*dt}e.x+=ax[0]*v*dt;e.y+=ax[1]*v*dt}else e.gone=true;if(e.t>16||d>22)e.gone=true}
+  else if(e.state==='leave'||e.flee&&e.state==='talked'){const fl=e.flee,v=fl?2.4:0.9;
+    for(const m of e.members){if(m.dead||m.body&&!D.walk)continue;const a=Math.atan2(m.y-G.y,m.x-G.x),nx=m.x+Math.cos(a)*v*dt,ny=m.y+Math.sin(a)*v*dt;
+      if(m.type==='fig'&&m.pose!=='dead')m.pose=fl?'flail':'run';if(m.vic&&m.type==='pur'){m.dead=0}if(walkable(nx,ny,0.2)){m.x=nx;m.y=ny}m.f=a+Math.PI/2}
+    if(e.t>6||d>18)e.gone=true}
+  if(e.state==='talked'&&e.t>1.2&&!D.walk&&e.burn===undefined){e.state='leave';e.t=0}
+  if(d>30)e.gone=true;
+  for(const m of e.members)gaitUpd(m,dt,m.type==='pur'?0.58:0.5)}
+function sceneStart(id){const D=ENCS[id];if(D.room&&!G.inRoom)return false;
+  for(let tries=0;tries<20;tries++){const a=G.ang+(Math.random()-0.5)*0.8,dd=4.4+Math.random()*2.4,c={x:G.x+Math.cos(a)*dd,y:G.y+Math.sin(a)*dd};
+    if(!walkable(c.x,c.y,0.3))continue;const ms=D.build(c);if(!ms)continue;
+    const e={type:'scene',enc:id,x:c.x,y:c.y,members:ms,state:'idle',t:0,said:0.5};if(ms.ax)e.members.ax=ms.ax;ENC.list.push(e);return true}
+  return false}
 const seekBody=["....k.kkk.k.....","...khkhhhkhk....","...khhhhhhhk....","...kssssssk.....","...kwpsswpk.....","...ksssSssk.....","...ksmmmsk......","....kssssk......","...kRRRRRRk.....","..kRRnRRRRRk....",".ksRRnnRRRRsk...",".ksRRRRRnRRsk...",".ksRRRRRnRRsk...","..kRRRRRRRRk....","..kRnRRRRRRk....","..kRRRRRRRRk....","..kRRRRkRRRk...."];
 const seekLegs=[["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],["..kRRk..kRRk....",".kssk...kssk....",".kssk....kssk...","kkkk.....kkkk..."],["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],[".kRRk..kRRk.....",".kssk..kssk.....","kssk...kssk.....","kkkk..kkkk......"]];
 const SEEK=seekLegs.map((l,i)=>buildCard(setPx(seekBody.concat(l),i%2?[[4,4,'p'],[5,4,'w'],[8,4,'p'],[9,4,'w']]:[])));
@@ -931,7 +1003,7 @@ function spawnRoom(first){
   if(first||h%4===1){const[x,y]=first?at(1.4,2.7):spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
   if(first||(h>>>4)%3===1){const[x,y]=first?at(0.8,-2.9):spot();dropType(x,y,1+(h>>>11)%2)}
   if(first||(h>>>6)%5===0){const[x,y]=first?at(-2.7,1.3):spot();G.ents.push({type:'incense',x,y,f:rnd()*6.28,frame:0,hgt:0.5,cards:[INCC],dead:0})}
-  if(!first)for(const c of roomBodies()){if(c.kind==='pur')G.ents.push({type:'pur',x:c.x,y:c.y,f:c.f,hit:0,dead:9,hp:0,burnCd:9,seed:c.x%6});else if(c.kind==='seek')G.ents.push({type:'seek',x:c.x,y:c.y,f:c.f,hit:0,dead:9,hp:0,scared:0,flee:0,stealCd:0,seed:c.y%6});else G.ents.push({type:'fig',pose:'dead',x:c.x,y:c.y,f:c.f,coat:c.coat||0,seed:c.x%6,dead:0})}
+  if(!first)for(const c of roomBodies()){if(c.kind==='pur')G.ents.push({type:'pur',x:c.x,y:c.y,f:c.f,hit:0,dead:9,hp:0,burnCd:9,seed:c.x%6});else if(c.kind==='seek')G.ents.push({type:'seek',x:c.x,y:c.y,f:c.f,hit:0,dead:9,hp:0,scared:0,flee:0,stealCd:0,seed:c.y%6});else G.ents.push({type:'fig',pose:'dead',x:c.x,y:c.y,f:c.f,coat:c.coat||0,burnt:c.burnt,seed:c.x%6,dead:0})}
   if(first||(h>>>3)%3===0){const a=first?Math.PI*0.75:rnd()*Math.PI*2;G.ents.push({type:'index',x:C.cx+Math.cos(a)*(RS+0.32),y:C.cy+Math.sin(a)*(RS+0.32),f:a,frame:0,hgt:0.9,cards:[INDEXC],dead:0})}
 }
 
@@ -1278,16 +1350,16 @@ function die(){if(G.state==='dying'||G.state==='dead')return;snd('bad');G.state=
 
 /* ---- the renderer ---- */
 const LAMPS={key:null,list:[]},MCOLS=[];let TR=1,TG=1,TB=1,FLICK=1,LANR=4,HZ=100; // HZ: the horizon row, moved by looking up and down
-const LAMPR2=4.6*4.6;
-let FIREL=[],AMB=0.085,LDAY=1;const LAMPI=0.62;
-const JR2=6.5*6.5,JLI=0.75,JR2P=4.8*4.8,JLIP=0.45;
+const LAMPR2=5.4*5.4;
+let FIREL=[],AMB=0.085,LDAY=1;const LAMPI=0.85;
+const JR2=7.5*7.5,JLI=1.0,JR2P=5.6*5.6,JLIP=0.65;
 function lampC(c,px,py){let L=0,w;if(c&&c.kind==='a'){const ci=Math.round(px/P-0.5),cj=Math.round(py/P-0.5),jx=P*(ci+0.5)-px,jy=P*(cj+0.5)-py,cm=isComm(ci,cj);w=1-(jx*jx+jy*jy)/(cm?JR2:JR2P);if(w>0)L+=(cm?JLI:JLIP)*LDAY*w*w*w}
   else if(c&&c.kind==='g'){const q=c.lamps;let dx=px-q[0][0],dy=py-q[0][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*LDAY*w*w*w;dx=px-q[1][0];dy=py-q[1][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*LDAY*w*w*w}
   if(FIREL.length)
   for(let i=0;i<FIREL.length;i+=2){const dx=px-FIREL[i],dy=py-FIREL[i+1];w=1-(dx*dx+dy*dy)/7;if(w>0)L+=0.65*FLICK*w*w*w}return L}
 function lanL(d){const v=d<LANR?1-d/LANR:0;return FLICK*v*v}
 function lightP(c,px,py,d){return AMB+lanL(d)+lampC(c,px,py)}
-const AIRLV=9,FOG=[...Array(AIRLV+2)].map((_,m)=>Math.pow(0.8,m+0.3));let CW_LAMP=0,CW_D2=0;
+const AIRLV=9,FOG=[...Array(AIRLV+2)].map((_,m)=>Math.pow(0.86,m+0.2));let CW_LAMP=0,CW_D2=0;
 function put(i,r,g,b,L){buf[i]=r*L*TR;buf[i+1]=g*L*TG;buf[i+2]=b*L*TB}
 /* a wall pixel at height z on the floor lv levels from yours */
 const LVTEX=new Array(2*MAXLV+3);let LVSTAMP=0;const LVAT=new Int32Array(2*MAXLV+3);
@@ -1368,13 +1440,13 @@ function render(){
 }
 function renderScene(MEP){
   if(DEP.length!==W*H)DEP=new Float32Array(W*H);
-  FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=3.2+Math.min(G.oil,10)*0.55;
+  FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=3.8+Math.min(G.oil,10)*0.6;
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
   lifeLayers(POSE);
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.92-low*0.25;TB=0.78+low*0.3;
-  {const d=dayLight(hourOf());LDAY=0.4+0.6*d;AMB=0.04+0.045*d;TR*=0.86+0.14*d;TG*=0.9+0.1*d;TB*=1.06-0.06*d}
+  {const d=dayLight(hourOf());LDAY=0.6+0.55*d;AMB=0.12+0.085*d;TR*=0.86+0.14*d;TG*=0.9+0.1*d;TB*=1.06-0.06*d}
   HZ=H/2+G.pitch*H-(THIRD?0.15*H:0);BG.cam.x=G.x;BG.cam.y=G.y;BG.cam.eye=EYE;BG.cam.ang=G.ang;BG.cam.hz=HZ;const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
   for(let x=0;x<W;x++){
     const cam=2*x/W-1;let rdx=dirX+plX*cam,rdy=dirY+plY*cam;
