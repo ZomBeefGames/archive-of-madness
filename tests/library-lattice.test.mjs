@@ -83,6 +83,8 @@ test('transit floors keep spiral stairs but omit all communal pillar amenities',
   assert.equal(s.run('inWell(8,8)'),true);
   assert.equal(s.run('walkable(8,8,0.2)'),false,'cannot walk through stairwell');
   assert.equal(s.run('walkable(6.75,6.75,0.2)'),true,'empty transit floor has a landing');
+  assert.equal(s.run('airFloor(6.75,6.75)'),true,'transit landing actually renders a solid floor');
+  assert.equal(s.run('airFloor(8,8)'),false,'the stairwell itself remains an opening');
   s.G.floor=0;
   assert.equal(s.run('walkable(6.75,6.75,0.2)'),false,'same position blocked by hub pillar');
 });
