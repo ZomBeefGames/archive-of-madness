@@ -48,7 +48,7 @@ The rooms follow Borges' story; the space between them is open air:
 
 ## What is in the prototype
 
-- Adaptive pixel-art raycaster (about 96,000 scene pixels on desktop and 72,000 on touch devices) that steps across the grid and through the doorways and follows each ray up and down through the open air, so other storeys show past the catwalks and down the shafts and stairwells; mirror reflections (you see yourself) and railings.
+- Adaptive pixel-art raycaster (about 192,000 scene pixels on desktop and 112,000 on touch devices) that steps across the grid and through the doorways and follows each ray up and down through the open air, so other storeys show past the catwalks and down the shafts and stairwells; mirror reflections (you see yourself) and railings.
 - Deterministic pages: every page is calculated from its address (hexagon, floor, wall, shelf, book and page) (FNV-1a + mulberry32), so the same shelf always reads the same on every device.
 - Sanity, health and lantern oil; psychosis at zero sanity with phantom Purifiers. Sleeping in the closet restores sanity at the cost of oil.
 - Purifiers (patrol, chase, burn shelves) and Seekers (charge to steal oil when startled).
@@ -91,3 +91,5 @@ The game is the single file `index.html`. On Railway it is served by `server.mjs
 ## Checks
 
 Run `npm run check` (Node 18 or newer; no dependencies). It checks server syntax, parses the inline game JavaScript, and runs focused sermon regressions for catwalk and gallery pursuit, congregation flight, combat, floor collision and the peaceful LISTEN choice. The tests execute production logic with rendering and audio stubbed; they do not replace a browser gameplay test.
+
+The visual presentation uses detailed jointed paper-cutout characters, engraved brass gauges, leather-bound journal covers, layered parchment pages, and illustrated lanterns and hand tools. Character textures render at twice their original sampling density while retaining their existing world size and animation pivots.
