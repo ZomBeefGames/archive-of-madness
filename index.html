@@ -136,6 +136,127 @@ function placeOf(x,y){const i=Math.round(x/P),j=Math.round(y/P);return inHexL(x-
 /* the nearest crossing of catwalks to a point, and whether it is communal */
 function crossingAt(px,py){const ci=Math.round(px/P-0.5),cj=Math.round(py/P-0.5);return{ci,cj,x:(ci+0.5)*P,y:(cj+0.5)*P,comm:isComm(ci,cj),stairs:isStair(ci,cj)}}
 
+/* RESET-EPOCH ENVIRONMENTS. Each gallery and stair crossing gets one procedural,
+   mutable condition. An ordinary day never rerolls it, and opening a cache or
+   breaking a barricade is remembered until the next genuine Library reset. */
+const GALLERY_NAMES={
+  normal:'THE ORDINARY LIBRARY',burned:'THE CINDER ARCHIVE',
+  burning:'THE BURNING HEXAGON',barricaded:'THE SEALED LIBRARY',
+  refuge:'THE FORGOTTEN REFUGE'
+};
+const CROSS_NAMES={
+  plain:'THE LANDING',barricaded:'THE BARRICADED HUB',
+  scorched:'THE SCORCHED HUB',vigil:'THE VIGIL HUB',
+  ash:'THE ASHEN LANDING',watch:'THE WATCH LANDING',
+  collapsed:'THE BROKEN LANDING',shrine:'THE PAGE SHRINE'
+};
+function galleryZone(i,j,fl=G.floor){
+  const key=G.resetEpoch+'|g|'+i+','+j+'|'+fl;
+  let z=G.zoneState.get(key);if(z)return z;
+  const seed=hashStr('condition|'+key),r=prng(seed),roll=r();
+  let type=roll<.60?'normal':roll<.76?'burned':roll<.85?'burning':roll<.97?'barricaded':'refuge';
+  if(G.startGallery===i+','+j+':'+fl)type='normal'; // do not spawn the player inside a fire or a locked doorway
+  z={key,type,seed,side:r()<.5?-1:1,opened:false,breached:false};
+  G.zoneState.set(key,z);return z;
+}
+function crossingZone(ci,cj,fl=G.floor){
+  if(!isStair(ci,cj))return null;
+  const hub=isComm(ci,cj,fl);
+  const key=G.resetEpoch+'|'+(hub?'hub':'transit')+'|'+ci+','+cj+'|'+fl+'|'+hubStride();
+  let z=G.zoneState.get(key);if(z)return z;
+  const seed=hashStr('condition|'+key),r=prng(seed),v=r();
+  const type=hub?(v<.58?'plain':v<.82?'barricaded':v<.93?'scorched':'vigil')
+    :(v<.35?'plain':v<.55?'ash':v<.70?'barricaded':v<.85?'watch':v<.95?'collapsed':'shrine');
+  z={key,type,seed,hub,opened:false,breached:false};
+  G.zoneState.set(key,z);return z;
+}
+function zoneDescription(z){
+  if(!z)return'';
+  if(z.hub)return({
+    plain:'Brass stairs rise from four occupied corners.',
+    barricaded:'The living have boarded the food hatch and chained the sleeping closet. The stair itself remains open.',
+    scorched:'Charred pillars and cinders. The stair survived a violent fire.',
+    vigil:'Lanterns, torn pages and wax candles ring a silent watch.'
+  }[z.type]||'');
+  return ({
+    plain:'Bare stone above the shaft. The spiral stair is still open.',
+    ash:'Ash clings to the landing. The places where the hub pillars should be are dark.',
+    barricaded:'A makeshift checkpoint of planks and furniture guards the bare stair.',
+    watch:'A lookout chair, warning scraps and a discarded cache watch the dark.',
+    collapsed:'Part of the balustrade has fallen away; the stair continues past the gap.',
+    shrine:'Names and last sentences are pinned around a candlelit offering.'
+  })[z.type]||'';
+}
+/* Only one of a library's east/west entrances is obstructed.
+   The other entrance always remains traversable. */
+function galleryBarricadeAt(x,y,rad=0,fl=G.floor){
+  const i=Math.round(x/P),j=Math.round(y/P),lx=x-i*P,ly=y-j*P;
+  if(Math.abs(ly)>HW+.15+rad)return null;
+  const z=galleryZone(i,j,fl);
+  if(z.type!=='barricaded'||z.breached)return null;
+  return Math.abs(lx-z.side*A)<=.23+rad?z:null;
+}
+function barrierTarget(){
+  const i0=Math.round(G.x/P),j0=Math.round(G.y/P);
+  for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){
+    const z=galleryZone(i,j),px=i*P+z.side*A,py=j*P,dx=px-G.x,dy=py-G.y,d=Math.hypot(dx,dy);
+    if(z.type==='barricaded'&&!z.breached&&d<2.2&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<.95)return{zone:z,x:px,y:py,dist:d};
+  }
+  return null;
+}
+function crossingFeatureTarget(){
+  if(G.inRoom)return null;
+  const c=crossingAt(G.x,G.y);
+  if(!c.stairs)return null;
+  const z=crossingZone(c.ci,c.cj);if(z.type==='plain')return null;
+  // Off-center props never cover the well or block the stair.
+  const px=c.x+1.36,py=c.y-.36,dx=px-G.x,dy=py-G.y,d=Math.hypot(dx,dy);
+  if(d>2.05||Math.abs(angDiff(Math.atan2(dy,dx),G.ang))>.85)return null;
+  return{zone:z,x:px,y:py,dist:d,crossing:c};
+}
+function galleryCacheTarget(){
+  if(!G.inRoom)return null;
+  const z=galleryZone(G.room.i,G.room.j);
+  if(!['burned','refuge','barricaded'].includes(z.type)||z.opened||z.type==='barricaded'&&!z.breached)return null;
+  const px=G.room.cx+2.4,py=G.room.cy+2.4,dx=px-G.x,dy=py-G.y,d=Math.hypot(dx,dy);
+  if(d>1.85||Math.abs(angDiff(Math.atan2(dy,dx),G.ang))>.9)return null;
+  return{zone:z,x:px,y:py,dist:d};
+}
+function zoneRead(){
+  const door=barrierTarget();
+  if(door){
+    door.zone.breached=true;
+    G.lastHit={t:door.dist};snd('clack');sfx('BARRICADE BROKEN','mind');
+    openNote('THE BARRICADED DOOR','A wall of broken shelves, torn canvas and prayer-rope blocks this doorway. You pry the timbers loose. A crooked gap opens through to the catwalk.','PASSAGE OPEN · THIS STAYS OPEN UNTIL THE NEXT LIBRARY RESET');
+    return true;
+  }
+  const cache=galleryCacheTarget();
+  if(cache){
+    const z=cache.zone;z.opened=true;G.lastHit={t:cache.dist};snd('pickup');
+    if(z.type==='burned'){G.type+=2;sfx('+2 SCORCHED TYPE');openNote('AMONG THE CINDERS','A small iron box survived the fire beneath a shelf of ruined bindings.','+2 TYPE · SALVAGED ONCE THIS RESET')}
+    else if(z.type==='refuge'){G.oil+=2;G.incense++;sfx('HIDDEN SUPPLIES','mind');openNote('THE FORGOTTEN REFUGE','Under a folded coat and a torn map, someone kept supplies for the next reader.','+2 OIL · +1 INCENSE · CACHE EMPTY UNTIL RESET')}
+    else{G.type+=3;sfx('+3 TYPE');openNote('BEHIND THE BARRICADE','The last occupants hid lead letters beneath a pile of broken boards.','+3 TYPE · CACHE EMPTY UNTIL RESET')}
+    return true;
+  }
+  const feature=crossingFeatureTarget();
+  if(feature){
+    const z=feature.zone;G.lastHit={t:feature.dist};snd('page');
+    let award='';
+    if(z.type==='barricaded'&&!z.breached){z.breached=true;G.type+=1;award='BARRICADE CLEARED · +1 TYPE'}
+    else if(!z.opened&&(z.type==='watch'||z.type==='shrine'||z.type==='vigil')){
+      z.opened=true;
+      if(z.type==='watch'){G.oil+=2;award='+2 OIL · LOOKOUT CACHE EMPTIED'}
+      else{G.incense++;award='+1 INCENSE · OFFERING TAKEN'}
+    }
+    else if(!z.opened&&z.type==='ash'){z.opened=true;G.type++;award='+1 CHARRED TYPE'}
+    sfx(award||'THE LANDING REMEMBERS','mind');
+    openNote(CROSS_NAMES[z.type],zoneDescription(z),award||'THE SPIRAL STAIR REMAINS OPEN');
+    return true;
+  }
+  return false;
+}
+
+
 /* cast one ray across the grid, square by square, in and out of galleries through their doorways. It bounces off the
    mirror, notes every railing and every stretch of gallery or open air it passes, and stops on the first solid surface */
 const LEG={n:0,ox:new Float64Array(5),oy:new Float64Array(5),dx:new Float64Array(5),dy:new Float64Array(5),t0:new Float64Array(6)};
