@@ -3108,8 +3108,12 @@ function display(dt){
   const low=G.sanity<25?(25-G.sanity)/25:0,L=LAY,st=G.state;
   if(st==='play'){
     const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r);
-    const b=bodyTarget();if(b&&!G.journal){
-      const label=FINE?'E  ·  SEARCH BODY':'READ  ·  SEARCH BODY',font=Math.max(13,Math.round(DH*0.021));
+    const b=bodyTarget(),door=b?null:barrierTarget(),cache=b||door?null:galleryCacheTarget(),
+      prop=b||door||cache?null:crossingFeatureTarget(),
+      target=b||door||cache||(prop&&!prop.zone.inspected?prop:null);
+    if(target&&!G.journal){
+      const what=b?'SEARCH BODY':door?'PRY BARRICADE':cache?'SEARCH CACHE':prop.zone.type==='barricaded'?'CLEAR CHECKPOINT':'EXAMINE LANDING';
+      const label=(FINE?'E  ·  ':'READ  ·  ')+what,font=Math.max(13,Math.round(DH*0.021));
       vctx.save();vctx.font='bold '+font+'px Georgia';const w=vctx.measureText(label).width+28,x=(DW-w)/2,y=DH*0.56;
       vctx.fillStyle='rgba(19,14,12,.82)';vctx.fillRect(x,y,w,font+19);
       vctx.strokeStyle='#b89a62';vctx.lineWidth=2;vctx.strokeRect(x+1,y+1,w-2,font+17);
