@@ -1,8 +1,9 @@
 # Game Design Document: The Archives of Madness
 **A Retro-FPS Psychological Survival Game Inspired by Jorge Luis Borges’ *The Library of Babel***
-*A ZomBeef Games title, part of the ZomBeef game hub alongside WEIGHTS and Torsion*
+*A standalone ZomBeef Games title, with its own card in the ZomBeef game hub alongside WEIGHTS and Torsion*
 
 *Revision 2, 10 October 2026: browser raycaster engine, paper cut-out style, floating interface, game modes, multiplayer, cross-game unlocks, and hosting.*
+*Revision 3, 10 October 2026: the Archives is a standalone game, no longer the game-over mode of WEIGHTS. Cross-game links through the hub stay.*
 
 ---
 
@@ -11,7 +12,7 @@
 * **Aesthetic:** Early 1990s faux-3D (classic *Doom*, *Wolfenstein 3D*) drawn by a raycaster, with pixel-art textures and characters as **paper cut-outs** standing in the world. Comic-book touches: inked edges, sound-effect bursts, and story moments framed like panels.
 * **Platform:** Runs in the web browser on desktop and phone. No install, no GPU needed on our side; the player's own device draws the game.
 * **Core Concept:** You are a nameless librarian trapped in an infinite universe of identical hexagonal rooms containing every book that could ever be written. You must manage your fading sanity while avoiding zealot factions, fighting for resources, and searching for the legendary book that contains your exact personal biography.
-* **Place in the ZomBeef universe:** A standalone game with its own card in the hub, and also the **game-over mode of WEIGHTS**. When you fail in WEIGHTS, a copy of you is shelved in the Archives. Find your page and you return to WEIGHTS where you fell.
+* **Place in the ZomBeef universe:** A standalone game with its own card in the hub. It shares one save with the other ZomBeef games, and unlocks travel between them (see Cross-Game Unlocks).
 
 ---
 
@@ -99,9 +100,8 @@ All enemies are pixel-art paper cards, about 18×22 pixels, with 4-frame walk an
 One library, one engine, one sprite set. Each mode is a new set of rules on the same game.
 
 ### Single Player
-1. **Game Over (WEIGHTS link):** Entered when you fail in WEIGHTS. WEIGHTS passes your chapter and phrase into the Archives. Find your page to return to WEIGHTS where you died. Lose all health and it is a true game over.
-2. **The Search:** The full solo game. A nameless librarian, a random phrase, endless rooms, Purifiers and Seekers, and a long hunt for your complete biography.
-3. **Daily Hexagon:** Everyone gets the same library and the same phrase each day. Fastest find goes on a leaderboard.
+1. **The Search:** The full solo game. A nameless librarian, a random phrase, endless rooms, Purifiers and Seekers, and a long hunt for your complete biography.
+2. **Daily Hexagon:** Everyone gets the same library and the same phrase each day. Fastest find goes on a leaderboard.
 
 ### Multiplayer
 4. **Imposter:** Social deduction, 5–10 players with 1–2 hidden cultists.
@@ -132,7 +132,7 @@ All ZomBeef games share **one save** through the hub. Sign in once; each game re
 ### Other Links
 * **Archives → Torsion:** a Purifier or Librarian skin, or a library-themed track.
 * **Archives → WEIGHTS:** found pages can reveal hidden WEIGHTS chapters or lore.
-* **WEIGHTS → Archives:** how far you got in WEIGHTS can change which phrase and starting hexagon you get in Game Over mode.
+* **WEIGHTS → Archives:** how far you got in WEIGHTS can change which phrase and starting hexagon you get.
 * **Soundtrack:** ZomBeef tracks unlocked in any game can play in all of them.
 
 ---
@@ -223,7 +223,7 @@ function makePage(hex, wall, shelf, book, page, phrase, sentences) {
 2. **The Look — done.** Pixel-art sprite sheet, paper cut-out cards, floating VR-style interface. *(See the "Archives Sprite Sheet" page.)*
 3. **Move to GitHub and the hub.** Put the prototype in a repo, build the hub page, and deploy on Railway.
 4. **The Search (solo).** Central terminals, biography fragments with the learnable pattern, the shelf rod and oil fire, Sect Incense, the Prophecy Trap, and sound.
-5. **The WEIGHTS link.** WEIGHTS opens the Archives on death and receives the player back on success.
+5. **Cross-game links.** The Archives reports its unlocks to the shared save and reacts to what WEIGHTS and Torsion report.
 6. **Shared save.** Sign-in and one save across the hub, and the first cross-game unlocks.
 7. **The Fly.** Companion that learns from your searching, unlocked from Torsion.
 8. **Co-op Search.** The first multiplayer mode, which builds the server basics.

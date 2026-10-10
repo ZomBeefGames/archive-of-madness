@@ -1,6 +1,6 @@
 # The Archives of Madness
 
-A retro raycaster psychological survival game in the browser, set in Borges' *Library of Babel*. A ZomBeef Games title, and the game-over mode of WEIGHTS.
+A retro raycaster psychological survival game in the browser, set in Borges' *Library of Babel*. A standalone ZomBeef Games title.
 
 You wake as a copy of yourself shelved in an endless library of hexagonal rooms. A phrase is burned into your mind. Find the page that contains it before your sanity, lantern oil or health run out.
 
@@ -53,7 +53,7 @@ The world follows Borges' story closely:
 - Sect incense, left on floors and dropped by fallen Purifiers: +30 sanity over six seconds and the phantoms go.
 - The Prophecy Trap: kill a Seeker (and take their oil) or burn a wall of books, and the next coherent page you find tells you what you did, in the past tense. −30 sanity, but each one wakes a dark power: harder hits, and the Seekers flee from you.
 - Sound, synthesised in the browser with the Web Audio API: the Library's hum, footsteps, pages, weapons, fire, screams, a heartbeat when your mind is going.
-- Finding your page wins the run and returns you to WEIGHTS.
+- Finding your page wins the run.
 - Paper cut-out characters and a floating, layered 3D-style interface.
 
 ## Design
