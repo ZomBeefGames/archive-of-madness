@@ -416,10 +416,11 @@ function footAt(u,A,lift){
 function faceToward(f,x,y){const av=Math.atan2(G.y-y,G.x-x),d=angDiff(f,av),ad=Math.abs(d),lim=1.15;
   if(ad<=lim||ad>=Math.PI-lim||(G.x===x&&G.y===y))return f;return av+Math.sign(d)*(ad<Math.PI/2?lim:Math.PI-lim)}
 function rigOut(e,out){
+  const zw=e.zw||0;if(e.lvl!==undefined){e.lc=placeOf(e.x,e.y);e.fog=FOG[Math.min(AIRLV,Math.abs(Math.round(zw/FH)))]}
   const F=e===ME?e.f:faceToward(e.f,e.x,e.y),nX=Math.cos(F),nY=Math.sin(F),tX=-nY,tY=nX,mir=e.dir<0,shake=e.hit>0?Math.sin(G.time*70)*e.hit*1.2:0;
   return(p,deg,x,z,depth,glow,shadow)=>{
     const P=mir?mirPart(p):p,v=partAt(P,mir?-deg:deg),X=(mir?-x:x)+shake,lat=X+(v.card.w/2-v.cx),zb=z-(v.card.h-v.cy);
-    out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:F,z0:zb*PS,hgt:v.card.h*PS,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,pe:e,sh:shadow})};
+    out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:F,z0:zb*PS+zw,hgt:v.card.h*PS,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,pe:e,sh:shadow})};
 }
 const PS=1.35/60;   // world size of one pixel of a puppet
 /* a leg from the hip to a planted or swinging foot: thigh, shin and foot; the knee bends forward */
@@ -566,6 +567,119 @@ function meLayers(out){
   const wa=wpn==='rod'?lerp(lerp(70,-10,wind),95,hit):lerp(lerp(60,-40,wind),130,hit);
   if(!(wpn==='oil'&&s>0.5))put(wpn==='press'?R.press:wpn==='rod'?R.rod:R.flask,wa+fall*40,wx,wz,outD-0.004,false);
 }
+/* ---- the Library goes on without you. Far off, on the catwalks of this floor and the floors above and below, other
+   librarians run, scream, jump, are pushed, burn. The dead stay where they fell until the day is over: the cultists you
+   kill, and others who turn up as the hours pass, lying in the galleries, on the catwalks, or hanging from a railing ---- */
+const ROPE=part(3,26,1,0,g=>capsule(g,1.5,0.5,1.5,25,0.7,0.7,ramp('#3a2a1a','#6b5236','#8f7550'),false));
+/* other librarians wear your rig in other coats (green, plum), and the burned in black */
+function recolorRig(rig,f){const M=new Map(),rc=c=>{if(!c)return c;let v=M.get(c);if(!v){v=f(c);M.set(c,v)}return v},
+    one=p=>({...p,g:{...p.g,col:p.g.col.map(rc)},bk:p.bk&&{...p.bk,col:p.bk.col.map(rc)},cache:new Map(),m:undefined});
+  const o={};for(const k in rig)o[k]=Array.isArray(rig[k])?rig[k].map(one):one(rig[k]);return o}
+const hue=(r,g,b)=>c=>{const l=(c[0]*0.3+c[1]*0.5+c[2]*0.2)/255;return c===INK?c:[Math.min(255,l*r)|0,Math.min(255,l*g)|0,Math.min(255,l*b)|0]};
+const COATS=new Set(RCOAT);
+const FIGRIG=[MERIG,recolorRig(MERIG,c=>COATS.has(c)?hue(150,230,190)(c):c),recolorRig(MERIG,c=>COATS.has(c)?hue(230,150,240)(c):c),
+  recolorRig(MERIG,c=>c===INK?c:[c[0]*0.22|0,c[1]*0.19|0,c[2]*0.17|0])];
+/* a librarian figure (your own rig, in other coats): running, flailing, falling, hanging or lying dead */
+function figLayers(e,out){
+  const R=FIGRIG[e.burnt?3:e.coat||0],T=G.time,put=rigOut(e,out),seed=e.seed||0,pose=e.pose,walk=e.walk||0;
+  const S=e.spr||[0,0,0,0,0,0,0,0,0,0];
+  if(pose==='dead'){   // lying along the floor, face down, one arm thrown out
+    const hx=-4,hz=3.2;put(R.chest,92,hx,hz,0,false);
+    legOut(put,R,hx-0.5,hz+0.4,[hx-21,-1.2,70],-0.03,11.5,11,2.5);legOut(put,R,hx+0.5,hz,[hx-20,-0.8,80],0.012,11.5,11,2.5);
+    put(R.head,120,hx+16.2,hz-0.6,0.028,false);
+    armOut(put,R,hx+12.5,hz+1,hx+21+(seed%1)*3,hz-2.6,-0.05,8.5,10.5);armOut(put,R,hx+12.5,hz,hx+8,hz-2.8,0.05,8.5,10.5);return}
+  if(pose==='hang'){   // from a rope tied to the rail, swaying a little
+    const sw=(3.5*Math.sin(T*0.7+seed*7)+1.5*Math.sin(T*1.9+seed))/DEG,top=e.ropeZ,cs=Math.cos(sw),sn=Math.sin(sw);
+    put(ROPE,sw*DEG,0,top,-0.01,false);
+    const nkx=-sn*24,nkz=top-cs*24,hx=nkx-sn*16.4,hz=nkz-cs*16.4,a=sw*DEG;
+    put(R.chest,-a,hx,hz,0,false);put(R.head,-a+38,nkx+0.5,nkz-1.2,0.028,false);
+    legOut(put,R,hx-1,hz,[hx-sn*22.5-1,hz-cs*22.5-4.5,55],-0.03,11.5,11,4.5);legOut(put,R,hx+1,hz,[hx-sn*22.5+1.5,hz-cs*22.5-4.6,65],0.012,11.5,11,4.5);
+    const sx=nkx-sn*2.8,sz=nkz-cs*2.8;armOut(put,R,sx-0.5,sz,sx-sn*18.5-1,sz-cs*18.5,-0.05,8.5,10.5);armOut(put,R,sx+0.5,sz,sx-sn*18.5+2,sz-cs*18.5,0.05,8.5,10.5);return}
+  // upright: running (with a gait), or flailing (burning, climbing the rail, falling)
+  const A=Math.max(-9,Math.min(9,(e.vin||0)/PS/(4*Math.max(1.1,Math.hypot(e.vx||0,e.vy||0)/(1.45*0.5))))),lift=4.5*walk,fl=pose==='flail'||pose==='fall';
+  const fa=footAt(e.gp||0,A,lift),fb=footAt(((e.gp||0)+0.5)%1,A,lift);
+  if(pose==='fall'){const k=Math.sin(T*9+seed);fa[0]=6*k;fa[1]=4+3*k;fb[0]=-6*k;fb[1]=4-3*k}
+  const bob=walk*1.4*Math.cos(4*Math.PI*((e.gp||0)-0.25)),hz=26+bob+(pose==='fall'?2:0),hx=0,lean=(pose==='fall'?e.spin||0:8*walk*Math.sign(A))+(e.lunge||0)*-20;
+  const ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs],[shx,shz]=at(0.3,13.6),[nkx,nkz]=at(1,16.4),sw=walk*Math.sin(2*Math.PI*(e.gp||0));
+  const flap=k=>fl?[shx+Math.sin(T*13+k*2+seed)*7,shz+6+Math.cos(T*11+k)*7]:[shx+(k?-1:1)*sw*7+2,shz-11+Math.abs(sw)*3];
+  armOut(put,R,shx-0.5,shz,...flap(0),-0.05,8.5,10.5);
+  legOut(put,R,hx-1,hz,fb,-0.03,11.5,11,4.5);put(R.skirt,(S[8]||0),hx-1,hz+1,-0.012,false);
+  put(R.chest,lean,hx,hz,0,false);
+  legOut(put,R,hx+1.2,hz,fa,0.012,11.5,11,4.5);put(R.skirt,(S[6]||0),hx+1.2,hz+1,0.02,false);
+  put(R.head,lean*0.5+(fl?-15:0),nkx,nkz-1,0.028,false);
+  armOut(put,R,shx+0.8,shz,...flap(1),0.05,8.5,10.5);
+  if(e.burning){for(let k=0;k<3;k++){const[fx,fz]=at(-2+k*2.5,6+k*5+Math.sin(T*7+k)*1.5);put(PURIG.flame[Math.floor(T*10+k+seed*3)%4],Math.sin(T*5+k)*8,fx,fz+6,0.035+k*0.002,true)}}
+}
+
+/* ---- the far-off events. One at a time, every half a minute or so, somewhere you are looking: a stretch of catwalk on
+   this floor (far away) or one to two floors up or down, picked only if the depth buffer says you can see it ---- */
+const BG={acts:[],t:6,cam:{x:0,y:0,eye:0.5,ang:0,hz:100}};
+function seeAt(x,y,z){const C=BG.cam,dx=x-C.x,dy=y-C.y,cs=Math.cos(C.ang),sn=Math.sin(C.ang),f=dx*cs+dy*sn,l=-dx*sn+dy*cs;if(f<1)return false;
+  const sx=Math.round((l/(f*PLANE)+1)*W/2),sy=Math.round(C.hz+(C.eye-z)*PROJ/f);if(sx<6||sx>W-7||sy<6||sy>H-7)return false;return DEP.length===W*H&&DEP[sy*W+sx]>=f-0.4}
+function bgSpot(){
+  for(let tries=0;tries<20;tries++){
+    const k=[-2,-1,-1,1,1,2,0,0][Math.floor(Math.random()*8)],ns=Math.random()<0.5,a=G.ang+(Math.random()-0.5)*1.1,d=(k?6:11)+Math.random()*16;
+    let x=G.x+Math.cos(a)*d,y=G.y+Math.sin(a)*d;if(ns)x=(Math.round(x/P-0.5)+0.5)*P;else y=(Math.round(y/P-0.5)+0.5)*P;
+    const al=ns?y:x,c0=(Math.floor(al/P-0.5)+0.5)*P;if(al-c0<3||c0+P-al<3)continue;          // keep off the crossings
+    const z=k*FH;if(!seeAt(x,y,z+0.7)||!seeAt(x,y,z+0.2))continue;
+    return{x,y,k,ns,lo:c0+2.6,hi:c0+P-2.6}}
+  return null}
+function bgFig(sp,pose,extra){const e={type:'fig',x:sp.x,y:sp.y,zw:sp.k*FH,lvl:sp.k,pose,seed:Math.random()*6.28,f:sp.ns?0:Math.PI/2,...extra};gaitUpd(e,0,0.5);return e}
+function bgStart(force){
+  const sp=bgSpot();if(!sp)return false;const r=Math.random(),dir=Math.random()<0.5?1:-1,far=Math.abs(sp.k)>0||Math.hypot(sp.x-G.x,sp.y-G.y)>14;
+  // runners start at one end of the stretch, heading for the other
+  const al=sp.ns?'y':'x',start=dir>0?sp.lo:sp.hi;
+  const kind=force||(r<0.34?'run':r<0.58?'jump':r<0.8?'push':'fire');
+  const e=bgFig(sp,kind==='fire'?'flail':'run',{kind,dir,al,lo:sp.lo,hi:sp.hi,coat:1+Math.floor(Math.random()*2),end:dir>0?sp.hi:sp.lo,mid:(sp.lo+sp.hi)/2+(Math.random()-0.5)*3,side:Math.random()<0.5?1:-1,burning:kind==='fire',t:0,yell:Math.random()<0.6});
+  e[al]=start;e.ox=e.x;e.oy=e.y;BG.acts.push(e);
+  if(kind==='push'){const p={type:'pur',x:e.x,y:e.y,zw:e.zw,lvl:sp.k,f:e.f,seed:Math.random()*6.28,hit:0,dead:0,raise:0,chasing:false,bgp:true};p[al]=e[al]-dir*1.6;gaitUpd(p,0,0.58);e.pusher=p}
+  return true}
+function bgYell(e,what){if(!e.yell)return;e.yell=false;snd('scream');sfx(what,'mind')}
+function bgUpd(dt){
+  BG.t-=dt;if(BG.t<=0&&BG.acts.length<2&&G.state==='play'){BG.t=bgStart()?22+Math.random()*26:3}
+  for(const e of BG.acts){e.t+=dt;const al=e.al,ax=al==='x'?1:0;let spd=0;
+    if(e.kind==='run'){spd=2.6;if(e.t>1.2)bgYell(e,'someone screams, far off');if((e[al]-e.end)*e.dir>=0)e.gone=true}
+    else if(e.kind==='fire'){spd=2.1;bgYell(e,'a burning librarian, far off');if((e[al]-e.end)*e.dir>=0||e.t>7){bgCorpse(e);e.gone=true}}
+    else if(e.kind==='jump'||e.kind==='push'){
+      if(!e.at){spd=e.kind==='push'?1.1:2.4;if((e[al]-e.mid)*e.dir>=0){e.at=e.t}}
+      else if(e.kind==='push'&&!e.falling){e.pose='run';const p=e.pusher;p.lunge=Math.min(1,(e.t-e.at)/0.6);if(e.t-e.at>0.6)e.falling=true,e.vz=1.5,e.vs=2.2,bgYell(e,'someone was pushed, far off')}
+      else if(!e.falling){e.pose='flail';const c=Math.min(1,(e.t-e.at)/1.2);e.zw=e.lvl*FH+c*0.35;if(c>=1){e.falling=true;e.vz=1.2;e.vs=1.6;bgYell(e,'someone jumped, far off')}}
+      if(e.hide){const p=e.pusher;p[al]-=e.dir*1.3*dt;gaitUpd(p,dt,0.58);if(p[al]<e.lo-0.5||p[al]>e.hi+0.5)e.gone=true;continue}
+      if(e.falling){e.pose='fall';e.vs=Math.max(0,e.vs-dt*0.8);const o=(al==='x'?'y':'x');e[o]+=e.side*e.vs*dt;e.vz-=9.8*dt*0.55;e.zw+=e.vz*dt;e.spin=(e.spin||0)+e.side*dt*80;if(e.zw<e.lvl*FH-4*FH){if(e.pusher)e.hide=true;else e.gone=true}}}
+    if(spd&&!e.done){e[al]+=e.dir*spd*dt}
+    if(!e.done)gaitUpd(e,dt,0.5);
+    const p=e.pusher;if(p){if(!e.at||e.kind!=='push'){p[al]=e[al]-e.dir*1.6}p.lunge=Math.max(0,(p.lunge||0)-(e.falling?dt*1.5:0));gaitUpd(p,dt,0.58);if(e.gone&&!p.leaving){p.leaving=true}}
+  }
+  BG.acts=BG.acts.filter(e=>!e.gone)}
+function bgCorpse(e){const i=Math.round(e.x/P-0.5),j=Math.round(e.y/P-0.5),key=i+','+j+','+(G.floor+e.lvl);(G.wcorpse[key]=G.wcorpse[key]||[]).push({x:e.x,y:e.y,f:e.f,burnt:true})}
+
+/* ---- the dead: everything in a gallery you killed is kept there for the day (G.corpses); others appear as the hours
+   pass, on seeds of the day and the place; on the catwalks they lie or hang, on this floor and the two above and below ---- */
+function roomBodies(){const key=G.gal+'|'+G.floor,h=hashStr('dead|'+key+'|'+G.day),r=prng(h),hr=hourOf(),out=[];
+  for(const c of G.corpses[key]||[])out.push(c);
+  const n=h%5===0?2:h%3===0?1:0;
+  for(let k=0;k<n;k++){const at=6+r()*17,ra=RS+0.7+r()*(A-RS-1.4),a=r()*6.28,kind=r()<0.15?'seek':'fig';if(hr<at)continue;
+    out.push({kind,x:G.room.cx+Math.cos(a)*ra,y:G.room.cy+Math.sin(a)*ra,f:r()*6.28,coat:Math.floor(r()*3)})}
+  return out}
+const WD={key:null,list:[]};
+function worldDead(){const i0=Math.round(G.x/P-0.5),j0=Math.round(G.y/P-0.5),hr=Math.floor(hourOf()),key=i0+','+j0+','+G.floor+','+G.day+','+hr+','+Object.keys(G.wcorpse).length;
+  if(WD.key===key)return WD.list;WD.key=key;const L=[];
+  for(let i=i0-2;i<=i0+2;i++)for(let j=j0-2;j<=j0+2;j++)for(let k=-2;k<=2;k++){
+    const fl=G.floor+k,h=hashStr('wd|'+i+'|'+j+'|'+fl+'|'+G.day),r=prng(h);
+    for(const c of G.wcorpse[i+','+j+','+fl]||[])L.push({type:'fig',pose:'dead',x:c.x,y:c.y,f:c.f,zw:k*FH,lvl:k,seed:h%97,coat:0,burnt:c.burnt});
+    if(h%9!==0)continue;const at=6+r()*17;if(hr<at)continue;
+    const ns=r()<0.5,al=(Math.floor(r()*2)?0.28:0.72)*P,hang=r()<0.45,side=r()<0.5?1:-1;
+    let x=ns?(i+0.5)*P:(i+0.5)*P+al-P/2,y=ns?(j+0.5)*P+al-P/2:(j+0.5)*P;
+    if(hang){if(ns)x+=side*(HW+0.3);else y+=side*(HW+0.3)}
+    L.push({type:'fig',pose:hang?'hang':'dead',x,y,f:ns?0:Math.PI/2,zw:k*FH+(hang?0:0),lvl:k,ropeZ:hang?RAILH/PS:0,seed:(h>>>4)%1000/100,coat:Math.floor(r()*3)})}
+  return WD.list=L}
+/* all of it, as paper layers, culled to what could be on screen */
+function lifeLayers(out){
+  const C=BG.cam,cs=Math.cos(C.ang),sn=Math.sin(C.ang);
+  const vis=e=>{const dx=e.x-C.x,dy=e.y-C.y,f=dx*cs+dy*sn;return f>-0.5&&f<34&&Math.abs(-dx*sn+dy*cs)<f*PLANE+2};
+  for(const e of BG.acts){if(e.pusher&&vis(e.pusher))purLayers(e.pusher,out);if(e.hide||!vis(e))continue;figLayers(e,out);if(e.burning&&e.lvl===0)FIREL.push(e.x,e.y)}
+  // the dead are still: draw one only if last frame's depth says some of it can be seen
+  for(const e of worldDead())if(vis(e)){const z=e.zw+(e.pose==='hang'?-0.5:0.12);if(seeAt(e.x,e.y,z)||seeAt(e.x,e.y,z+0.25)||seeAt(e.x+0.4,e.y+0.4,z)||seeAt(e.x-0.4,e.y-0.4,z))figLayers(e,out)}}
 const seekBody=["....k.kkk.k.....","...khkhhhkhk....","...khhhhhhhk....","...kssssssk.....","...kwpsswpk.....","...ksssSssk.....","...ksmmmsk......","....kssssk......","...kRRRRRRk.....","..kRRnRRRRRk....",".ksRRnnRRRRsk...",".ksRRRRRnRRsk...",".ksRRRRRnRRsk...","..kRRRRRRRRk....","..kRnRRRRRRk....","..kRRRRRRRRk....","..kRRRRkRRRk...."];
 const seekLegs=[["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],["..kRRk..kRRk....",".kssk...kssk....",".kssk....kssk...","kkkk.....kkkk..."],["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],[".kRRk..kRRk.....",".kssk..kssk.....","kssk...kssk.....","kkkk..kkkk......"]];
 const SEEK=seekLegs.map((l,i)=>buildCard(setPx(seekBody.concat(l),i%2?[[4,4,'p'],[5,4,'w'],[8,4,'p'],[9,4,'w']]:[])));
@@ -701,15 +815,16 @@ function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 
 function isNight(){const h=hourOf();return h<5||h>=21}
 /* fades: into the blackout, then out of it, with the day's number over the dark */
 const smooth=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
-function newDay(){G.day++;if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
+function newDay(){G.day++;G.corpses={};G.wcorpse={};BG.acts=[];BG.t=8;if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
   G.clock=DAYLEN*6/24;if(G.room)spawnRoom(false)}
 function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
 function reset(){
+  BG.acts=[];BG.t=8;
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
-    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
+    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,corpses:{},wcorpse:{},type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
@@ -725,6 +840,7 @@ function spawnRoom(first){
   if(first||h%4===1){const[x,y]=first?at(1.4,2.7):spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
   if(first||(h>>>4)%3===1){const[x,y]=first?at(0.8,-2.9):spot();dropType(x,y,1+(h>>>11)%2)}
   if(first||(h>>>6)%5===0){const[x,y]=first?at(-2.7,1.3):spot();G.ents.push({type:'incense',x,y,f:rnd()*6.28,frame:0,hgt:0.5,cards:[INCC],dead:0})}
+  if(!first)for(const c of roomBodies()){if(c.kind==='pur')G.ents.push({type:'pur',x:c.x,y:c.y,f:c.f,hit:0,dead:9,hp:0,burnCd:9,seed:c.x%6});else if(c.kind==='seek')G.ents.push({type:'seek',x:c.x,y:c.y,f:c.f,hit:0,dead:9,hp:0,scared:0,flee:0,stealCd:0,seed:c.y%6});else G.ents.push({type:'fig',pose:'dead',x:c.x,y:c.y,f:c.f,coat:c.coat||0,seed:c.x%6,dead:0})}
   if(first||(h>>>3)%3===0){const a=first?Math.PI*0.75:rnd()*Math.PI*2;G.ents.push({type:'index',x:C.cx+Math.cos(a)*(RS+0.32),y:C.cy+Math.sin(a)*(RS+0.32),f:a,frame:0,hgt:0.9,cards:[INDEXC],dead:0})}
 }
 
@@ -814,7 +930,7 @@ function update(dt){
   if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
-  ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);
+  ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);bgUpd(dt);
   if(G.q===2&&G.inRoom&&isNight()){const P=bioPlan(G.phrase);if(G.gal===P.g&&G.floor===P.f){qDone(3);openNote('YOUR HEXAGON','The lamps sink low, and in the dark one wall goes on humming, very quietly, like someone reading under their breath.','It is WALL '+P.wall+'.')}}
   for(const e of G.ents){
     if(e.type==='pur'){updPur(e,dt);gaitUpd(e,dt,0.58)}else if(e.type==='seek'){updSeek(e,dt);gaitUpd(e,dt,0.43)}
@@ -835,7 +951,7 @@ function update(dt){
   if(fwd){const ph=Math.floor(G.walkT/Math.PI);if(ph!==G.stepPh){G.stepPh=ph;snd('step')}}
   if(G.sanity<25){G.heartT-=dt;if(G.heartT<=0){G.heartT=G.sanity<=0?0.6:0.95;snd('heart')}}
   droneTick();
-  G.ents=G.ents.filter(e=>(e.type==='pur'||e.type==='seek')?e.dead<1.6:e.dead<1);
+  G.ents=G.ents.filter(e=>(e.type==='pur'||e.type==='seek'||e.type==='fig')||e.dead<1);
   if(G.health<=0){if(G.tr.mirror&&G.mirrorDay!==G.day&&G.lostTo==null){G.mirrorDay=G.day;G.health=30;G.flash=1;snd('bad');sfx('THE MIRROR CRACKS','mind')}else{G.health=0;die()}}
 }
 function updPur(e,dt){
@@ -892,9 +1008,9 @@ function doSwing(){
   e.hit=1;e.hp-=dmg;
   if(e.type==='pur'){sfx(e.hp>0?(G.dark?'DARK KRAK!':'KRAK!'):'RRRIP!',G.dark?'mind':'');if(e.hp<=0)killPur(e)}
   else{G.alerted=true;G.sanity=Math.max(0,G.sanity-8);sfx('KRAK!');sfx('-8 SANITY','mind');
-    if(e.hp<=0){e.dead=0.001;dropType(e.x,e.y,2);G.oil+=2;setTimeout(()=>sfx('+2 OIL'),250);sin('kill')}else e.scared=5}
+    if(e.hp<=0){e.dead=0.001;keepDead('seek',e);dropType(e.x,e.y,2);G.oil+=2;setTimeout(()=>sfx('+2 OIL'),250);sin('kill')}else e.scared=5}
 }
-function killPur(e){e.dead=0.001;dropType(e.x+Math.cos(e.f)*0.3,e.y+Math.sin(e.f)*0.3,3+Math.floor(Math.random()*3));if(Math.random()<0.6)G.ents.push({type:'incense',x:e.x,y:e.y,f:e.f,frame:0,hgt:0.5,cards:[INCC],dead:0})}
+function killPur(e){e.dead=0.001;keepDead('pur',e);dropType(e.x+Math.cos(e.f)*0.3,e.y+Math.sin(e.f)*0.3,3+Math.floor(Math.random()*3));if(Math.random()<0.6)G.ents.push({type:'incense',x:e.x,y:e.y,f:e.f,frame:0,hgt:0.5,cards:[INCC],dead:0})}
 function nearFire(x,y){for(const F of G.fires)if(F.fl===G.floor&&F.t>0&&Math.hypot(F.x-x,F.y-y)<0.75)return true;return false}
 function throwOil(){
   if(G.oil<2){sfx('NOT ENOUGH OIL');return}
@@ -959,6 +1075,7 @@ const TRINKETS={
   ribbon:{name:'SILK BOOKMARK',cost:16,desc:'Each dawn all of your own words come back, however faded they were.'}
 };
 const TYPEC=buildCard(["kkkkkk","kGgGGk","kGkkGk","kGkkGk","kGGgGk","kkkkkk"]);
+function keepDead(kind,e){const k=G.gal+'|'+G.floor;(G.corpses[k]=G.corpses[k]||[]).push({kind,x:e.x,y:e.y,f:e.f})}
 function dropType(x,y,n){G.ents.push({type:'type',x,y,f:0,bill:true,frame:0,hgt:0.16,cards:[TYPEC],dead:0,n})}
 function hatchStock(){const r=prng(hashStr('stock|'+G.day)),ks=Object.keys(TRINKETS).filter(k=>!G.tr[k]);
   for(let i=ks.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[ks[i],ks[j]]=[ks[j],ks[i]]}return ks.slice(0,3)}
@@ -1056,9 +1173,9 @@ function ceilPx(i,px,py,L){const ti=((((py%1)+1)%1*16|0)*16+(((px%1)+1)%1*16|0))
 /* a ray that went into an air shaft: it falls (or rises) past the other floors until it leaves the shaft, then lands on
    whatever is there - the shaft's stone lip, a railing, or the floor, ceiling or shelves of another storey */
 function shaftPx(i,t,s,up,r){
-  const tw=r==null?TV.t1[TV.n-1]:TV.t1[r],fin=r==null||r===TV.n-1;
+  const tw=r==null?TV.t1[TV.n-1]:TV.t1[r],fin=r==null||r===TV.n-1;PDv=1e9;
   let te=-1,ri=0;for(let r=0;r<RH.n;r++)if(RH.far[r]&&RH.t[r]>t){te=RH.t[r];ri=r;break}
-  if(te<0){buf[i]=buf[i+1]=buf[i+2]=0;return}
+  if(te<0){buf[i]=buf[i+1]=buf[i+2]=0;return}PDv=te;
   if(RH.well[ri]){const z2=up?EYE+s*te:EYE-s*te,lv=Math.abs(z2)/FH;if(lv>MAXLV){buf[i]=buf[i+1]=buf[i+2]=0;return}
     const ph=RH.a[ri]/(2*Math.PI)+z2/FH,st=((ph*14)%1+1)%1,tread=st<0.22,edge=st>=0.22&&st<0.3,fog=Math.exp(-0.223*lv),dz=z2-EYE,dd=Math.sqrt(te*te+dz*dz),L=(AMB+0.25+lanL(dd))*fog*(tread?2.2:edge?0.6:1.3);
     if(tread)put(i,120,92,62,L);else if(edge)put(i,30,22,16,L);else put(i,66,54,44,L);return}
@@ -1068,29 +1185,30 @@ function shaftPx(i,t,s,up,r){
   if(zl>WALLH||zl<RAILH){pointAt(te);const dx=PX_-LX,dy=PY_-LY,dz=z2-EYE,L=(AMB+lampC(cellAt(te),PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog*1.6;
     if(zl>WALLH)put(i,70,60,52,L);else put(i,90,58,34,L);return}
   const tn=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;
-  if(tn<tw){pointAt(tn);const cn=r==null?cellAt(tn):TV.c[r];if(cn.kind==='g'&&inHoleC(cn,PX_,PY_)){buf[i]=buf[i+1]=buf[i+2]=0;return}
+  if(tn<tw){PDv=tn;pointAt(tn);const cn=r==null?cellAt(tn):TV.c[r];if(cn.kind==='g'&&inHoleC(cn,PX_,PY_)){buf[i]=buf[i+1]=buf[i+2]=0;return}
     const dx=PX_-LX,dy=PY_-LY,dz=(up?m*FH+WALLH:m*FH)-EYE,L=(AMB+lampC(cn,PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog;
     if(up)ceilPx(i,PX_,PY_,L);else floorPx(i,PX_,PY_,L);return}
-  const zw=up?EYE+s*tw:EYE-s*tw,dz=zw-EYE;if(fin)wallPx(i,HIT,zw-m*FH,m,(AMB+CW_LAMP+lanL(Math.sqrt(CW_D2+dz*dz)))*fog);else put(i,74,48,28,(AMB+0.2)*fog*2);
+  PDv=tw;const zw=up?EYE+s*tw:EYE-s*tw,dz=zw-EYE;if(fin)wallPx(i,HIT,zw-m*FH,m,(AMB+CW_LAMP+lanL(Math.sqrt(CW_D2+dz*dz)))*fog);else put(i,74,48,28,(AMB+0.2)*fog*2);
 }
 /* a ray out in the open air: it falls (or rises) past the other floors and lands on a catwalk, a gallery's floor or
    ceiling through its doorway, or the side of a gallery or a pillar, which run through every floor */
 function surfPx(i,z,t){const m=Math.floor(z/FH),zl=z-m*FH,am=m<0?-m:m;if(am>AIRLV){buf[i]=buf[i+1]=buf[i+2]=0;return}
   const dz=z-EYE,L=(AMB+CW_LAMP+lanL(Math.sqrt(CW_D2+dz*dz)))*FOG[am];if(zl>WALLH)put(i,46,32,20,L*2);else wallPx(i,HIT,zl,m,L)}
+let PDv=0,DEP=new Float32Array(1);
 function airPx(i,s,up,r){
-  let iv=0;
+  let iv=0;PDv=1e9;
   for(let k=1;k<=AIRLV;k++){
     const tk=up?(k*FH-CATT-EYE)/s:(EYE+k*FH)/s;
     while(r<TV.n&&TV.t1[r]<=tk){
-      const tb=TV.t1[r],zb=up?EYE+s*tb:EYE-s*tb;
+      const tb=TV.t1[r],zb=up?EYE+s*tb:EYE-s*tb;PDv=tb;
       if(r===TV.n-1){if(HIT.cell)surfPx(i,zb,tb);else buf[i]=buf[i+1]=buf[i+2]=0;return}
       if(TV.door[r]&&TV.c[r].kind==='a'){const m=Math.floor(zb/FH),zl=zb-m*FH,am=Math.min(AIRLV,m<0?-m:m);
         if(zl>WALLH){pointAt(tb);put(i,46,32,20,(AMB+lampC(TV.c[r],PX_,PY_))*FOG[am]*2);return}
-        const tf=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;pointAt(tf);const c=TV.c[r+1],L=(AMB+lampC(c,PX_,PY_))*FOG[am];if(up)ceilPx(i,PX_,PY_,L*0.8);else floorPx(i,PX_,PY_,L);return}
+        const tf=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;PDv=tf;pointAt(tf);const c=TV.c[r+1],L=(AMB+lampC(c,PX_,PY_))*FOG[am];if(up)ceilPx(i,PX_,PY_,L*0.8);else floorPx(i,PX_,PY_,L);return}
       r++}
     if(r>=TV.n){buf[i]=buf[i+1]=buf[i+2]=0;return}
     while(iv<IVN&&IVB[iv]<tk)iv++;
-    if(iv<IVN&&IVA[iv]<=tk&&TV.c[r].kind==='a'){pointAt(tk);const dx=PX_-LX,dy=PY_-LY,dz=(up?k:-k)*FH-EYE,L=(AMB+lampC(TV.c[r],PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
+    if(iv<IVN&&IVA[iv]<=tk&&TV.c[r].kind==='a'){PDv=tk;pointAt(tk);const dx=PX_-LX,dy=PY_-LY,dz=(up?k:-k)*FH-EYE,L=(AMB+lampC(TV.c[r],PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
       if(up)ceilPx(i,PX_,PY_,L*0.7);else catPx(i,PX_,PY_,L);return}
   }
   buf[i]=buf[i+1]=buf[i+2]=0;
@@ -1113,13 +1231,15 @@ function render(){
   try{renderScene(MEP)}finally{G.x=sx;G.y=sy;G.inRoom=sin_;EYE=se}
 }
 function renderScene(MEP){
+  if(DEP.length!==W*H)DEP=new Float32Array(W*H);
   FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=3.2+Math.min(G.oil,10)*0.55;
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);
-  const POSE=[];for(const e of G.ents)if(e.type==='pur'&&e.dead<1.6){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek'&&e.dead<1.6)seekLayers(e,POSE);
+  const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
+  lifeLayers(POSE);
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.92-low*0.25;TB=0.78+low*0.3;
   {const d=dayLight(hourOf());LDAY=0.4+0.6*d;AMB=0.04+0.045*d;TR*=0.86+0.14*d;TG*=0.9+0.1*d;TB*=1.06-0.06*d}
-  HZ=H/2+G.pitch*H-(THIRD?0.15*H:0);const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
+  HZ=H/2+G.pitch*H-(THIRD?0.15*H:0);BG.cam.x=G.x;BG.cam.y=G.y;BG.cam.eye=EYE;BG.cam.ang=G.ang;BG.cam.hz=HZ;const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
   for(let x=0;x<W;x++){
     const cam=2*x/W-1;let rdx=dirX+plX*cam,rdy=dirY+plY*cam;
     if(low>0){const wv=low*0.06*Math.sin(G.time*3+x*0.07);const c=Math.cos(wv),s=Math.sin(wv);const ax=rdx*c-rdy*s;rdy=rdx*s+rdy*c;rdx=ax}
@@ -1130,25 +1250,27 @@ function renderScene(MEP){
     const tw=h.t;zbuf[x]=tw;LVSTAMP++;walkways();
     const yb=H2+EYE*PROJ/tw,yt=H2-(WALLH-EYE)*PROJ/tw,y0=Math.max(0,Math.ceil(yt)),y1=Math.min(H,Math.ceil(yb));
     CW_LAMP=lampC(h.cell,h.x,h.y);CW_D2=(h.x-LX)*(h.x-LX)+(h.y-LY)*(h.y-LY);const Lw=AMB+CW_LAMP+lanL(Math.sqrt(CW_D2));
-    for(let y=y0;y<y1;y++)wallPx((y*W+x)*4,h,(yb-y)/(yb-yt)*WALLH,0,Lw);
+    for(let y=y0;y<y1;y++){wallPx((y*W+x)*4,h,(yb-y)/(yb-yt)*WALLH,0,Lw);DEP[y*W+x]=tw}
     // floor rows from the bottom up and ceiling rows from the top down: distance only grows, so walk the rooms and legs in order
     for(let pass=0;pass<2;pass++){let ci=0,li=0;const up=pass===1,ya=up?y0-1:H-1,yz=up?0:y1;
       for(let y=ya;up?y>=yz:y>=yz;y--){
-        const yy=up?ya-y+yz:y,i=(yy*W+x)*4,s=up?(H2-yy)/PROJ:(yy-H2)/PROJ;if(s<=0){buf[i]=buf[i+1]=buf[i+2]=0;continue}
+        const yy=up?ya-y+yz:y,i=(yy*W+x)*4,s=up?(H2-yy)/PROJ:(yy-H2)/PROJ;if(s<=0){buf[i]=buf[i+1]=buf[i+2]=0;DEP[yy*W+x]=1e9;continue}
         const t=(up?WALLH-EYE:EYE)/s;while(ci<TV.n-1&&t>TV.t1[ci])ci++;while(li+1<LEG.n&&t>=LEG.t0[li+1])li++;
         const q=t-LEG.t0[li],px=LEG.ox[li]+LEG.dx[li]*q,py=LEG.oy[li]+LEG.dy[li]*q,c=TV.c[ci];
+        PDv=t;
         if(c.kind==='g'){if(inHoleC(c,px,py)){PX_=px;PY_=py;shaftPx(i,t,s,up,ci)}
           else{const dx=px-LX,dy=py-LY,L=AMB+lanL(Math.sqrt(dx*dx+dy*dy))+lampC(c,px,py);if(up)ceilPx(i,px,py,L*0.8);else floorPx(i,px,py,L)}}
         else if(!up&&onWalk(t)){const dx=px-LX,dy=py-LY;catPx(i,px,py,AMB+lanL(Math.sqrt(dx*dx+dy*dy))+lampC(c,px,py))}
         else if(inWell(px,py)){PX_=px;PY_=py;shaftPx(i,t,s,up,null)}
-        else airPx(i,s,up,ci)}}
+        else airPx(i,s,up,ci);
+        DEP[yy*W+x]=PDv}}
     // railings and the mirror's frame, far to near
     let ri=RH.n-1,mi=MH.n-1;
     while(ri>=0||mi>=0){
       if(mi<0||(ri>=0&&RH.t[ri]>MH.t[mi])){railCol(x,RH.t[ri],RH.a[ri]);ri--}else{frameCol(x,MH.t[mi],mi===0);mi--}
     }
   }
-  const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
+  const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek'&&e.type!=='fig').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
   {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),key=i0+','+j0;
    if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];const lamp=(x,y,z)=>LAMPS.list.push({type:'lamp',x,y,z0:z,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
      for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){for(const q of getRoom(i,j).lamps)lamp(q[0],q[1],LAMPZ);lamp((i+0.5)*P,(j+0.5)*P,isComm(i,j)?JLZ:JLZ+0.2)}}
@@ -1185,7 +1307,7 @@ function drawCard(e){
   const hgt=e.hgt*crumple,wid=e.hgt*card.w/card.h*(dies?1+e.dead*0.3:1);
   const bob=e.type==='pp'?0:(e.type==='flask'||e.type==='type')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
   const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.glow||e.type==='lamp'||e.type==='ph'||e.type==='fire';
-  const L=glow?1:Math.min(1.45,lightP(e.self?G.cell:G.room,e.x,e.y,Math.max(e.self?1.6:e.pe===ME?1.1:0,Math.hypot(e.x-LX,e.y-LY)))*2.1);
+  const L=glow?1:e.pe&&e.pe.lvl!==undefined?Math.max(0.55*e.pe.fog,e.pe.fog*Math.min(1.45,lightP(e.pe.lc,e.x,e.y,Math.hypot(e.x-LX,e.y-LY))*2.1)):Math.min(1.45,lightP(e.self?G.cell:G.room,e.x,e.y,Math.max(e.self?1.6:e.pe===ME?1.1:0,Math.hypot(e.x-LX,e.y-LY)))*2.1);
   let xa=0,xb=W-1;
   {const cs=Math.cos(G.ang),sn=Math.sin(G.ang),dx=e.x-G.x,dy=e.y-G.y,f=dx*cs+dy*sn,l=-dx*sn+dy*cs,r=wid/2+0.05;
    if(f+r<0.08)xb=-1;else{const fl=Math.max(0.08,f-r),c0=(l-r)/fl,c1=(l+r)/fl;xa=Math.max(0,Math.floor((c0/PLANE+1)*W/2)-3);xb=Math.min(W-1,Math.ceil((c1/PLANE+1)*W/2)+3)}}
@@ -1204,7 +1326,7 @@ function drawCard(e){
       if(j===0&&(e.sh||!z0)&&!glow){const sh=Math.max(1,0.07*PROJ/t);for(let y=Math.max(0,Math.ceil(yBot));y<Math.min(H,Math.ceil(yBot+sh));y++){const i=(y*W+x)*4;buf[i]*=0.45;buf[i+1]*=0.45;buf[i+2]*=0.45}}
       for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){
         let hid=false;for(let r=0;r<NR[x];r++)if(t>RT[x*4+r]&&y>=RY0[x*4+r]&&y<RY1[x*4+r]){hid=true;break}
-        if(hid||(t>MT[x]&&(y<MYT[x]||y>MYB[x])))continue;
+        if(hid||(t>MT[x]&&(y<MYT[x]||y>MYB[x]))||t>DEP[y*W+x]+0.06)continue;
         const row=Math.min(card.h-1,((y-yTop)/span*card.h)|0),ti=(row*card.w+col)*4;
         if(data[ti+3]===0)continue;
         const i=(y*W+x)*4;
