@@ -778,7 +778,7 @@ function bgUpd(dt){
     const p=e.pusher;if(p){if(!e.at||e.kind!=='push'){p[al]=e[al]-e.dir*1.6}p.lunge=Math.max(0,(p.lunge||0)-(e.falling?dt*1.5:0));gaitUpd(p,dt,0.58);if(e.gone&&!p.leaving){p.leaving=true}}
   }
   BG.acts=BG.acts.filter(e=>!e.gone)}
-function bgCorpse(e){const i=Math.round(e.x/P-0.5),j=Math.round(e.y/P-0.5),key=i+','+j+','+(G.floor+e.lvl);(G.wcorpse[key]=G.wcorpse[key]||[]).push({x:e.x,y:e.y,f:e.f,burnt:true})}
+function bgCorpse(e){const i=Math.round(e.x/P-0.5),j=Math.round(e.y/P-0.5),fl=G.floor+e.lvl,key=i+','+j+','+fl;(G.wcorpse[key]=G.wcorpse[key]||[]).push({kind:'fig',x:e.x,y:e.y,f:e.f,burnt:true,lootId:'body|'+G.day+'|'+fl+'|'+(++G.corpseSeq)});WD.key=null}
 
 /* ---- the dead: everything in a gallery you killed is kept there for the day (G.corpses); others appear as the hours
    pass, on seeds of the day and the place; on the catwalks they lie or hang, on this floor and the two above and below ---- */
@@ -786,19 +786,23 @@ function roomBodies(){const key=G.gal+'|'+G.floor,h=hashStr('dead|'+key+'|'+G.da
   for(const c of G.corpses[key]||[])out.push(c);
   const n=h%5===0?2:h%3===0?1:0;
   for(let k=0;k<n;k++){const at=6+r()*17,ra=RS+0.7+r()*(A-RS-1.4),a=r()*6.28,kind=r()<0.15?'seek':'fig';if(hr<at)continue;
-    out.push({kind,x:G.room.cx+Math.cos(a)*ra,y:G.room.cy+Math.sin(a)*ra,f:r()*6.28,coat:Math.floor(r()*3)})}
+    out.push({kind,x:G.room.cx+Math.cos(a)*ra,y:G.room.cy+Math.sin(a)*ra,f:r()*6.28,coat:Math.floor(r()*3),lootId:'room|'+G.day+'|'+key+'|'+k})}
   return out}
 const WD={key:null,list:[]};
-function worldDead(){const i0=Math.round(G.x/P-0.5),j0=Math.round(G.y/P-0.5),hr=Math.floor(hourOf()),key=i0+','+j0+','+G.floor+','+G.day+','+hr+','+Object.keys(G.wcorpse).length;
+function worldDead(){const i0=Math.round(G.x/P-0.5),j0=Math.round(G.y/P-0.5),hr=Math.floor(hourOf()),key=i0+','+j0+','+G.floor+','+G.day+','+hr+','+G.corpseSeq;
   if(WD.key===key)return WD.list;WD.key=key;const L=[];
   for(let i=i0-2;i<=i0+2;i++)for(let j=j0-2;j<=j0+2;j++)for(let k=-2;k<=2;k++){
     const fl=G.floor+k,h=hashStr('wd|'+i+'|'+j+'|'+fl+'|'+G.day),r=prng(h);
-    for(const c of G.wcorpse[i+','+j+','+fl]||[])L.push(c.kind==='pur'?{type:'pur',x:c.x,y:c.y,f:c.f,zw:k*FH,lvl:k,hit:0,dead:9,seed:h%97}:{type:'fig',pose:'dead',x:c.x,y:c.y,f:c.f,zw:k*FH,lvl:k,seed:h%97,coat:0,burnt:c.burnt});
+    for(const c of G.wcorpse[i+','+j+','+fl]||[]){
+      const common={x:c.x,y:c.y,f:c.f,zw:k*FH,lvl:k,hit:0,dead:9,seed:h%97,lootId:c.lootId,burnt:c.burnt};
+      if(c.kind==='pur')L.push({type:'pur',hp:0,burnCd:9,...common});
+      else if(c.kind==='seek')L.push({type:'seek',hp:0,scared:0,flee:0,stealCd:0,...common});
+      else L.push({type:'fig',pose:'dead',coat:0,...common})}
     if(h%9!==0)continue;const at=6+r()*17;if(hr<at)continue;
     const ns=r()<0.5,al=(Math.floor(r()*2)?0.28:0.72)*P,hang=r()<0.45,side=r()<0.5?1:-1;
     let x=ns?(i+0.5)*P:(i+0.5)*P+al-P/2,y=ns?(j+0.5)*P+al-P/2:(j+0.5)*P;
     if(hang){if(ns)x+=side*(HW+0.3);else y+=side*(HW+0.3)}
-    L.push({type:'fig',pose:hang?'hang':'dead',x,y,f:ns?0:Math.PI/2,zw:k*FH+(hang?0:0),lvl:k,ropeZ:hang?RAILH/PS:0,seed:(h>>>4)%1000/100,coat:Math.floor(r()*3)})}
+    L.push({type:'fig',pose:hang?'hang':'dead',x,y,f:ns?0:Math.PI/2,zw:k*FH,lvl:k,ropeZ:hang?RAILH/PS:0,seed:(h>>>4)%1000/100,coat:Math.floor(r()*3),lootId:'world|'+G.day+'|'+fl+'|'+i+','+j})}
   return WD.list=L}
 /* all of it, as paper layers, culled to what could be on screen */
 function lifeLayers(out){
@@ -807,7 +811,7 @@ function lifeLayers(out){
   for(const e of ENC.list){if(e.members){for(const m of e.members)if(vis(m)){if(m.type==='pur'){purLayers(m,out);if(m._tx!==undefined)FIREL.push(m._tx,m._ty)}else figLayers(m,out)}}else if(vis(e))figLayers(e,out)}
   for(const e of BG.acts){if(e.pusher&&vis(e.pusher))purLayers(e.pusher,out);if(e.hide||!vis(e))continue;figLayers(e,out);if(e.burning&&e.lvl===0)FIREL.push(e.x,e.y)}
   // the dead are still: draw one only if last frame's depth says some of it can be seen
-  for(const e of worldDead())if(vis(e)){const z=e.zw+(e.pose==='hang'?-0.5:0.12);if(seeAt(e.x,e.y,z)||seeAt(e.x,e.y,z+0.25)||seeAt(e.x+0.4,e.y+0.4,z)||seeAt(e.x-0.4,e.y-0.4,z))(e.type==='pur'?purLayers:figLayers)(e,out)}}
+  for(const e of worldDead())if(vis(e)){const z=e.zw+(e.pose==='hang'?-0.5:0.12);if(seeAt(e.x,e.y,z)||seeAt(e.x,e.y,z+0.25)||seeAt(e.x+0.4,e.y+0.4,z)||seeAt(e.x-0.4,e.y-0.4,z))(e.type==='pur'?purLayers:e.type==='seek'?seekLayers:figLayers)(e,out)}}
 /* ---- encounters: now and then someone is standing a few steps ahead of you. Walk up and Read to speak to them. Some
    want something, some give something, one is very old and has been waiting a long time ---- */
 const HAIRS=new Set(RHAIR);
@@ -914,9 +918,23 @@ function sceneSlots(c,n,r){
   for(const[ax,ay]of[[1,0],[0,1]]){const L=[...Array(n)].map((_,k)=>{const o=(k-(n-1)/2)*0.95+(k>=n/2?0.5:-0.5);return[c.x+ax*o,c.y+ay*o]});if(L.every(([x,y])=>walkable(x,y,0.22)))return L}
   return null}
 function convertHostile(m){G.ents.push({type:'pur',x:m.x,y:m.y,f:m.f,ft:0,frame:0,ft2:0,head:0,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6,seed:m.seed,roaming:!G.inRoom});G.alerted=true}
-function corpseHere(kind,m,burnt){if(G.inRoom){const k=G.gal+'|'+G.floor;(G.corpses[k]=G.corpses[k]||[]).push({kind,x:m.x,y:m.y,f:m.f,burnt});
-    G.ents.push(kind==='pur'?{type:'pur',x:m.x,y:m.y,f:m.f,hit:0,dead:9,hp:0,burnCd:9,seed:m.seed}:{type:'fig',pose:'dead',x:m.x,y:m.y,f:m.f,burnt,seed:m.seed,dead:0})}
-  else{const i=Math.round(m.x/P-0.5),j=Math.round(m.y/P-0.5),key=i+','+j+','+G.floor;(G.wcorpse[key]=G.wcorpse[key]||[]).push({x:m.x,y:m.y,f:m.f,burnt,kind})}}
+/* An ID follows each corpse through the live puppet, room respawns and catwalks. */
+function recordCorpse(kind,m,burnt){
+  const id=m.lootId||'body|'+G.day+'|'+G.floor+'|'+(++G.corpseSeq);
+  m.lootId=id;
+  const c={kind,x:m.x,y:m.y,f:m.f,burnt:!!burnt,lootId:id},loc=placeOf(m.x,m.y);
+  if(loc.kind==='g'){const key=loc.gid+'|'+G.floor;(G.corpses[key]=G.corpses[key]||[]).push(c)}
+  else{const i=Math.round(m.x/P-0.5),j=Math.round(m.y/P-0.5),key=i+','+j+','+G.floor;
+    (G.wcorpse[key]=G.wcorpse[key]||[]).push(c);WD.key=null}
+  return c;
+}
+function corpseHere(kind,m,burnt){
+  const c=recordCorpse(kind,m,burnt),loc=placeOf(m.x,m.y);
+  if(loc.kind==='g'&&G.inRoom&&loc.gid===G.gal){
+    G.ents.push(kind==='pur'?{type:'pur',x:m.x,y:m.y,f:m.f,hit:0,dead:9,hp:0,burnCd:9,seed:m.seed,lootId:c.lootId}
+      :{type:'fig',pose:'dead',x:m.x,y:m.y,f:m.f,burnt,seed:m.seed,dead:0,lootId:c.lootId});
+  }
+}
 Object.assign(ENCS,{
   mob:{scene:true,title:'A MOB',idle:'murmur',every:1.3,
     build:c=>{const S=sceneSlots(c,3,1.0);if(!S)return null;const v=mkPur(c.x,c.y,0,0);v.dead=0.5;v.vic=true;
@@ -1106,7 +1124,7 @@ function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 
 function isNight(){const h=hourOf();return h<5||h>=21}
 /* fades: into the blackout, then out of it, with the day's number over the dark */
 const smooth=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
-function newDay(){G.day++;G.corpses={};G.wcorpse={};BG.acts=[];BG.t=8;ENC.list=[];ENC.t=30;if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
+function newDay(){G.day++;G.corpses={};G.wcorpse={};G.looted.clear();G.corpseSeq=0;WD.key=null;BG.acts=[];BG.t=8;ENC.list=[];ENC.t=30;if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
   G.clock=DAYLEN*6/24;if(G.room)spawnRoom(false)}
 function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
@@ -1115,7 +1133,7 @@ function reset(){
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
-    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
+    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
@@ -1131,7 +1149,12 @@ function spawnRoom(first){
   if(first||h%4===1){const[x,y]=first?at(1.4,2.7):spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
   if(first||(h>>>4)%3===1){const[x,y]=first?at(0.8,-2.9):spot();dropType(x,y,1+(h>>>11)%2)}
   if(first||(h>>>6)%5===0){const[x,y]=first?at(-2.7,1.3):spot();G.ents.push({type:'incense',x,y,f:rnd()*6.28,frame:0,hgt:0.5,cards:[INCC],dead:0})}
-  if(!first)for(const c of roomBodies()){if(c.kind==='pur')G.ents.push({type:'pur',x:c.x,y:c.y,f:c.f,hit:0,dead:9,hp:0,burnCd:9,seed:c.x%6});else if(c.kind==='seek')G.ents.push({type:'seek',x:c.x,y:c.y,f:c.f,hit:0,dead:9,hp:0,scared:0,flee:0,stealCd:0,seed:c.y%6});else G.ents.push({type:'fig',pose:'dead',x:c.x,y:c.y,f:c.f,coat:c.coat||0,burnt:c.burnt,seed:c.x%6,dead:0})}
+  if(!first)for(const c of roomBodies()){
+    const common={x:c.x,y:c.y,f:c.f,lootId:c.lootId};
+    if(c.kind==='pur')G.ents.push({type:'pur',...common,hit:0,dead:9,hp:0,burnCd:9,seed:c.x%6});
+    else if(c.kind==='seek')G.ents.push({type:'seek',...common,hit:0,dead:9,hp:0,scared:0,flee:0,stealCd:0,seed:c.y%6});
+    else G.ents.push({type:'fig',pose:'dead',...common,coat:c.coat||0,burnt:c.burnt,seed:c.x%6,dead:0})
+  }
   if(first||(h>>>3)%3===0){const a=first?Math.PI*0.75:rnd()*Math.PI*2;G.ents.push({type:'index',x:C.cx+Math.cos(a)*(RS+0.32),y:C.cy+Math.sin(a)*(RS+0.32),f:a,frame:0,hgt:0.9,cards:[INDEXC],dead:0})}
 }
 
@@ -1418,7 +1441,7 @@ const TRINKETS={
   ribbon:{name:'SILK BOOKMARK',cost:16,desc:'Each dawn all of your own words come back, however faded they were.'}
 };
 const TYPEC=buildCard(["kkkkkk","kGgGGk","kGkkGk","kGkkGk","kGGgGk","kkkkkk"]);
-function keepDead(kind,e){const k=G.gal+'|'+G.floor;(G.corpses[k]=G.corpses[k]||[]).push({kind,x:e.x,y:e.y,f:e.f})}
+function keepDead(kind,e){recordCorpse(kind,e,false)}
 function dropType(x,y,n){G.ents.push({type:'type',x,y,f:0,bill:true,frame:0,hgt:0.16,cards:[TYPEC],dead:0,n})}
 function hatchStock(){const r=prng(hashStr('stock|'+G.day)),ks=Object.keys(TRINKETS).filter(k=>!G.tr[k]);
   for(let i=ks.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[ks[i],ks[j]]=[ks[j],ks[i]]}return ks.slice(0,3)}
