@@ -70,13 +70,20 @@ function makeRoom(i,j){let c;const cx=i*P,cy=j*P,id=i+','+j;
 function getAir(i,j){return cached(AIRS,i,j,()=>({kind:'a',id:i+','+j,i,j,cx:i*P,cy:j*P}))}
 function inHexL(lx,ly,ap){for(let w=0;w<6;w++)if(lx*NRM[w][0]+ly*NRM[w][1]>ap)return false;return true}
 
-/* crossings of the catwalks sit between four galleries; every third crossing each way is a communal platform, so
-   between two communal platforms there are always three galleries, north, south, east and west */
-const mod3=n=>((n%3)+3)%3;
-function isComm(ci,cj){return mod3(ci)===0&&mod3(cj)===0}
-/* which corners of square (i,j) touch a communal platform: bit 0 east, bit 1 south */
-function sqMask(i,j){let m=0;for(let b=0;b<4;b++){const sx=b&1?1:-1,sy=b&2?1:-1;if(isComm(i+(sx>0?0:-1),j+(sy>0?0:-1)))m|=1<<b}return m}
-function cornerComm(i,j,lx,ly){return isComm(i+(lx>0?0:-1),j+(ly>0?0:-1))}
+/* The Library's communal hubs form a REGULAR 3-D lattice, never a random floor pattern.
+   Each unique real sentence widens all three hub intervals by one gallery / one floor.
+   The spiral stair remains present on intervening floors, but the social facilities don't. */
+function hubStride(){return 3+(G.sentencesFound||0)}
+function divisibleBy(n,step){return ((n%step)+step)%step===0}
+function hubFloor(fl=G.floor){return divisibleBy(fl,hubStride())}
+function isStair(ci,cj){const step=hubStride();return divisibleBy(ci,step)&&divisibleBy(cj,step)}
+function isComm(ci,cj,fl=G.floor){return isStair(ci,cj)&&hubFloor(fl)}
+/* Four square corners may have stairs. Each staircase has a full-hub variant
+   on hub floors and an empty transit-landing variant on all other floors. */
+function sqMask(i,j){let m=0;for(let b=0;b<4;b++){const sx=b&1?1:-1,sy=b&2?1:-1;if(isStair(i+(sx>0?0:-1),j+(sy>0?0:-1)))m|=1<<b}return m}
+function sqLayout(i,j){return sqMask(i,j)+(hubFloor()?0:16)}
+function cornerStair(i,j,lx,ly){return isStair(i+(lx>0?0:-1),j+(ly>0?0:-1))}
+function cornerComm(i,j,lx,ly){return cornerStair(i,j,lx,ly)&&hubFloor()}
 /* the segments of one square of the grid, in coordinates centred on its gallery: the gallery's walls seen from inside,
    and everything in the open air around it - the gallery's outside, the platform pillars, the railings. A square's
    corners differ (platform or plain crossing), so there are sixteen variants */
@@ -92,22 +99,24 @@ const SQIN=[],SQV=[];
  for(const sx of[-1,1]){sg(RAIL,sx*CWI,HW,sx*CWI,PLI,'rail',{});sg(RAIL,sx*CWI,-HW,sx*CWI,-PLI,'rail',{});
    sg(RAIL,sx*A,HW,sx*CWI,HW,'rail',{});sg(RAIL,sx*A,-HW,sx*CWI,-HW,'rail',{})}
  for(const sy of[-1,1])sg(RAIL,-PLI,sy*CWI,PLI,sy*CWI,'rail',{});
- for(let mask=0;mask<16;mask++){const solid=BASE.slice(),rails=RAIL.slice(),wells=[];
+ for(let mask=0;mask<32;mask++){const solid=BASE.slice(),rails=RAIL.slice(),wells=[],fullHub=mask<16;
    for(let b=0;b<4;b++){const sx=b&1?1:-1,sy=b&2?1:-1;
-     if(mask&(1<<b)){
-       // a corner of a communal platform: a stone pillar (closets, mirror, the food hatch), the stairwell, short railings
-       const inX=(sx===1&&sy===1)?'sleep':(sx===-1&&sy===-1)?'privy':(sx===1&&sy===-1)?'mirror':'food',inY=(sx===1&&sy===-1)?'mirror':'pillar';
-       const x0=sx*PIL0,x1=sx*PIL1,y0=sy*PIL0,y1=sy*PIL1;
-       sg(solid,x1,y0,x1,y1,inX,{});sg(solid,x0,y1,x1,y1,inY,{});sg(solid,x0,y0,x0,y1,'pillar',{});sg(solid,x0,y0,x1,y0,'pillar',{});
+     if((mask&15)&(1<<b)){
+       // The spiral stair goes through EVERY level, with railings around its well.
+       // Only full hub floors get four pillars: sleep, privy, mirror, and food hatch.
+       if(fullHub){
+         const inX=(sx===1&&sy===1)?'sleep':(sx===-1&&sy===-1)?'privy':(sx===1&&sy===-1)?'mirror':'food',inY=(sx===1&&sy===-1)?'mirror':'pillar';
+         const x0=sx*PIL0,x1=sx*PIL1,y0=sy*PIL0,y1=sy*PIL1;
+         sg(solid,x1,y0,x1,y1,inX,{});sg(solid,x0,y1,x1,y1,inY,{});sg(solid,x0,y0,x0,y1,'pillar',{});sg(solid,x0,y0,x1,y0,'pillar',{});
+       }
        sg(rails,sx*PLI,sy*PIL1,sx*PLI,sy*CWI,'rail',{});sg(rails,sx*PIL1,sy*PLI,sx*CWI,sy*PLI,'rail',{});wells.push([sx*P/2,sy*P/2]);
      }else{
-       // a plain crossing of two catwalks: their railings run on to the corner
        sg(rails,sx*CWI,sy*PLI,sx*CWI,sy*CWI,'rail',{});sg(rails,sx*PLI,sy*CWI,sx*CWI,sy*CWI,'rail',{});
      }}
    SQV.push({solid,rails,wells})}
 }
 /* is there catwalk, landing or platform floor here, and is it inside a stairwell */
-function inWell(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,ly=py-j*P;if(!cornerComm(i,j,lx,ly))return false;const wx=Math.abs(lx)-P/2,wy=Math.abs(ly)-P/2;return wx*wx+wy*wy<RSW*RSW}
+function inWell(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,ly=py-j*P;if(!cornerStair(i,j,lx,ly))return false;const wx=Math.abs(lx)-P/2,wy=Math.abs(ly)-P/2;return wx*wx+wy*wy<RSW*RSW}
 function airFloor(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,ly=py-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
   if(ay<=HW&&ax>=A&&ax<=CWI)return true;
   if(ax>=CWI||ay>=CWI)return!inWell(px,py);
@@ -118,14 +127,14 @@ function walkable(x,y,rad){
   const i=Math.round(x/P),j=Math.round(y/P),lx=x-i*P,ly=y-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
   if(inHexL(lx,ly,A-rad))return lx*lx+ly*ly>=(RS+rad)*(RS+rad);
   if(ay<=HW-rad&&ax>=A-rad-0.05&&ax<=CWI+rad+0.01)return true;
-  const comm=cornerComm(i,j,lx,ly);
-  if(comm){if(ax>=PIL0-rad&&ax<=PIL1+rad&&ay>=PIL0-rad&&ay<=PIL1+rad)return false;
-    const wx=ax-P/2,wy=ay-P/2;if(wx*wx+wy*wy<(RSW+rad)*(RSW+rad))return false}
-  return ax>=CWI+rad||ay>=CWI+rad||(comm&&ax>=PLI+rad&&ay>=PLI+rad);
+  const stair=cornerStair(i,j,lx,ly),comm=stair&&hubFloor();
+  if(comm&&ax>=PIL0-rad&&ax<=PIL1+rad&&ay>=PIL0-rad&&ay<=PIL1+rad)return false;
+  if(stair){const wx=ax-P/2,wy=ay-P/2;if(wx*wx+wy*wy<(RSW+rad)*(RSW+rad))return false}
+  return ax>=CWI+rad||ay>=CWI+rad||(stair&&ax>=PLI+rad&&ay>=PLI+rad);
 }
 function placeOf(x,y){const i=Math.round(x/P),j=Math.round(y/P);return inHexL(x-i*P,y-j*P,A)?getRoom(i,j):getAir(i,j)}
 /* the nearest crossing of catwalks to a point, and whether it is communal */
-function crossingAt(px,py){const ci=Math.round(px/P-0.5),cj=Math.round(py/P-0.5);return{ci,cj,x:(ci+0.5)*P,y:(cj+0.5)*P,comm:isComm(ci,cj)}}
+function crossingAt(px,py){const ci=Math.round(px/P-0.5),cj=Math.round(py/P-0.5);return{ci,cj,x:(ci+0.5)*P,y:(cj+0.5)*P,comm:isComm(ci,cj),stairs:isStair(ci,cj)}}
 
 /* cast one ray across the grid, square by square, in and out of galleries through their doorways. It bounces off the
    mirror, notes every railing and every stretch of gallery or open air it passes, and stops on the first solid surface */
@@ -140,7 +149,7 @@ function cast(ox,oy,dx,dy){
   LEG.n=1;LEG.ox[0]=ox;LEG.oy[0]=oy;LEG.dx[0]=dx;LEG.dy[0]=dy;LEG.t0[0]=0;RH.n=0;MH.n=0;TV.n=0;
   let si=Math.round(ox/P),sj=Math.round(oy/P),inR=G.inRoom,px=ox,py=oy,t0=0,res=null;
   for(let hop=0;hop<220;hop++){
-    const lx=px-si*P,ly=py-sj*P,VQ=inR?null:SQV[sqMask(si,sj)],sg=inR?SQIN:VQ.solid;let best=1e9,bs=null,bk=0;
+    const lx=px-si*P,ly=py-sj*P,VQ=inR?null:SQV[sqLayout(si,sj)],sg=inR?SQIN:VQ.solid;let best=1e9,bs=null,bk=0;
     for(let i=0;i<sg.length;i++){const s=sg[i],ex=s.bx-s.ax,ey=s.by-s.ay,den=dx*ey-dy*ex;if(den>-1e-12&&den<1e-12)continue;
       const wx=s.ax-lx,wy=s.ay-ly,t=(wx*ey-wy*ex)/den;if(t<=1e-5||t>=best)continue;const q=(wx*dy-wy*dx)/den;if(q<0||q>1)continue;best=t;bs=s;bk=q}
     let tp=1e9,ax=0;
@@ -1417,7 +1426,7 @@ function doRead(){
   if(encTalk())return;
   const body=bodyTarget();if(body){searchBody(body);return}
   for(const e of G.ents)if(e.type==='index'){const dx=e.x-G.x,dy=e.y-G.y;if(Math.hypot(dx,dy)<1.25&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.7){G.lastHit={t:Math.hypot(dx,dy)};useIndex();return}}
-  if(!G.inRoom){const c=crossingAt(G.x,G.y),dx=c.x-G.x,dy=c.y-G.y;if(c.comm&&Math.hypot(dx,dy)<RSW+1.3&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.75){G.lastHit={t:Math.hypot(dx,dy)-RSW};openNote('THE SPIRAL STAIR','It sinks into the abyss and climbs out of sight. Every floor is the same.','','stairs');return}}
+  if(!G.inRoom){const c=crossingAt(G.x,G.y),dx=c.x-G.x,dy=c.y-G.y;if(c.stairs&&Math.hypot(dx,dy)<RSW+1.3&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<0.75){G.lastHit={t:Math.hypot(dx,dy)-RSW};openNote('THE SPIRAL STAIR',c.comm?'Brass and stone mark this communal landing. The stair continues between the distant hubs.':'The stairs still spiral through this floor, but the communal facilities are '+hubStride()+' floors apart. This is a bare transit landing.','','stairs');return}}
   const h=cast(G.x,G.y,Math.cos(G.ang),Math.sin(G.ang));
   if(MH.n&&MH.t[0]<=1.9){G.lastHit={t:MH.t[0]};openNote('THE MIRROR','Set into a stone pillar of the platform, it doubles the catwalks, the open air and you, faithfully. Some librarians take it as proof that the Library is not infinite: why else would it need the illusion? Others say it proves the opposite.');return}
   if(!h||h.t>1.9){sfx('NOTHING TO READ');return}
@@ -1938,7 +1947,13 @@ function drawMap(g,x0,y0,w,h){
   for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){
     const x=i*P,y=j*P;if(Math.abs(X(x)-cx)>w/2+R*sc||Math.abs(Y(y)-cy)>h/2+R*sc)continue;
     // the communal platform and its stairwell
-    if(isComm(i,j)){g.fillStyle='#c9a46a';g.fillRect(X(x+P/2)-1.8*sc,Y(y+P/2)-1.8*sc,3.6*sc,3.6*sc);g.beginPath();g.arc(X(x+P/2),Y(y+P/2),RSW*sc,0,Math.PI*2);g.fillStyle='#2a2018';g.fill()}
+    if(isStair(i,j)){
+      const hx=X(x+P/2),hy=Y(y+P/2);
+      if(isComm(i,j)){g.fillStyle='#c9a46a';g.fillRect(hx-1.8*sc,hy-1.8*sc,3.6*sc,3.6*sc)}
+      g.beginPath();g.arc(hx,hy,RSW*sc,0,Math.PI*2);
+      g.fillStyle=isComm(i,j)?'#2a2018':'#715b49';g.fill();
+      if(!isComm(i,j)){g.strokeStyle='#bc9c68';g.lineWidth=1.5;g.stroke()}
+    }
     // landings to the doorways
     g.fillStyle='#8a7b5c';g.fillRect(X(x+A),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);g.fillRect(X(x-CWI),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);
     const seen=G.rooms.has(galId(i,j)+':'+G.floor),here=G.room.id===i+','+j;
@@ -2832,7 +2847,7 @@ function frame(now){
   else if(G.state==='won'){G.time+=dt}
   else if(G.state==='blackout'){G.boT+=dt;G.time+=dt;EYE=0.5-0.3*smooth(G.boT/(BLACKOUT*0.8));if(G.boT>=BLACKOUT){newDay();EYE=0.5;G.pitch=0;G.state='wake';G.wakeT=0}}
   else if(G.state==='wake'){G.wakeT+=dt;G.time+=dt;if(G.wakeT>=0.2&&!G.rung){G.rung=true;snd('bell')}if(G.wakeT>=WAKE){G.state='play';G.rung=false}}
-  else if(G.state==='climb'){G.climbT+=dt;G.time+=dt;if(!G.climbed&&G.climbT>=0.6){G.climbed=true;G.floor+=G.climbDir;enterRoom(G.room);sfx('FLOOR '+G.floor,'mind')}if(G.climbT>=1.2)G.state='play'}
+  else if(G.state==='climb'){G.climbT+=dt;G.time+=dt;if(!G.climbed&&G.climbT>=0.6){G.climbed=true;G.floor+=G.climbDir;LAMPS.key=null;WD.key=null;enterRoom(G.room);sfx('FLOOR '+G.floor+(hubFloor()?' · COMMUNAL':' · TRANSIT'),'mind')}if(G.climbT>=1.2)G.state='play'}
   else if(G.state==='sleep'){G.sleepT+=dt;G.time+=dt;if(G.sleepT>=2.2){G.state='play';G.sanity=Math.min(100,G.sanity+15);if(G.oil>0)G.oil--;G.sleepCd=75;sfx('+15 SANITY','mind');setTimeout(()=>sfx('-1 OIL'),300)}}
   else update(dt);
   G.flip=Math.max(0,(G.flip||0)-dt);
