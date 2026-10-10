@@ -37,7 +37,7 @@ function harness(){
     ENC={list:[{id:'speaker'}],t:14},burned=new Set(['shelf']),events=[];
   let roomSpawns=0;
   const ctx=vm.createContext({G,WD,LAMPS,BG,ENC,burned,
-    sfx:(message)=>events.push(message),
+    galleryBarricadeAt(){return null}, sfx:(message)=>events.push(message),
     spawnRoom:()=>{roomSpawns++},
     setTimeout:()=>{}
   });
