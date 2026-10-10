@@ -260,6 +260,83 @@ const torch=[[16,4,'t'],[16,5,'t'],[15,6,'t'],[15,7,'t'],[14,8,'t'],[14,9,'t']];
 const flames=[[[16,0,'o'],[16,1,'o'],[15,2,'o'],[16,2,'f'],[17,2,'o'],[15,3,'o'],[16,3,'f'],[17,3,'o']],[[17,0,'o'],[16,1,'o'],[17,1,'o'],[15,2,'o'],[16,2,'f'],[17,2,'f'],[15,3,'o'],[16,3,'f'],[17,3,'o']],[[15,1,'o'],[16,1,'o'],[15,2,'f'],[16,2,'f'],[17,2,'o'],[15,3,'o'],[16,3,'f'],[17,3,'o']],[[16,0,'o'],[15,1,'o'],[16,1,'f'],[17,1,'o'],[15,2,'o'],[16,2,'f'],[17,2,'o'],[16,3,'o']]];
 const PUR=purLegs.map((l,i)=>buildCard(setPx(purBody.concat(l),torch.concat(flames[i]))));
 const PURPH=purLegs.map((l,i)=>buildCard(setPx(purBody.concat(l),torch.concat(flames[i])),{G:'#4a3a66',g:'#2e2442',o:'#c9b3f2',f:'#ffffff',r:'#8b6bd0'}));
+
+/* ---- paper puppets: a figure built from separate pixel-art cut-outs, pinned together at joints and stacked a finger's
+   width apart, like a shadow-theatre puppet. Each part turns on its pin; walking, chasing and dying are poses of the
+   parts, not redrawn frames. Turning a part in its own plane is done by redrawing the part at that angle, once, and
+   keeping it ---- */
+function gridRows(rows,pal){const w=Math.max(...rows.map(r=>r.length)),h=rows.length,col=new Array(w*h).fill(null);
+  rows.forEach((r,y)=>[...r].forEach((ch,x)=>{if(ch!=='.')col[y*w+x]=rgb(pal[ch]||PAL[ch])}));return{w,h,col}}
+/* a card from a grid of colours: a paper edge one pixel wide around it (unless glowing), plain paper on the back */
+function cardGrid(g,outline){
+  const b=outline?1:0,w=g.w+2*b,h=g.h+2*b,front=new Uint8ClampedArray(w*h*4),back=new Uint8ClampedArray(w*h*4),at=(x,y)=>x>=0&&y>=0&&x<g.w&&y<g.h?g.col[y*g.w+x]:null;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const c=at(x-b,y-b),o=(y*w+x)*4;
+    if(c){front[o]=c[0];front[o+1]=c[1];front[o+2]=c[2];front[o+3]=255;const q=(x+y)%5===0?0.48:0.56;back[o]=c[0]*q+14;back[o+1]=c[1]*q+10;back[o+2]=c[2]*q+6;back[o+3]=255}
+    else if(outline){let e=false;for(let dy=-1;dy<=1&&!e;dy++)for(let dx=-1;dx<=1;dx++)if(at(x-b+dx,y-b+dy)){e=true;break}
+      if(e){front[o]=243;front[o+1]=236;front[o+2]=216;front[o+3]=255;back[o]=196;back[o+1]=188;back[o+2]=166;back[o+3]=255}}}
+  return{w,h,front,back};
+}
+/* a part turned by `deg` about its pin (px,py), cropped; returns the card and where the pin sits on it */
+function turnPart(part,deg){
+  const g=part.g,a=deg*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a),px=part.px+0.5,py=part.py+0.5;
+  let Rr=0;for(const [x,y] of[[0,0],[g.w,0],[0,g.h],[g.w,g.h]])Rr=Math.max(Rr,Math.hypot(x-px,y-py));Rr=Math.ceil(Rr)+1;
+  const S=2*Rr+1,col=new Array(S*S).fill(null);let x0=S,y0=S,x1=-1,y1=-1;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){const vx=x+0.5-(Rr+0.5),vy=y+0.5-(Rr+0.5),sx=Math.floor(vx*ca+vy*sa+px),sy=Math.floor(-vx*sa+vy*ca+py);
+    if(sx>=0&&sy>=0&&sx<g.w&&sy<g.h){const c=g.col[sy*g.w+sx];if(c){col[y*S+x]=c;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}}
+  const cw=x1-x0+1,ch=y1-y0+1,cc=new Array(cw*ch);for(let y=0;y<ch;y++)for(let x=0;x<cw;x++)cc[y*cw+x]=col[(y+y0)*S+x+x0];
+  const b=part.glow?0:1;return{card:cardGrid({w:cw,h:ch,col:cc},!part.glow),cx:Rr+0.5-x0+b,cy:Rr+0.5-y0+b};
+}
+function partAt(part,deg){const q=Math.round(deg/5)*5;let v=part.cache.get(q);if(!v){v=turnPart(part,q);part.cache.set(q,v)}return v}
+function mkPart(rows,pal,px,py,glow){return{g:gridRows(rows,pal),px,py,glow:!!glow,cache:new Map()}}
+
+/* the Purifier: ash-grey hood and robe, a red sash, a cape behind, a torch in the near hand and an iron brand in the far */
+const PPAL={k:'#14100e',d:'#1e1b19',G:'#6b665f',g:'#4a4640',H:'#8f897f',c:'#33302c',C:'#4f4a44',r:'#b3261e',R:'#6e1612',
+  o:'#ff7a2e',O:'#ffd34d',Y:'#fff4c2',t:'#6b4227',T:'#9a6a3c',i:'#8c867c',I:'#45413b',e:'#ff5a2a',b:'#2c2622'};
+const PUP={
+  cape:{g:(()=>{const w=22,h=36,col=new Array(w*h).fill(null),K=rgb('#14100e'),C=rgb(PPAL.C),c=rgb(PPAL.c);
+    for(let y=0;y<h;y++){const hw=Math.min(10.5,3.2+y*0.42);for(let x=0;x<w;x++){const dx=Math.abs(x+0.5-11);if(dx>hw)continue;
+      if(y>=h-2&&(x+y)%3===0)continue;col[y*w+x]=(dx>hw-1||y===0)?K:((x+Math.floor(y/7))%5===0?c:C)}}return{w,h,col}})(),px:11,py:0,glow:false,cache:new Map()},
+  robe:mkPart([".....kkkkkkkkkk.....","...kkHHGGGGGGHHkk...","..kHGGGGGGGGGGGGgk..","..kGGGGgGGGGgGGGgk..","..kGGGgGGGGGGgGGgk..","..kGGGgGGGGGGgGGgk..",
+    "..kGGgGGGGGGGGgGgk..","..kGGgGGGGGGGGgGgk..","..kRrrrrrrrrrrrrRk..","..kRRrRRRRRRRRrRRk..","..kGgGGGGrrGGGGGgk..","..kGgGGGGrRGGGGGgk..",".kGGgGGGGGRGGGGGgGk.",
+    ".kGGgGGGGGGGGGGGgGk.",".kGgGGGHGGGGGGGGgGk.",".kGgGGGHGGGGGGGGGgk.","kGGgGGGHGGGGGGGGGgGk","kGgGGGGGGGGGGGGGGgGk","kGgGGGGgGGGGgGGGGgGk","kggGGGgGGGGGGgGGGggk",
+    "kgggGgggGGggggGgggkk",".kgk.kgk.kgk.kgk.kk.","..k...k...k...k....."],PPAL,10,22),
+  hood:mkPart(["......kkkk......","....kkHHGGkk....","...kHGGGGGGGk...","..kHGGGGGGGGgk..","..kGGGddddGGgk..",".kGGgddddddgGGk.",".kGGddddddddgGk.",
+    ".kGgddddddddgGk.",".kGgddddddddgGk.",".kGGgddddddgGGk.","..kGGgddddgGGk..","..kgGGgddgGGgk..","...kgGGGGGGgk...","....kkgGGgkk....","......kkkk......"],PPAL,8,14),
+  eyes:mkPart(["................","................","................","................","................","................","................",
+    ".....oO..Oo.....",".....oo..oo.....","................","................","................","................","................","................"],PPAL,8,14,true),
+  armF:mkPart([".kkkk.","kHGGGk","kGGGgk","kGGGgk","kGGGgk",".kGGgk",".kGGgk",".kGgk.",".kGgk.",".kGgk.",".kHGk.",".kbbk.",".kbbk.","..kk.."],PPAL,3,1),
+  armB:mkPart([".kkkk.","kGGGgk","kGGggk","kGGggk","kGggk.",".kGgk.",".kGgk.",".kggk.",".kggk.",".kggk.",".kbbk.",".kbbk.","..kik.","..kik.","..kIk.","..kIk.","..kek.","...k.."],PPAL,3,1),
+  leg:mkPart(["kGGk","kGgk","kGgk","kgGk","kggk","kbbk","kbbk","kbbbk","kkkkk"],PPAL,2,0),
+  torch:mkPart([".kk.","kTtk","kTtk","kTtk","kTtk","kTtk","kTtk",".kk."],PPAL,2,7),
+  flame:[["..o...","..oo..",".oOo..",".oOOo.","oOYOo.","oOYYOo",".oYYo.","..oo.."],["...o..","..oo..","..oOo.",".oOOo.",".oOYOo","oOYYOo",".oYYo.","..oo.."],
+    [".o....","..oo..",".oOoo.",".oOOo.","oOYOo.","oOYYOo",".oYYOo","..oo.."]].map(r=>mkPart(r,PPAL,3,7,false))
+};
+const PS=1.35/40;   // world size of one pixel of the puppet
+/* pose the Purifier and hand back its layers (and where its torch burns) */
+function purLayers(e,out){
+  const T=G.time,ph=(e.ft2||0)*Math.PI/2,walk=e.walkAmp||0,raise=e.raise||0,dd=e.dead?Math.min(1,e.dead/1.1):0,seed=e.seed||0;
+  const nX=Math.cos(e.f),nY=Math.sin(e.f),tX=-nY,tY=nX,shake=e.hit>0?Math.sin(T*70)*e.hit*1.2:0,sink=1-dd*0.55;
+  const bob=walk*0.7*Math.abs(Math.sin(ph))+Math.sin(T*2+seed)*0.35;
+  const put=(part,deg,pivX,pivZ,depth,glow)=>{const v=partAt(part,deg),lat=pivX+shake+(v.card.w/2-v.cx),zb=(pivZ-(v.card.h-v.cy))*sink;
+    out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:e.f,z0:Math.max(0,zb*PS),hgt:v.card.h*PS,cards:[v.card],frame:0,hit:e.hit,glow,dead:0})};
+  const legA=22*Math.sin(ph)*walk;
+  const capeA=3*Math.sin(T*1.3+seed)+4*walk*Math.sin(ph)+dd*25;
+  const hoodA=(6*Math.sin(T*0.7+seed)*(1-raise)+(raise?-4*raise:0))+dd*70+shake*3;
+  const armFA=(-0.6*legA)*(1-raise)+(-105+8*Math.sin(T*9))*raise-dd*80;
+  const armBA=(0.6*legA+8)-dd*-60;
+  put(PUP.cape,capeA,0,38+bob,-0.075,false);
+  put(PUP.leg,legA+dd*40,-3,9,-0.03,false);put(PUP.leg,-legA-dd*40,3,9,-0.02,false);
+  put(PUP.armB,armBA,-7,26+bob,-0.045,false);
+  put(PUP.robe,dd*15,0,26+bob,0,false);
+  put(PUP.hood,hoodA,0,27+bob,0.02,false);
+  if(!dd)put(PUP.eyes,hoodA,0,27+bob,0.024,Math.sin(T*1.7+seed)>-0.95);
+  // the torch is held upright in the near hand, wherever the arm swings
+  const a=armFA*Math.PI/180,hx=7-Math.sin(a)*11,hz=26+bob-Math.cos(a)*11;
+  put(PUP.armF,armFA,7,26+bob,0.045,false);
+  put(PUP.torch,dd*60,hx,hz+1,0.055,false);
+  if(!dd){put(PUP.flame[Math.floor(T*10+seed*3)%3],Math.sin(T*5)*6,hx,hz+7,0.058,true);
+    const fl=hx+shake,wx=e.x-tX*fl*PS+nX*0.06,wy=e.y-tY*fl*PS+nY*0.06;e._tx=wx;e._ty=wy}else e._tx=undefined;
+}
 const seekBody=["....k.kkk.k.....","...khkhhhkhk....","...khhhhhhhk....","...kssssssk.....","...kwpsswpk.....","...ksssSssk.....","...ksmmmsk......","....kssssk......","...kRRRRRRk.....","..kRRnRRRRRk....",".ksRRnnRRRRsk...",".ksRRRRRnRRsk...",".ksRRRRRnRRsk...","..kRRRRRRRRk....","..kRnRRRRRRk....","..kRRRRRRRRk....","..kRRRRkRRRk...."];
 const seekLegs=[["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],["..kRRk..kRRk....",".kssk...kssk....",".kssk....kssk...","kkkk.....kkkk..."],["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],[".kRRk..kRRk.....",".kssk..kssk.....","kssk...kssk.....","kkkk..kkkk......"]];
 const SEEK=seekLegs.map((l,i)=>buildCard(setPx(seekBody.concat(l),i%2?[[4,4,'p'],[5,4,'w'],[8,4,'p'],[9,4,'w']]:[])));
@@ -469,6 +546,7 @@ function updPur(e,dt){
     e.head+=Math.PI*(0.6+Math.random()*0.8);
   }
   if(nearFire(cx,cy)&&!nearFire(e.x,e.y))e.head+=Math.PI;else{e.x=cx;e.y=cy}
+  e.walkAmp=(e.walkAmp||0)+((spd?1:0)-(e.walkAmp||0))*Math.min(1,dt*6);e.raise=(e.raise||0)+((chasing&&dist<3?1:0)-(e.raise||0))*Math.min(1,dt*3);if(e.seed==null)e.seed=Math.random()*6.28;
   if(dist<0.95&&G.hurtCd<=0){G.hurtCd=1.2;G.health-=7;G.flash=1;sfx('FWOOSH!','red')}
 }
 function updSeek(e,dt){
@@ -674,6 +752,7 @@ function catPx(i,px,py,L){const ti=((((px%1)+1)%1*16|0)*16+(((py%1)+1)%1*16|0))*
 function render(){
   FLICK=0.9+0.07*Math.sin(G.time*13)+0.05*Math.sin(G.time*31.7);LANR=3.2+Math.min(G.oil,10)*0.55;
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);
+  const POSE=[];for(const e of G.ents)if(e.type==='pur'&&e.dead<1.6){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.92-low*0.25;TB=0.78+low*0.3;
   {const d=dayLight(hourOf());LDAY=0.4+0.6*d;AMB=0.04+0.045*d;TR*=0.86+0.14*d;TG*=0.9+0.1*d;TB*=1.06-0.06*d}
@@ -706,7 +785,7 @@ function render(){
       if(mi<0||(ri>=0&&RH.t[ri]>MH.t[mi])){railCol(x,RH.t[ri],RH.a[ri]);ri--}else{frameCol(x,MH.t[mi],mi===0);mi--}
     }
   }
-  const list=G.ents.filter(e=>!(e.type==='pur'&&e.dead>=1.6)).concat((G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
+  const list=G.ents.filter(e=>e.type!=='pur').concat(POSE,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
   {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),key=i0+','+j0;
    if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];const lamp=(x,y,z)=>LAMPS.list.push({type:'lamp',x,y,z0:z,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
      for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){for(const q of getRoom(i,j).lamps)lamp(q[0],q[1],LAMPZ);lamp((i+0.5)*P,(j+0.5)*P,isComm(i,j)?JLZ:JLZ+0.2)}}
@@ -740,8 +819,8 @@ function drawCard(e){
   const card=e.cards[e.frame||0];
   const dies=(e.type==='pur'||e.type==='seek')&&e.dead,crumple=dies?Math.max(0.12,1-e.dead*1.4):1;
   const hgt=e.hgt*crumple,wid=e.hgt*card.w/card.h*(dies?1+e.dead*0.3:1);
-  const bob=(e.type==='flask')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
-  const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.type==='lamp'||e.type==='ph'||e.type==='fire';
+  const bob=e.type==='pp'?0:(e.type==='flask')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
+  const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.glow||e.type==='lamp'||e.type==='ph'||e.type==='fire';
   const L=glow?1:Math.min(1.45,lightP(e.self?G.cell:G.room,e.x,e.y,Math.max(e.self?1.6:0,Math.hypot(e.x-G.x,e.y-G.y)))*2.1);
   let xa=0,xb=W-1;
   {const cs=Math.cos(G.ang),sn=Math.sin(G.ang),dx=e.x-G.x,dy=e.y-G.y,f=dx*cs+dy*sn,l=-dx*sn+dy*cs,r=wid/2+0.05;
@@ -767,7 +846,7 @@ function drawCard(e){
         const i=(y*W+x)*4;
         if(flashOn){buf[i]=255;buf[i+1]=240;buf[i+2]=220;continue}
         if(e.type==='ph'){buf[i]=data[ti]*0.9;buf[i+1]=data[ti+1]*0.8;buf[i+2]=data[ti+2];continue}
-        if(e.type==='lamp'||e.type==='fire'){buf[i]=data[ti];buf[i+1]=data[ti+1];buf[i+2]=data[ti+2];continue}
+        if(e.glow||e.type==='lamp'||e.type==='fire'){buf[i]=data[ti];buf[i+1]=data[ti+1];buf[i+2]=data[ti+2];continue}
         put(i,data[ti],data[ti+1],data[ti+2],L);
       }
     }
