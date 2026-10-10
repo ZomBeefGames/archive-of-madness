@@ -510,6 +510,12 @@ function rigOut(e,out){
     out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:F,z0:zb*PS+zw,hgt:v.card.h*PS/sc,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,pe:e,sh:shadow})};
 }
 const PS=1.35/60;   // world size of one pixel of a puppet
+/* Coat tails must paint OVER trousers from behind as well as from the front.
+   Sort each cut-out by its actual world depth; position the tails near the rear camera. */
+function coatTailDepth(e,near){
+  const rear=e===ME||((e.x-G.x)*Math.cos(e.f)+(e.y-G.y)*Math.sin(e.f)>0);
+  return rear?(near?-0.053:-0.043):(near?0.037:0.026);
+}
 /* a leg from the hip to a planted or swinging foot: thigh, shin and foot; the knee bends forward */
 function legOut(put,R,hx,hz,f,depth,thL,shL,ank){
   const[kx,kz,ax,az]=ik2(hx,hz,f[0],f[1]+ank,thL,shL,1),ta=downDeg(kx-hx,kz-hz);
@@ -668,10 +674,10 @@ function meLayers(out){
   const lsw=Math.sin(T*2.3)*4-sw*10-(e.vin||0)*6;
   put(R.lantern,lsw,lx,lz-0.5,0.056,false);if(G.oil>0&&!fall)put(R.glass[Math.floor(T*8)%3],lsw,lx,lz-0.5,0.055,true);else put(R.dim,lsw,lx,lz-0.5,0.055,false);
   e.thB=legOut(put,R,hx-1,hz,fb,-0.03,11.5,11,4.5);
-  put(R.skirt,(S[8]||0)+fall*25,hx-1,hz+1,-0.012,false);
+  put(R.skirt,(S[8]||0)+fall*25,hx-1,hz+1.3,coatTailDepth(e,false),false);
   put(R.chest,lean,hx,hz,0,false);
   e.thA=legOut(put,R,hx+1.2,hz,fa,0.012,11.5,11,4.5);
-  put(R.skirt,(S[6]||0)+fall*25,hx+1.2,hz+1,0.02,false);
+  put(R.skirt,(S[6]||0)+fall*25,hx+1.2,hz+1.3,coatTailDepth(e,true),false);
   put(R.head,lean*0.4+G.pitch*-60+fall*30,nkx,nkz-1,0.028,false);
   // the weapon hand, on the camera side: a wind-up, then the strike goes out into the room ahead of you
   const s=G.swing||0,k=1-s,wind=s>0?(k<0.25?k/0.25:Math.max(0,1-(k-0.25)/0.45)):0,hit=s>0&&k>=0.25?Math.sin(Math.min(1,(k-0.25)/0.5)*Math.PI):0;
@@ -724,9 +730,9 @@ function figLayers(e,out){
       beat:k=>k?[shx+11,shz+(Math.sin(T*9+seed)>0?9:-9)]:[shx+3,shz-13]}[pose],HA={laugh:-18+8*Math.sin(T*15),weep:35,count:20,sleep:10,fly:-15,kneel:30,beat:12,carry:8}[pose]||0;
   const flap=k=>PT&&!walk?PT(k):PT&&pose!=='stand'?PT(k):fl?[shx+Math.sin(T*13+k*2+seed)*7,shz+6+Math.cos(T*11+k)*7]:[shx+(k?-1:1)*sw*7+2,shz-11+Math.abs(sw)*3];
   armOut(put,R,shx-0.5,shz,...flap(0),-0.05,8.5,10.5);
-  legOut(put,R,hx-1,hz,fb,-0.03,11.5,11,4.5);put(R.skirt,(S[8]||0),hx-1,hz+1,-0.012,false);
+  legOut(put,R,hx-1,hz,fb,-0.03,11.5,11,4.5);put(R.skirt,(S[8]||0),hx-1,hz+1.3,coatTailDepth(e,false),false);
   put(R.chest,lean,hx,hz,0,false);
-  legOut(put,R,hx+1.2,hz,fa,0.012,11.5,11,4.5);put(R.skirt,(S[6]||0),hx+1.2,hz+1,0.02,false);
+  legOut(put,R,hx+1.2,hz,fa,0.012,11.5,11,4.5);put(R.skirt,(S[6]||0),hx+1.2,hz+1.3,coatTailDepth(e,true),false);
   put(R.head,lean*0.5+(fl?-15:0)+HA,nkx,nkz-1,0.028,false);
   armOut(put,R,shx+0.8,shz,...flap(1),0.05,8.5,10.5);
   if(e.burning){for(let k=0;k<3;k++){const[fx,fz]=at(-2+k*2.5,6+k*5+Math.sin(T*7+k)*1.5);put(PURIG.flame[Math.floor(T*10+k+seed*3)%4],Math.sin(T*5+k)*8,fx,fz+6,0.035+k*0.002,true)}}
@@ -1622,7 +1628,7 @@ function renderScene(MEP){
   if(G.meal&&G.meal.fl===G.floor&&G.time>=G.meal.ready)list.push({type:'meal',x:G.meal.x,y:G.meal.y,z0:0.55,hgt:0.24,bill:true,cards:[MEALC],frame:0,dead:0});
   if(!THIRD&&LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
   MCOLS.length=0;for(let x=0;x<W;x++)if(LGN[x]>1)MCOLS.push(x);
-  for(const e of list){if(e.type==='pp'){const q=e.pe,dx=q.x-G.x,dy=q.y-G.y,s=Math.cos(q.f)*dx+Math.sin(q.f)*dy<0?1:-1;e._d=dx*dx+dy*dy-s*e.ord*0.05}else e._d=(e.x-G.x)*(e.x-G.x)+(e.y-G.y)*(e.y-G.y)}list.sort((a,b)=>b._d-a._d);
+  for(const e of list){if(e.type==='pp'){const dx=e.x-G.x,dy=e.y-G.y;e._d=dx*dx+dy*dy}else e._d=(e.x-G.x)*(e.x-G.x)+(e.y-G.y)*(e.y-G.y)}list.sort((a,b)=>b._d-a._d);
   for(const e of list)if(e.type==='lamp')lampHalo(e);
   for(const e of list)drawCard(e);
   // the glass of the mirror is a little cold and dim
