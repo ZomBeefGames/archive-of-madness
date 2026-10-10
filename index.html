@@ -29,10 +29,10 @@ let EYE=0.5;
    to a shelf, a vast air shaft with a low railing in the middle, two spherical lamps, and two free sides with doorways,
    east and west. The galleries stand apart on a square grid, separated by open air. Railed catwalks run north-south and
    east-west between them; a short landing joins each doorway to the catwalk beside it. Where four catwalks cross is the
-   communal platform: the spiral stairwell in the middle under a hanging lamp, and four stone pillars at its corners that
-   rise through every floor - one holds the closet for sleeping standing up, one the closet for necessities, one carries
-   the mirror. Every floor has the same plan, so from a catwalk you look down and up past the catwalks and galleries of
-   every other floor. Every gallery is the same room; only its books differ, and they are calculated from the gallery's
+   communal platform: the spiral stairwell and four pillars holding the sleep closet, necessities closet, mirror and
+   food hatch. Full hubs sit at regularly spaced coordinates across x, y and floor; the intermediate levels contain
+   bare transit landings and continuous spiral stairs, not community facilities. Each new real sentence expands the
+   equal grid interval by one horizontal room and one vertical floor. Every gallery is the same room; only its books differ, and they are calculated from the gallery's
    address, so the Library goes on without end in every direction and up and down, as large as Borges' Library and
    larger, and the same shelf always holds the same books. */
 const R=5,A=R*Math.cos(Math.PI/6),HW=0.75,P=16,CWI=P/2-0.8,PLI=P/2-1.8,PIL0=PLI,PIL1=PLI+0.7,WALLH=1.9,FH=2.15,RS=1.7,RSW=0.65,RAILH=0.34,LAMPY=3.0,LAMPZ=1.3,JLZ=1.5,CATT=0.12,MZ0=0.16,MZ1=WALLH-0.1;
@@ -1140,7 +1140,7 @@ function rememberSentence(id){
   if(G.seenSentences.has(id))return false;
   G.seenSentences.add(id);G.sentencesFound++;
   LAMPS.key=null;WD.key=null;
-  sfx('THE LIBRARY STRETCHES · HUBS '+hubStride()+' APART','mind');
+  sfx('LIBRARY STRETCHES · '+hubStride()+' ROOMS / '+hubStride()+' FLOORS','mind');
   return true;
 }
 function clockText(){const h=hourOf(),hh=Math.floor(h),mm=Math.floor((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')}
