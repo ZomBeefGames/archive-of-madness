@@ -24,12 +24,11 @@ function game(inRoom) {
   const voices = [];
   const context = vm.createContext({ G, voices, ENCS: {}, PUR: [],
     FIGRIG: [[], [], []], ENCRIG: { sleep: [], weep: [], peddler: [], count: [] },
-    gaitUpd() {}, voice: (...args) => voices.push(args), sfx() {}, snd() {},
+    gaitUpd() {}, voice: (...args) => voices.push(args), sfx() {}, snd() {}, rememberSentence() {},
     drawBook() {}, closeBook() {}, burned: new Set() });
   vm.runInContext([
     between('const R=5,', 'const MAXLV='), line('const NRM='),
-    line('function inHexL('), line('const mod3='), line('function isComm('),
-    line('function cornerComm('), between('function walkable(', 'function placeOf('),
+    line('function inHexL('), between('function hubStride()', '/* the segments of one square'), between('function walkable(', 'function placeOf('),
     between('function encChoose(', 'function encClosed('),
     between('function mkFig(', 'const seekBody='),
     between('function collideHex(', 'function wallHitIndex('), line('function wallHitIndex('),
