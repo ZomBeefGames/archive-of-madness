@@ -39,13 +39,13 @@ The rooms follow Borges' story; the space between them is open air:
 - The galleries stand apart on a square grid, separated by open air. Railed catwalks run north-south and east-west between them, and a short landing joins each doorway to the catwalk beside it.
 - Where four catwalks cross is the communal platform: the spiral stairwell in the middle under a hanging lamp, and four stone pillars at its corners that rise through every floor. One holds the closet for sleeping standing up, one the closet for necessities, one carries the mirror.
 - Every floor has the same plan, so from a catwalk you look down and up past the catwalks, platforms and galleries of every other floor.
-- The Library is periodic: 12 galleries across in any direction (144 to a floor) and 24 floors up or down, then the same books return in the same disorder.
+- Every gallery is the same room; only its books differ, and those are calculated from the gallery's address (its place east-west and north-south, and its floor). So the Library goes on without end in every direction and up and down, at least as large as Borges' Library, and the same shelf always holds the same books. You wake somewhere among hundreds of thousands of galleries and a couple of thousand floors, a few galleries from your page.
 - The journal (J) keeps a sketch map of the floor around you with north at the top, the galleries you have searched shaded. Once the Index has told you, a red cross marks the gallery of your page.
 
 ## What is in the prototype
 
 - Raycaster at roughly 320×200 that steps across the grid and through the doorways and follows each ray up and down through the open air, so other storeys show past the catwalks and down the shafts and stairwells; mirror reflections (you see yourself) and railings.
-- Deterministic pages: every page is calculated from hexagon, floor, wall, shelf, book and page (FNV-1a + mulberry32), so the same shelf always reads the same on every device.
+- Deterministic pages: every page is calculated from its address (hexagon, floor, wall, shelf, book and page) (FNV-1a + mulberry32), so the same shelf always reads the same on every device.
 - Sanity, health and lantern oil; psychosis at zero sanity with phantom Purifiers. Sleeping in the closet restores sanity at the cost of oil.
 - Purifiers (patrol, chase, burn shelves) and Seekers (charge to steal oil when startled).
 - Your biography page clusters around one hexagon and floor tied to your phrase and favours two walls, so it can be learned.

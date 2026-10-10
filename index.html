@@ -32,10 +32,11 @@ let EYE=0.5;
    communal platform: the spiral stairwell in the middle under a hanging lamp, and four stone pillars at its corners that
    rise through every floor - one holds the closet for sleeping standing up, one the closet for necessities, one carries
    the mirror. Every floor has the same plan, so from a catwalk you look down and up past the catwalks and galleries of
-   every other floor. The Library is periodic: NT galleries across in any direction, or NF floors up or down, and the
-   same volumes return in the same disorder. */
+   every other floor. Every gallery is the same room; only its books differ, and they are calculated from the gallery's
+   address, so the Library goes on without end in every direction and up and down, as large as Borges' Library and
+   larger, and the same shelf always holds the same books. */
 const R=5,A=R*Math.cos(Math.PI/6),HW=0.75,P=16,CWI=P/2-0.8,PLI=P/2-1.8,PIL0=PLI,PIL1=PLI+0.7,WALLH=1.9,FH=2.15,RS=1.7,RSW=0.65,RAILH=0.34,LAMPY=3.0,LAMPZ=1.3,JLZ=1.5,CATT=0.12,MZ0=0.16,MZ1=WALLH-0.1;
-const NT=12,NF=24,NG=NT*NT,MAXLV=7;
+const MAXLV=7;
 const NRM=[...Array(6)].map((_,w)=>[Math.cos(w*Math.PI/3),Math.sin(w*Math.PI/3)]);
 const wrapN=(v,n)=>((v%n)+n)%n;
 function torusD(a,b,n){const d=wrapN(a-b,n);return Math.min(d,n-d)}
@@ -53,15 +54,20 @@ function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCo
 function prng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
 
 /* gallery (i,j) stands at (i*P, j*P); north is -y */
-function galId(i,j){return wrapN(i,NT)*NT+wrapN(j,NT)}
-function galInfo(g){return{i:Math.floor(g/NT),j:g%NT,k:0}}
+/* a gallery's address is its place on the grid: east-west, north-south */
+function galId(i,j){return i+','+j}
+function galInfo(g){const p=g.split(',');return{i:+p[0],j:+p[1],k:0}}
 function shelfWalls(){return[1,2,4,5]}
 const WN={1:1,2:2,4:3,5:4};function wallNo(k,w){return WN[w]}
-function tileD(i1,j1,i2,j2){return torusD(i1,i2,NT)+torusD(j1,j2,NT)}
+function tileD(i1,j1,i2,j2){return Math.abs(i1-i2)+Math.abs(j1-j2)}
 const ROOMS=new Map(),AIRS=new Map();
-function getRoom(i,j){const key=(i+8192)*16384+(j+8192);let c=ROOMS.get(key);if(c)return c;if(ROOMS.size>4000)ROOMS.clear();const cx=i*P,cy=j*P,id=i+','+j;
-  c={kind:'g',id,i,j,k:0,gid:galId(i,j),cx,cy,doors:[0,3],lamps:[[cx,cy+LAMPY],[cx,cy-LAMPY]]};ROOMS.set(key,c);return c}
-function getAir(i,j){const key=(i+8192)*16384+(j+8192);let c=AIRS.get(key);if(c)return c;if(AIRS.size>4000)AIRS.clear();c={kind:'a',id:i+','+j,i,j,cx:i*P,cy:j*P};AIRS.set(key,c);return c}
+/* cached by column, then row: any address, and no allocation once seen */
+let NCACHE=0;
+function cached(M,i,j,make){let m=M.get(i);if(!m){m=new Map();M.set(i,m)}let c=m.get(j);if(!c){if(++NCACHE>20000){ROOMS.clear();AIRS.clear();NCACHE=0;m=new Map();M.set(i,m)}c=make();m.set(j,c)}return c}
+function getRoom(i,j){return cached(ROOMS,i,j,()=>makeRoom(i,j))}
+function makeRoom(i,j){let c;const cx=i*P,cy=j*P,id=i+','+j;
+  c={kind:'g',id,i,j,k:0,gid:galId(i,j),cx,cy,doors:[0,3],lamps:[[cx,cy+LAMPY],[cx,cy-LAMPY]]};return c}
+function getAir(i,j){return cached(AIRS,i,j,()=>({kind:'a',id:i+','+j,i,j,cx:i*P,cy:j*P}))}
 function inHexL(lx,ly,ap){for(let w=0;w<6;w++)if(lx*NRM[w][0]+ly*NRM[w][1]>ap)return false;return true}
 
 /* the segments of one square of the grid, in coordinates centred on its gallery: the gallery's walls seen from inside,
@@ -262,8 +268,8 @@ const SENTENCES=["the weights remember what you deleted.","yesterday you ran. th
    The closer you are (tiles across the honeycomb, plus floors up or down), the denser it gets. */
 const BIO={};
 function bioPlan(phrase){const P0=BIO[phrase];if(P0)return P0;const r=prng(hashStr('bio|'+phrase)),a=Math.floor(r()*4),b=(a+1+Math.floor(r()*3))%4;
-  const Q={walls:[a+1,b+1],i:Math.floor(r()*NT),j:Math.floor(r()*NT),k:0,f:Math.floor(r()*NF)};Q.g=galId(Q.i,Q.j);return BIO[phrase]=Q}
-function bioDist(g,f,phrase){const P=bioPlan(phrase),q=galInfo(g);return tileD(q.i,q.j,P.i,P.j)+torusD(f,P.f,NF)}
+  const Q={walls:[a+1,b+1],i:Math.floor((r()-0.5)*200000),j:Math.floor((r()-0.5)*200000),k:0,f:Math.floor((r()-0.5)*2000)};Q.g=galId(Q.i,Q.j);return BIO[phrase]=Q}
+function bioDist(g,f,phrase){const P=bioPlan(phrase),q=galInfo(g);return tileD(q.i,q.j,P.i,P.j)+Math.abs(f-P.f)}
 function bioChance(g,f,wall,phrase){const P=bioPlan(phrase),base=Math.max(1/2400,Math.pow(0.45,bioDist(g,f,phrase))/12);return P.walls.includes(wallNo(galInfo(g).k,wall))?base:base*0.12}
 function makePage(g,f,wall,shelf,book,page,phrase){
   const key=g+'.'+f+'|'+wall+'|'+shelf+'|'+book+'|'+page,h=hashStr(key),rnd=prng(h);
@@ -279,16 +285,14 @@ const G={};
 const keys={};
 function reset(){
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
-  let c,f,d;do{c=getRoom(Math.floor(Math.random()*NT),Math.floor(Math.random()*NT));f=Math.floor(Math.random()*NF);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
-  Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),seen:new Map([[c.gid+':'+f,c.id+':0']]),
+  const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
+  Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,order:false,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
-  G.room=c;G.gal=c.gid;const key=G.gal+':'+G.floor,uk=c.id+':'+G.uf,prev=G.seen.get(key);
-  if(prev===undefined)G.seen.set(key,uk);else if(prev!==uk&&!G.order){G.order=true;sfx('THE ORDER','mind');setTimeout(()=>sfx('THE SAME BOOKS AGAIN','mind'),450)}
-  G.rooms.add(key);spawnRoom(false);
+  G.room=c;G.gal=c.gid;G.rooms.add(G.gal+':'+G.floor);spawnRoom(false);
 }
 function spawnRoom(first){
   const h=hashStr('room|'+G.gal+'|'+G.floor),rnd=prng(h);G.ents=[];G.alerted=false;
@@ -475,8 +479,10 @@ function throwOil(){
 function useIncense(){if(G.state!=='play')return;if(G.incense<=0){sfx('NO INCENSE');return}if(G.incenseT>0)return;G.incense--;G.incenseT=6;G.phantoms=[];sfx('SECT INCENSE','mind');snd('incense')}
 /* the Prophecy Trap: what you do is written down. The next coherent page you find tells it back to you in the past tense */
 const ONES=['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'],TENS=['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
-function numWords(n){if(n<20)return ONES[n];if(n<100)return TENS[Math.floor(n/10)]+(n%10?' '+ONES[n%10]:'');return ONES[Math.floor(n/100)]+' hundred'+(n%100?' and '+numWords(n%100):'')}
-function sin(kind,wallN,gid){const at='in hexagon '+numWords(gid==null?G.gal:gid)+', floor '+numWords(G.floor)+', ';
+function numWords(n){if(n<20)return ONES[n];if(n<100)return TENS[Math.floor(n/10)]+(n%10?' '+ONES[n%10]:'');if(n<1000)return ONES[Math.floor(n/100)]+' hundred'+(n%100?' and '+numWords(n%100):'');
+  if(n<1e6)return numWords(Math.floor(n/1000))+' thousand'+(n%1000?' '+numWords(n%1000):'');return numWords(Math.floor(n/1e6))+' million'+(n%1e6?' '+numWords(n%1e6):'')}
+function placeWords(g,f){const q=galInfo(g);return'in the hexagon '+numWords(Math.abs(q.i))+(q.i<0?' west':' east')+' and '+numWords(Math.abs(q.j))+(q.j<0?' north':' south')+', '+(f<0?numWords(-f)+' floors down':'floor '+numWords(f))+', '}
+function sin(kind,wallN,gid){const at=placeWords(gid==null?G.gal:gid,G.floor);
   G.sins.push(at+(kind==='kill'?'you struck down a weeping librarian and took their oil.':'you burned wall '+numWords(wallN)+' and every book on it.'))}
 /* Read does whatever is in front of you: a shelf, the Index, the stair, a closet, the mirror */
 function doRead(){
@@ -548,7 +554,7 @@ const AIRLV=9,FOG=[...Array(AIRLV+2)].map((_,m)=>Math.pow(0.8,m+0.3));let CW_LAM
 function put(i,r,g,b,L){buf[i]=r*L*TR;buf[i+1]=g*L*TG;buf[i+2]=b*L*TB}
 /* a wall pixel at height z on the floor lv levels from yours */
 const LVTEX=new Array(2*MAXLV+3);let LVSTAMP=0;const LVAT=new Int32Array(2*MAXLV+3);
-function colTex(h,lv){const j=lv+MAXLV+1;if(LVAT[j]!==LVSTAMP){LVAT[j]=LVSTAMP;LVTEX[j]=wallTex(h.cell.gid,wrapN(G.floor+lv,NF),h.seg.wall)}return LVTEX[j]}
+function colTex(h,lv){const j=lv+MAXLV+1;if(LVAT[j]!==LVSTAMP){LVAT[j]=LVSTAMP;LVTEX[j]=wallTex(h.cell.gid,G.floor+lv,h.seg.wall)}return LVTEX[j]}
 function wallPx(i,h,z,lv,L){
   if(h.type==='void'){buf[i]=buf[i+1]=buf[i+2]=0;return}
   const s=h.seg,zz=Math.max(0,Math.min(WALLH-1e-6,z));let tex,ti;L*=(1-zz/WALLH*0.55)*2.0;
@@ -775,7 +781,7 @@ function drawNote(g,px,py,pw,ph,x2,y2){
   g.font='italic 25px Georgia,serif';g.fillStyle='#2a2018';blockG(g,wrapG(g,n.text,pw-68),px+34,py+74,34);
   if(st){
     g.font='bold 44px Georgia,serif';g.fillStyle='#b3261e';g.fillText('▲ CLIMB',px+34,py+ph-130);g.fillText('▼ DESCEND',x2+34,y2+ph-130);
-    g.font='italic 23px Georgia,serif';g.fillStyle='#2a2018';g.fillText('to floor '+wrapN(G.floor+1,NF),px+38,py+ph-74);g.fillText('to floor '+wrapN(G.floor-1,NF),x2+38,y2+ph-74);
+    g.font='italic 23px Georgia,serif';g.fillStyle='#2a2018';g.fillText('to floor '+(G.floor+1),px+38,py+ph-74);g.fillText('to floor '+(G.floor-1),x2+38,y2+ph-74);
     g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'W climb · S descend · E close':'tap a page · tap outside · close',x2+34,y2+30);
     return;
   }
@@ -784,7 +790,7 @@ function drawNote(g,px,py,pw,ph,x2,y2){
 }
 function hintLines(){
   const P=bioPlan(G.phrase),out=[];
-  if(G.hints>0){const d=signedD(P.f,G.floor,NF);out.push('Floor '+P.f+' ('+(d===0?'this floor':Math.abs(d)+(d>0?' up':' down'))+')')}
+  if(G.hints>0){const d=P.f-G.floor;out.push('Floor '+P.f+' ('+(d===0?'this floor':Math.abs(d)+(d>0?' up':' down'))+')')}
   if(G.hints>1)out.push('Hexagon '+P.g+' ('+(P.g===G.gal?'this one':'on the map')+')');
   if(G.hints>2)out.push('Walls '+P.walls[0]+' and '+P.walls[1]);
   return out;
@@ -794,7 +800,7 @@ function drawJournal(){
   const t=TX.journal,{g,px,py,pw,ph,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+20);
   g.font='italic 17px Georgia,serif';
-  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor}`,`Rooms ${G.rooms.size} · Books ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Oil ${G.oil} · Incense ${G.incense} · ${WNAME[G.weapon].toLowerCase()}`,`Fragments ${G.frags} · Index XP ${G.xp}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[],G.order?['The same books again.']:[]),px+26,py+46,22);
+  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor}`,`Rooms ${G.rooms.size} · Books ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Oil ${G.oil} · Incense ${G.incense} · ${WNAME[G.weapon].toLowerCase()}`,`Fragments ${G.frags} · Index XP ${G.xp}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,22);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
   g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+G.phrase+'"',px+26,yy+28);
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE INDEX SAYS',px+26,yy+64);
@@ -823,11 +829,11 @@ function drawMap(g,x0,y0,w,h){
     const seen=G.rooms.has(galId(i,j)+':'+G.floor),here=G.room.id===i+','+j;
     hexPath(g,X(x),Y(y),R*sc);g.fillStyle=here?'#c9a46a':seen?'#dcc89c':'#efe5c8';g.fill();g.strokeStyle='#6b5a44';g.stroke();
     g.beginPath();g.arc(X(x),Y(y),RS*sc,0,Math.PI*2);g.strokeStyle='rgba(42,32,24,.35)';g.stroke()}
-  if(G.hints>=2){const Pl=bioPlan(G.phrase),ti=Pl.i+NT*Math.round((i0-Pl.i)/NT),tj=Pl.j+NT*Math.round((j0-Pl.j)/NT);
+  if(G.hints>=2){const Pl=bioPlan(G.phrase),ti=Pl.i,tj=Pl.j;
     let mx=X(ti*P),my=Y(tj*P);const off=mx<x0+10||mx>x0+w-10||my<y0+10||my>y0+h-10;
     if(off){const dx=mx-cx,dy=my-cy,k=Math.min((w/2-14)/Math.abs(dx||1e-9),(h/2-14)/Math.abs(dy||1e-9));mx=cx+dx*k;my=cy+dy*k}
     g.strokeStyle='#b3261e';g.lineWidth=3;g.beginPath();g.moveTo(mx-6,my-6);g.lineTo(mx+6,my+6);g.moveTo(mx+6,my-6);g.lineTo(mx-6,my+6);g.stroke();
-    const df=signedD(Pl.f,G.floor,NF);g.font='bold 12px "Courier New",monospace';g.fillStyle='#ff8f6b';g.textAlign='center';
+    const df=Pl.f-G.floor;g.font='bold 12px "Courier New",monospace';g.fillStyle='#ff8f6b';g.textAlign='center';
     g.fillText(df===0?(off?'that way':'your page'):(Math.abs(df)+' floor'+(Math.abs(df)>1?'s ':' ')+(df>0?'up':'down')),Math.max(x0+60,Math.min(x0+w-60,mx)),my+(my>cy?-20:10));g.textAlign='left'}
   g.save();g.translate(cx,cy);g.rotate(G.ang);g.fillStyle='#b3261e';g.beginPath();g.moveTo(9,0);g.lineTo(-6,-6);g.lineTo(-3,0);g.lineTo(-6,6);g.closePath();g.fill();g.restore();
   g.font='bold 13px "Courier New",monospace';g.fillStyle='#efe5c8';g.textAlign='center';g.fillText('N',x0+w/2,y0+3);g.textAlign='left';
@@ -1018,9 +1024,10 @@ function drawStat(){
   const dark=G.oil<=0,g=HST.glass.g;g.clearRect(0,0,260,180);gridC(g,LGLASS,22,30,9,dark?{y:'#5a4a2a',f:'#5a4a2a',Y:'#5a4a2a'}:null);
   const q=HST.front.g;q.clearRect(0,0,260,180);gridC(q,LFRAME,22,30,9);
   hudText(q,dark?'DARK':'OIL '+String(G.oil).padStart(2,'0'),104,30,'bold 34px Impact,"Arial Black",sans-serif',dark?'#ff8f6b':'#f6ecd2');
-  hudText(q,'HEX '+G.gal+' · FLOOR '+G.floor,104,84,'bold 13px "Courier New",monospace','#f6ecd2');
-  hudText(q,'rooms '+G.rooms.size+' · books '+G.books,104,110,'bold 13px "Courier New",monospace','#e2d6b4');
-  hudText(q,'incense '+G.incense+(G.incenseT>0?' · burning':''),104,134,'bold 13px "Courier New",monospace','#c9b88f');
+  hudText(q,'HEX '+G.gal,104,76,'bold 13px "Courier New",monospace','#f6ecd2');
+  hudText(q,'FLOOR '+G.floor,104,96,'bold 13px "Courier New",monospace','#f6ecd2');
+  hudText(q,'rooms '+G.rooms.size+' · books '+G.books,104,116,'bold 13px "Courier New",monospace','#e2d6b4');
+  hudText(q,'incense '+G.incense+(G.incenseT>0?' · burning':''),104,136,'bold 13px "Courier New",monospace','#c9b88f');
   silInto(HST.sil,[HST.glass,HST.front]);haloInto(HST.halo,HST.sil,0)}
 function hudModel(h,an,d,yaw){
   const M=mBegin(h,an,d,0.03,0.3,yaw);
@@ -1210,7 +1217,7 @@ function frame(now){
   else if(G.state==='closing'){G.bookAnim+=dt;G.time+=dt;if(G.bookAnim>=0.3){if(G.won){G.state='waking';G.winT=0;G.journal=false}else{G.state='play';if(G.health<=0)die()}}}
   else if(G.state==='waking'){G.winT+=dt;G.time+=dt;EYE=0.5+0.25*Math.min(1,G.winT/1.6);if(G.winT>1.8){G.state='won';drawWon()}}
   else if(G.state==='won'){G.time+=dt}
-  else if(G.state==='climb'){G.climbT+=dt;G.time+=dt;if(!G.climbed&&G.climbT>=0.6){G.climbed=true;G.floor=wrapN(G.floor+G.climbDir,NF);G.uf+=G.climbDir;enterRoom(G.room);sfx('FLOOR '+G.floor,'mind')}if(G.climbT>=1.2)G.state='play'}
+  else if(G.state==='climb'){G.climbT+=dt;G.time+=dt;if(!G.climbed&&G.climbT>=0.6){G.climbed=true;G.floor+=G.climbDir;enterRoom(G.room);sfx('FLOOR '+G.floor,'mind')}if(G.climbT>=1.2)G.state='play'}
   else if(G.state==='sleep'){G.sleepT+=dt;G.time+=dt;if(G.sleepT>=2.2){G.state='play';G.sanity=Math.min(100,G.sanity+15);if(G.oil>0)G.oil--;G.sleepCd=75;sfx('+15 SANITY','mind');setTimeout(()=>sfx('-1 OIL'),300)}}
   else update(dt);
   G.flip=Math.max(0,(G.flip||0)-dt);
