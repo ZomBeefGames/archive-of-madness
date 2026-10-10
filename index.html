@@ -120,7 +120,7 @@ function inWell(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,ly=
 function airFloor(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,ly=py-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
   if(ay<=HW&&ax>=A&&ax<=CWI)return true;
   if(ax>=CWI||ay>=CWI)return!inWell(px,py);
-  if(ax>=PLI&&ay>=PLI&&cornerComm(i,j,lx,ly))return!inWell(px,py);
+  if(ax>=PLI&&ay>=PLI&&cornerStair(i,j,lx,ly))return!inWell(px,py);
   return false}
 /* where you may stand */
 function walkable(x,y,rad){
