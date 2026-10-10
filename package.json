@@ -1,0 +1,9 @@
+{
+  "name": "archive-of-madness",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Archives of Madness, a ZomBeef Games browser game",
+  "engines": { "node": ">=18" },
+  "scripts": { "start": "node server.mjs" }
+}

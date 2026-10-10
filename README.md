@@ -82,3 +82,7 @@ The rooms follow Borges' story; the space between them is open air:
 ## Design
 
 The full game design document is in [`docs/GDD.md`](docs/GDD.md), including planned modes, multiplayer, cross-game unlocks and the production roadmap.
+
+## Hosting
+
+The game is the single file `index.html`. On Railway it is served by `server.mjs` (Node, no dependencies): `railway.toml` builds it with Railpack and starts `node server.mjs`, which listens on `$PORT`, serves `index.html` at `/` and the files beside it (such as `sfx/`), and refuses dotfiles and its own server files. Locally: `npm start`, then open http://localhost:3000.
