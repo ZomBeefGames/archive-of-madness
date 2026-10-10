@@ -243,13 +243,15 @@ function zoneRead(){
   if(feature){
     const z=feature.zone;G.lastHit={t:feature.dist};snd('page');
     let award='';
-    if(z.type==='barricaded'&&!z.breached){z.breached=true;G.type+=1;award='BARRICADE CLEARED · +1 TYPE'}
+    if(z.type==='barricaded'&&!z.breached){z.breached=true;z.inspected=true;G.type+=1;award='BARRICADE CLEARED · +1 TYPE'}
     else if(!z.opened&&(z.type==='watch'||z.type==='shrine'||z.type==='vigil')){
       z.opened=true;
       if(z.type==='watch'){G.oil+=2;award='+2 OIL · LOOKOUT CACHE EMPTIED'}
       else{G.incense++;award='+1 INCENSE · OFFERING TAKEN'}
     }
     else if(!z.opened&&z.type==='ash'){z.opened=true;G.type++;award='+1 CHARRED TYPE'}
+    else if(!z.inspected){z.inspected=true}
+    else return false; // let the regular Read action open the still-usable stairs
     sfx(award||'THE LANDING REMEMBERS','mind');
     openNote(CROSS_NAMES[z.type],zoneDescription(z),award||'THE SPIRAL STAIR REMAINS OPEN');
     return true;
