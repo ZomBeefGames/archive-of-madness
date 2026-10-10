@@ -2057,7 +2057,7 @@ function filmBaseArt(){
   dark.addColorStop(0,'#090d14');dark.addColorStop(.5,'#1b171a');dark.addColorStop(1,'#090909');
   g.fillStyle=dark;g.fillRect(0,0,w,h);
   // Receding archways, cut from paper in separate planes.
-  for(let n=9;n>=0;n--){
+  for(let n=0;n<10;n++){
     const d=(n+1)/10,half=w*(.11+.45*d),top=h*(.35-.38*d),bottom=h*(.62+.43*d),
       thick=Math.max(2,w*.018*d),a=.10+.32*d;
     g.strokeStyle='rgba(186,145,100,'+a+')';g.lineWidth=thick;
@@ -2844,6 +2844,7 @@ const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',
 addEventListener('keydown',ev=>{
   const c=ev.code;
   if(G.state==='title'){
+    if(ev.repeat){ev.preventDefault();return}
     if(c==='ArrowUp'||c==='KeyW'||c==='ArrowLeft')action('up');
     else if(c==='ArrowDown'||c==='KeyS'||c==='ArrowRight')action('down');
     else if(c==='Enter'||c==='Space'||c==='KeyE')action('read');
@@ -2852,6 +2853,7 @@ addEventListener('keydown',ev=>{
     ev.preventDefault();return;
   }
   if(G.state==='cinematic'){
+    if(ev.repeat){ev.preventDefault();return}
     if(c==='Escape'||c==='KeyX')action('skip');
     else if(c==='Enter'||c==='Space'||c==='KeyE'||c==='ArrowRight')action('next');
     ev.preventDefault();return;
