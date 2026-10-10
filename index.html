@@ -336,6 +336,43 @@ function mirPart(p){if(!p.m){const g=p.g,col=new Array(g.w*g.h);for(let y=0;y<g.
   if(p.bk){const c2=new Array(g.w*g.h);for(let y=0;y<g.h;y++)for(let x=0;x<g.w;x++)c2[y*g.w+x]=p.bk.col[y*g.w+g.w-1-x];p.m.bk={w:g.w,h:g.h,col:c2}}}return p.m}
 function partAt(part,deg){const q=Math.round(deg/3)*3;let v=part.cache.get(q);if(!v){v=turnPart(part,q);part.cache.set(q,v);if(part.cache.size>48)part.cache.delete(part.cache.keys().next().value)}return v}
 
+/* Dedicated rear-side ink: a puppet is a two-sided illustration, not a dim copy of its front.
+   Keep the exact cut-out silhouette while painting separate cloth folds, hems and seams. */
+function clothBack(p,R,style){
+  const g=p.g,w=g.w,h=g.h,s=p.scale||1,b=blank(w,h);b.scale=s;
+  const inside=(x,y)=>x>=0&&y>=0&&x<w&&y<h&&!!g.col[y*w+x];
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    if(!inside(x,y))continue;
+    const i=y*w+x,u=(x+0.5)/w,v=(y+0.5)/h,edge=!inside(x-1,y)||!inside(x+1,y)||!inside(x,y-1)||!inside(x,y+1);
+    if(edge){b.col[i]=INK;continue}
+    const value=0.72-0.30*Math.abs(u*2-1)-0.13*v+0.075*Math.cos(u*15+v*4);
+    const pick=t=>R[Math.max(0,Math.min(R.length-1,t))];
+    let c=pick(Math.floor(value*R.length));
+    if((style==='cape'||style==='tail'||style==='robe')&&v>0.22&&(Math.abs(u-0.32)<0.027||Math.abs(u-0.70)<0.024))c=pick(1); // hanging folds
+    if((style==='tail'||style==='robe'||style==='cape')&&v>0.89)c=pick(1); // worn lower hem
+    if((style==='tail'||style==='robe')&&v>0.55&&Math.abs(u-0.5)<0.024)c=pick((Math.floor(y/s)%4===0)?3:1); // stitched vent
+    if(style==='sect'&&v>0.66&&v<0.8)c=RRED[Math.floor(1+2*value)];
+    if(style==='sect'&&v>0.24&&v<0.65&&Math.abs(u-0.5)<0.025)c=pick((Math.floor(y/s)%3===0)?3:1);
+    if(style==='hood'&&Math.abs(u-0.53)<0.035&&v>0.19&&v<0.8)c=pick((Math.floor(y/s)%4===0)?3:1);
+    if(style==='hood'&&v>0.85)c=RRED[1];
+    if(style==='seeker'&&v>0.72&&v<0.83)c=RHAIR[1];
+    if(style==='seeker'&&Math.abs(u-0.51)<0.029&&v>0.18&&v<0.73)c=pick((Math.floor(y/s)%4===0)?3:1);
+    if(style==='sleeve'&&Math.abs(u-0.53)<0.06&&v>0.15&&v<0.85)c=pick(1);
+    if(style==='trouser'&&Math.abs(u-0.50)<0.055&&v>0.2)c=pick(1);
+    if(style==='boot'&&v>0.74)c=pick(0);
+    if(style==='book'&&(Math.abs(u-0.5)<0.08||v<0.16||v>0.84))c=pick(1);
+    b.col[i]=c;
+  }
+  p.bk=b;p.cache.clear();p.m=undefined;return p
+}
+function reverseTone(p){
+  const g=p.g,w=g.w,h=g.h,b=blank(w,h);b.scale=p.scale||1;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x,c=g.col[i];if(!c)continue;
+    const k=0.83-0.16*Math.abs((x+0.5)/w*2-1)-0.08*y/h;
+    b.col[i]=c===INK?INK:[Math.min(255,c[0]*k+8)|0,Math.min(255,c[1]*k+7)|0,Math.min(255,c[2]*k+6)|0]}
+  p.bk=b;p.cache.clear();p.m=undefined;return p
+}
+
 /* two-bone reach: from a root toward a target with bones a and b, bending to one side; gives the joint and the end */
 function ik2(rx,rz,tx,tz,a,b,bend){
   let dx=tx-rx,dz=tz-rz,d=Math.hypot(dx,dz);if(d<1e-6){dx=0;dz=-1;d=1}
@@ -387,6 +424,14 @@ stamp(PURIG.chest.g,['Yy...','y....','.....','..n..','..n..'],3,3,{Y:rgb('#d8c39
 stamp(PURIG.chest.g,['n.n.n'],5,20,{n:rgb('#b1aaa0')});
 stamp(PURIG.hood.g,['n.....','n.....','.n....'],4,6,{n:rgb('#c2c2af')});
 stamp(PURIG.skirt.g,['n.n.n.n'],3,15,{n:rgb('#928b7b')});
+clothBack(PURIG.chest,RASH,'sect');
+clothBack(PURIG.hood,RASH,'hood');
+clothBack(PURIG.skirt,RASH,'robe');
+for(const p of PURIG.cape)clothBack(p,RCAPE,'cape');
+clothBack(PURIG.upper,RASH,'sleeve');
+clothBack(PURIG.thigh,RLEG,'trouser');clothBack(PURIG.shin,RLEG,'trouser');clothBack(PURIG.boot,RBOOT,'boot');
+stamp(PURIG.chest.bk,['..r..','.rRr.','rRRRr','.rrr.'],7,7,{r:RRED[2],R:RRED[3]});
+for(const p of Object.values(PURIG).flat())if(p.g&&!p.bk&&!p.glow)reverseTone(p);
 /* the Seeker: a small hunched scholar in a dun robe, barefoot, reading as they walk */
 const RDUN=ramp('#36302a','#59503f','#827559','#b4a17b','#d9c59b'),RSKIN=ramp('#6e452f','#a8754f','#d6a57c','#f0c8a0'),RHAIR=ramp('#1e130c','#3a2418','#573826'),
   RPAGE=ramp('#a89c80','#d8ccae','#f2e9d2'),SPAL={k:INK,w:rgb('#f4f0e6'),p:INK,m:rgb('#3a0d10'),S:rgb('#a8754f'),n:rgb('#8a7b5c'),c:rgb('#5a3a22'),y:rgb('#f2c14e'),Y:rgb('#fff4c2')};
@@ -398,6 +443,12 @@ function seekHead(scared){return part(16,18,7,17,g=>{
   stamp(g,['S..','SY.','.S.'],10,10,SPAL);
   stamp(g,scared?['.kk.','kmmk','kmmk','.kk.']:['SS.S','kkk.','.S..'],8,scared?12:13,SPAL);
   stamp(g,['n.n','...','n..'],3,3,SPAL);
+},false,g=>{
+  // One quiet scalp and a cloth collar on the back, not the scholar's face printed backwards.
+  capsule(g,7.5,9,7.8,11,5.8,4.9,RSKIN);
+  paint(g,(x,y)=>((x-7.3)/6.2)**2+((y-8.2)/6.5)**2<=1&&y<15,(x,y)=>0.73-0.32*x/16-0.13*y/18,RHAIR);
+  stamp(g,['n..n.n','..n...','.n..n.'],4,5,{n:RHAIR[2]});
+  paint(g,(x,y)=>y>14&&y<17&&Math.abs(x-7.5)<3.2,()=>0.58,RDUN,false);
 })}
 const SEEKRIG={
   thigh:bone(9.5,2.6,2.1,RDUN),shin:bone(9,1.9,1.5,RSKIN),
@@ -418,6 +469,10 @@ const SEEKRIG={
 stamp(SEEKRIG.chest.g,['kkkk','knnk','knnk','kkkk'],2,6,{k:rgb('#534837'),n:rgb('#bbaa86')});
 stamp(SEEKRIG.chest.g,['..n','n..','..n'],3,7,{n:rgb('#ded1ad')});
 stamp(SEEKRIG.book.g,['....k....','....k....','....k....','....k....'],1,1,{k:rgb('#9b8464')});
+clothBack(SEEKRIG.chest,RDUN,'seeker');clothBack(SEEKRIG.skirt,RDUN,'robe');
+clothBack(SEEKRIG.upper,RDUN,'sleeve');clothBack(SEEKRIG.thigh,RDUN,'trouser');clothBack(SEEKRIG.shin,RSKIN,'trouser');
+clothBack(SEEKRIG.foot,RSKIN,'boot');clothBack(SEEKRIG.book,RWOOD,'book');
+for(const p of Object.values(SEEKRIG).flat())if(p.g&&!p.bk&&!p.glow)reverseTone(p);
 /* ---- walking: each foot is planted while the body passes over it, then lifted and swung ahead; the step rate follows
    the speed, and only the part of the motion that lies in the paper's plane moves the feet across it. The cape and the
    skirts hang on springs, so they trail, swing and settle ---- */
@@ -443,12 +498,15 @@ function footAt(u,A,lift){
 /* a paper figure seen edge-on vanishes, so the paper only ever turns to within ~66° of edge-on as seen from the camera;
    past that it shows its face or its back at a slant, and the figure stays readable from any side */
 function faceToward(f,x,y){const av=Math.atan2(G.y-y,G.x-x),d=angDiff(f,av),ad=Math.abs(d),lim=1.15;
-  if(ad<=lim||ad>=Math.PI-lim||(G.x===x&&G.y===y))return f;return av+Math.sign(d)*(ad<Math.PI/2?lim:Math.PI-lim)}
+  if(ad<=lim||ad>=Math.PI-lim||(G.x===x&&G.y===y))return f;
+  // Continuous through side-on: the previous front/back switch jumped ~48 degrees in one frame.
+  const t=(ad-lim)/(Math.PI-2*lim),blend=t*t*(3-2*t);
+  return av+Math.sign(d)*(lim+(Math.PI-2*lim)*blend)}
 function rigOut(e,out){
   const zw=e.zw||0;if(e.lvl!==undefined){e.lc=placeOf(e.x,e.y);e.fog=FOG[Math.min(AIRLV,Math.abs(Math.round(zw/FH)))]}
-  const F=e===ME?e.f:faceToward(e.f,e.x,e.y),nX=Math.cos(F),nY=Math.sin(F),tX=-nY,tY=nX,mir=e.dir<0,shake=e.hit>0?Math.sin(G.time*70)*e.hit*1.2:0;
+  const F=e===ME?e.f:faceToward(e.f,e.x,e.y),nX=Math.cos(F),nY=Math.sin(F),tX=-nY,tY=nX,shake=e.hit>0?Math.sin(G.time*70)*e.hit*1.2:0;
   return(p,deg,x,z,depth,glow,shadow)=>{
-    const P=mir?mirPart(p):p,v=partAt(P,mir?-deg:deg),X=(mir?-x:x)+shake,sc=P.scale||1,lat=X+(v.card.w/2-v.cx)/sc,zb=z-(v.card.h-v.cy)/sc;
+    const P=p,v=partAt(P,deg),X=x+shake,sc=P.scale||1,lat=X+(v.card.w/2-v.cx)/sc,zb=z-(v.card.h-v.cy)/sc;
     out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:F,z0:zb*PS+zw,hgt:v.card.h*PS/sc,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,pe:e,sh:shadow})};
 }
 const PS=1.35/60;   // world size of one pixel of a puppet
@@ -461,7 +519,7 @@ function armOut(put,R,sx,sz,tx,tz,depth,upL,foL,fdepth){
   const[ex,ez,hx,hz]=ik2(sx,sz,tx,tz,upL,foL,-1),fa=downDeg(hx-ex,hz-ez);
   put(R.upper,downDeg(ex-sx,ez-sz),sx,sz,depth,false);put(R.fore,fa,ex,ez,fdepth??depth+0.002,false);return[hx,hz,fa]}
 /* where the player is in the puppet's own frame: across the paper (forward +), out of it (toward the front +), and up */
-function rel(e){e.dir=e.dir||1;const dx=LX-e.x,dy=LY-e.y,tX=-Math.sin(e.f),tY=Math.cos(e.f);return[-(dx*tX+dy*tY)/PS*e.dir,(dx*Math.cos(e.f)+dy*Math.sin(e.f)),0.5/PS]}
+function rel(e){e.dir=e.dir||1;const dx=LX-e.x,dy=LY-e.y,tX=-Math.sin(e.f),tY=Math.cos(e.f);return[-(dx*tX+dy*tY)/PS,(dx*Math.cos(e.f)+dy*Math.sin(e.f)),0.5/PS]}
 
 function purLayers(e,out){
   if(e.ox===undefined)gaitUpd(e,0,0.58);
@@ -547,7 +605,11 @@ function portraitPart(kind){const old=kind==='rose'||kind==='elder',grey=ramp('#
     capsule(g,7.3,9,7.7,10.8,5.6,4.7,back?hair:RSKIN);
     if(kind==='rose')capsule(g,3.5,4,3.5,5,2.7,2.3,hair);
     paint(g,(x,y)=>((x-7)/6.3)**2+((y-7.3)/6.3)**2<=1&&(back||y<4.8+((x|0)%3)*0.5||x<3.4),(x,y)=>0.72-0.32*x/14-0.1*y/18,hair);
-    if(back){stamp(g,['n..n','..n.','n...'],4,5,{n:hair[hair.length-1]});return}
+    if(back){
+      stamp(g,['..n..n.','n..n..n','..n.n..','...n...'],4,4,{n:hair[hair.length-1]});
+      stamp(g,['d....d','.d..d.','..dd..'],4,10,{d:hair[0]});
+      paint(g,(x,y)=>y>13.5&&y<16.5&&Math.abs(x-7.5)<3.5,()=>0.68,RCREAM,false);
+      return}
     capsule(g,3,10,3,10.8,1.3,1.1,RSKIN,false);
     const ink={k:INK,w:rgb('#eee2c3'),s:rgb('#b58366'),p:rgb('#3b2924'),n:rgb('#dcc9a7'),r:rgb('#793b30')};
     stamp(g,kind==='sleep'?['kk..kk.']:['kk..kk.','wp..wp.'],6,7,ink);
@@ -581,8 +643,13 @@ for(const g of [MERIG.chest.g,MERIG.chest.bk]){if(!g)continue;
   for(let y=3;y<13;y++){const x=3+Math.floor(y*0.65);stamp(g,['kt'],x,y,{k:rgb('#34251b'),t:rgb('#af8656')})}}
 stamp(MERIG.chest.g,['nnn','n.n','nnn'],3,8,{n:rgb('#c8ab7a')});
 stamp(MERIG.chest.bk,['n.n.n'],5,16,{n:rgb('#ad835c')});
-// you are mostly seen from behind: every part without painted back art shows its own colours, a little shaded, not bare paper
-for(const p of Object.values(MERIG).flat())if(!p.glow&&!p.bk)p.bk={w:p.g.w,h:p.g.h,col:p.g.col.map(c=>c&&[c[0]*0.8|0,c[1]*0.8|0,c[2]*0.8|0])};
+clothBack(MERIG.skirt,RCOAT,'tail');clothBack(MERIG.upper,RCOAT,'sleeve');
+clothBack(MERIG.thigh,RTROU,'trouser');clothBack(MERIG.shin,RTROU,'trouser');clothBack(MERIG.boot,RBOOT,'boot');
+// Cross-stitches on the coat's rear seam, without painting outside the back silhouette.
+for(let y=8;y<28;y+=4){const b=MERIG.chest.bk,x=17;for(const dx of[-1,1]){const i=(y*b.w+x+dx);if(b.col[i])b.col[i]=rgb('#c9a675')}}
+
+// Separate slightly lit back art for tools and hands, with skin and metal retaining their materials.
+for(const p of Object.values(MERIG).flat())if(p.g&&!p.glow&&!p.bk)reverseTone(p);
 const ME={type:'me',x:0,y:0,f:0,hit:0,dead:0};
 /* your puppet: built from where you stand and how you move; the weapon arm swings with your strikes */
 function meLayers(out){
