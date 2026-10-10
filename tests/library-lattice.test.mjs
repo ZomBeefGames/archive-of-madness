@@ -1,0 +1,160 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import test from 'node:test';
+import vm from 'node:vm';
+
+const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+assert.ok(script,'Game script required');
+const source=(start,end)=>{
+  const a=script.indexOf(start),b=script.indexOf(end,a);
+  assert.ok(a>=0&&b>a,'Missing production code '+start);
+  return script.slice(a,b);
+};
+const line=start=>source(start,'\n');
+const geometry=[
+  source('const R=5,','const MAXLV='),
+  line('const NRM='),
+  line('function inHexL('),
+  source('function hubStride()','/* the segments of one square'),
+  source('const SQIN=[],SQV=[];','/* is there catwalk'),
+  source('function inWell(','function placeOf('),
+  line('function crossingAt(')
+].join('\n');
+const scheduling=[
+  source('const DAYLEN=480','function clockText('),
+  source('function newDay()','function blackout()')
+].join('\n');
+
+function harness(){
+  const G={floor:0,sentencesFound:0,seenSentences:new Set(),
+    day:1,lastResetDay:1,nextResetDay:3,resetInterval:2,resetCount:0,
+    resetEpoch:1,justReset:false,clock:480*7/24,tr:{},q:0,room:{},
+    corpses:{old:[1]},wcorpse:{old:[1]},looted:new Set(['body']),
+    corpseSeq:2,fires:[{t:8}],over:{ink:1},meal:{kind:'soup'},fedAt:5,sleepCd:4,
+    echo:3,phantoms:[{}],journal:true};
+  const WD={key:'old'},LAMPS={key:'old'},BG={acts:[1],t:2},
+    ENC={list:[{id:'speaker'}],t:14},burned=new Set(['shelf']),events=[];
+  let roomSpawns=0;
+  const ctx=vm.createContext({G,WD,LAMPS,BG,ENC,burned,
+    sfx:(message)=>events.push(message),
+    spawnRoom:()=>{roomSpawns++},
+    setTimeout:()=>{}
+  });
+  vm.runInContext(geometry+'\n'+scheduling,ctx);
+  return{G,WD,LAMPS,BG,ENC,burned,events,run:code=>vm.runInContext(code,ctx),
+    spawns:()=>roomSpawns};
+}
+test('all production JavaScript and extracted mechanics parse',()=>{
+  assert.doesNotThrow(()=>new vm.Script(script));
+  assert.doesNotThrow(()=>new vm.Script(geometry+'\n'+scheduling));
+});
+test('horizontal hub spacing exactly equals floor spacing in positive and negative directions',()=>{
+  const s=harness();
+  for(let discoveries=0;discoveries<5;discoveries++){
+    s.G.sentencesFound=discoveries;
+    const gap=3+discoveries;
+    assert.equal(s.run('hubStride()'),gap);
+    for(const k of [-2,-1,0,1,2]){
+      assert.equal(s.run('isStair('+gap*k+','+gap*k+')'),true);
+      assert.equal(s.run('isComm('+gap*k+','+gap*k+','+gap*k+')'),true);
+      assert.equal(s.run('isComm('+gap*k+','+gap*k+','+gap*k+'+1)'),false);
+    }
+    assert.equal(s.run('isComm('+gap+',0,0)'),true);
+    assert.equal(s.run('isComm('+gap+',0,'+gap+')'),true);
+    assert.equal(s.run('isComm('+gap+',0,1)'),false);
+    assert.equal(s.run('isStair('+(gap-1)+',0)'),false);
+  }
+});
+test('transit floors keep spiral stairs but omit all communal pillar amenities',()=>{
+  const s=harness();
+  assert.equal(s.run('SQV.length'),32,'16 hub variants + 16 transit variants');
+  s.G.floor=0;
+  const hub=s.run('SQV[sqLayout(0,0)]');
+  assert.ok(hub.solid.some(q=>q.type==='food'),'community floor has food hatch');
+  assert.ok(hub.solid.some(q=>q.type==='sleep'),'community floor has sleep closet');
+  assert.ok(hub.wells.length>0);
+  s.G.floor=1;
+  const transit=s.run('SQV[sqLayout(0,0)]');
+  assert.ok(!transit.solid.some(q=>['food','sleep','privy','mirror','pillar'].includes(q.type)));
+  assert.equal(transit.wells.length,hub.wells.length,'shaft never disappears');
+  assert.equal(s.run('crossingAt(8,8).stairs'),true);
+  assert.equal(s.run('crossingAt(8,8).comm'),false);
+  assert.equal(s.run('inWell(8,8)'),true);
+  assert.equal(s.run('walkable(8,8,0.2)'),false,'cannot walk through stairwell');
+  assert.equal(s.run('walkable(7.15,7.15,0.2)'),true,'empty transit floor has a landing');
+  s.G.floor=0;
+  assert.equal(s.run('walkable(7.15,7.15,0.2)'),false,'same position blocked by hub pillar');
+});
+test('each newly found real sentence adds one room AND one floor to the regular hub interval',()=>{
+  const s=harness();
+  assert.equal(s.run('hubStride()'),3);
+  assert.equal(s.run("rememberSentence('book:one')"),true);
+  assert.equal(s.run('hubStride()'),4);
+  assert.equal(s.run("rememberSentence('book:one')"),false);
+  assert.equal(s.run('hubStride()'),4);
+  assert.equal(s.run("rememberSentence('book:two')"),true);
+  assert.equal(s.run('hubStride()'),5);
+  assert.equal(s.run('isComm(5,5,5)'),true);
+  assert.equal(s.run('isComm(5,5,4)'),false);
+  assert.equal(s.WD.key,null);
+  assert.equal(s.LAMPS.key,null);
+  s.G.frags=0;
+  assert.equal(s.run('hubStride()'),5,'spending Index fragments cannot shrink the library');
+});
+test('ordinary dawn advances the day but does not restore shelves, loot, corpses or fires',()=>{
+  const s=harness();
+  s.run('newDay()');
+  assert.equal(s.G.day,2);
+  assert.equal(s.G.justReset,false);
+  assert.equal(s.G.nextResetDay,3);
+  assert.ok(s.G.corpses.old);
+  assert.ok(s.G.looted.has('body'));
+  assert.ok(s.burned.has('shelf'));
+  assert.equal(s.G.fires.length,1);
+  assert.equal(s.G.meal.kind,'soup');
+  assert.equal(s.spawns(),0);
+  assert.equal(s.run('hoursSinceReset()'),24+6);
+});
+test('Library resets follow 2, 2, 3, 3, 4, 4 day intervals',()=>{
+  const s=harness();
+  const days=[],gaps=[];
+  for(let i=0;i<30;i++){
+    s.run('newDay()');
+    if(s.G.justReset){days.push(s.G.day);gaps.push(s.G.resetInterval)}
+  }
+  assert.deepEqual(days,[3,5,8,11,15,19,24,29]);
+  assert.deepEqual(gaps,[2,3,3,4,4,5,5,6]);
+  assert.equal(s.G.resetCount,8);
+  assert.equal(s.G.resetEpoch,9);
+  assert.equal(s.spawns(),8);
+  assert.equal(s.G.seenSentences.size,0);
+});
+test('real reset clears ashes and corpse loot, but discovered sentences and hub spacing persist',()=>{
+  const s=harness();
+  s.run("rememberSentence('page:x')");
+  s.run('newDay()');s.run('newDay()');
+  assert.equal(s.G.day,3);
+  assert.equal(s.G.justReset,true);
+  assert.equal(s.G.resetEpoch,2);
+  assert.equal(s.G.lastResetDay,3);
+  assert.deepEqual(Object.keys(s.G.corpses),[]);
+  assert.equal(s.G.looted.size,0);
+  assert.equal(s.burned.size,0);
+  assert.equal(s.G.fires.length,0);
+  assert.equal(s.G.meal,null);
+  assert.equal(s.spawns(),1);
+  assert.equal(s.G.sentencesFound,1);
+  assert.equal(s.run('hubStride()'),4);
+});
+test('combat, book, encounter, corpse and quest flow integrate with expanding world',()=>{
+  assert.match(script,/SQV\[sqLayout\(si,sj\)\]/);
+  assert.match(script,/if\(c\.stairs&&Math\.hypot\(dx,dy\)/);
+  assert.match(script,/G\.floor\+=G\.climbDir;LAMPS\.key=null/);
+  assert.match(script,/rememberSentence\('page\|'\+p\.key\)/);
+  assert.match(script,/rememberSentence\('tale\|'\+p\.key\)/);
+  assert.match(script,/rememberSentence\('body\|'\+body\.lootId\)/);
+  assert.match(script,/rememberSentence\('enc\|sermon\|'/);
+  assert.match(script,/G\.resetEpoch\)\,rnd=prng\(h\)/);
+  assert.match(script,/G\.resetEpoch\+'\|'\+fl/);
+});
