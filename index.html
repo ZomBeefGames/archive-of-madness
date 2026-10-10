@@ -411,11 +411,15 @@ function footAt(u,A,lift){
   const s=(u-0.5)/0.5,m=smooth(s);return[-A+2*A*m,lift*Math.sin(Math.PI*s),-14*Math.sin(Math.PI*s)+(1-s)*12]}
 
 /* the layers of one puppet: puts each part at its pin, turned, at its depth (toward you is +); mirrored when walking left */
+/* a paper figure seen edge-on vanishes, so the paper only ever turns to within ~66° of edge-on as seen from the camera;
+   past that it shows its face or its back at a slant, and the figure stays readable from any side */
+function faceToward(f,x,y){const av=Math.atan2(G.y-y,G.x-x),d=angDiff(f,av),ad=Math.abs(d),lim=1.15;
+  if(ad<=lim||ad>=Math.PI-lim||(G.x===x&&G.y===y))return f;return av+Math.sign(d)*(ad<Math.PI/2?lim:Math.PI-lim)}
 function rigOut(e,out){
-  const nX=Math.cos(e.f),nY=Math.sin(e.f),tX=-nY,tY=nX,mir=e.dir<0,shake=e.hit>0?Math.sin(G.time*70)*e.hit*1.2:0;
+  const F=e===ME?e.f:faceToward(e.f,e.x,e.y),nX=Math.cos(F),nY=Math.sin(F),tX=-nY,tY=nX,mir=e.dir<0,shake=e.hit>0?Math.sin(G.time*70)*e.hit*1.2:0;
   return(p,deg,x,z,depth,glow,shadow)=>{
     const P=mir?mirPart(p):p,v=partAt(P,mir?-deg:deg),X=(mir?-x:x)+shake,lat=X+(v.card.w/2-v.cx),zb=z-(v.card.h-v.cy);
-    out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:e.f,z0:zb*PS,hgt:v.card.h*PS,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,pe:e,sh:shadow})};
+    out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:F,z0:zb*PS,hgt:v.card.h*PS,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,pe:e,sh:shadow})};
 }
 const PS=1.35/60;   // world size of one pixel of a puppet
 /* a leg from the hip to a planted or swinging foot: thigh, shin and foot; the knee bends forward */
@@ -677,7 +681,7 @@ function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 
 function isNight(){const h=hourOf();return h<5||h>=21}
 /* fades: into the blackout, then out of it, with the day's number over the dark */
 const smooth=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
-function newDay(){G.day++;G.echo=Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
+function newDay(){G.day++;G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
   G.clock=DAYLEN*6/24;if(G.room)spawnRoom(false)}
 function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
@@ -685,7 +689,7 @@ function reset(){
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
-    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
+    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
@@ -699,6 +703,7 @@ function spawnRoom(first){
   if(!first&&isNight()&&(h>>>9)%2===0){const[x,y]=spot();G.ents.push({type:'pur',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,head:rnd()*6.28,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6})}
   if(first||h%2===0){const[x,y]=first?at(2.6,-0.9):spot();G.ents.push({type:'seek',x,y,f:rnd()*6.28,ft:0,frame:0,ft2:0,scared:0,hit:0,dead:0,hgt:1.15,cards:SEEK,stealCd:0,flee:0,hp:3})}
   if(first||h%4===1){const[x,y]=first?at(1.4,2.7):spot();G.ents.push({type:'flask',x,y,f:rnd()*6.28,frame:0,hgt:0.42,cards:FLASK,dead:0})}
+  if(first||(h>>>4)%3===1){const[x,y]=first?at(0.8,-2.9):spot();dropType(x,y,1+(h>>>11)%2)}
   if(first||(h>>>6)%5===0){const[x,y]=first?at(-2.7,1.3):spot();G.ents.push({type:'incense',x,y,f:rnd()*6.28,frame:0,hgt:0.5,cards:[INCC],dead:0})}
   if(first||(h>>>3)%3===0){const a=first?Math.PI*0.75:rnd()*Math.PI*2;G.ents.push({type:'index',x:C.cx+Math.cos(a)*(RS+0.32),y:C.cy+Math.sin(a)*(RS+0.32),f:a,frame:0,hgt:0.9,cards:[INDEXC],dead:0})}
 }
@@ -784,7 +789,7 @@ function update(dt){
   if(keys.swing){keys.swing=false;doSwing()}
   if(keys.read){keys.read=false;doRead()}
   G.swing=Math.max(0,G.swing-dt*4);G.swingCd=Math.max(0,G.swingCd-dt);G.hurtCd=Math.max(0,G.hurtCd-dt);G.flash=Math.max(0,G.flash-dt*2);G.sleepCd=Math.max(0,G.sleepCd-dt);
-  G.oilTimer+=dt;if(G.oilTimer>40&&G.oil>0){G.oilTimer=0;G.oil--}
+  G.oilTimer+=dt;if(G.oilTimer>(G.tr.wick?80:40)&&G.oil>0){G.oilTimer=0;G.oil--}
   G.clock+=dt;if(G.clock>=DAYLEN){G.clock=DAYLEN-1e-3;blackout();return}
   if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
@@ -793,12 +798,13 @@ function update(dt){
   for(const e of G.ents){
     if(e.type==='pur'){updPur(e,dt);gaitUpd(e,dt,0.58)}else if(e.type==='seek'){updSeek(e,dt);gaitUpd(e,dt,0.43)}
     else if(e.type==='flask'&&!e.dead){e.f+=dt*0.8;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.oil+=3;sfx('+3 OIL')}}
+    else if(e.type==='type'&&!e.dead){if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.type+=e.n;snd('pickup');sfx('+'+e.n+' TYPE')}}
     else if(e.type==='incense'&&!e.dead){e.f+=dt*0.6;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.incense++;sfx('+1 INCENSE')}}
   }
   // thrown oil burns for a while: it scorches Purifiers, scares Seekers off, blocks the way, and hurts you too
   let lit=false;
   for(const F of G.fires){F.t-=dt;if(F.fl!==G.floor||F.t<=0)continue;lit=true;
-    if(Math.hypot(F.x-G.x,F.y-G.y)<0.55&&G.hurtCd<=0){G.hurtCd=0.7;G.health-=5;G.flash=1;sfx('HOT!','red')}
+    if(Math.hypot(F.x-G.x,F.y-G.y)<0.55&&G.hurtCd<=0){G.hurtCd=0.7;G.health-=G.tr.apron?3:5;G.flash=1;sfx('HOT!','red')}
     for(const e of G.ents){if(e.dead||Math.hypot(e.x-F.x,e.y-F.y)>0.8)continue;
       if(e.type==='pur'){e.fireCd=(e.fireCd||0)-dt;if(e.fireCd<=0){e.fireCd=0.8;e.hp--;e.hit=1;sfx('FSSS!','red');if(e.hp<=0)killPur(e)}}
       else if(e.type==='seek'&&e.flee<=0){e.scared=Math.max(e.scared,2);e.flee=2}}}
@@ -809,7 +815,7 @@ function update(dt){
   if(G.sanity<25){G.heartT-=dt;if(G.heartT<=0){G.heartT=G.sanity<=0?0.6:0.95;snd('heart')}}
   droneTick();
   G.ents=G.ents.filter(e=>(e.type==='pur'||e.type==='seek')?e.dead<1.6:e.dead<1);
-  if(G.health<=0){G.health=0;die()}
+  if(G.health<=0){if(G.tr.mirror&&G.mirrorDay!==G.day&&G.lostTo==null){G.mirrorDay=G.day;G.health=30;G.flash=1;snd('bad');sfx('THE MIRROR CRACKS','mind')}else{G.health=0;die()}}
 }
 function updPur(e,dt){
   if(e.dead){e.dead+=dt;return}
@@ -829,7 +835,7 @@ function updPur(e,dt){
   }
   if(nearFire(cx,cy)&&!nearFire(e.x,e.y))e.head+=Math.PI;else{e.x=cx;e.y=cy}
   e.chasing=chasing;e.lunge=Math.max(0,(e.lunge||0)-dt*2.5);e.raise=(e.raise||0)+((chasing&&dist<3?1:0)-(e.raise||0))*Math.min(1,dt*3);if(e.seed==null)e.seed=Math.random()*6.28;
-  if(dist<0.95&&G.hurtCd<=0){G.hurtCd=1.2;e.lunge=1;G.health-=7;G.flash=1;sfx('FWOOSH!','red')}
+  if(dist<0.95&&G.hurtCd<=0){G.hurtCd=1.2;e.lunge=1;G.health-=G.tr.apron?4.2:7;G.flash=1;sfx('FWOOSH!','red')}
 }
 function updSeek(e,dt){
   if(e.dead){e.dead+=dt;return}
@@ -856,7 +862,7 @@ function cycleWeapon(){const L=['press','rod','oil'];let i=L.indexOf(G.weapon);f
 function doSwing(){
   if(G.swingCd>0)return;
   if(G.weapon==='oil'){throwOil();return}
-  const rod=G.weapon==='rod',reach=rod?2.1:1.35,cone=rod?0.3:0.65,dmg=(rod?1:2)+Math.min(2,G.dark);
+  const rod=G.weapon==='rod',reach=rod?2.1:1.35,cone=rod?0.3:0.65,dmg=(rod?1:2)+Math.min(2,G.dark)+(G.tr.thimble?1:0);
   G.swingCd=rod?0.35:0.6;G.swing=1;snd(rod?'poke':'swing');
   let e=null,bd=1e9;
   for(const q of G.ents){if(q.dead||(q.type!=='pur'&&q.type!=='seek'))continue;const dx=q.x-G.x,dy=q.y-G.y,d=Math.hypot(dx,dy);
@@ -865,9 +871,9 @@ function doSwing(){
   e.hit=1;e.hp-=dmg;
   if(e.type==='pur'){sfx(e.hp>0?(G.dark?'DARK KRAK!':'KRAK!'):'RRRIP!',G.dark?'mind':'');if(e.hp<=0)killPur(e)}
   else{G.alerted=true;G.sanity=Math.max(0,G.sanity-8);sfx('KRAK!');sfx('-8 SANITY','mind');
-    if(e.hp<=0){e.dead=0.001;G.oil+=2;setTimeout(()=>sfx('+2 OIL'),250);sin('kill')}else e.scared=5}
+    if(e.hp<=0){e.dead=0.001;dropType(e.x,e.y,2);G.oil+=2;setTimeout(()=>sfx('+2 OIL'),250);sin('kill')}else e.scared=5}
 }
-function killPur(e){e.dead=0.001;if(Math.random()<0.6)G.ents.push({type:'incense',x:e.x,y:e.y,f:e.f,frame:0,hgt:0.5,cards:[INCC],dead:0})}
+function killPur(e){e.dead=0.001;dropType(e.x+Math.cos(e.f)*0.3,e.y+Math.sin(e.f)*0.3,3+Math.floor(Math.random()*3));if(Math.random()<0.6)G.ents.push({type:'incense',x:e.x,y:e.y,f:e.f,frame:0,hgt:0.5,cards:[INCC],dead:0})}
 function nearFire(x,y){for(const F of G.fires)if(F.fl===G.floor&&F.t>0&&Math.hypot(F.x-x,F.y-y)<0.75)return true;return false}
 function throwOil(){
   if(G.oil<2){sfx('NOT ENOUGH OIL');return}
@@ -921,16 +927,42 @@ function indexHint(i,P){
   if(i===1)return'Your page lies in HEXAGON '+P.g+'. It is marked on the map in your journal.';
   return'Your page favours WALLS '+P.walls[0]+' and '+P.walls[1]+'.';
 }
-const MEALS={bread:{name:'BREAD AND WATER',hp:20,wait:5},soup:{name:'LENTIL SOUP',hp:45,wait:12}},FULLT=45;
+const MEALS={bread:{name:'BREAD AND WATER',hp:20,san:0,wait:5,cost:0,desc:'+20 health. Comes up quickly.'},soup:{name:'LENTIL SOUP',hp:45,san:0,wait:12,cost:3,desc:'+45 health. Takes a while.'},
+  tea:{name:'BITTER TEA',hp:0,san:30,wait:6,cost:3,desc:'+30 sanity. Black, strong, and enough to hold a mind together for an afternoon.'}},FULLT=45;
+/* trinkets: sent up the dumbwaiter for lead type. Each is yours for the rest of the run. The hatch stocks three a day,
+   and a sealed parcel holds one you have not got, unseen and cheaper */
+const TRINKETS={
+  specs:{name:'GREY SPECTACLES',cost:14,desc:'Noise pages no longer cost you sanity. The letters blur kindly.'},
+  thimble:{name:'IRON THIMBLE',cost:15,desc:'Every blow you strike does one more damage.'},
+  apron:{name:'LEATHER APRON',cost:14,desc:'Fire and the Purifiers hurt you 40% less.'},
+  key:{name:'THE INDEX KEY',cost:18,desc:'Real sentences and the pages of other lives count twice at the Index.'},
+  wick:{name:'SLOW WICK',cost:10,desc:'Your lantern burns its oil half as fast.'},
+  mirror:{name:'POCKET MIRROR',cost:20,desc:'Once a day, when your health would reach 0, the glass cracks instead and you get up with 30.'},
+  ribbon:{name:'SILK BOOKMARK',cost:16,desc:'Each dawn all of your own words come back, however faded they were.'}
+};
+const TYPEC=buildCard(["kkkkkk","kGgGGk","kGkkGk","kGkkGk","kGGgGk","kkkkkk"]);
+function dropType(x,y,n){G.ents.push({type:'type',x,y,f:0,bill:true,frame:0,hgt:0.16,cards:[TYPEC],dead:0,n})}
+function hatchStock(){const r=prng(hashStr('stock|'+G.day)),ks=Object.keys(TRINKETS).filter(k=>!G.tr[k]);
+  for(let i=ks.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[ks[i],ks[j]]=[ks[j],ks[i]]}return ks.slice(0,3)}
+function hatchItems(){const fed=G.time-G.fedAt<FULLT,M=G.meal,why=M?'A meal is already on its way'+(M.fl!==G.floor?' to floor '+M.fl:'')+'.':fed?'You are still full. Come back in a while.':null;
+  const L=Object.keys(MEALS).map(k=>({kind:'meal',k,name:MEALS[k].name,desc:MEALS[k].desc,cost:MEALS[k].cost,no:why}));
+  for(const k of hatchStock())L.push({kind:'trinket',k,name:TRINKETS[k].name,desc:TRINKETS[k].desc,cost:TRINKETS[k].cost});
+  if(Object.keys(TRINKETS).some(k=>!G.tr[k]))L.push({kind:'parcel',name:'A SEALED PARCEL',desc:'One trinket you do not have yet, wrapped in brown paper. Cheaper, and you get what you get.',cost:9});
+  return L}
+function hatchBuy(){const L=hatchItems(),it=L[Math.min(G.hsel,L.length-1)];if(!it)return;
+  if(it.no){sfx('NOT NOW');return}if(G.type<it.cost){sfx('NOT ENOUGH TYPE','red');snd('bad');return}
+  G.type-=it.cost;
+  if(it.kind==='meal'){orderMeal(it.k);return}
+  let k=it.k;if(it.kind==='parcel'){const ks=Object.keys(TRINKETS).filter(q=>!G.tr[q]);k=ks[Math.floor(Math.random()*ks.length)]}
+  G.tr[k]=true;snd('pickup');sfx(TRINKETS[k].name,'mind');G.hsel=0;
+  openNote('THE FOOD HATCH','The rope creaks. Up comes '+(it.kind==='parcel'?'a parcel, and inside: ':'')+TRINKETS[k].name.toLowerCase()+'.','','hatch')}
 function useHatch(hx,hy){
   const c=crossingAt(hx,hy),id=c.ci+','+c.cj+','+G.floor,M=G.meal;
   if(M&&M.id===id){if(G.time<M.ready){openNote('THE FOOD HATCH','Your order is on its way up the shaft. Listen for the bell.');return}
-    const m=MEALS[M.kind];G.health=Math.min(100,G.health+m.hp);G.sanity=Math.min(100,G.sanity+5);G.fedAt=G.time;G.meal=null;snd('eat');sfx('+'+m.hp+' HEALTH');
-    openNote('THE FOOD HATCH','You eat standing up at the hatch: '+m.name.toLowerCase()+'. Somewhere below, a kitchen you will never see.','+'+m.hp+' health · +5 sanity');return}
-  if(M){openNote('THE FOOD HATCH','You already have a meal waiting at another hatch'+(M.fl!==G.floor?' on floor '+M.fl:'')+'.');return}
-  if(G.time-G.fedAt<FULLT){openNote('THE FOOD HATCH','You are still full. Come back in a while.');return}
-  G.hatch={id,x:c.x+1.0,y:c.y-1.45};
-  openNote('THE FOOD HATCH','A dumbwaiter in the stone pillar, a brass bell, and a menu card nailed beside it. Somewhere far below there is a kitchen. Order, and the meal comes up on the rope.','','food');
+    const m=MEALS[M.kind],sn=5+m.san;G.health=Math.min(100,G.health+m.hp);G.sanity=Math.min(100,G.sanity+sn);G.fedAt=G.time;G.meal=null;snd('eat');sfx(m.hp?'+'+m.hp+' HEALTH':'+'+sn+' SANITY',m.hp?'':'mind');
+    openNote('THE FOOD HATCH',(m.hp?'You eat standing up at the hatch: ':'You drink it standing up at the hatch: ')+m.name.toLowerCase()+'. Somewhere below, a kitchen you will never see.',(m.hp?'+'+m.hp+' health · ':'')+'+'+sn+' sanity');return}
+  G.hatch={id,x:c.x+1.0,y:c.y-1.45};G.hsel=0;
+  openNote('THE FOOD HATCH','A dumbwaiter, a brass bell, a menu card. The kitchen far below takes lead type.','','hatch');
 }
 function orderMeal(kind){const m=MEALS[kind],H=G.hatch;G.choice=null;G.meal={id:H.id,kind,ready:G.time+m.wait*(isNight()?1.6:1),rang:false,x:H.x,y:H.y,fl:G.floor};
   snd('clack');sfx('ORDERED');closeBook()}
@@ -948,7 +980,7 @@ function showPage(isNew){
       const lethal=G.echo>=ECHO_MAX-1;
       G.choice='ending';openBookUI(p,'The ending of '+tl.name+'. '+(lethal?'Your words are '+G.echo+'/'+ECHO_MAX+' faded: it would take the rest.':'Your words are '+G.echo+'/'+ECHO_MAX+' faded, still holding.')+(FINE?' W read · E close':' Left page read · middle close'));sfx('AN ENDING?','red');return}
     taleOverlay(p,T);let verdict;
-    if(!T.read){T.read=true;G.taleN[T.s]=Math.max(G.taleN[T.s],T.i+1);G.echo=Math.min(ECHO_MAX,(G.echo||0)+1);G.sanity=Math.min(100,G.sanity+TALE_GAIN);G.frags++;G.xp++;G.found.push(TALES[T.s].frags[T.i]);
+    if(!T.read){T.read=true;G.taleN[T.s]=Math.max(G.taleN[T.s],T.i+1);G.echo=Math.min(ECHO_MAX,(G.echo||0)+1);G.sanity=Math.min(100,G.sanity+TALE_GAIN);G.frags+=G.tr.key?2:1;G.xp++;G.found.push(TALES[T.s].frags[T.i]);
       verdict=tl.name+', page '+(T.i+1)+' of 5'+(T.i===3?' (the ending is next)':'')+'. +'+TALE_GAIN+' sanity. Your words fade '+G.echo+'/'+ECHO_MAX+'.';sfx('ANOTHER LIFE','mind');snd('pickup')}
     else verdict='You remember this page of '+tl.name+'.';
     G.choice=null;openBookUI(p,verdict);return}
@@ -956,8 +988,8 @@ function showPage(isNew){
   if(!G.opened.has(p.key)){
     G.opened.add(p.key);if(isNew)G.books++;
     if(p.kind==='prophecy'){G.sanity=Math.max(0,G.sanity-30);G.dark=Math.min(3,G.dark+1);G.written++;verdict='It describes what you did, in the past tense. −30 sanity. Something dark wakes in your hands.';sfx('PROPHECY','red');snd('bad')}
-    else if(p.kind==='noise'){const loss=isNew?2:1;G.sanity=Math.max(0,G.sanity-loss);verdict='Noise. Pure noise. −'+loss+' sanity'}
-    else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);G.frags++;G.xp++;verdict='A real sentence! +6 sanity. The Index will want this.';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));sfx('+6 SANITY','mind')}
+    else if(p.kind==='noise'){const loss=G.tr.specs?0:isNew?2:1;G.sanity=Math.max(0,G.sanity-loss);verdict=loss?'Noise. Pure noise. −'+loss+' sanity':'Noise. Your grey spectacles blur it kindly.'}
+    else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);G.frags+=G.tr.key?2:1;G.xp++;verdict='A real sentence! +6 sanity. The Index will want this.';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));sfx('+6 SANITY','mind')}
     else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;G.won=true;G.winG=b.g;G.winF=b.f;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
   }else verdict=p.kind==='noise'?'You read this one already. Still noise.':'You remember this page.';
   G.note=null;G.choice=null;openBookUI(p,verdict);
@@ -1052,6 +1084,7 @@ function render(){
   const cs=Math.cos(G.ang),sn=Math.sin(G.ang),ox=-cs*VIEW.d-sn*0.42,oy=-sn*VIEW.d+cs*0.42,ol=Math.hypot(ox,oy),ux=ox/ol,uy=oy/ol;
   const h=cast(G.x,G.y,ux,uy);let d=ol;if(LEG.n>1)d=Math.min(d,LEG.t0[1]-0.3);if(h)d=Math.min(d,h.t-0.3);d=Math.max(0.15,d);
   VIEW.cd=VIEW.cd===undefined?d:(d<VIEW.cd?d:VIEW.cd+(d-VIEW.cd)*0.15);d=Math.min(d,VIEW.cd);    // snap in, ease back out
+  if(d<0.75)MEP.length=0;   // squeezed against a wall: look past your own shoulder rather than into your coat
   const sx=G.x,sy=G.y,sin_=G.inRoom,se=EYE,cx=G.x+ux*d,cy=G.y+uy*d;
   G.x=cx;G.y=cy;G.inRoom=placeOf(cx,cy).kind==='g';EYE=se+0.62*Math.min(1,d/0.8);
   try{renderScene(MEP)}finally{G.x=sx;G.y=sy;G.inRoom=sin_;EYE=se}
@@ -1124,10 +1157,10 @@ function frameCol(x,t,first){
 /* a paper card standing in the Library: seen straight on, or in the mirror (any leg of the ray's path) */
 function drawCard(e){
   if(THIRD&&e.pe!==ME&&e._d<0.45)return;   // nothing may stand in the camera's face
-  const card=e.cards[e.frame||0];
+  const card=e.cards[e.frame||0],FC=e.bill||e.self||e.type==='pp'?e.f:faceToward(e.f,e.x,e.y);
   const dies=(e.type==='pur'||e.type==='seek')&&e.dead,crumple=dies?Math.max(0.12,1-e.dead*1.4):1;
   const hgt=e.hgt*crumple,wid=e.hgt*card.w/card.h*(dies?1+e.dead*0.3:1);
-  const bob=e.type==='pp'?0:(e.type==='flask')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
+  const bob=e.type==='pp'?0:(e.type==='flask'||e.type==='type')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
   const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.glow||e.type==='lamp'||e.type==='ph'||e.type==='fire';
   const L=glow?1:Math.min(1.45,lightP(e.self?G.cell:G.room,e.x,e.y,Math.max(e.self?1.6:e.pe===ME?1.1:0,Math.hypot(e.x-LX,e.y-LY)))*2.1);
   let xa=0,xb=W-1;
@@ -1139,7 +1172,7 @@ function drawCard(e){
     const x=pass?cols[ci]:xa+ci,n=LGN[x];
     for(let j=pass?1:(e.self?1:0);j<(pass?n:1);j++){
       const b=x*5+j,ox=LGX[b],oy=LGY[b],dx=LGDX[b],dy=LGDY[b],t0=LGT0[b],t1=j+1<n?LGT0[b+1]:zbuf[x];
-      let nX,nY;if(e.bill){const qx=ox-e.x,qy=oy-e.y,ql=Math.hypot(qx,qy)||1;nX=qx/ql;nY=qy/ql}else{nX=Math.cos(e.f);nY=Math.sin(e.f)}
+      let nX,nY;if(e.bill){const qx=ox-e.x,qy=oy-e.y,ql=Math.hypot(qx,qy)||1;nX=qx/ql;nY=qy/ql}else{nX=Math.cos(FC);nY=Math.sin(FC)}
       const tX=-nY,tY=nX,ax=e.x-tX*wid/2,ay=e.y-tY*wid/2,ex=tX*wid,ey=tY*wid,den=dx*ey-dy*ex;if(Math.abs(den)<1e-9)continue;
       const wx=ax-ox,wy=ay-oy,tl=(wx*ey-wy*ex)/den,k=(wx*dy-wy*dx)/den;if(tl<=1e-4||k<0||k>1)continue;
       const t=t0+tl;if(t<0.08||t>=t1||t>=zbuf[x])continue;
@@ -1224,11 +1257,28 @@ function drawBook(){
   if(b.shelf>1)g.fillText(FINE?'▲ W · shelf above':'▲ shelf above',t.w/2,5);if(b.shelf<5)g.fillText(FINE?'▼ S · shelf below':'▼ shelf below',t.w/2,t.h-18);g.textAlign='left';
 }
 /* a note card: the mirror, a closet, the Index, ash - or the stair, where each page is a way to go */
+const HUI={rows:[],buy:null};
 function drawNote(g,px,py,pw,ph,x2,y2){
   const n=G.note,st=G.choice==='stairs';
 
   g.font='bold 17px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(n.title,px+34,py+30);
   g.font='italic 25px Georgia,serif';g.fillStyle='#2a2018';blockG(g,wrapG(g,n.text,pw-68),px+34,py+74,34);
+  if(G.choice==='hatch'){
+    const L=hatchItems(),sel=Math.min(G.hsel,L.length-1),it=L[sel];HUI.rows=[];
+    g.font='bold 16px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText('TYPE '+G.type,px+pw-130,py+30);
+    let yy=py+(PORT?270:222);const rh=PORT?44:38;
+    L.forEach((q,i)=>{const on=i===sel,own=q.kind==='meal'&&q.no;
+      if(on){g.fillStyle='rgba(179,38,30,.12)';g.fillRect(px+22,yy-rh+10,pw-44,rh)}
+      g.font=(on?'bold ':'')+(PORT?'21px':'19px')+' Georgia,serif';g.fillStyle=own?'#9c8f72':on?'#b3261e':'#2a2018';g.fillText((on?'▶ ':'   ')+q.name,px+28,yy);
+      g.font='bold 15px "Courier New",monospace';g.textAlign='right';g.fillText(q.cost?q.cost+' type':'free',px+pw-30,yy);g.textAlign='left';
+      HUI.rows.push([px+22,yy-rh+10,px+pw-22,yy+10]);yy+=rh});
+    g.font='bold 28px Georgia,serif';g.fillStyle='#b3261e';blockG(g,wrapG(g,it.name,pw-68),x2+34,y2+60,34);
+    g.font='italic 23px Georgia,serif';g.fillStyle='#2a2018';const dy=blockG(g,wrapG(g,it.desc,pw-68),x2+34,y2+(PORT?150:130),31);
+    const can=!it.no&&G.type>=it.cost;g.font='bold 30px Georgia,serif';g.fillStyle=can?'#b3261e':'#9c8f72';
+    g.fillText(it.no?'NOT NOW':G.type<it.cost?'NEED '+(it.cost-G.type)+' MORE TYPE':(it.kind==='meal'?'ORDER ▶':'BUY ▶'),x2+34,y2+ph-(PORT?110:96));
+    if(it.no){g.font='italic 19px Georgia,serif';g.fillStyle='#6b5a44';blockG(g,wrapG(g,it.no,pw-68),x2+34,dy+16,25)}
+    HUI.buy=[x2,y2,x2+pw,y2+ph];
+    g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'W/S choose · Enter or D buy · E close':'tap an item · tap this page to buy · tap outside to close',x2+34,y2+ph-36);return}
   if(G.choice==='food'){
     g.font='bold 30px Georgia,serif';g.fillStyle='#b3261e';g.fillText('▲ '+MEALS.bread.name,px+34,py+ph-140);g.fillText('▼ '+MEALS.soup.name,x2+34,y2+ph-140);
     g.font='italic 23px Georgia,serif';g.fillStyle='#2a2018';g.fillText('+'+MEALS.bread.hp+' health · comes up quickly',px+38,py+ph-90);g.fillText('+'+MEALS.soup.hp+' health · takes a while',x2+38,y2+ph-90);
@@ -1260,6 +1310,7 @@ function drawJournal(){
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE INDEX SAYS',px+26,yy+64);
   g.font='italic 16px Georgia,serif';yy+=84;const hl=hintLines();if(!hl.length){g.fillText('Nothing yet.',px+26,yy);yy+=20}hl.forEach(l=>{g.fillText(l,px+26,yy);yy+=20});
   const lives=TALES.map((t,i)=>G.taleN[i]?t.name+' · '+(G.taleDone[i]?'ended, let go':G.taleN[i]+'/5'+(G.taleN[i]===4?' · ending next':'')):null).filter(Boolean);
+  const tk=Object.keys(G.tr).map(k=>TRINKETS[k].name.toLowerCase());if(tk.length){yy+=8;g.font='bold 14px "Courier New",monospace';g.fillText('CARRYING',px+26,yy);yy+=20;g.font='italic 15px Georgia,serif';blockG(g,wrapG(g,tk.join(' · '),pw-52),px+26,yy,18);yy+=18*wrapG(g,tk.join(' · '),pw-52).length}
   if(lives.length){yy+=8;g.font='bold 14px "Courier New",monospace';g.fillText('OTHER LIVES',px+26,yy);yy+=20;g.font='italic 15px Georgia,serif';lives.forEach(l=>{g.fillText(l,px+26,yy);yy+=18})}
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('MAP · FLOOR '+G.floor,x2+24,y2+20);
   drawMap(g,x2+18,y2+42,pw-36,ph-90);
@@ -1484,7 +1535,7 @@ function drawStat(){
   hudText(q,'HEX '+G.gal,104,76,'bold 13px "Courier New",monospace','#f6ecd2');
   hudText(q,'FLOOR '+G.floor,104,96,'bold 13px "Courier New",monospace','#f6ecd2');
   hudText(q,'DAY '+G.day+' · '+clockText()+(isNight()?' night':''),104,116,'bold 13px "Courier New",monospace','#e2d6b4');
-  hudText(q,'incense '+G.incense+(G.incenseT>0?' · burning':'')+(G.meal&&G.time>=G.meal.ready?' · meal!':''),104,136,'bold 13px "Courier New",monospace','#c9b88f');
+  hudText(q,'type '+G.type+' · incense '+G.incense+(G.incenseT>0?' · burning':'')+(G.meal&&G.time>=G.meal.ready?' · meal!':''),104,136,'bold 13px "Courier New",monospace','#c9b88f');
   if(G.echo)hudText(q,'your words '+'●'.repeat(ECHO_MAX-G.echo)+'○'.repeat(G.echo),104,156,'bold 13px "Courier New",monospace',G.echo>=ECHO_MAX-1?'#ff8f6b':'#9fd8c8');
   silInto(HST.sil,[HST.glass,HST.front]);haloInto(HST.halo,HST.sil,0)}
 function hudModel(h,an,d,yaw){
@@ -1666,6 +1717,7 @@ function action(a){
   if(G.state==='intro'){if(a==='read'||a==='swing'){G.state='start';G.startT=0}return}
   if(G.state==='dead'||G.state==='won'){if(a==='read'||a==='swing'){reset();drawIntro();G.state='start';G.startT=0.3}return}
   if(G.state==='book'&&G.choice==='food'){if(a==='up'||a==='prev')orderMeal('bread');else if(a==='down'||a==='next')orderMeal('soup');else if(a==='read'||a==='close'||a==='swing')closeBook();return}
+  if(G.state==='book'&&G.choice==='hatch'){const n=hatchItems().length;if(a==='up'||a==='prev'){G.hsel=(Math.min(G.hsel,n-1)+n-1)%n;snd('page');drawBook()}else if(a==='down'){G.hsel=(Math.min(G.hsel,n-1)+1)%n;snd('page');drawBook()}else if(a==='next'||a==='buy')hatchBuy();else if(a==='read'||a==='close'||a==='swing'){G.choice=null;closeBook()}return}
   if(G.state==='book'&&G.choice==='ending'){if(a==='up'||a==='prev')readEnding();else if(a==='down'||a==='next'||a==='read'||a==='close'||a==='swing'){G.choice=null;closeBook()}return}
   if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
@@ -1700,6 +1752,7 @@ addEventListener('keydown',ev=>{
     else if(c==='ArrowLeft'||c==='KeyA'){action('prev');ev.preventDefault()}
     else if(c==='ArrowUp'||c==='KeyW'){action('up');ev.preventDefault()}
     else if(c==='ArrowDown'||c==='KeyS'){action('down');ev.preventDefault()}
+    else if((c==='Enter'||c==='Space')&&G.choice==='hatch'){action('buy');ev.preventDefault()}
     else if(c==='KeyE'||c==='Escape'||c==='Enter'||c==='Space'){action('close');ev.preventDefault()}
     return;
   }
@@ -1745,7 +1798,9 @@ function endPtr(ev,cancel){
   if(G.state==='intro'||G.state==='dead'||G.state==='won')action('read');
   else if(G.state==='play'&&G.journal&&jr.rect){const pt=canvasPt(ev),r=jr.rect;if(pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1)soundToggle()}
   else if(G.state==='book'){const r=bookCard.rect,pt=canvasPt(ev);
-    if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0),fy=(pt.y-r.y0)/(r.y1-r.y0);if(G.choice)action((PORT?fy:fx)<0.5?'up':'down');else if(G.page&&fx>=0.3&&fx<=0.7&&(fy<0.1||fy>0.9))action(fy<0.1?'up':'down');else action(fx<0.3?'prev':fx>0.7?'next':'close')}else action('close')}
+    if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0),fy=(pt.y-r.y0)/(r.y1-r.y0);if(G.choice==='hatch'){const tx=fx*TX.book.w,ty=fy*TX.book.h,i=HUI.rows.findIndex(q=>tx>=q[0]&&tx<=q[2]&&ty>=q[1]&&ty<=q[3]),B=HUI.buy;
+      if(i>=0){G.hsel=i;snd('page');drawBook()}else if(B&&tx>=B[0]&&tx<=B[2]&&ty>=B[1]&&ty<=B[3])action('buy');else action('close')}
+    else if(G.choice)action((PORT?fy:fx)<0.5?'up':'down');else if(G.page&&fx>=0.3&&fx<=0.7&&(fy<0.1||fy>0.9))action(fy<0.1?'up':'down');else action(fx<0.3?'prev':fx>0.7?'next':'close')}else action('close')}
 }
 view.addEventListener('pointerup',ev=>endPtr(ev,false));
 view.addEventListener('pointercancel',ev=>endPtr(ev,true));
