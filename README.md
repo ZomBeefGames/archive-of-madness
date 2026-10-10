@@ -62,6 +62,7 @@ The rooms follow Borges' story; the space between them is open air:
 - Paper cut-out characters and a floating, layered 3D-style interface.
 - Paper puppets: the Purifier and the Seeker are jointed paper figures (hips, knees, ankles, shoulders, elbows, neck, a hinged cape), posed every frame with two-bone reaching. Their feet plant and step as they walk, they reach out for you (the Purifier with its torch, the Seeker clawing for your oil), the Seeker reads as it wanders, and both fold up when they die.
 - Third person: the camera follows over your right shoulder and slides in when a wall or the mirror is behind you. You are a jointed paper librarian too, with painted backs to the coat and head, a swinging lantern, and your weapon wound up and struck out into the room. V switches back to first person.
+- Other lives: some pages hold the stories of other librarians (six of them, five pages each, found in order, highlighted in green). Each page is a comfort (+8 sanity, and the Index takes it like a sentence), but it settles into you and your own words fade: the journal shows your phrase losing letters and the HUD counts how faded you are (out of 6). The fifth page is an ending, and the book asks before you read it. Read it with your words still holding and you let that life go (+25 sanity, some of your words come back); read it when they are 5 of 6 faded and its ending becomes yours, and the game is over. Each new day gives two letters back.
 
 ## Design
 

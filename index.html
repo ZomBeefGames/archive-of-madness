@@ -608,6 +608,62 @@ function makePage(g,f,wall,shelf,book,page,phrase){
   return{chars,kind,at,len:insert?insert.length:0,key};
 }
 
+/* ---- other lives: the shelves also hold the stories of other librarians, a page at a time, in order. Each one you read
+   is a comfort (sanity, and the Index will take it like a sentence), but it settles into you and your own words fade a
+   little (the echo). An ending is the dangerous page: read one while your words are too faded and their ending becomes
+   yours. A new day lets some of your own story come back; an ending read safely lets that life go ---- */
+const TALES=[
+ {name:'Ines, who mapped the stairs',frags:['my name was ines and i mapped the stairs. i believed that if i drew every hexagon i would find the edge, and past the edge, a door.',
+   'i filled four hundred notebooks. the maps agreed with each other, which frightened me more than if they had lied.',
+   'on the six thousandth floor i found my own handwriting on a shelf, a map of a hexagon i had not yet reached.',
+   'i stopped drawing. i began to walk without counting, and the library, for the first time, seemed to follow me.',
+   'there is no edge. i sat down at the railing and erased my maps one by one, and when the last was blank, so was i. whoever reads this, draw nothing.']},
+ {name:'Brother Anselm, a Purifier',frags:['i carried the torch for eleven years. we burned whole walls of nonsense, and we called it mercy.',
+   'one night a book would not burn. i opened it, and every page was the same sentence, asking me to stop.',
+   'i hid the book in my robe. the others smelled the doubt on me the way dogs smell fear.',
+   'they found me reading it by the lamp. they did not burn me. they burned the book, slowly, and made me watch.',
+   'i walk with them still. my hands do the work. but at every wall i whisper the sentence so that it is not lost, and that is all i am now, a sentence that whispers.']},
+ {name:'Odile, who climbed',frags:['i was told my son was born on floor nine hundred. i have climbed toward him since before i can remember.',
+   'every floor is the same. every gallery has a child crying somewhere beyond the next door.',
+   'a seeker told me there is no floor nine hundred, only floors that call themselves that, endlessly.',
+   'i stopped climbing on a floor that smelled of bread. a child cried. i decided this one was mine.',
+   'i raised a stranger and called him by my sons name. he grew old and kind. if this is a lie, the library is full of worse ones, and none so warm.']},
+ {name:'the Translator',frags:['i spoke eleven of the languages these books are written in, and found that all of them are one language, badly remembered.',
+   'noise in one tongue is scripture in another. every page is true to someone. i began to translate the noise.',
+   'the translations made sense. too much sense. they described my room, my lamp, the shape of my fear.',
+   'i understood that i was being written as i read. each page i translated wrote the next hour of my life.',
+   'so i stopped reading. i sit with my eyes closed and let the library write me as it will. it is gentler than i was.']},
+ {name:'Pell, of the food hatch',frags:['i worked the hatch on the communal floors. i sent up bread to hundreds of strangers and never saw a face.',
+   'the orders came in handwriting. i learned the hands. one asked for soup every midnight for forty years.',
+   'one midnight the soup order did not come. i sent it anyway, and it came back untouched, still warm.',
+   'i climbed the shaft to find them. it took a year. their gallery was empty, the bowl was clean, the bed was made.',
+   'i stayed and took their name. now i order soup at midnight, and someone below sends it up, and we are both less alone than the library intended.']},
+ {name:'Ruth, of the mirror',frags:['the mirrors on the platforms double everything. they say it is to make the library seem infinite. it is already infinite. the mirrors are for us.',
+   'i began to talk to my reflection. she answered a little late, as though she had to think.',
+   'she started to wake before me. i would find her already standing in the glass, watching the stair.',
+   'she asked me, very politely, if she could have a turn. she had read so much of my story, she said, she knew it by heart.',
+   'i said yes. i am the one in the glass now. she is out there searching for my page, and she is better at it than i ever was.']}
+];
+const ECHO_MAX=6,TALE_GAIN=8;
+/* your own words as you can still remember them: letters drop out as the echo of other lives grows */
+function fadedPhrase(){const ph=G.phrase,n=Math.round(ph.replace(/ /g,'').length*Math.min(1,(G.echo||0)/ECHO_MAX));if(!n)return ph;
+  const idx=[...ph].map((c,i)=>i).filter(i=>ph[i]!==' ').sort((a,b)=>hashStr(ph+a)-hashStr(ph+b)).slice(0,n);return[...ph].map((c,i)=>idx.includes(i)?'_':c).join('')}
+/* does this page hold someone's story? Decided the first time it is opened, and kept: the books stay the same */
+function taleFor(key){
+  if(G.tales[key])return G.tales[key];
+  const h=hashStr(key+'|tale');if(h%100>=5)return null;
+  const n=TALES.length;for(let k=0;k<n;k++){const s=(h>>>8)%n+k,t=s%n;if(G.taleDone[t]||G.taleN[t]>=5)continue;return G.tales[key]={s:t,i:G.taleN[t],read:false}}
+  return null}
+function taleOverlay(p,T){const txt=TALES[T.s].frags[T.i];T.at=T.at??Math.floor((hashStr(p.key+'|at')%1000)/1000*(3200-txt.length));
+  for(let i=0;i<txt.length;i++)p.chars[T.at+i]=txt[i];p.at=T.at;p.len=txt.length;p.kind='tale'}
+function readEnding(){
+  const p=G.page,T=p&&G.tales[p.key];if(!T||T.i!==4||T.read||G.taleDone[T.s]){closeBook();return}
+  const tl=TALES[T.s];T.read=true;G.taleN[T.s]=5;taleOverlay(p,T);G.choice=null;
+  if((G.echo||0)>=ECHO_MAX-1){G.lostTo=T.s;G.verdict='It fits you better than your own story did. You cannot remember yours.';sfx('YOUR STORY IS GONE','red');snd('bad');drawBook();
+    setTimeout(()=>{if(G.state==='book'||G.state==='closing'||G.state==='play'){G.state='play';die()}},2600);return}
+  G.taleDone[T.s]=true;G.echo=Math.max(0,G.echo-3);G.sanity=Math.min(100,G.sanity+25);G.frags+=2;G.found.push(tl.frags[4]);
+  G.verdict='You let '+tl.name+' go, and some of your words come back. +25 sanity, the Index takes it twice.';sfx('AN ENDING','mind');snd('pickup');drawBook()}
+
 const G={};
 /* the day: a clock runs through each day; the lamps sink low in the evening and more Purifiers walk. At midnight you
    black out where you stand, and wake at six the next morning to the day's number. While you were gone the Library
@@ -621,7 +677,7 @@ function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 
 function isNight(){const h=hourOf();return h<5||h>=21}
 /* fades: into the blackout, then out of it, with the day's number over the dark */
 const smooth=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
-function newDay(){G.day++;burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
+function newDay(){G.day++;G.echo=Math.max(0,(G.echo||0)-2);burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;G.sleepCd=0;LAMPS.key=null;G.phantoms=[];G.journal=false;
   G.clock=DAYLEN*6/24;if(G.room)spawnRoom(false)}
 function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
@@ -629,7 +685,7 @@ function reset(){
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
-    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
+    phrase,state:'intro',swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,frags:0,xp:0,hints:0,day:1,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
@@ -886,6 +942,16 @@ function showPage(isNew){
   const b=G.book,p=makePage(b.g,b.f,b.wall,b.shelf,b.book,b.page,G.phrase);snd('page');
   if(!G.over[p.key]&&p.kind==='sentence'&&G.sins.length&&!G.opened.has(p.key)){const txt=G.sins.shift();G.over[p.key]={at:Math.min(p.at,3200-txt.length),txt}}
   const ov=G.over[p.key];if(ov){for(let i=0;i<ov.txt.length;i++)p.chars[ov.at+i]=ov.txt[i];p.at=ov.at;p.len=ov.txt.length;p.kind='prophecy'}
+  const T=!ov&&p.kind==='noise'?taleFor(p.key):null;
+  if(T){const tl=TALES[T.s];if(!G.opened.has(p.key)){G.opened.add(p.key);if(isNew)G.books++}G.note=null;
+    if(T.i===4&&!T.read&&!G.taleDone[T.s]){   // an ending: you choose whether to read it
+      const lethal=G.echo>=ECHO_MAX-1;
+      G.choice='ending';openBookUI(p,'The ending of '+tl.name+'. '+(lethal?'Your words are '+G.echo+'/'+ECHO_MAX+' faded: it would take the rest.':'Your words are '+G.echo+'/'+ECHO_MAX+' faded, still holding.')+(FINE?' W read · E close':' Left page read · middle close'));sfx('AN ENDING?','red');return}
+    taleOverlay(p,T);let verdict;
+    if(!T.read){T.read=true;G.taleN[T.s]=Math.max(G.taleN[T.s],T.i+1);G.echo=Math.min(ECHO_MAX,(G.echo||0)+1);G.sanity=Math.min(100,G.sanity+TALE_GAIN);G.frags++;G.xp++;G.found.push(TALES[T.s].frags[T.i]);
+      verdict=tl.name+', page '+(T.i+1)+' of 5'+(T.i===3?' (the ending is next)':'')+'. +'+TALE_GAIN+' sanity. Your words fade '+G.echo+'/'+ECHO_MAX+'.';sfx('ANOTHER LIFE','mind');snd('pickup')}
+    else verdict='You remember this page of '+tl.name+'.';
+    G.choice=null;openBookUI(p,verdict);return}
   let verdict;
   if(!G.opened.has(p.key)){
     G.opened.add(p.key);if(isNew)G.books++;
@@ -1149,7 +1215,7 @@ function drawBook(){
   g.fillText(`HEX ${b.g} · FLOOR ${b.f} · WALL ${wallNo(b.k,b.wall)} · SHELF ${b.shelf} · BOOK ${b.book}`,px+30,py+22);
   g.font='bold 19px Georgia,serif';g.fillStyle='#b3261e';const vy=blockG(g,wrapG(g,G.verdict,pw-64),x2+30,y2+18,23);
   g.font=fs+'px "Courier New",monospace';const cw=g.measureText('m').width,tw=cw*40,lx=px+(pw-tw)/2,rx=x2+(pw-tw)/2,ty1=py+(PORT?56:76),ty2=PORT?Math.max(y2+96,vy+14):y2+76;
-  if(p.at>=0){g.fillStyle=p.kind==='prophecy'?'#c9a3f2':'#ffd34d';for(let i=p.at;i<p.at+p.len;i++){const side=i<1600?0:1,j=i-side*1600;g.fillRect((side?rx:lx)+(j%40)*cw-1,(side?ty2:ty1)+Math.floor(j/40)*lh-1,cw+2,lh)}}
+  if(p.at>=0){g.fillStyle=p.kind==='prophecy'?'#c9a3f2':p.kind==='tale'?'#9fd8c8':'#ffd34d';for(let i=p.at;i<p.at+p.len;i++){const side=i<1600?0:1,j=i-side*1600;g.fillRect((side?rx:lx)+(j%40)*cw-1,(side?ty2:ty1)+Math.floor(j/40)*lh-1,cw+2,lh)}}
   g.fillStyle='#3a332a';for(let ln=0;ln<40;ln++){g.fillText(p.chars.slice(ln*40,ln*40+40).join(''),lx,ty1+ln*lh);g.fillText(p.chars.slice(1600+ln*40,1600+ln*40+40).join(''),rx,ty2+ln*lh)}
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.textAlign='right';g.fillText('page '+b.page+' of 410',px+pw-28,py+ph-28);
   g.font='bold 16px "Courier New",monospace';g.fillStyle='#b3261e';g.fillText('NEXT ▶',x2+pw-28,y2+ph-28);g.textAlign='left';g.fillText('◀ PREV',px+28,py+ph-28);
@@ -1190,9 +1256,11 @@ function drawJournal(){
   g.font='italic 17px Georgia,serif';
   let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor}`,`Day ${G.day} · ${clockText()}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}%`,`Oil ${G.oil} · Incense ${G.incense} · ${WNAME[G.weapon].toLowerCase()}`,`Fragments ${G.frags} · Index XP ${G.xp}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,22);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
-  g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+G.phrase+'"',px+26,yy+28);
+  g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+fadedPhrase()+'"'+(G.echo?'  fading '+G.echo+'/'+ECHO_MAX:''),px+26,yy+28);
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE INDEX SAYS',px+26,yy+64);
-  g.font='italic 16px Georgia,serif';yy+=84;const hl=hintLines();if(!hl.length){g.fillText('Nothing yet.',px+26,yy)}hl.forEach(l=>{g.fillText(l,px+26,yy);yy+=20});
+  g.font='italic 16px Georgia,serif';yy+=84;const hl=hintLines();if(!hl.length){g.fillText('Nothing yet.',px+26,yy);yy+=20}hl.forEach(l=>{g.fillText(l,px+26,yy);yy+=20});
+  const lives=TALES.map((t,i)=>G.taleN[i]?t.name+' · '+(G.taleDone[i]?'ended, let go':G.taleN[i]+'/5'+(G.taleN[i]===4?' · ending next':'')):null).filter(Boolean);
+  if(lives.length){yy+=8;g.font='bold 14px "Courier New",monospace';g.fillText('OTHER LIVES',px+26,yy);yy+=20;g.font='italic 15px Georgia,serif';lives.forEach(l=>{g.fillText(l,px+26,yy);yy+=18})}
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('MAP · FLOOR '+G.floor,x2+24,y2+20);
   drawMap(g,x2+18,y2+42,pw-36,ph-90);
   g.font='bold 13px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText('♪ sound '+(SND.on?'on':'off')+(FINE?' · M':' · tap here'),x2+24,y2+ph-36);
@@ -1237,7 +1305,8 @@ function drawStory(t,leftTitle,leftText,rightLines,prompt){
 }
 function drawIntro(){drawStory(TX.intro,'THE ARCHIVES OF MADNESS','You wake on the floor of a hexagonal gallery with no memory of arriving. The Library holds every book that could ever be written. Somewhere in it is the page that tells your story.',[{font:'bold 17px "Courier New",monospace',text:'BURNED INTO YOUR MIND',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:30},{font:'italic 23px Georgia,serif',text:'Find those words on a page and the Library lets you go. Open-air catwalks run north, south, east and west between the galleries; the spiral stair on each crossing joins the floors. Feed real sentences to the Index at the railing. Lose your mind and the library keeps you.',lh:32}],FINE?'Open your eyes · E or Read':'Tap to open your eyes')}
 function drawWon(){drawStory(TX.won,'YOUR PAGE',`Your page was in hexagon ${G.winG} on floor ${G.winF}. You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'} to find it. You read your own words back to yourself, and the library let go.`,[{font:'bold 17px "Courier New",monospace',text:'YOUR WORDS',lh:22},{font:'italic 40px Georgia,serif',text:'"'+G.phrase+'"',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Behind you, the same books return in the same disorder, and another librarian opens their eyes.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
-function drawDead(){drawStory(TX.dead,'HEALTH 0%',`You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'}. Your copy goes back on the shelf, next to every other version of you.`,[{font:'italic 40px Georgia,serif',text:G.foundBio?'You found your page, but too late.':'The library keeps you.',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Somewhere another copy of you is already opening its eyes.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
+function drawDead(){if(G.lostTo!=null){const tl=TALES[G.lostTo];drawStory(TX.dead,'YOUR STORY IS GONE',`You read too many other lives, and then the ending of ${tl.name}. It fit you better than your own. What was burned into your mind is only "${fadedPhrase()}" now.`,[{font:'italic 40px Georgia,serif',text:'You are '+tl.name.split(',')[0]+' now.',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Somewhere another copy of you opens its eyes, with your words still burned in.',lh:32}],FINE?'Search again · E or Read':'Tap to search again');return}
+  drawStory(TX.dead,'HEALTH 0%',`You searched ${G.rooms.size} hexagon${G.rooms.size>1?'s':''} and opened ${G.books} book${G.books===1?'':'s'}. Your copy goes back on the shelf, next to every other version of you.`,[{font:'italic 40px Georgia,serif',text:G.foundBio?'You found your page, but too late.':'The library keeps you.',color:'#b3261e',lh:46,gap:24},{font:'italic 23px Georgia,serif',text:'Somewhere another copy of you is already opening its eyes.',lh:32}],FINE?'Search again · E or Read':'Tap to search again')}
 
 /* ---- full-screen layout and floating paper controls ---- */
 const FINE=matchMedia('(pointer:fine)').matches&&!matchMedia('(pointer:coarse)').matches;
@@ -1416,6 +1485,7 @@ function drawStat(){
   hudText(q,'FLOOR '+G.floor,104,96,'bold 13px "Courier New",monospace','#f6ecd2');
   hudText(q,'DAY '+G.day+' · '+clockText()+(isNight()?' night':''),104,116,'bold 13px "Courier New",monospace','#e2d6b4');
   hudText(q,'incense '+G.incense+(G.incenseT>0?' · burning':'')+(G.meal&&G.time>=G.meal.ready?' · meal!':''),104,136,'bold 13px "Courier New",monospace','#c9b88f');
+  if(G.echo)hudText(q,'your words '+'●'.repeat(ECHO_MAX-G.echo)+'○'.repeat(G.echo),104,156,'bold 13px "Courier New",monospace',G.echo>=ECHO_MAX-1?'#ff8f6b':'#9fd8c8');
   silInto(HST.sil,[HST.glass,HST.front]);haloInto(HST.halo,HST.sil,0)}
 function hudModel(h,an,d,yaw){
   const M=mBegin(h,an,d,0.03,0.3,yaw);
@@ -1596,6 +1666,7 @@ function action(a){
   if(G.state==='intro'){if(a==='read'||a==='swing'){G.state='start';G.startT=0}return}
   if(G.state==='dead'||G.state==='won'){if(a==='read'||a==='swing'){reset();drawIntro();G.state='start';G.startT=0.3}return}
   if(G.state==='book'&&G.choice==='food'){if(a==='up'||a==='prev')orderMeal('bread');else if(a==='down'||a==='next')orderMeal('soup');else if(a==='read'||a==='close'||a==='swing')closeBook();return}
+  if(G.state==='book'&&G.choice==='ending'){if(a==='up'||a==='prev')readEnding();else if(a==='down'||a==='next'||a==='read'||a==='close'||a==='swing'){G.choice=null;closeBook()}return}
   if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
