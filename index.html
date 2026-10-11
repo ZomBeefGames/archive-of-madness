@@ -2780,7 +2780,7 @@ const MOT={ang:0,x:0,y:0};
    All artwork is procedural Canvas, preserving the game's brass, ink, paper and
    jointed shadow-puppet language. The world simulation pauses during scenes. ---- */
 const FILM={
-  id:null,shot:0,t:0,clock:0,after:null,selection:0,help:false,difficulty:'archivist',
+  id:null,shot:0,t:0,clock:0,after:null,selection:0,help:false,difficulty:'archivist',partyMode:'solo',partyCode:'',
   buttons:[],skipRect:null,backdrop:null,backW:0,backH:0
 };
 /* Cooperative rooms use a real Railway WebSocket, not a simulation.
@@ -2949,10 +2949,23 @@ function filmTick(dt){
   const shot=FILMS[FILM.id][FILM.shot];
   if(FILM.t>=shot.duration)filmAdvance();
 }
+function filmBeginStoryNow(){
+  if(!filmBegin('opening','intro')){G.state='intro';drawIntro()}
+}
 function filmBeginStory(){
   FILM.help=false;
-  reset(); // a new challenge always begins with the selected difficulty
-  if(!filmBegin('opening','intro')){G.state='intro';drawIntro()}
+  if(typeof NET!=='undefined'&&NET.ws)return;
+  reset(); // new run, difficulty is retained until this game ends
+  if(FILM.partyMode==='solo'){if(typeof NET!=='undefined')NET.leave();filmBeginStoryNow()}
+  else if(typeof NET!=='undefined'){
+    G.state='title';NET.connect(FILM.partyMode,FILM.partyCode);
+  }else filmBeginStoryNow();
+}
+function cycleParty(step=1){
+  const modes=['solo','host','join'];
+  FILM.partyMode=modes[(modes.indexOf(FILM.partyMode)+step+modes.length)%modes.length];
+  if(FILM.partyMode!=='join')FILM.partyCode='';
+  snd('page');
 }
 function cycleDifficulty(step=1){
   const n=DIFF_KEYS.indexOf(FILM.difficulty);
@@ -2963,16 +2976,18 @@ function filmChoose(id){
   if(FILM.help){FILM.help=false;return}
   if(id==='begin')filmBeginStory();
   else if(id==='difficulty')cycleDifficulty(1);
+  else if(id==='party')cycleParty(1);
   else if(id==='help')FILM.help=true;
   else if(id==='sound')soundToggle();
 }
-const TITLE_ACTIONS=['begin','difficulty','help','sound'];
+const TITLE_ACTIONS=['begin','party','difficulty','help','sound'];
 function filmTitleAction(a){
   if(FILM.help){if(a==='read'||a==='close'||a==='swing'||a==='back'){FILM.help=false}return}
   if(a==='up'){FILM.selection=(FILM.selection+TITLE_ACTIONS.length-1)%TITLE_ACTIONS.length;snd('page')}
   else if(a==='down'){FILM.selection=(FILM.selection+1)%TITLE_ACTIONS.length;snd('page')}
   else if(a==='prev'||a==='next'){
-    if(FILM.selection===1)cycleDifficulty(a==='prev'?-1:1);
+    if(FILM.selection===1)cycleParty(a==='prev'?-1:1);
+    else if(FILM.selection===2)cycleDifficulty(a==='prev'?-1:1);
     else{FILM.selection=(FILM.selection+(a==='prev'?-1:1)+TITLE_ACTIONS.length)%TITLE_ACTIONS.length;snd('page')}
   }
   else if(a==='read'||a==='swing')filmChoose(TITLE_ACTIONS[FILM.selection]);
@@ -3209,16 +3224,21 @@ function filmDrawTitle(){
   g.fillStyle='#e0bd81';g.fillRect(w*.25,yy+(portrait?146:145),w*.5,2);
   g.font='italic '+(portrait?21:25)+'px Georgia';g.fillStyle='#e2d4b4';
   g.fillText('THE LIBRARY HAS A COPY OF YOU',w/2,yy+(portrait?187:181),w-62);
-  const bw=portrait?w-110:464,bh=portrait?62:41,base=portrait?543:437,gap=portrait?12:10;
+  const bw=portrait?w-110:464,bh=portrait?57:38,base=portrait?525:432,gap=portrait?9:8;
   const diff=difficultyRules(FILM.difficulty);
-  filmButton(g,'begin','BEGIN YOUR STORY',(w-bw)/2,base,bw,bh,FILM.selection===0);
-  filmButton(g,'difficulty','DIFFICULTY  ◂ '+diff.name+' ▸',(w-bw)/2,base+(bh+gap),bw,bh,FILM.selection===1);
-  filmButton(g,'help','HOW TO PLAY',(w-bw)/2,base+2*(bh+gap),bw,bh,FILM.selection===2);
-  filmButton(g,'sound','SOUND  '+(SND.on?'ON':'OFF'),(w-bw)/2,base+3*(bh+gap),bw,bh,FILM.selection===3);
+  const party=FILM.partyMode==='solo'?'SINGLE PLAYER':FILM.partyMode==='host'?'CREATE CO-OP ROOM':FILM.partyCode?'JOIN ROOM '+FILM.partyCode:'JOIN CO-OP ROOM';
+  filmButton(g,'begin',FILM.partyMode==='solo'?'BEGIN YOUR STORY':'ENTER THE SHARED LIBRARY',(w-bw)/2,base,bw,bh,FILM.selection===0);
+  filmButton(g,'party','PLAY MODE  ◂ '+party+' ▸',(w-bw)/2,base+(bh+gap),bw,bh,FILM.selection===1);
+  filmButton(g,'difficulty','DIFFICULTY  ◂ '+diff.name+' ▸',(w-bw)/2,base+2*(bh+gap),bw,bh,FILM.selection===2);
+  filmButton(g,'help','HOW TO PLAY',(w-bw)/2,base+3*(bh+gap),bw,bh,FILM.selection===3);
+  filmButton(g,'sound','SOUND  '+(SND.on?'ON':'OFF'),(w-bw)/2,base+4*(bh+gap),bw,bh,FILM.selection===4);
   g.textAlign='center';g.fillStyle='#dbc098';g.font='bold '+(portrait?16:15)+'px "Courier New"';
-  g.fillText(diff.tag+'  ·  '+diff.minDay+'+ DAYS  ·  '+diff.sentences+' SENTENCES  ·  '+diff.proofs+' PROOFS',w/2,portrait?884:655,w-50);
-  g.fillStyle='#927a5f';g.font=(portrait?15:15)+'px "Courier New"';
-  g.fillText(FINE?'W/S MENU  •  A/D DIFFICULTY  •  ENTER':'TAP DIFFICULTY TO CHANGE',w/2,h-28,w-55);
+  g.fillText(diff.tag+' · '+diff.minDay+'+ DAYS · '+diff.sentences+' SENTENCES · '+diff.proofs+' PROOFS',w/2,portrait?885:676,w-50);
+  if(typeof NET!=='undefined'&&NET.status){g.fillStyle='#f3cc9b';g.font='bold 14px "Courier New"';
+    g.fillText(NET.status,w/2,portrait?910:702,w-45)}
+  else{g.fillStyle='#927a5f';g.font='bold '+(portrait?14:13)+'px "Courier New"';
+    g.fillText(FINE?'W/S ROW · A/D MODE · ENTER':'TAP MODE TO SWITCH · SHARE ROOM CODE',w/2,h-29,w-55)}
+  ;
   g.restore();
 }
 function filmDrawCut(){
