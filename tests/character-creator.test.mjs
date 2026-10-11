@@ -90,3 +90,39 @@ test('changing name, age, gender and outfit updates the player model and saves l
   assert.ok(parts.length>20);
   assert.ok(parts.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.z0)));
 });
+
+
+test('rear hair covers the crown across genders, ages and outfits',()=>{
+  const t=setup();
+  for(const gender of [0,1,2])for(const age of [22,73])for(const outfit of [0,1,2,3]){
+    const v=t.run("(()=>{"+
+      "const p={...CHAR,gender:"+gender+",age:"+age+",outfit:"+outfit+",skin:0,hair:0};"+
+      "const r=characterRig(p),g=r.head.bk,sc=g.scale||1;"+
+      "let dark=0,skin=0,seen=0;"+
+      "for(let y=5;y<=11;y++)for(let x=4;x<=11;x++){"+
+      "const c=g.col[(Math.round((y+.5)*sc))*g.w+Math.round((x+.5)*sc)];"+
+      "if(!c)continue;seen++;if(c[0]<145&&c[1]<145)dark++;else skin++}"+
+      "const layers=[],q=ME.rig;ME.rig=r;meLayers(layers);ME.rig=q;"+
+      "return {seen,dark,skin,rearHeads:layers.filter(p=>p.rearHead).length,"+
+      "valid:layers.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.z0))};})()");
+    assert.ok(v.seen>=35,'crown has visible pixels '+gender+'/'+age+'/'+outfit);
+    assert.ok(v.dark/v.seen>0.72,'rear hair must not show bald scalp '+JSON.stringify({gender,age,outfit,...v}));
+    assert.equal(v.rearHeads,1,'exactly one marked rear-head layer');
+    assert.equal(v.valid,true);
+  }
+});
+test('rear head remains detailed and correctly inked after rotation',()=>{
+  const t=setup();
+  const rotated=t.run("(()=>{const h=characterRig({...CHAR,skin:0,hair:0}).head;"+
+    "return [-24,-9,0,9,24].map(a=>{const card=partAt(h,a).card;"+
+    "const pixels=Array.from({length:card.w*card.h},(_,i)=>i*4).filter(i=>card.back[i+3]>0);"+
+    "const dark=pixels.filter(i=>card.back[i]<145&&card.back[i+1]<145).length;"+
+    "return {total:pixels.length,dark,frontVisible:pixels.filter(i=>card.front[i+3]>0).length};});})()");
+  for(const a of rotated){
+    assert.ok(a.total>100,'back head should have an opaque cut-out');
+    assert.ok(a.dark/a.total>.45,'back-of-head should have substantial hair, not bare skin');
+    assert.equal(a.total,a.frontVisible,'front/back should share the outline');
+  }
+  assert.match(script,/rearHead:e===ME&&p===\(e\.rig\|\|MERIG\)\.head/);
+  assert.match(script,/THIRD&&j===0&&e\.rearHead/);
+});
