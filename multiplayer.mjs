@@ -60,7 +60,8 @@ export class GameRooms {
     code:room.code,players:[...room.members].map(copyPlayer),
     barriers:[...room.barriers.values()].map(packBarrier),
     wrecks:[...room.wrecks.values()],broken:[...room.broken],salvaged:[...room.salvaged],
-    world:worldPublic(room.world),enemies:room.world.enemies,stories:room.world.stories
+    world:worldPublic(room.world),enemies:room.world.enemies,stories:room.world.stories,
+    records:{proofs:room.world.proofs,sentences:room.world.sentences},host:room.hostId||null
   }}
   join(ws,msg){
     if(ws.player)return send(ws,{type:'error',message:'Already joined a Library.'});
@@ -89,6 +90,7 @@ export class GameRooms {
       appearance:cleanAppearance(msg.appearance),
       planks:room.world.resources.boards,lastPose:0,lastAction:0,health:100,sanity:100,room};
     room.members.add(p);ws.player=p;room.emptyAt=0;room.lastSeen=Date.now();
+    if(!room.hostId)room.hostId=p.id;
     send(ws,{type:'welcome',id:p.id,inventory:room.world.resources.boards,...this.publicRoom(room)});
     this.changed();
     this.broadcast(room,{type:'peer-join',player:copyPlayer(p)},ws);
@@ -198,7 +200,7 @@ export class GameRooms {
     if(msg.type==='resources')return p.room.engine.resources(p,msg);
     if(msg.type==='claim')return p.room.engine.claim(p,msg);
     if(msg.type==='combat')return p.room.engine.combat(p,msg);
-    if(msg.type==='story-start')return p.room.engine.storyStart(p,msg);
+    if(msg.type==='story-start'){if(p.room.hostId!==p.id)return;return p.room.engine.storyStart(p,msg)}
     if(msg.type==='story-choice')return p.room.engine.storyChoose(p,msg);
     if(msg.type==='chat'){
       if(Date.now()-(p.lastChat||0)<900)return;
@@ -212,6 +214,7 @@ export class GameRooms {
     const r=p.room;r.members.delete(p);ws.player=null;
     this.broadcast(r,{type:'peer-leave',id:p.id});
     if(!r.members.size)r.emptyAt=Date.now();
+    if(r.hostId===p.id){r.hostId=[...r.members][0]?.id||null;this.broadcast(r,{type:'host',id:r.hostId})}
     r.lastSeen=Date.now();this.changed();
   }
   sweep(now=Date.now()){
