@@ -203,3 +203,15 @@ test('gallery and community barricade labels preserve distinct names and cleared
   assert.match(s.run('zoneStatus(galleryZone(0,0))'),/SEALED LIBRARY · BREACHED/);
   assert.match(s.run('zoneStatus(crossingZone(0,0))'),/BARRICADED HUB · BREACHED/);
 });
+
+
+test('all rendered special-room sprites use defined palette symbols',()=>{
+  // Run the actual buildCard (rather than our geometry test stub). An unknown
+  // symbol used to make the entire game crash during startup on mobile/desktop.
+  const paint=part('const PAL=','const purBody=')+'\n'+part('const ZSPR=','const ALPHA=');
+  const c=vm.createContext({});
+  assert.doesNotThrow(()=>vm.runInContext(paint,c));
+  assert.equal(vm.runInContext('Object.keys(ZSPR).length',c)>=12,true);
+  assert.equal(vm.runInContext('ZSPR.ember.front.some(n=>n>0)',c),true);
+  assert.throws(()=>vm.runInContext("buildCard(['..?.'])",c),/UNKNOWN PAPER PIXEL/);
+});
