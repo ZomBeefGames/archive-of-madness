@@ -142,13 +142,14 @@ export class SharedWorld {
   const e=w.enemies.find(q=>q.id===msg.id&&!q.dead);
   if(!e||e.floor!==p.floor)return;
   const tool=String(msg.weapon||'press');
-  if(!['press','rod','torch'].includes(tool))return;
+  if(!['press','rod','torch','oil'].includes(tool))return;
+  if(tool==='oil'&&w.resources.oil<1)return;
   const dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy);
-  const reach=tool==='rod'?2.1:tool==='torch'?1.65:1.35;
+  const reach=tool==='rod'?2.1:tool==='torch'?1.65:tool==='oil'?4.0:1.35;
   if(d>reach+.25)return;
   const angle=Math.atan2(dy,dx),aim=Math.atan2(Math.sin(angle-p.f),Math.cos(angle-p.f));
-  if(Math.abs(aim)>(tool==='rod'?.40:.80))return;
-  p.lastCombat=now;e.hp-=tool==='rod'?1:2;
+  if(Math.abs(aim)>(tool==='rod'?.40:tool==='oil'?.55:.80))return;
+  p.lastCombat=now;e.hp-=tool==='rod'?1:tool==='oil'?2:2;
   if(e.hp<=0){
     e.hp=0;e.dead=true;
     if(e.type==='pur')w.resources.type=bound(w.resources.type+3,0,LIMITS.type);
