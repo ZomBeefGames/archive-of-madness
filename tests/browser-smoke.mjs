@@ -207,6 +207,7 @@ async function coopSmoke(){
     await clickTitle(host,'char:outfit',false,.82);
     await clickTitle(host,'char:coat',false,.82);
     await clickTitle(host,'char:done');
+    await host.waitForFunction(()=>!window.__AOM_TEST?.FILM.customizing&&window.__AOM_TEST?.FILM.buttons.some(b=>b.id==='party'));
     await clickTitle(host,'party');
     assert.equal(await host.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'host');
     await clickTitle(host,'begin');
