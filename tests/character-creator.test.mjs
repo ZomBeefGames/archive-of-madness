@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'actual game code');
-const start=script.indexOf('function gridRows('),end=script.indexOf('/* ---- the Library goes on without you.',start);
+const start=script.indexOf('function gridRows('),end=script.indexOf('/* ---- the far-off events.',start);
 assert.ok(start>=0&&end>start,'real puppet painter and avatar creator');
 const production=script.slice(start,end);
 function setup(){
