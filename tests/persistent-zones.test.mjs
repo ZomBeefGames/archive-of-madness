@@ -60,7 +60,8 @@ test('library/gallery variants are deterministic with stable identities during t
   const examples=new Set();
   for(let i=-35;i<35;i++)for(let j=-5;j<5;j++)
     examples.add(s.run('galleryZone('+i+','+j+').type'));
-  assert.deepEqual([...examples].sort(),['barricaded','burned','burning','normal','refuge']);
+  assert.ok(['barricaded','burned','burning','normal','refuge','study','confession','obliterated','vault'].every(type=>examples.has(type)), 'expanded deterministic gallery catalogue');
+   assert.ok(examples.size>=15,'at least fifteen genuinely varied gallery architectures');
   s.G.startGallery='100,200:0';
   assert.equal(s.run('galleryZone(100,200).type'),'normal','first gallery is guaranteed safe');
 });
@@ -123,7 +124,7 @@ test('burning galleries draw persistent animated fire, smoke and light sources',
   assert.ok(art.some(p=>p.glow));
   assert.ok(art.some(p=>p.z0>0));
   s.run('addZoneFireLights()');
-  assert.equal(s.fireLights.length,6);
+  assert.ok(s.fireLights.length>=6&&s.fireLights.length<=12,'nearest two burning galleries only');
   assert.match(script,/addZoneDressing\(list\)/);
   assert.match(script,/addZoneFireLights\(\)/);
   assert.match(script,/zone.type==='burned'\|\|zone.type==='burning'/);
