@@ -198,7 +198,10 @@ export class GameRooms {
     if(msg.type==='pose')return this.pose(p,msg);
     if(msg.type==='barrier')return this.action(p,msg);
     if(msg.type==='resources')return p.room.engine.resources(p,msg);
-    if(msg.type==='claim')return p.room.engine.claim(p,msg);
+    if(msg.type==='claim'){
+      if(!p.room.engine.claim(p,msg))send(ws,{type:'world',world:worldPublic(p.room.world)});
+      return;
+    }
     if(msg.type==='combat')return p.room.engine.combat(p,msg);
     if(msg.type==='story-start'){if(p.room.hostId!==p.id)return;return p.room.engine.storyStart(p,msg)}
     if(msg.type==='story-choice')return p.room.engine.storyChoose(p,msg);
