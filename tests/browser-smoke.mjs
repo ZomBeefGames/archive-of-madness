@@ -71,7 +71,18 @@ async function caseRun(label,contextOptions){
   const page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+PORT+'/',{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===3&&a.view.width>0},null,{timeout:30000});
+  try{
+    await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===3&&a.view.width>0},null,{timeout:12000});
+  }catch(e){
+    const probe=await page.evaluate(()=>({
+      ready:document.readyState,bridge:!!window.__AOM_TEST,
+      canvases:document.querySelectorAll('canvas').length,
+      scripts:document.scripts.length,view:!!document.getElementById('view'),
+      title:document.title
+    }));
+    console.error('STARTUP DIAGNOSTICS',JSON.stringify({label,errors,probe}));
+    throw e;
+  }
   const render=await page.evaluate(()=>{
     const app=window.__AOM_TEST,view=app.view;const ctx=view.getContext('2d'),data=ctx.getImageData(0,0,view.width,view.height).data;
     let bright=0;for(let i=0;i<data.length;i+=257*4)if(data[i]+data[i+1]+data[i+2]>110)bright++;
