@@ -192,12 +192,12 @@ export class SharedWorld {
       }
       this.touch();advanceQuest(room);this.emit({type:'dawn',world:worldPublic(w)});
     }
-    for(const p of room.members)this.addRoomEnemy(p);
+    for(const p of room.members)if(p.active)this.addRoomEnemy(p);
     let moving=false;
     for(const e of w.enemies){
       if(e.dead)continue;
       let nearest=null,best=Infinity;
-      for(const p of room.members)if(p.floor===e.floor){
+      for(const p of room.members)if(p.active&&p.floor===e.floor){
         const dist=Math.hypot(e.x-p.x,e.y-p.y);
         if(dist<best){nearest=p;best=dist}
       }
