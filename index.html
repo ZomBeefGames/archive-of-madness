@@ -2859,6 +2859,21 @@ function drawMap(g,x0,y0,w,h){
     g.strokeStyle='#b3261e';g.lineWidth=3;g.beginPath();g.moveTo(mx-6,my-6);g.lineTo(mx+6,my+6);g.moveTo(mx+6,my-6);g.lineTo(mx-6,my+6);g.stroke();
     const df=Pl.f-G.floor;g.font='bold 12px "Courier New",monospace';g.fillStyle='#ff8f6b';g.textAlign='center';
     g.fillText(df===0?(off?'that way':'your page'):(Math.abs(df)+' floor'+(Math.abs(df)>1?'s ':' ')+(df>0?'up':'down')),Math.max(x0+60,Math.min(x0+w-60,mx)),my+(my>cy?-20:10));g.textAlign='left'}
+  // Shared player positions and recovered fortifications belong on the paper
+  // journal map: only mark structures on this floor, keeping distant floors distinct.
+  for(const b of BUILD.barriers.values())if(b.floor===G.floor){
+    const bx=X(b.x),by=Y(b.y);
+    if(bx<x0+5||bx>x0+w-5||by<y0+5||by>y0+h-5)continue;
+    g.fillStyle=b.level===3?'#f0c875':'#c59358';g.fillRect(bx-3,by-3,6,6);
+    g.strokeStyle=b.level===3?'#f5e4ba':'#492e21';g.lineWidth=b.level===3?2.5:1;
+    g.strokeRect(bx-5,by-5,10,10);
+  }
+  if(typeof NET!=='undefined'&&NET.ready)for(const other of NET.peers.values())if(other.floor===G.floor){
+    const ox=X(other.x),oy=Y(other.y);
+    if(ox<x0+6||ox>x0+w-6||oy<y0+6||oy>y0+h-6)continue;
+    g.fillStyle='#b4d8c9';g.strokeStyle='#2e4d48';g.lineWidth=2;
+    g.beginPath();g.arc(ox,oy,4.5,0,Math.PI*2);g.fill();g.stroke();
+  }
   g.save();g.translate(cx,cy);g.rotate(G.ang);g.fillStyle='#b3261e';g.beginPath();g.moveTo(9,0);g.lineTo(-6,-6);g.lineTo(-3,0);g.lineTo(-6,6);g.closePath();g.fill();g.restore();
   g.font='bold 13px "Courier New",monospace';g.fillStyle='#efe5c8';g.textAlign='center';g.fillText('N',x0+w/2,y0+3);g.textAlign='left';
   g.restore();
