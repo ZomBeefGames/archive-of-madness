@@ -132,8 +132,9 @@ async function caseRun(label,contextOptions){
   // Load each new costume and group cast through the actual game paper-puppet
   // renderer, not a fake sprite. This catches missing rigs and pose errors.
   const actors=await page.evaluate(()=>{
-    const a=window.__AOM_TEST,G=a.G,groups=['auction','trial','choir','watch','firebrigade'];
-    const solos=['cartographer','surgeon','warden'];let groupParts=0,soloParts=0;
+    const a=window.__AOM_TEST,G=a.G,groups=['auction','trial','choir','watch','firebrigade',
+      'quarantine','council','pilgrims','shelter','ledgerfire'];
+    const solos=['cartographer','surgeon','warden','binder','bellkeeper','orphan','exile','glassmaker'];let groupParts=0,soloParts=0;
     for(const id of groups){
       let cast=null;
       for(const [x,y] of [[2.9,0],[-2.9,0],[0,2.9],[0,-2.9]])
@@ -152,10 +153,10 @@ async function caseRun(label,contextOptions){
     }
     return{groups:groups.length,solo:solos.length,groupParts,soloParts};
   });
-  assert.equal(actors.groups,5);assert.equal(actors.solo,3);
-  assert.ok(actors.groupParts>80&&actors.soloParts>50);
+  assert.equal(actors.groups,10);assert.equal(actors.solo,8);
+  assert.ok(actors.groupParts>180&&actors.soloParts>135);
   assert.deepEqual(errors,[],label+' should not throw in browser rendering');
-  console.log('BROWSER PASS',label,'difficulty, opening, both choices, eight new NPC/scene puppets');
+  console.log('BROWSER PASS',label,'difficulty, opening, both choices, eighteen new NPC/scene puppets');
   await context.close();
 }
 
