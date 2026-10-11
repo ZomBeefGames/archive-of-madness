@@ -130,6 +130,7 @@ function airFloor(px,py,fl=G.floor){const i=Math.round(px/P),j=Math.round(py/P),
 /* where you may stand */
 function walkable(x,y,rad){
   if(galleryBarricadeAt(x,y,rad)||(typeof placedBlockAt==='function'&&placedBlockAt(x,y,rad)))return false;
+   if(typeof bridgeFooting==='function'&&!bridgeFooting(x,y,rad))return false;
   const i=Math.round(x/P),j=Math.round(y/P),lx=x-i*P,ly=y-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
   if(inHexL(lx,ly,A-rad))return lx*lx+ly*ly>=(RS+rad)*(RS+rad);
   if(ay<=HW-rad&&ax>=A-rad-0.05&&ax<=CWI+rad+0.01)return true;
@@ -150,6 +151,94 @@ const GALLERY_NAMES={
   burning:'THE BURNING HEXAGON',barricaded:'THE SEALED LIBRARY',
   refuge:'THE FORGOTTEN REFUGE'
 };
+/* A seeded catalogue of structural interiors. The same coordinates keep their
+   identity for one reset epoch; all rooms retain the two original doors,
+   twenty readable shelves and a clear route around the shaft. */
+Object.assign(GALLERY_NAMES,{
+  confession:'THE CONFESSION CHAMBER',chain:'THE CHAIN ARCHIVE',
+  judgment:'THE JUDGMENT CELL',study:'THE FORBIDDEN STUDY',
+  memory:'THE MEMORY LABORATORY',observatory:'THE LINGUISTIC OBSERVATORY',
+  puriflab:'THE PURIFIER RESEARCH POST',obliterated:'THE OBLITERATED LIBRARY',
+  collapse:'THE COLLAPSED GALLERY',ashvoid:'THE ASH VOID',
+  flooded:'THE FLOODED ARCHIVE',skeleton:'THE SKELETON SHELVES',
+  quarantine:'THE QUARANTINE ROOM',bindery:'THE BOOKBINDER WORKSHOP',
+  mirrorhall:'THE MIRROR READING HALL',vault:'THE SEALED ARCHIVE VAULT'
+});
+const GALLERY_WEIGHTS=[
+  ['normal',37],['burned',11],['burning',6],['barricaded',10],['refuge',5],
+  ['confession',3],['chain',2],['judgment',2],['study',3],['memory',2],
+  ['observatory',2],['puriflab',2],['obliterated',3],['collapse',2],
+  ['ashvoid',2],['flooded',2],['skeleton',2],['quarantine',1],
+  ['bindery',1],['mirrorhall',1],['vault',1]
+];
+const GALLERY_CACHES=new Set(GALLERY_WEIGHTS.map(([id])=>id).filter(id=>id!=='normal'&&id!=='burning'));
+const ROOM_DISCOVERIES={
+  confession:['The restraint chair is empty. Its last occupant scratched a confession into the underside of the lamp: I remember the people I was ordered to forget.','+1 INCENSE · +1 ARCHIVE TYPE','incense',1],
+  chain:['A prison ledger hangs beneath a rack of iron restraints. One prisoner was condemned for refusing to erase a sentence.','+3 TYPE · THE LEDGER SURVIVES','type',3],
+  judgment:['Verdicts cover the judge\'s desk, but the name of the accused has been cut from every page.','+2 TYPE · A JUDGMENT RECORDED','type',2],
+  study:['Under an annotated star chart you find a careful page of deciphered symbols. Its writer has annotated the margin: the page is true.','+1 TRUE SENTENCE · +1 TYPE','sentence',1],
+  memory:['Mirrored instruments preserve a remembered morning in thin strips of foil. Reading it returns a thought you thought was lost.','+12 SANITY · A MEMORY PRESERVED','sanity',12],
+  observatory:['The linguistic telescope points at no sky. Through its lens the letters of one surviving sentence arrange themselves into a statement.','+1 TRUE SENTENCE · OBSERVATORY RECORD','sentence',1],
+  puriflab:['The Purifiers\' experimental glass is neatly numbered. You rescue a vial of lamp oil from the soot.','+2 OIL · FUEL SAMPLES SECURED','oil',2],
+  obliterated:['Nothing remains except a twisted iron index and a box of metal letters beneath tons of fallen books.','+2 TYPE · RUIN EXCAVATED','type',2],
+  collapse:['A broken surveyor\'s case lies beside the fallen beam. Its plan still shows a route around the crack.','+2 TYPE · A SAFE ROUTE RECORDED','type',2],
+  ashvoid:['Below a mountain of soot you recover a single metal sentence that the flames did not consume.','+1 TRUE SENTENCE · +1 ASH RELIC','sentence',1],
+  flooded:['A waxed packet drifts in the black water. Its oilskin seal kept one small lamp reserve dry.','+2 OIL · PACKET RECOVERED','oil',2],
+  skeleton:['An empty shelf frame carries one unburned spine. The spine opens into the last honest entry of its catalogue.','+1 TRUE SENTENCE · ONE SPINE SURVIVES','sentence',1],
+  quarantine:['The quarantine register names everyone whose memory was altered. You copy it instead of opening the contaminated volume.','+1 INCENSE · NAMES PRESERVED','incense',1],
+  bindery:['A patient binder left a pouch of movable type and a note asking the next reader to finish the record.','+3 TYPE · BOOKS REBOUND','type',3],
+  mirrorhall:['The fractured mirrors reflect countless versions of your face. You leave with the one memory none of them can replace.','+8 SANITY · REFLECTION FACED','sanity',8],
+  vault:['The vault door hangs open enough for a hand. One sealed metal tray still holds a generous lantern reserve.','+3 OIL · VAULT INVENTORIED','oil',3]
+};
+const ROOM_DESCRIPTIONS={
+ confession:'An iron confession chair stands under a low interrogation lamp. The straps are empty and every testimony has been catalogued.',
+ chain:'Locked lecterns, clinking chains and a shelf of confiscated memories fill the punishment archive.',
+ judgment:'A court assembled inside a reading room; faceless verdicts have been stamped on the benches.',
+ study:'The shelves give way to maps, diagrams, reference mirrors and a desk marked with forbidden observations.',
+ memory:'Glass coils and numbered memory jars surround a single experimental chair.',
+ observatory:'An enormous brass linguistic instrument peers toward a ceiling covered in letter constellations.',
+ puriflab:'A research bench preserves experimental fuel, burned pages and Purifier field records.',
+ obliterated:'This whole library has been torn almost out of existence. The floor is strewn with smashed stone and snapped frames.',
+ collapse:'A great supporting beam lies across the wreckage; broken shelf ribs still stand beside the shaft.',
+ ashvoid:'The walls are shadow, soot and empty hinges. Nearly nothing in this room remains readable.',
+ flooded:'Black water pools around warped bookcases, carrying pages with their ink washed away.',
+ skeleton:'Every volume has vanished, leaving the exposed timber ribs of the original shelves.',
+ quarantine:'Hazard signs and sealed curtains fence off a catalogue of dangerous language.',
+ bindery:'Needles, thread, parchment presses and half-finished bindings cover the benches.',
+ mirrorhall:'Fractured mirrors multiply the room into a dozen imaginary archives.',
+ vault:'A massive numbered iron door guards drawers of archival evidence.'
+};
+const BRIDGE_NAMES={
+ plain:'THE OPEN CATWALK',broken:'THE BROKEN SPAN',patch:'THE PATCHWORK BRIDGE',
+ chain:'THE CHAIN BRIDGE',beam:'THE NARROW BEAM',service:'THE SERVICE BRIDGE',
+ fork:'THE SPLIT SIGNPOST',collapsed:'THE COLLAPSED SPAN',burned:'THE CHARRED BRIDGE',
+ checkpoint:'THE GUARD POST',overlook:'THE SIDE OBSERVATION PLATFORM',
+ research:'THE SURVEY BRIDGE',cage:'THE HANGING CAGE BRIDGE'
+};
+const BRIDGE_STORIES={
+ broken:['Loose planks expose the drop. Between the beams a scavenger left an oilskin note with a usable route.','+1 TYPE · ROUTE SALVAGED','type',1],
+ patch:['Every board was donated by another reader. A tin with spare type was nailed under the last repair.','+2 TYPE · PATCHWORK EXAMINED','type',2],
+ chain:['A bridge of heavy links sways over the void. An old badge is caught in the suspension chain.','+1 TYPE · CHAIN BADGE','type',1],
+ beam:['A single reinforced beam crosses the black space. The guide-rope holds one unbroken lamp vial.','+1 OIL · GUIDE ROPE CHECKED','oil',1],
+ service:['A supply trolley has been chained to the service rail. You recover its emergency lamp reserve.','+2 OIL · SERVICE SUPPLIES','oil',2],
+ fork:['A sign points to two routes which both claim to lead home. Beneath it someone etched a fragment of truth.','+1 TRUE SENTENCE · CROSSROADS RECORD','sentence',1],
+ collapsed:['The span has failed at its edges, leaving a narrow usable spine. Beneath the splinters is an archive tag.','+1 TYPE · COLLAPSE INSPECTED','type',1],
+ burned:['A row of charred planks still supports a reader. A sealed tin of incense survived below the rail.','+1 INCENSE · ASH SURVEY','incense',1],
+ checkpoint:['The abandoned watch station has an inventory of everyone who crossed here. You preserve its final entry.','+2 TYPE · WATCH REGISTER','type',2],
+ overlook:['A tiny observation bay extends just far enough to see the lower floors. A survey card lies beneath the lamp.','+1 TYPE · OBSERVATION LOG','type',1],
+ research:['An elaborate measuring scope tracks sentences through the levels. Its slate holds a true observation.','+1 TRUE SENTENCE · SURVEY LOG','sentence',1],
+ cage:['A ribbed iron passage once protected condemned books. You find an untouched incense parcel inside.','+1 INCENSE · CAGE INVENTORY','incense',1]
+};
+const BRIDGE_WEIGHTS=[
+ ['plain',42],['broken',6],['patch',7],['chain',6],['beam',4],['service',6],
+ ['fork',4],['collapsed',4],['burned',5],['checkpoint',5],
+ ['overlook',4],['research',4],['cage',3]
+];
+function weightedType(roll,table){
+ let v=roll*100;
+ for(const [name,weight] of table){v-=weight;if(v<0)return name}
+ return table[table.length-1][0];
+}
 const CROSS_NAMES={
   plain:'THE LANDING',barricaded:'THE BARRICADED HUB',
   scorched:'THE SCORCHED HUB',vigil:'THE VIGIL HUB',
@@ -160,11 +249,64 @@ function galleryZone(i,j,fl=G.floor){
   const key=G.resetEpoch+'|g|'+i+','+j+'|'+fl;
   let z=G.zoneState.get(key);if(z)return z;
   const seed=hashStr('condition|'+key),r=prng(seed),roll=r();
-  let type=roll<.60?'normal':roll<.76?'burned':roll<.85?'burning':roll<.97?'barricaded':'refuge';
+  let type=weightedType(roll,GALLERY_WEIGHTS);
   if(G.startGallery===i+','+j+':'+fl)type='normal'; // do not spawn the player inside a fire or a locked doorway
   z={key,type,seed,side:r()<.5?-1:1,opened:false,breached:false,salvaged:false};
   if(typeof NET!=='undefined'&&NET.zones.has(key))Object.assign(z,NET.zones.get(key));
   G.zoneState.set(key,z);return z;
+}
+/* Bridge identity follows a WHOLE span, not the camera. Every named span
+   has a persistent inspection state; center crossings and gallery doors stay open. */
+function bridgeZone(axis,i,j,fl=G.floor){
+ const key=G.resetEpoch+'|bridge|'+axis+'|'+i+','+j+'|'+fl;
+ let z=G.zoneState.get(key);if(z)return z;
+ const seed=hashStr('architecture|'+key),rnd=prng(seed);
+ z={key,type:weightedType(rnd(),BRIDGE_WEIGHTS),seed,bridge:true,axis,i,j,floor:fl,opened:false};
+ G.zoneState.set(key,z);return z;
+}
+function bridgeSegment(x,y,fl=G.floor){
+ const xi=Math.floor(x/P),yi=Math.floor(y/P),fx=x/P-xi,fy=y/P-yi;
+ if(Math.abs(fy-.5)<1.10/P&&Math.abs(fx-.5)>.19){
+   const j=yi,i=Math.round(x/P)-1;
+   return{zone:bridgeZone('h',i,j,fl),axis:'h',i,j,x:(i+1)*P,y:(j+.5)*P};
+ }
+ if(Math.abs(fx-.5)<1.10/P&&Math.abs(fy-.5)>.19){
+   const i=xi,j=Math.round(y/P)-1;
+   return{zone:bridgeZone('v',i,j,fl),axis:'v',i,j,x:(i+.5)*P,y:(j+1)*P};
+ }
+ return null;
+}
+/* Broken and single-beam spans use a narrower safe strip, but always
+   retain a continuous center route; no procedural bridge is a softlock. */
+function bridgeFooting(x,y,rad=0){
+ const b=bridgeSegment(x,y);if(!b)return true;
+ const type=b.zone.type;if(!['broken','beam','collapsed'].includes(type))return true;
+ const across=Math.abs(b.axis==='h'?y-b.y:x-b.x);
+ return across<=(type==='beam'?.47:type==='collapsed'?.53:.61)-Math.min(.17,rad*.30);
+}
+function bridgeTarget(){
+ if(G.inRoom)return null;
+ const b=bridgeSegment(G.x,G.y);
+ if(!b||b.zone.type==='plain'||b.zone.opened)return null;
+ const x=b.x+(b.axis==='v'?.54:0),y=b.y+(b.axis==='h'?.54:0);
+ const d=Math.hypot(x-G.x,y-G.y);
+ if(d>3.0||Math.abs(angDiff(Math.atan2(y-G.y,x-G.x),G.ang))>1.15)return null;
+ return{...b,x,y,dist:d};
+}
+function rewardArchitecture(z,entry,prefix){
+ const [story,award,kind,n]=entry;
+ if(kind==='type')G.type+=n;
+ if(kind==='oil')G.oil+=n;
+ if(kind==='incense')G.incense+=n;
+ if(kind==='sanity')G.sanity=Math.min(100,G.sanity+n);
+ if(kind==='sentence'){
+   G.frags+=(G.tr?.key?2:1);
+   if(typeof rememberSentence==='function')rememberSentence(prefix+'|'+z.key);
+ }
+ collectProof(prefix+'|'+z.key);
+ z.opened=true;
+ snd('page');sfx(award,'mind');
+ openNote((z.bridge?BRIDGE_NAMES:GALLERY_NAMES)[z.type],story,award+' · ONE DISCOVERY PER RESET');
 }
 function crossingZone(ci,cj,fl=G.floor){
   if(!isStair(ci,cj))return null;
@@ -284,15 +426,17 @@ function buildRead(){
 function standingZone(){
   if(G.inRoom&&G.room)return galleryZone(G.room.i,G.room.j);
   const c=crossingAt(G.x,G.y);
-  return c.stairs?crossingZone(c.ci,c.cj):null;
+  return c.stairs?crossingZone(c.ci,c.cj):bridgeSegment(G.x,G.y)?.zone||null;
 }
 function zoneStatus(z){
   if(!z)return'OPEN CATWALK';
-  const name=typeof z.hub==='boolean'?CROSS_NAMES[z.type]:GALLERY_NAMES[z.type];
+  const name=z.bridge?BRIDGE_NAMES[z.type]:typeof z.hub==='boolean'?CROSS_NAMES[z.type]:GALLERY_NAMES[z.type];
   return (name||'THE LIBRARY')+(z.breached?' · BREACHED':z.opened?' · SEARCHED':'');
 }
 function zoneDescription(z){
   if(!z)return'';
+  if(z.bridge)return BRIDGE_STORIES[z.type]?.[0]||'The old catwalk continues through the Library.';
+  if(typeof z.hub!=='boolean')return ROOM_DESCRIPTIONS[z.type]||'The Library remains open.';
   if(z.hub)return({
     plain:'Brass stairs rise from four occupied corners.',
     barricaded:'The living have boarded the food hatch and chained the sleeping closet. The stair itself remains open.',
@@ -338,7 +482,7 @@ function crossingFeatureTarget(){
 function galleryCacheTarget(){
   if(!G.inRoom)return null;
   const z=galleryZone(G.room.i,G.room.j);
-  if(!['burned','refuge','barricaded'].includes(z.type)||z.opened||z.type==='barricaded'&&!z.breached)return null;
+  if(!GALLERY_CACHES.has(z.type)||z.opened||z.type==='barricaded'&&!z.breached)return null;
   const px=G.room.cx+2.4,py=G.room.cy+2.4,dx=px-G.x,dy=py-G.y,d=Math.hypot(dx,dy);
   if(d>1.85||Math.abs(angDiff(Math.atan2(dy,dx),G.ang))>.9)return null;
   return{zone:z,x:px,y:py,dist:d};
@@ -370,7 +514,8 @@ function zoneRead(){
     collectProof('cache|'+z.key);
     if(z.type==='burned'){G.type+=2;sfx('+2 SCORCHED TYPE');openNote('AMONG THE CINDERS','A small iron box survived the fire beneath a shelf of ruined bindings.','+2 TYPE · SALVAGED ONCE THIS RESET')}
     else if(z.type==='refuge'){G.oil+=2;G.incense++;sfx('HIDDEN SUPPLIES','mind');openNote('THE FORGOTTEN REFUGE','Under a folded coat and a torn map, someone kept supplies for the next reader.','+2 OIL · +1 INCENSE · CACHE EMPTY UNTIL RESET')}
-    else{G.type+=3;sfx('+3 TYPE');openNote('BEHIND THE BARRICADE','The last occupants hid lead letters beneath a pile of broken boards.','+3 TYPE · CACHE EMPTY UNTIL RESET')}
+    else if(z.type==='barricaded'){G.type+=3;sfx('+3 TYPE');openNote('BEHIND THE BARRICADE','The last occupants hid lead letters beneath a pile of broken boards.','+3 TYPE · CACHE EMPTY UNTIL RESET')}
+    else rewardArchitecture(z,ROOM_DISCOVERIES[z.type],'room');
     return true;
   }
   const feature=crossingFeatureTarget();
@@ -393,6 +538,8 @@ function zoneRead(){
     openNote(CROSS_NAMES[z.type],zoneDescription(z),award||'THE SPIRAL STAIR REMAINS OPEN');
     return true;
   }
+  const bridge=bridgeTarget();
+  if(bridge){G.lastHit={t:bridge.dist};rewardArchitecture(bridge.zone,BRIDGE_STORIES[bridge.zone.type],'span');return true}
   return false;
 }
 
@@ -478,7 +625,7 @@ function makeCaseTex(g,f,wall,burnt){
 }
 const texCache=new Map(),burned=new Set();
 function wallTex(g,f,wall){
-  const q=galInfo(g),zone=galleryZone(q.i,q.j,f),b=burned.has(g+'.'+f+':'+wall)||zone.type==='burned'||zone.type==='burning',key=G.resetEpoch+':'+g+'.'+f+':'+wall+':'+(b?1:0);
+  const q=galInfo(g),zone=galleryZone(q.i,q.j,f),b=burned.has(g+'.'+f+':'+wall)||['burned','burning','obliterated','collapse','ashvoid','skeleton'].includes(zone.type),key=G.resetEpoch+':'+g+'.'+f+':'+wall+':'+(b?1:0);
   let t=texCache.get(key);
   if(!t){t=makeCaseTex(g,f,wall,b);texCache.set(key,t);if(texCache.size>240)texCache.delete(texCache.keys().next().value)}
   return t;
@@ -2275,7 +2422,7 @@ function zoneHazards(dt){
         G.zoneHurt=(G.zoneHurt||0)-dt;
         if(G.zoneHurt<=0){G.zoneHurt=1.5;sfx('THE SHELVES ARE BURNING','red');snd('crackle')}
       }
-    }else if(z.type==='burned'){
+    }else if(['burned','obliterated','ashvoid','skeleton'].includes(z.type)){
       G.zoneAsh=(G.zoneAsh||0)-dt;
       if(G.zoneAsh<=0&&rNearChar(G.x-G.room.cx,G.y-G.room.cy)){
         G.zoneAsh=10;G.sanity=Math.max(0,G.sanity-.6);
@@ -2302,7 +2449,8 @@ function update(dt){
   const fwd=Math.max(-1,Math.min(1,(keys.up||keys.w?1:0)-(keys.down||keys.s?1:0)+STICK.fwd)),turn=Math.max(-1,Math.min(1,(keys.right||keys.d?1:0)-(keys.left||keys.a?1:0)+STICK.turn));
   G.ang+=turn*2.4*dt;
   if(keys.r||keys.f)G.pitch=Math.max(-0.45,Math.min(0.45,G.pitch+((keys.r?1:0)-(keys.f?1:0))*0.9*dt));
-  const sp=2.2*dt*fwd;
+  const pace=G.inRoom&&galleryZone(G.room.i,G.room.j).type==='flooded'?.72:1;
+   const sp=2.2*dt*fwd*pace;
   if(fwd){G.walkT+=dt*8*Math.abs(fwd)}
   if(sp){let nx=G.x+Math.cos(G.ang)*sp,ny=G.y+Math.sin(G.ang)*sp;
     if(!walkable(nx,ny,0.3)){if(walkable(nx,G.y,0.3))ny=G.y;else if(walkable(G.x,ny,0.3))nx=G.x;else{nx=G.x;ny=G.y}}
@@ -2471,7 +2619,7 @@ function doRead(){
   if(h.type==='frame'){openNote('THE MIRROR','A gilt frame. In the glass, another platform, another you.');return}
   if(h.type!=='shelf'){sfx('NO SHELVES HERE');return}
   const g=h.cell.gid,k=h.cell.k,wall=h.seg.wall,key=g+'.'+f+':'+wall;
-  if(burned.has(key)||galleryZone(galInfo(g).i,galInfo(g).j,f).type==='burned'){G.sanity=Math.max(0,G.sanity-1);if(!G.hasRod){G.hasRod=true;G.weapon='rod';openNote('BURNED SHELF','. . . ash . . . Among the cinders a shelf rod comes loose. You sharpen it on the stone lip of the shaft.','You found a SHELF ROD: quick, with a long reach. '+(FINE?'Q or 1 2 3 4':'Tap your hand')+' to switch weapons.')}else openNote('BURNED SHELF','. . . ash . . .','Only ash. These books are lost forever. −1 sanity');return}
+  if(burned.has(key)||['burned','obliterated','ashvoid','skeleton'].includes(galleryZone(galInfo(g).i,galInfo(g).j,f).type)){G.sanity=Math.max(0,G.sanity-1);if(!G.hasRod){G.hasRod=true;G.weapon='rod';openNote('BURNED SHELF','. . . ash . . . Among the cinders a shelf rod comes loose. You sharpen it on the stone lip of the shaft.','You found a SHELF ROD: quick, with a long reach. '+(FINE?'Q or 1 2 3 4':'Tap your hand')+' to switch weapons.')}else openNote('BURNED SHELF','. . . ash . . .','Only ash. These books are lost forever. −1 sanity');return}
   const z=EYE+G.pitch*H/PROJ*h.t,row=63-Math.max(0,Math.min(63,z/WALLH*64|0)),shelf=Math.max(1,Math.min(5,Math.floor((row-4)/12)+1)),book=1+Math.min(31,Math.floor(h.u*32));
   G.book={g,f,wall,k,shelf,book,page:1};
   showPage(true);startle();
