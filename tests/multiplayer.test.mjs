@@ -61,16 +61,16 @@ test('four physical salvage sites provide enough boards for 3 server-verified re
     post(rooms,host,{type:'barrier',action:'salvage',...info});
     assert.equal(host.messages.at(-1).type,'error');
   }
-  assert.equal(host.player.planks,4);
+  assert.equal(room.world.resources.boards,4);
   post(rooms,host,{type:'barrier',action:'place',x:host.player.x+1.4,y:0,floor:0});
   const barrier=[...room.barriers.values()][0];
   assert.ok(barrier);
-  assert.equal(host.player.planks,3);
+  assert.equal(room.world.resources.boards,3);
   assert.ok(other.messages.some(m=>m.type==='barrier'&&m.action==='upsert'));
   for(let n=1;n<=3;n++){
     post(rooms,host,{type:'barrier',action:'reinforce',id:barrier.id});
     assert.equal(barrier.level,n);
-    assert.equal(host.player.planks,3-n);
+    assert.equal(room.world.resources.boards,3-n);
     assert.equal(barrier.hp,3+n*4);
   }
   const hp=barrier.hp;
@@ -78,14 +78,14 @@ test('four physical salvage sites provide enough boards for 3 server-verified re
   assert.equal(barrier.hp,hp,'three reinforcements resist every weapon hit');
   assert.ok(room.barriers.has(barrier.id));
   post(rooms,host,{type:'barrier',action:'take',id:barrier.id});
-  assert.equal(host.player.planks,4,'manual retrieval recovers all four invested boards');
+  assert.equal(room.world.resources.boards,4,'manual retrieval recovers all four invested boards');
   assert.equal(room.barriers.size,0);
   assert.ok(other.messages.some(m=>m.type==='barrier'&&m.action==='remove'));
 });
 test('ordinary placed barricades can be destroyed; wreckage can be recovered by a different player',()=>{
   const {rooms,host,code,room}=lobby();
   const peer=mock();post(rooms,peer,{type:'join',room:code});
-  host.player.planks=1;
+  room.world.resources.boards=1;
   post(rooms,host,{type:'barrier',action:'place',x:5.5,y:0,floor:0});
   const b=[...room.barriers.values()][0];assert.ok(b);
   for(let i=0;i<3;i++)post(rooms,host,{type:'barrier',action:'hit',id:b.id});
@@ -93,7 +93,7 @@ test('ordinary placed barricades can be destroyed; wreckage can be recovered by 
   const w=[...room.wrecks.values()][0];
   peer.player.x=5.0;peer.player.y=0;
   post(rooms,peer,{type:'barrier',action:'pickup-wreck',id:w.id});
-  assert.equal(peer.player.planks,1);
+  assert.equal(room.world.resources.boards,1);
   assert.equal(room.wrecks.size,0);
   assert.ok(host.messages.some(m=>m.type==='barrier'&&m.action==='remove-wreck'));
 });
@@ -104,14 +104,14 @@ test('fake salvage addresses, distant builds, tampered hitpoints and overflow ar
   assert.equal(room.broken.size,before);
   post(rooms,host,{type:'barrier',action:'breach',key:'1|g|0,0|0',x:4.33,y:10,floor:0});
   assert.equal(room.broken.size,before);
-  host.player.planks=1;
+  room.world.resources.boards=1;
   post(rooms,host,{type:'barrier',action:'place',x:100,y:0,floor:0,hp:99999,level:3});
   assert.equal(room.barriers.size,0);
   post(rooms,host,{type:'barrier',action:'place',x:5.5,y:0,floor:0,hp:99999,level:3});
   const barrier=[...room.barriers.values()][0];
   assert.equal(barrier.level,0);assert.equal(barrier.hp,3);
 });
-test('rooms retain barriers while temporarily empty, then expire after idle TTL',()=>{
+test('rooms retain barriers across long disconnects, then expire after a seven-day idle TTL',()=>{
   const {rooms,room,host,code}=lobby();
   room.broken.add('1|g|0,0|0');
   rooms.leave(host);
@@ -119,7 +119,7 @@ test('rooms retain barriers while temporarily empty, then expire after idle TTL'
   const joined=mock();post(rooms,joined,{type:'join',room:code});
   assert.ok(joined.messages[0].broken.includes('1|g|0,0|0'));
   rooms.leave(joined);
-  rooms.sweep(room.emptyAt+31*60*1000);
+  rooms.sweep(room.lastSeen+8*24*60*60*1000);
   assert.equal(rooms.rooms.has(code),false);
 });
 test('live WebSocket handshake serves two real clients and one real six-character invite',async()=>{
