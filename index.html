@@ -598,6 +598,7 @@ clothBack(PURIG.upper,RASH,'sleeve');
 clothBack(PURIG.thigh,RLEG,'trouser');clothBack(PURIG.shin,RLEG,'trouser');clothBack(PURIG.boot,RBOOT,'boot');
 stamp(PURIG.chest.bk,['..r..','.rRr.','rRRRr','.rrr.'],7,7,{r:RRED[2],R:RRED[3]});
 for(const p of Object.values(PURIG).flat())if(p.g&&!p.bk&&!p.glow)reverseTone(p);
+tailorRig(PURIG,RASH,2.45);
 /* the Seeker: a small hunched scholar in a dun robe, barefoot, reading as they walk */
 const RDUN=ramp('#36302a','#59503f','#827559','#b4a17b','#d9c59b'),RSKIN=ramp('#6e452f','#a8754f','#d6a57c','#f0c8a0'),RHAIR=ramp('#1e130c','#3a2418','#573826'),
   RPAGE=ramp('#a89c80','#d8ccae','#f2e9d2'),SPAL={k:INK,w:rgb('#f4f0e6'),p:INK,m:rgb('#3a0d10'),S:rgb('#a8754f'),n:rgb('#8a7b5c'),c:rgb('#5a3a22'),y:rgb('#f2c14e'),Y:rgb('#fff4c2')};
@@ -639,6 +640,7 @@ clothBack(SEEKRIG.chest,RDUN,'seeker');clothBack(SEEKRIG.skirt,RDUN,'robe');
 clothBack(SEEKRIG.upper,RDUN,'sleeve');clothBack(SEEKRIG.thigh,RDUN,'trouser');clothBack(SEEKRIG.shin,RSKIN,'trouser');
 clothBack(SEEKRIG.foot,RSKIN,'boot');clothBack(SEEKRIG.book,RWOOD,'book');
 for(const p of Object.values(SEEKRIG).flat())if(p.g&&!p.bk&&!p.glow)reverseTone(p);
+tailorRig(SEEKRIG,RDUN,2.6);
 /* ---- walking: each foot is planted while the body passes over it, then lifted and swung ahead; the step rate follows
    the speed, and only the part of the motion that lies in the paper's plane moves the feet across it. The cape and the
    skirts hang on springs, so they trail, swing and settle ---- */
@@ -737,11 +739,11 @@ function purLayers(e,out){
   // the far arm swings the brand; the near arm carries the torch, and raises it and reaches for you when close
   const sw=walk*Math.sin(2*Math.PI*(e.gp||0)),[px,dep,pz]=rel(e);
   const farT=[shx-4+sw*6+dd*6,shz-18+Math.abs(sw)*2+dd*4+(e.lunge||0)*10];
-  const[bx,bz,bfa]=armOut(put,R,shx-1,shz,farT[0],farT[1],-0.05,9,12);
+  const[bx,bz,bfa]=armOut(put,R,shx-4.8,shz,farT[0],farT[1],-0.05,9,12);
   put(R.brand,bfa*0.4+30-dd*40,bx,bz,-0.053,false);
   e.thB=legOut(put,R,hx-1,hz,fb,-0.03,13,12,3.5);
   put(R.skirt,(S[8]||0)+dd*30,hx-1,hz+1.3,coatTailDepth(e,false),false);
-  put(R.chest,lean,hx,hz,0,false);
+  put(R.chest,lean,hx,hz,0,false);torsoJoins(e,put,R,hx,hz,lean,shx,shz,nkx,nkz);
   e.thA=legOut(put,R,hx+1.5,hz,fa,0.012,13,12,3.5);
   put(R.skirt,(S[6]||0)+dd*30,hx+1.5,hz+1.3,coatTailDepth(e,true),false);
   const look=Math.max(-25,Math.min(25,Math.atan2(pz-nkz,Math.max(8,Math.abs(px)+Math.abs(dep)/PS*0.4))*DEG))*(e.chasing?1:0.2);
@@ -752,7 +754,7 @@ function purLayers(e,out){
   const nearT=[lerp(shx+5-sw*6,shx+rx*0.85+thrust*3,reach),lerp(shz-17+Math.abs(sw)*2,lerp(shz+7,pz,0.35)+2*Math.sin(T*9)*reach,reach)];
   if(dd){nearT[0]=lerp(nearT[0],shx+9,dd);nearT[1]=lerp(nearT[1],shz-14,dd)}
   const outD=0.05+reach*Math.max(0,Math.min(0.45,dep*0.22))+(e.lunge||0)*0.12;
-  const[tx,tz]=armOut(put,R,shx+1,shz,nearT[0],nearT[1],0.05,9,12,outD);
+  const[tx,tz]=armOut(put,R,shx+4.8,shz,nearT[0],nearT[1],0.05,9,12,outD);
   const tA=lerp(10*sw,-12-8*reach,reach)+dd*70;
   put(R.torch,tA,tx,tz,outD-0.004,false);
   if(!dd){const r=tA/DEG,fx=tx+Math.sin(r)*9.5,fz=tz+Math.cos(r)*9.5;put(R.flame[Math.floor(T*10+seed*3)%4],Math.sin(T*5)*6,fx,fz,outD-0.003,true);
@@ -775,16 +777,16 @@ function seekLayers(e,out){
     :fl?[shx-3+side*2+Math.sin(T*16+side*2)*4,shz+5+Math.cos(T*13+side)*4]
     :dd?[shx+6,shz-11]:[shx+rx*(0.8+0.2*side*claw),lerp(shz,pz,0.3)+side*claw*2];
   const outD=!reading&&!fl&&!dd?Math.max(0,Math.min(0.35,dep*0.2)):0;
-  const[fbx,fbz]=armOut(put,R,shx-1,shz,...tgt(-1),-0.04,7.5,9,-0.04+outD*0.6);
+  const[fbx,fbz]=armOut(put,R,shx-4.4,shz,...tgt(-1),-0.04,7.5,9,-0.04+outD*0.6);
   e.thB=legOut(put,R,hx-1,hz,fb,-0.025,9.5,9,2.5);
   put(R.skirt,(S[8]||0)+dd*25,hx-1,hz+1.3,coatTailDepth(e,false),false);
-  put(R.chest,lean,hx,hz,0,false);
+  put(R.chest,lean,hx,hz,0,false);torsoJoins(e,put,R,hx,hz,lean,shx,shz,nkx,nkz);
   e.thA=legOut(put,R,hx+1,hz,fa,0.01,9.5,9,2.5);
   put(R.skirt,(S[6]||0)+dd*25,hx+1,hz+1.3,coatTailDepth(e,true),false);
   const ha=reading?24+3*Math.sin(T*0.9+seed):lean*0.3-Math.max(-20,Math.min(20,Math.atan2(pz-nkz,Math.max(8,Math.abs(px)))*DEG))*0.6+dd*50-hit*12;
   put(run&&!dd?R.headScared:R.head,ha,nkx,nkz-1,0.026,false);
-  const[hx2,hz2]=armOut(put,R,shx+1,shz,...tgt(1),0.04,7.5,9,0.042+outD);
-  if(reading)put(R.book,-8+2*Math.sin(T*1.1+seed),(fbx+hx2)/2+0.5,(fbz+hz2)/2+2.5,0.034,false);
+  const[hx2,hz2]=armOut(put,R,shx+4.4,shz,...tgt(1),0.04,7.5,9,0.042+outD);
+  if(reading)put(R.book,-8+2*Math.sin(T*1.1+seed),(fbx+hx2)/2+0.3,(fbz+hz2)/2+1.2,0.051,false);
   else if(fl&&e.stealCd>1.5)put(R.flask,180+20*Math.sin(T*16),hx2,hz2,0.046,false);
 }
 /* ---- you: a librarian in a long brown coat, a lantern in one hand and your weapon in the other. Seen from behind, so
@@ -847,6 +849,7 @@ for(let y=8;y<28;y+=4){const b=MERIG.chest.bk,x=17;for(const dx of[-1,1]){const 
 
 // Separate slightly lit back art for tools and hands, with skin and metal retaining their materials.
 for(const p of Object.values(MERIG).flat())if(p.g&&!p.glow&&!p.bk)reverseTone(p);
+tailorRig(MERIG,RCOAT,2.35);
 const ME={type:'me',x:0,y:0,f:0,hit:0,dead:0};
 /* your puppet: built from where you stand and how you move; the weapon arm swings with your strikes */
 function meLayers(out){
@@ -861,12 +864,12 @@ function meLayers(out){
   const ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs];
   const[shx,shz]=at(0.3,13.6+0.25*Math.sin(T*2)),[nkx,nkz]=at(1,16.4),S=e.spr||[0,0,0,0,0,0,0,0,0,0],sw=walk*Math.sin(2*Math.PI*(e.gp||0));
   // the lantern hand, on the far side: held out and a little up, swinging as you walk
-  const[lx,lz]=armOut(put,R,shx-0.5,shz,shx+8.5+sw*3-fall*5,shz-10+Math.abs(sw)+fall*-6,0.05,8.5,10.5,0.052);
+  const[lx,lz]=armOut(put,R,shx-4.6,shz,shx+8.5+sw*3-fall*5,shz-10+Math.abs(sw)+fall*-6,0.05,8.5,10.5,0.052);
   const lsw=Math.sin(T*2.3)*4-sw*10-(e.vin||0)*6;
   put(R.lantern,lsw,lx,lz-0.5,0.056,false);if(G.oil>0&&!fall)put(R.glass[Math.floor(T*8)%3],lsw,lx,lz-0.5,0.055,true);else put(R.dim,lsw,lx,lz-0.5,0.055,false);
   e.thB=legOut(put,R,hx-1,hz,fb,-0.03,11.5,11,4.5);
   put(R.skirt,(S[8]||0)+fall*25,hx-1,hz+1.3,coatTailDepth(e,false),false);
-  put(R.chest,lean,hx,hz,0,false);
+  put(R.chest,lean,hx,hz,0,false);torsoJoins(e,put,R,hx,hz,lean,shx,shz,nkx,nkz);
   e.thA=legOut(put,R,hx+1.2,hz,fa,0.012,11.5,11,4.5);
   put(R.skirt,(S[6]||0)+fall*25,hx+1.2,hz+1.3,coatTailDepth(e,true),false);
   put(R.head,lean*0.4+G.pitch*-60+fall*30,nkx,nkz-1,0.028,false);
@@ -876,7 +879,7 @@ function meLayers(out){
   let tx=rest[0],tz=rest[1];tx=lerp(tx,up[0],wind*(1-hit));tz=lerp(tz,up[1],wind*(1-hit));tx=lerp(tx,out_[0],hit);tz=lerp(tz,out_[1],hit);
   if(fall){tx=lerp(tx,shx+8,fall);tz=lerp(tz,shz-13,fall)}
   const outD=-0.05+hit*0.3;
-  const[wx,wz,wfa]=armOut(put,R,shx+0.8,shz,tx,tz,-0.05,8.5,10.5,outD);
+  const[wx,wz,wfa]=armOut(put,R,shx+4.6,shz,tx,tz,-0.05,8.5,10.5,outD);
   const wa=wpn==='rod'?lerp(lerp(70,-10,wind),95,hit):lerp(lerp(60,-40,wind),130,hit);
   if(wpn==='torch'&&torchLit()){
     const a=wa+fall*40;
@@ -925,12 +928,12 @@ function figLayers(e,out){
       fly:k=>k?[shx+17,shz+1]:[shx-17,shz+1],stand:k=>[shx+2+k,shz-15],kneel:k=>[shx+6,shz-4-k],carry:k=>[shx+4+k*2,shz+3],
       beat:k=>k?[shx+11,shz+(Math.sin(T*9+seed)>0?9:-9)]:[shx+3,shz-13]}[pose],HA={laugh:-18+8*Math.sin(T*15),weep:35,count:20,sleep:10,fly:-15,kneel:30,beat:12,carry:8}[pose]||0;
   const flap=k=>PT&&!walk?PT(k):PT&&pose!=='stand'?PT(k):fl?[shx+Math.sin(T*13+k*2+seed)*7,shz+6+Math.cos(T*11+k)*7]:[shx+(k?-1:1)*sw*7+2,shz-11+Math.abs(sw)*3];
-  armOut(put,R,shx-0.5,shz,...flap(0),-0.05,8.5,10.5);
+  armOut(put,R,shx-4.6,shz,...flap(0),-0.05,8.5,10.5);
   legOut(put,R,hx-1,hz,fb,-0.03,11.5,11,4.5);put(R.skirt,(S[8]||0),hx-1,hz+1.3,coatTailDepth(e,false),false);
-  put(R.chest,lean,hx,hz,0,false);
+  put(R.chest,lean,hx,hz,0,false);torsoJoins(e,put,R,hx,hz,lean,shx,shz,nkx,nkz);
   legOut(put,R,hx+1.2,hz,fa,0.012,11.5,11,4.5);put(R.skirt,(S[6]||0),hx+1.2,hz+1.3,coatTailDepth(e,true),false);
   put(R.head,lean*0.5+(fl?-15:0)+HA,nkx,nkz-1,0.028,false);
-  armOut(put,R,shx+0.8,shz,...flap(1),0.05,8.5,10.5);
+  armOut(put,R,shx+4.6,shz,...flap(1),0.05,8.5,10.5);
   if(e.burning){for(let k=0;k<3;k++){const[fx,fz]=at(-2+k*2.5,6+k*5+Math.sin(T*7+k)*1.5);put(PURIG.flame[Math.floor(T*10+k+seed*3)%4],Math.sin(T*5+k)*8,fx,fz+6,0.035+k*0.002,true)}}
 }
 
