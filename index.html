@@ -2923,7 +2923,7 @@ function filmDrawTitle(){
   g.fillStyle='#e0bd81';g.fillRect(w*.25,yy+(portrait?146:145),w*.5,2);
   g.font='italic '+(portrait?21:25)+'px Georgia';g.fillStyle='#e2d4b4';
   g.fillText('THE LIBRARY HAS A COPY OF YOU',w/2,yy+(portrait?187:181),w-62);
-  const bw=portrait?w-110:464,bh=portrait?68:44,base=portrait?565:442,gap=portrait?13:11;
+  const bw=portrait?w-110:464,bh=portrait?62:41,base=portrait?543:437,gap=portrait?12:10;
   const diff=difficultyRules(FILM.difficulty);
   filmButton(g,'begin','BEGIN YOUR STORY',(w-bw)/2,base,bw,bh,FILM.selection===0);
   filmButton(g,'difficulty','DIFFICULTY  ◂ '+diff.name+' ▸',(w-bw)/2,base+(bh+gap),bw,bh,FILM.selection===1);
