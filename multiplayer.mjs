@@ -3,12 +3,14 @@
 // construction/damage operations. Solo games remain entirely offline.
 import {randomBytes} from 'node:crypto';
 import {WebSocketServer,WebSocket} from 'ws';
+import {SharedWorld,initShared,worldPublic} from './coop-state.mjs';
+import {RoomStore} from './coop-persistence.mjs';
 
 const ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const MAX_PARTY=8;
 export const MAX_BARRICADES=240;
 export const MAX_MSG=4096;
-const EMPTY_TTL=30*60*1000;
+const EMPTY_TTL=7*24*60*60*1000;
 export const validCode=c=>typeof c==='string'&&/^[A-HJ-NP-Z2-9]{6}$/.test(c);
 export const validPosition=p=>!!p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&
   Math.abs(p.x)<=2e6&&Math.abs(p.y)<=2e6&&Number.isInteger(p.floor)&&Math.abs(p.floor)<=10000;
@@ -43,7 +45,14 @@ function makeCode(rooms){
   throw Error('Unable to allocate coop code');
 }
 export class GameRooms {
-  constructor(){this.rooms=new Map();this.nextId=1}
+  constructor(options={}){
+    this.store=options.store||new RoomStore();this.rooms=this.store.read();this.nextId=1;
+    for(const room of this.rooms.values())this.attachWorld(room);
+  }
+  changed(){this.store.schedule(this.rooms)}
+  attachWorld(room){room.engine=new SharedWorld(room,(r,m)=>this.broadcast(r,m),()=>this.changed());return room.engine}
+  tick(now=Date.now()){for(const r of this.rooms.values())r.engine.tick(now)}
+  close(){this.store.close()}
   broadcast(room,msg,except=null){
     for(const member of room.members)if(member.ws!==except)send(member.ws,msg);
   }
@@ -51,7 +60,7 @@ export class GameRooms {
     code:room.code,players:[...room.members].map(copyPlayer),
     barriers:[...room.barriers.values()].map(packBarrier),
     wrecks:[...room.wrecks.values()],broken:[...room.broken],salvaged:[...room.salvaged],
-    world:room.world
+    world:worldPublic(room.world),enemies:room.world.enemies,stories:room.world.stories
   }}
   join(ws,msg){
     if(ws.player)return send(ws,{type:'error',message:'Already joined a Library.'});
@@ -64,10 +73,10 @@ export class GameRooms {
         !['reader','archivist','lost','condemned'].includes(msg.difficulty))
         return send(ws,{type:'error',message:'Invalid Library starting state.'});
       room={code,members:new Set(),barriers:new Map(),wrecks:new Map(),broken:new Set(),
-        salvaged:new Set(),nextBarrier:1,created:Date.now(),emptyAt:0,
+        salvaged:new Set(),nextBarrier:1,created:Date.now(),emptyAt:0,lastSeen:Date.now(),
         world:{phrase:msg.phrase,difficulty:msg.difficulty,
-          x:start.x,y:start.y,floor:start.floor,day:1,epoch:1}};
-      this.rooms.set(code,room);
+          x:start.x,y:start.y,floor:start.floor,day:1,epoch:1,clock:480*7/24,quest:0}};
+      this.rooms.set(code,room);this.attachWorld(room);this.changed();
     }else{
       const code=String(msg.room||'').toUpperCase();
       if(!validCode(code)||!(room=this.rooms.get(code)))
@@ -78,9 +87,10 @@ export class GameRooms {
     const p={ws,id:String(this.nextId++),name:shortName(msg.name),
       x:start.x,y:start.y,f:0,floor:start.floor,coat:this.nextId%3,pose:'stand',
       appearance:cleanAppearance(msg.appearance),
-      planks:0,lastPose:0,lastAction:0,room};
-    room.members.add(p);ws.player=p;room.emptyAt=0;
-    send(ws,{type:'welcome',id:p.id,inventory:p.planks,...this.publicRoom(room)});
+      planks:room.world.resources.boards,lastPose:0,lastAction:0,health:100,sanity:100,room};
+    room.members.add(p);ws.player=p;room.emptyAt=0;room.lastSeen=Date.now();
+    send(ws,{type:'welcome',id:p.id,inventory:room.world.resources.boards,...this.publicRoom(room)});
+    this.changed();
     this.broadcast(room,{type:'peer-join',player:copyPlayer(p)},ws);
   }
   pose(p,msg){
@@ -102,7 +112,11 @@ export class GameRooms {
     if(now-p.lastAction<95)return;
     p.lastAction=now;
     const action=msg.action;
-    const inv=()=>send(p.ws,{type:'inventory',planks:p.planks});
+    const inv=()=>{
+      const w=room.world;room.engine.touch();
+      this.broadcast(room,{type:'inventory',planks:w.resources.boards});
+      this.broadcast(room,{type:'resources',resources:{...w.resources},tr:{...w.tr},version:w.version});
+    };
     const error=reason=>send(p.ws,{type:'error',message:reason});
     if(action==='breach'||action==='salvage'){
       const key=String(msg.key||'');
@@ -121,11 +135,11 @@ export class GameRooms {
       if(!validSpot)return error('No salvageable barricade at that address.');
       if(action==='breach'){
         room.broken.add(key);
-        this.broadcast(room,{type:'zone',key,breached:true});
+        this.broadcast(room,{type:'zone',key,breached:true});this.changed();
         return;
       }
       if(!room.broken.has(key)||room.salvaged.has(key))return error('No planks remain here.');
-      room.salvaged.add(key);p.planks=Math.min(40,p.planks+1);
+      room.salvaged.add(key);room.world.resources.boards=Math.min(40,room.world.resources.boards+1);
       this.broadcast(room,{type:'zone',key,salvaged:true});
       inv();return;
     }
@@ -133,31 +147,31 @@ export class GameRooms {
       const at={x:msg.x,y:msg.y,floor:msg.floor};
       if(!validPosition(at)||!vicinity(p,at,2.75)||Math.hypot(p.x-at.x,p.y-at.y)<1.0)
         return error('Move a little farther from the placement spot.');
-      if(p.planks<1)return error('Collect boards from a destroyed barricade first.');
+      if(room.world.resources.boards<1)return error('Collect boards from a destroyed barricade first.');
       if(room.barriers.size>=MAX_BARRICADES)return error('This Library cannot hold more barricades.');
       if([...room.barriers.values()].some(b=>vicinity(at,b,1.3)))
         return error('There is already a barricade in that space.');
       const b={id:String(room.nextBarrier++),x:Math.round(at.x*4)/4,
         y:Math.round(at.y*4)/4,floor:at.floor,level:0,hp:3,owner:p.id};
-      room.barriers.set(b.id,b);p.planks--;inv();
+      room.barriers.set(b.id,b);room.world.resources.boards--;inv();
       this.broadcast(room,{type:'barrier',action:'upsert',barrier:packBarrier(b)});return;
     }
     const b=room.barriers.get(String(msg.id||''));
     const wreck=room.wrecks.get(String(msg.id||''));
     if(action==='pickup-wreck'){
       if(!wreck||!vicinity(p,wreck))return error('Those boards are out of reach.');
-      room.wrecks.delete(wreck.id);p.planks=Math.min(40,p.planks+1);inv();
+      room.wrecks.delete(wreck.id);room.world.resources.boards=Math.min(40,room.world.resources.boards+1);inv();
       this.broadcast(room,{type:'barrier',action:'remove-wreck',id:wreck.id});return;
     }
     if(!b||!vicinity(p,b))return error('There is no barricade within reach.');
     if(action==='reinforce'){
-      if(p.planks<1)return error('You need another recovered barricade.');
+      if(room.world.resources.boards<1)return error('You need another recovered barricade.');
       if(b.level>=3)return error('Already indestructible: three reinforcements.');
-      p.planks--;b.level++;b.hp=3+b.level*4;inv();
+      room.world.resources.boards--;b.level++;b.hp=3+b.level*4;inv();
       this.broadcast(room,{type:'barrier',action:'upsert',barrier:packBarrier(b)});return;
     }
     if(action==='take'){
-      room.barriers.delete(b.id);p.planks=Math.min(40,p.planks+1+b.level);inv();
+      room.barriers.delete(b.id);room.world.resources.boards=Math.min(40,room.world.resources.boards+1+b.level);inv();
       this.broadcast(room,{type:'barrier',action:'remove',id:b.id});return;
     }
     if(action==='hit'){
@@ -169,7 +183,7 @@ export class GameRooms {
         this.broadcast(room,{type:'barrier',action:'remove',id:b.id});
         this.broadcast(room,{type:'barrier',action:'wreck',wreck:room.wrecks.get('wreck-'+b.id)});
       }else this.broadcast(room,{type:'barrier',action:'upsert',barrier:packBarrier(b)});
-      return;
+      this.changed();return;
     }
     error('Unknown barricade action.');
   }
@@ -181,6 +195,11 @@ export class GameRooms {
     const p=ws.player;if(!p)return send(ws,{type:'error',message:'Join a Library first.'});
     if(msg.type==='pose')return this.pose(p,msg);
     if(msg.type==='barrier')return this.action(p,msg);
+    if(msg.type==='resources')return p.room.engine.resources(p,msg);
+    if(msg.type==='claim')return p.room.engine.claim(p,msg);
+    if(msg.type==='combat')return p.room.engine.combat(p,msg);
+    if(msg.type==='story-start')return p.room.engine.storyStart(p,msg);
+    if(msg.type==='story-choice')return p.room.engine.storyChoose(p,msg);
     if(msg.type==='chat'){
       if(Date.now()-(p.lastChat||0)<900)return;
       p.lastChat=Date.now();
@@ -193,9 +212,12 @@ export class GameRooms {
     const r=p.room;r.members.delete(p);ws.player=null;
     this.broadcast(r,{type:'peer-leave',id:p.id});
     if(!r.members.size)r.emptyAt=Date.now();
+    r.lastSeen=Date.now();this.changed();
   }
   sweep(now=Date.now()){
-    for(const [key,room] of this.rooms)if(room.emptyAt&&now-room.emptyAt>EMPTY_TTL)this.rooms.delete(key);
+    let removed=false;for(const [key,room] of this.rooms)
+      if(!room.members.size&&now-(room.lastSeen||room.emptyAt||now)>EMPTY_TTL){this.rooms.delete(key);removed=true}
+    if(removed)this.changed();
   }
 }
 export function attachMultiplayer(server){
@@ -216,6 +238,7 @@ export function attachMultiplayer(server){
       });
     }catch{socket.destroy()}
   });
+  const clock=setInterval(()=>rooms.tick(),250);clock.unref?.();
   const interval=setInterval(()=>{
     rooms.sweep();
     for(const ws of wss.clients){
@@ -224,5 +247,5 @@ export function attachMultiplayer(server){
     }
   },30000);
   interval.unref?.();
-  return{rooms,wss,close:()=>{clearInterval(interval);wss.close()}};
+  return{rooms,wss,close:()=>{clearInterval(interval);clearInterval(clock);rooms.close();wss.close()}};
 }
