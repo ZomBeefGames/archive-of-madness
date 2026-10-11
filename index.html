@@ -1950,7 +1950,7 @@ function archCard(kind){
  if(kind==='chain'){for(const x of [2,22])for(let y=0;y<24;y+=3){px(x,y,'G');px(x+1,y+1,'Y')}bar(4,15,20,19,'t')}
  return buildCard(p.map(r=>r.join('')));
 }
-const ARCH_CARDS=Object.fromEntries([...new Set([...Object.keys(ROOM_DESCRIPTIONS),...Object.keys(BRIDGE_NAMES)])].map(type=>[type,archCard(type)]));
+const ARCH_CARDS=Object.fromEntries(['confession','chain','judgment','study','memory','observatory','puriflab','obliterated','collapse','ashvoid','flooded','skeleton','quarantine','bindery','mirrorhall','vault','plain','broken','patch','beam','service','fork','collapsed','burned','checkpoint','overlook','research','cage'].map(type=>[type,archCard(type)]));
 /* Layered salvage art: timber grain, overlapping cross-beams, gold straps and
    rivets are painted directly as a real pixel sprite. Each reinforcement visibly
    changes its silhouette without changing the old paper-cutout rendering style. */
