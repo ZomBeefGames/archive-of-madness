@@ -3383,14 +3383,20 @@ view.addEventListener('pointerdown',ev=>{
     // tap your weapon hand to switch weapons, tap your face in the mirror to burn incense
     const hc=LAY.hands.c;if(pt.x>=LAY.hands.pressX-hc&&pt.x<=LAY.hands.pressX+11*hc&&pt.y>=DH-10*hc){cycleWeapon();return}
     const fr=HUD[1].rect;if(fr&&pt.x>=fr.x0&&pt.x<=fr.x1&&pt.y>=fr.y0&&pt.y<=fr.y1){useIncense();return}}
-  ptrs.set(ev.pointerId,{kind:'look',x:ev.clientX,y:ev.clientY,sx:ev.clientX,sy:ev.clientY,t:performance.now()});
+  const startChoice=G.state==='book'&&G.choice==='enc'?eventChoiceAtScreen(pt.x,pt.y):-1;
+  ptrs.set(ev.pointerId,{kind:'look',x:ev.clientX,y:ev.clientY,sx:ev.clientX,sy:ev.clientY,t:performance.now(),startChoice});
 });
 view.addEventListener('pointermove',ev=>{
   const p=ptrs.get(ev.pointerId);
-  if(!p){if(ev.pointerType==='mouse'){const pt=canvasPt(ev);view.style.cursor=(G.state==='play'&&(hitCtl(pt.x,pt.y)||inStickZone(pt.x,pt.y)))?'pointer':'grab'}return}
+  if(!p){if(ev.pointerType==='mouse'){
+    const pt=canvasPt(ev),choice=G.state==='book'&&G.choice==='enc'?eventChoiceAtScreen(pt.x,pt.y):-1;
+    eventHover(choice);
+    view.style.cursor=choice>=0?'pointer':(G.state==='play'&&(hitCtl(pt.x,pt.y)||inStickZone(pt.x,pt.y)))?'pointer':'grab';
+  }return}
   if(p.kind==='stick'){const pt=canvasPt(ev);stickSet(pt.x,pt.y);return}
   if(p.kind==='ctl')return;
   if(G.state==='play'){const fov=2*Math.atan(PLANE);G.ang+=(ev.clientX-p.x)/CW*fov*(FINE?2.4:1.8);G.pitch=Math.max(-0.45,Math.min(0.45,G.pitch-(ev.clientY-p.y)/CH*(FINE?1.2:0.9)))}
+  if(G.state==='book'&&G.choice==='enc'&&ev.pointerType==='mouse'){const pt=canvasPt(ev);eventHover(eventChoiceAtScreen(pt.x,pt.y))}
   p.x=ev.clientX;p.y=ev.clientY;
 });
 function endPtr(ev,cancel){
@@ -3412,7 +3418,10 @@ function endPtr(ev,cancel){
     if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0),fy=(pt.y-r.y0)/(r.y1-r.y0);if(G.choice==='hatch'){const tx=fx*TX.book.w,ty=fy*TX.book.h,i=HUI.rows.findIndex(q=>tx>=q[0]&&tx<=q[2]&&ty>=q[1]&&ty<=q[3]),B=HUI.buy;
       if(i>=0){G.hsel=i;snd('page');drawBook()}else if(B&&tx>=B[0]&&tx<=B[2]&&ty>=B[1]&&ty<=B[3])action('buy');else action('close')}
     else if(G.choice==='enc'){const picked=eventChoiceAt(fx*TX.book.w,fy*TX.book.h);
-      if(picked===0)action('up');else if(picked===1)action('down');else action('close')}
+      // Only a press-and-release on the same option can commit a decision.
+      // Sliding a finger over the other row or tapping in the gutter is safe.
+      if(picked>=0&&picked===p.startChoice){eventHover(-1);action(picked===0?'up':'down')}
+    }
     else if(G.choice)action((PORT?fy:fx)<0.5?'up':'down');else if(G.page&&fx>=0.3&&fx<=0.7&&(fy<0.1||fy>0.9))action(fy<0.1?'up':'down');else action(fx<0.3?'prev':fx>0.7?'next':'close')}else action('close')}
 }
 view.addEventListener('pointerup',ev=>endPtr(ev,false));
