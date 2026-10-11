@@ -3767,7 +3767,47 @@ function display(dt){
       vctx.font='bold '+Math.round(fs*0.16)+'px "Courier New",monospace';vctx.fillStyle='#c9b88f';vctx.fillText(G.justReset?'THE LIBRARY HAS BEEN PUT BACK IN ORDER':'THE LIBRARY REMEMBERS ITS SCARS',DW/2,DH*0.45+fs*0.72);vctx.restore()}}
   if(st==='climb'){vctx.fillStyle='rgba(0,0,0,'+(0.96*Math.sin(Math.PI*Math.min(1,G.climbT/1.2)))+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='sleep'){vctx.fillStyle='rgba(4,3,8,'+(0.97*Math.sin(Math.PI*Math.min(1,G.sleepT/2.2)))+')';vctx.fillRect(0,0,DW,DH)}
+  drawCoopHUD();
 }
+/* A small floating multiplayer and salvaged-wood HUD. The buttons are genuine
+   canvas click targets and have keyboard equivalents on desktop. */
+function drawCoopHUD(){
+  BUILD.uiButton=null;NET.shareButton=null;
+  if(G.state!=='play')return;
+  const g=vctx,u=Math.max(1,Math.min(1.6,Math.min(DW,DH)/630));
+  const font=Math.round(16*u),x=18*u,y=18*u;
+  if(NET.ready){
+    const w=270*u,h=50*u;
+    g.fillStyle='rgba(24,18,17,.84)';g.fillRect(x,y,w,h);
+    g.strokeStyle='#b39560';g.lineWidth=2;g.strokeRect(x,y,w,h);
+    g.textBaseline='top';g.textAlign='left';
+    g.font='bold '+font+'px "Courier New"';g.fillStyle='#f4d9a0';
+    g.fillText('CO-OP  '+NET.code+'  ·  '+(1+NET.peers.size)+'/8',x+13*u,y+8*u,w-24*u);
+    g.font=Math.round(12*u)+'px "Courier New"';g.fillStyle='#d1b28d';
+    g.fillText('T CHAT  ·  C / TAP INVITE',x+13*u,y+31*u,w-24*u);
+    NET.shareButton={x0:x,y0:y,x1:x+w,y1:y+h};
+    for(let i=0;i<NET.chat.length;i++){
+      const chat=NET.chat[i];if(performance.now()-chat.time>9000)continue;
+      const yy=y+h+(i+1)*19*u;
+      g.font=Math.round(12*u)+'px "Courier New"';g.fillStyle='#eed2a2';
+      g.fillText(chat.text,x+5*u,yy,280*u);
+    }
+  }else if(NET.status&&NET.ws){
+    g.font='bold '+font+'px "Courier New"';g.fillStyle='#ecc4a5';g.fillText(NET.status,x,y+5*u,340*u);
+  }
+  const t=portableTarget(),canBuild=BUILD.planks>0||t&&!t.wreck;
+  if(!canBuild)return;
+  const w=148*u,h=48*u,bx=DW-w-18*u,by=DH*.35;
+  g.fillStyle='rgba(33,23,19,.91)';g.fillRect(bx,by,w,h);
+  g.strokeStyle=canBuild?'#e1bd78':'#735d46';g.lineWidth=2;g.strokeRect(bx+1,by+1,w-2,h-2);
+  g.textAlign='center';g.textBaseline='middle';g.font='bold '+Math.round(14*u)+'px "Courier New"';
+  g.fillStyle='#f5dfb8';
+  g.fillText(t&&!t.wreck?'REINFORCE '+t.item.level+'/3':'BUILD · B',bx+w/2,by+16*u,w-14*u);
+  g.font=Math.round(12*u)+'px "Courier New"';
+  g.fillText('BOARDS '+BUILD.planks,bx+w/2,by+34*u,w-14*u);
+  BUILD.uiButton={x0:bx,y0:by,x1:bx+w,y1:by+h};
+}
+
 function turnPage(d){G.book.page=Math.max(1,Math.min(410,G.book.page+d));showPage(false)}
 function flip(d){G.flipDir=d;G.flip=0.3;turnPage(d)}
 function action(a){
