@@ -1428,6 +1428,22 @@ function bioPlan(phrase){const P0=BIO[phrase];if(P0)return P0;const r=prng(hashS
   Q.wall=Q.walls[Math.floor(r()*2)];Q.shelf=1+Math.floor(r()*5);Q.book=1+Math.floor(r()*32);return BIO[phrase]=Q}
 function bioDist(g,f,phrase){const P=bioPlan(phrase),q=galInfo(g);return tileD(q.i,q.j,P.i,P.j)+Math.abs(f-P.f)}
 function isMyBook(g,f,wall,shelf,book,phrase){const P=bioPlan(phrase);return g===P.g&&f===P.f&&wallNo(galInfo(g).k,wall)===P.wall&&shelf===P.shelf&&book===P.book}
+/* A harder Archive requires a longer investigation, not just stronger foes:
+   later Index hearings, more distinct true sentences, proof from different
+   discoveries, and an actual minimum number of days before final shelving.
+   The same story remains playable on every difficulty. */
+const DIFFICULTIES={
+  reader:{name:'READER',tag:'SHORT STORY',minDay:3,indexDay:1,shelfDay:2,indexCost:1,sentences:2,proofs:1,encMin:62,encSpan:42},
+  archivist:{name:'ARCHIVIST',tag:'THE ORIGINAL JOURNEY',minDay:5,indexDay:2,shelfDay:3,indexCost:2,sentences:3,proofs:2,encMin:53,encSpan:40},
+  lost:{name:'LOST',tag:'A LONGER DESCENT',minDay:8,indexDay:3,shelfDay:5,indexCost:3,sentences:5,proofs:4,encMin:46,encSpan:35},
+  condemned:{name:'CONDEMNED',tag:'THE DEEPEST CATALOGUE',minDay:12,indexDay:4,shelfDay:7,indexCost:4,sentences:7,proofs:6,encMin:39,encSpan:30}
+};
+const DIFF_KEYS=Object.keys(DIFFICULTIES);
+function difficultyRules(id){return DIFFICULTIES[id]||DIFFICULTIES.archivist}
+function shelvingReady(){
+  const r=difficultyRules(G.difficulty);
+  return G.day>=r.minDay&&(G.proofs||0)>=r.proofs&&(G.sentencesFound||0)>=r.sentences;
+}
 /* ---- the way to your page: six steps, in order. Some the Index answers, some the Library only shows you at the right
    time or for a price, and the page itself is not on its shelf until the last is done ---- */
 const QSTEPS=[
@@ -1439,13 +1455,14 @@ const QSTEPS=[
   {name:'SHELVED',how:'Wait for dawn on day 5 or later. Your page is shelved overnight.'}];
 function qDone(n,msg){if(G.q!==n-1)return;G.q=n;G.xp+=5;snd('pickup');sfx(QSTEPS[n-1].name+'!','mind');
   if(n===4&&G.taleDone.some(Boolean))setTimeout(()=>qDone(5),1200);return msg}
-function questLines(){const P=bioPlan(G.phrase),out=[],d=P.f-G.floor;
+function questLines(){const P=bioPlan(G.phrase),out=[],d=P.f-G.floor,r=difficultyRules(G.difficulty);
   if(G.q>=1)out.push('Floor '+P.f+' ('+(d===0?'this floor':Math.abs(d)+(d>0?' up':' down'))+')');
   if(G.q>=2)out.push('Hexagon '+P.g+(P.g===G.gal&&d===0?' (you are in it)':' (on the map)'));
   if(G.q>=3)out.push('Wall '+P.wall+(G.q>=4?' · shelf '+P.shelf:''));
   if(G.q>=5)out.push('Book '+P.book+', page 1');
   if(G.q>=6)out.push('It is on the shelf now.');
-  else{const s=QSTEPS[G.q];out.push('NEXT · '+s.how)}
+  else{const s=QSTEPS[G.q];out.push('NEXT · '+(G.q===5?'Return at dawn on day '+r.minDay+' or later, with '+r.sentences+' distinct sentences and '+r.proofs+' archive proofs.':s.how))}
+  if(G.q<6)out.push('ARCHIVE · '+r.name+' · true sentences '+(G.sentencesFound||0)+'/'+r.sentences+' · proofs '+(G.proofs||0)+'/'+r.proofs+' · earliest day '+r.minDay);
   return out}
 function makePage(g,f,wall,shelf,book,page,phrase){
   const key=g+'.'+f+'|'+wall+'|'+shelf+'|'+book+'|'+page,h=hashStr(key),rnd=prng(h);
@@ -1551,7 +1568,7 @@ function newDay(){
     burned.clear();G.fires=[];G.over={};G.meal=null;G.fedAt=-1e9;
     LAMPS.key=null;
   }
-  if(G.q===5&&G.day>=5){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}
+  if(G.q===5&&shelvingReady()){G.q=6;G.xp+=5;setTimeout(()=>sfx('YOUR PAGE IS SHELVED','mind'),3200)}
   G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);
   G.sleepCd=0;G.phantoms=[];G.journal=false;
   G.clock=DAYLEN*6/24;
@@ -1562,10 +1579,12 @@ const keys={};
 function reset(){
   BG.acts=[];BG.t=8;ENC.list=[];ENC.t=45;
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
-  const P=bioPlan(phrase);let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*16),P.j+Math.round((Math.random()-0.5)*16));f=P.f+Math.round((Math.random()-0.5)*8);d=bioDist(c.gid,f,phrase)}while(d<6||d>10);
+  const P=bioPlan(phrase),difficulty=FILM.difficulty||'archivist',r=difficultyRules(difficulty);
+  const bounds=difficulty==='reader'?[5,8]:difficulty==='archivist'?[6,10]:difficulty==='lost'?[9,14]:[12,19];
+  let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*20),P.j+Math.round((Math.random()-0.5)*20));f=P.f+Math.round((Math.random()-0.5)*10);d=bioDist(c.gid,f,phrase)}while(d<bounds[0]||d>bounds[1]);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
-    phrase,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    phrase,difficulty,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
+    won:false,winT:0,winG:0,winF:0,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
@@ -1918,10 +1937,12 @@ function useIndex(){
   if(G.state==='play'&&!G.cutSeen.index&&filmBegin('index','index'))return;
   const P=bioPlan(G.phrase);
   if(G.q>=2){openNote('THE INDEX','The drums turn and settle. It has told you all it will. The rest the Library shows in other ways.',QSTEPS[Math.min(5,G.q)].how);return}
-  if(G.q===1&&G.day<2){openNote('THE INDEX','The drums will not turn for that question today. Come back tomorrow, on day 2.');return}
-  if(G.q===1&&G.frags<2){openNote('THE INDEX','For the hexagon it wants two sentences at once. You have '+G.frags+'.');return}
+  const r=difficultyRules(G.difficulty);
+  if(G.q===1&&G.day<r.indexDay){openNote('THE INDEX','The drums will not turn yet. This catalogue opens its second ledger on day '+r.indexDay+'.');return}
+  if(G.q===1&&G.sentencesFound<r.sentences){openNote('THE INDEX','This difficulty asks you to discover '+r.sentences+' different true sentences first. You have '+G.sentencesFound+'.');return}
+  if(G.q===1&&G.frags<r.indexCost){openNote('THE INDEX','The hexagon ledger needs '+r.indexCost+' sentence fragments together. You have '+G.frags+'.');return}
   if(G.frags<=0){openNote('THE INDEX','A brass machine of lettered drums, chained to a lectern at the railing. It will not filter the coordinates for nothing: feed it a fragment of real text. Find a coherent sentence on a shelf and bring it here.');return}
-  const n=G.q===0?1:2;G.frags-=n;qDone(G.q+1);
+  const n=G.q===0?1:r.indexCost;G.frags-=n;qDone(G.q+1);
   openNote('THE INDEX','You feed it '+(n>1?'two sentences':'a sentence')+'. The drums spin, the coordinates of the Library narrow, and a card drops out:',G.q===1?'Your page lies on FLOOR '+P.f+'.':'Your page lies in HEXAGON '+P.g+'. It is marked on the map in your journal.');
 }
 const MEALS={bread:{name:'BREAD AND WATER',hp:20,san:0,wait:5,cost:0,desc:'+20 health. Comes up quickly.'},soup:{name:'LENTIL SOUP',hp:45,san:0,wait:12,cost:3,desc:'+45 health. Takes a while.'},
@@ -2001,7 +2022,8 @@ function hatchStock(){const r=prng(hashStr('stock|'+G.day)),ks=Object.keys(TRINK
 function hatchItems(){const fed=G.time-G.fedAt<FULLT,M=G.meal,why=M?'A meal is already on its way'+(M.fl!==G.floor?' to floor '+M.fl:'')+'.':fed?'You are still full. Come back in a while.':null;
   const L=Object.keys(MEALS).map(k=>({kind:'meal',k,name:MEALS[k].name,desc:MEALS[k].desc,cost:MEALS[k].cost,no:why}));
   for(const k of hatchStock())L.push({kind:'trinket',k,name:TRINKETS[k].name,desc:TRINKETS[k].desc,cost:TRINKETS[k].cost});
-  if(G.q===3)L.unshift({kind:'mark',name:'A SHELF-MARK SLIP',cost:12,desc:'A slip from the kitchen ledger, with a shelf number on it in a hand very like yours.',no:G.day<3?'The kitchen sends shelf-marks up from day 3.':null});
+  if(G.q===3){const r=difficultyRules(G.difficulty);
+    L.unshift({kind:'mark',name:'A SHELF-MARK SLIP',cost:12+Math.max(0,r.shelfDay-3)*2,desc:'A slip from the kitchen ledger, with a shelf number in a hand very like yours.',no:G.day<r.shelfDay?'This ledger becomes available on day '+r.shelfDay+'.':null})}
   if(Object.keys(TRINKETS).some(k=>!G.tr[k]))L.push({kind:'parcel',name:'A SEALED PARCEL',desc:'One trinket you do not have yet, wrapped in brown paper. Cheaper, and you get what you get.',cost:9});
   return L}
 function hatchBuy(){const L=hatchItems(),it=L[Math.min(G.hsel,L.length-1)];if(!it)return;
