@@ -2672,10 +2672,8 @@ function surfPx(i,z,t){
   if(zl>WALLH)put(i,46,32,20,L*2);else wallPx(i,HIT,zl,m,L);
 }
 let PDv=0,DEP=new Float32Array(1);
-/* Sample the floor at the projected ray position without depending on the
-   current level's railing/column mask. Preserve an actual stairwell opening. */
-function floorAt(t,fl){pointAt(t);return airFloor(PX_,PY_,fl)}
-function inWellAt(t){pointAt(t);return inWell(PX_,PY_)}
+/* Project other floors using their real walkway footprint, so removed
+   communal columns do not leave holes in transit landings. */
 function airPx(i,s,up,r){
   let iv=0;PDv=1e9;
   for(let k=1;k<=AIRLV;k++){
@@ -2692,12 +2690,17 @@ function airPx(i,s,up,r){
     // The stairs are open on transit levels too. Test the actual projected
     // surface for this floor instead of relying only on current-floor rail
     // intervals: those omit some landing triangles near removed pillars.
-    if(TV.c[r].kind==='a'&&(!inWellAt(tk))&&
-       (iv<IVN&&IVA[iv]<=tk||floorAt(tk,G.floor+(up?k:-k)))){
-      PDv=tk;pointAt(tk);
-      const dx=PX_-LX,dy=PY_-LY,dz=(up?k:-k)*FH-EYE,
-        L=(AMB+lampC(TV.c[r],PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
-      if(up)ceilPx(i,PX_,PY_,L*.7);else catPx(i,PX_,PY_,L);return}
+    if(TV.c[r].kind==='a'){
+      pointAt(tk); // compute this pixel's projected position only once
+      const landing=(iv<IVN&&IVA[iv]<=tk)||airFloor(PX_,PY_,G.floor+(up?k:-k));
+      if(landing&&!inWell(PX_,PY_)){
+        PDv=tk;
+        const dx=PX_-LX,dy=PY_-LY,dz=(up?k:-k)*FH-EYE,
+          L=(AMB+lampC(TV.c[r],PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
+        if(up)ceilPx(i,PX_,PY_,L*.7);else catPx(i,PX_,PY_,L);
+        return;
+      }
+    }
   }
   buf[i]=buf[i+1]=buf[i+2]=0;
 }
