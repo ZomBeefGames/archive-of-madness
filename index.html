@@ -1364,6 +1364,45 @@ function corpseHere(kind,m,burnt){
   }
 }
 Object.assign(ENCS,{
+  quarantine:{scene:true,room:true,title:'THE QUARANTINE OF WORDS',idle:'murmur',every:3.2,
+    build:c=>sceneCast(c,['carry','stand','weep','count'],[ENCRIG.surgeon,ENCRIG.exile,ENCRIG.orphan,FIGRIG[1]]),
+    text:()=>'A physician and three volunteers have boarded off a shelf where one sentence causes everyone who reads it to forget a name. Their quarantine sign has been nailed upside down. "We can take it down," the physician says, "but someone must witness what was lost."',
+    a:'RECORD THE LOST NAMES',ad:'−7 sanity · archive proof · +1 incense',b:'IGNORE THE WARNING',bd:'+5 type · the record vanishes',
+    A:e=>{G.sanity=Math.max(0,G.sanity-7);G.incense++;eventProof(e);
+      return'One by one they speak the lost names. You write them into your journal and turn the quarantine sign the right way up.'},
+    B:e=>{G.type+=5;G.sins.push(placeWords(G.gal,G.floor)+'you sold the quarantine warning before it was read.');return'You pry loose the sign and salvage five lead letters. Behind you the volunteers begin to forget why they were gathered.'}},
+  council:{scene:true,title:'THE FOUR-FOLD COUNCIL',idle:'murmur',every:2.7,
+    build:c=>sceneCast(c,['count','stand','carry','kneel'],[ENCRIG.cartographer,ENCRIG.binder,ENCRIG.warden,FIGRIG[2]]),
+    text:()=>'Four librarians are voting on whether to close their communal landing forever. Each of them holds one corner of a map. The fifth vote, they tell you, belongs to the next stranger who arrives.',
+    a:'KEEP THE LANDING OPEN',ad:'−5 sanity · archive proof',b:'VOTE TO SEAL IT',bd:'+6 type · a future door is lost',
+    A:e=>{G.sanity=Math.max(0,G.sanity-5);eventProof(e);return'You cast your vote for an open door. They unfold the map, mark the decision in brass ink, and hand you a signed record.'},
+    B:e=>{G.type+=6;G.sins.push(placeWords(G.gal,G.floor)+'you voted to close a communal landing.');return'They give you six letters for your vote. The map folds around a black square, leaving no room for a door.'}},
+  pilgrims:{scene:true,title:'THE PILGRIMS OF PAGE ZERO',idle:'hum',every:3.3,
+    build:c=>sceneCast(c,['carry','stand','count','carry'],[FIGRIG[1],ENCRIG.glassmaker,ENCRIG.count,ENCRIG.bellkeeper]),
+    text:()=>'Four travelers have tied their packs together with page strips. They are searching for a first page that predates all the other pages. "It is not a destination," their leader says. "It is the question that survives the journey."',
+    a:'SHARE A TRUE QUESTION',ad:'−5 sanity · one true sentence · archive proof',b:'SHARE YOUR LAMP OIL',bd:'−1 oil · +2 incense · +8 sanity',
+    A:e=>{G.sanity=Math.max(0,G.sanity-5);G.frags+=G.tr.key?2:1;
+      rememberSentence('pilgrims|'+G.resetEpoch+'|'+Math.round(e.x)+','+Math.round(e.y));eventProof(e);
+      return'The travelers stop and copy your question. Their leader returns a true sentence found on the underside of the map.'},
+    B:e=>{if(G.oil<1){e.keep=true;return'Your lamp is already empty. They cannot accept what you have not got.'}
+      G.oil--;G.incense+=2;G.sanity=Math.min(100,G.sanity+8);
+      return'You share a measure of oil. In exchange they give you incense and a tune from the floor below.'}},
+  shelter:{scene:true,room:true,title:'THE ROOF OF BOOKS',idle:'murmur',every:4.0,
+    build:c=>sceneCast(c,['carry','kneel','stand'],[ENCRIG.binder,ENCRIG.orphan,ENCRIG.warden]),
+    text:()=>'Three librarians have built a shelter from unbound dictionaries. A child sleeps beneath the roof while an old reader holds the shelves upright. "A single strong sentence," they explain, "might hold this place together."',
+    a:'HELP BRACE THE SHELTER',ad:'−1 oil · +12 sanity · archive proof',b:'TAKE THE SHELTER TYPE',bd:'+4 type · −9 sanity',
+    A:e=>{if(G.oil<1){e.keep=true;return'Without a lamp we cannot see which bindings will hold.'}
+      G.oil--;G.sanity=Math.min(100,G.sanity+12);eventProof(e);
+      return'By lamplight you brace the last timber. They mark your help on a strip of copper, and the child keeps sleeping.'},
+    B:e=>{G.type+=4;G.sanity=Math.max(0,G.sanity-9);G.sins.push(placeWords(G.gal,G.floor)+'you stripped a family shelter of its fastening type.');
+      return'Four lead letters fall into your hands. The roof slumps while the old reader struggles to hold it up.'}},
+  ledgerfire:{scene:true,title:'THE LEDGER ON THE FIRE',idle:'scream',every:2.9,
+    build:c=>sceneCast(c,['carry','flail','stand','weep'],[ENCRIG.warden,ENCRIG.exile,ENCRIG.binder,FIGRIG[2]]),
+    text:()=>'A heavy ledger lies open in a brazier. Three clerks argue while a fourth tries to pull it free with bare hands. The burning entries are the names of people who were declared missing but are still walking the Library.',
+    a:'SAVE THE LEDGER',ad:'−12 sanity · archive proof · +2 type',b:'LET THE RECORD BURN',bd:'+10 sanity · names erased',
+    A:e=>{G.sanity=Math.max(0,G.sanity-12);G.type+=2;eventProof(e);
+      return'You lift the red-hot ledger out with your coat. Two lead letters tumble from its binding; the true names remain legible.'},
+    B:e=>{G.sanity=Math.min(100,G.sanity+10);return'You watch the last false declaration burn. The clerks stop arguing, but no one remembers who was listed.'}},
   mob:{scene:true,title:'A MOB',idle:'murmur',every:1.3,
     build:c=>{const S=sceneSlots(c,3,1.0);if(!S)return null;const v=mkPur(c.x,c.y,0,0);v.dead=0.5;v.vic=true;
       return[v,...S.map(([x,y],k)=>{const m=mkFig(x,y,0,[FIGRIG[1],FIGRIG[2],ENCRIG.peddler][k],'beat');m.f=toward(m,c.x,c.y);return m})]},
