@@ -1260,6 +1260,12 @@ const ZSPR={
     "kttttkkkkttttk","ktttkkttkktttk","kttkkttttkkttk","ktyyyyyyyyyytk",
     "kttttttttttttk",".kkkkkkkkkkkk."
   ]),
+  emptyCrate:buildCard([
+    "..kkkkkkkkkk..",".kttttttttttk.","kttttttttttttk","ktkkkkkkkkkktk",
+    "ktk........ktk","ktk........ktk","ktk..ggg...ktk",
+    "ktk........ktk","kttttttttttttk",".kkkkkkkkkkkk."
+  ]),
+  ember:buildCard(["..o..",".oOo.","..O..","..o.."]),
   boards:buildCard([
     ".....t..t.....","...t.tt.tt.t...","..ktttttttttk..","..ktytytttytk..",
     "ktttttttttttttk","kttyttttttytttk","..ktttttttttk..","...tkttttkt....",
@@ -1328,15 +1334,22 @@ function galleryDressing(out,i,j){
         const q=spots[k],f=FIREC[(Math.floor(v*9)+k)%FIREC.length];
         zoneSprite(out,f,q[0],q[1],.65+((seed>>>k)&1)*.20,{glow:true});
         zoneSprite(out,ZSPR.smoke,q[0]+.20,q[1]+.13,.85,{z0:.72});
+        // Floating ash lifts from the actual burning stacks, never from an
+        // invisible center point. Phase is stable for each gallery/ember.
+        for(let j=0;j<2;j++){
+          const phase=(v*.30+j*.48+k*.17+(seed%47)*.009)%1;
+          zoneSprite(out,ZSPR.ember,q[0]+.11*(j?1:-1),q[1]+.10*j,.12,{z0:.4+phase*1.12,glow:true});
+        }
       }
     }
+    zoneSprite(out,zone.opened?ZSPR.emptyCrate:ZSPR.crate,x+2.4,y+2.4,.58,{sh:true});
   }else if(zone.type==='barricaded'){
     zoneSprite(out,zone.breached?ZSPR.breach:ZSPR.boards,x+zone.side*A,y,zone.breached?.8:1.48,{sh:true});
-    zoneSprite(out,ZSPR.warning,x+zone.side*(A-.7),y+.72,.60,{z0:.64});
-    zoneSprite(out,ZSPR.crate,x+2.4,y+2.4,.64,{sh:true});
+    if(!zone.breached)zoneSprite(out,ZSPR.warning,x+zone.side*(A-.7),y+.72,.60,{z0:.64});
+    zoneSprite(out,zone.opened?ZSPR.emptyCrate:ZSPR.crate,x+2.4,y+2.4,.64,{sh:true});
   }else if(zone.type==='refuge'){
     zoneSprite(out,ZSPR.lookout,x-2.6,y+2.2,.89,{sh:true});
-    zoneSprite(out,ZSPR.crate,x+2.4,y+2.4,.66,{sh:true});
+    zoneSprite(out,zone.opened?ZSPR.emptyCrate:ZSPR.crate,x+2.4,y+2.4,.66,{sh:true});
     zoneSprite(out,ZSPR.wax,x+2.65,y+2.05,.40,{glow:true});
   }
 }
@@ -1346,15 +1359,15 @@ function crossingDressing(out,i,j){
   const x0=x+1.36,y0=y-.36;
   if(z.type==='barricaded'){
     zoneSprite(out,z.breached?ZSPR.breach:ZSPR.boards,x0,y0,1.08,{sh:true});
-    zoneSprite(out,ZSPR.crate,x-1.38,y+1.26,.66,{sh:true});
-    zoneSprite(out,ZSPR.warning,x+1.23,y+1.35,.65);
+    zoneSprite(out,z.breached?ZSPR.emptyCrate:ZSPR.crate,x-1.38,y+1.26,.66,{sh:true});
+    if(!z.breached)zoneSprite(out,ZSPR.warning,x+1.23,y+1.35,.65);
   }else if(z.type==='scorched'||z.type==='ash'){
     zoneSprite(out,ZSPR.ruin,x0,y0,.81);
     zoneSprite(out,ZSPR.ash,x-1.3,y+1.1,.35);
     zoneSprite(out,ZSPR.smoke,x+.45,y+1.35,.77,{z0:.45});
   }else if(z.type==='watch'){
     zoneSprite(out,ZSPR.lookout,x0,y0,1.0,{sh:true});
-    zoneSprite(out,ZSPR.crate,x-1.35,y+1.3,.61);
+    zoneSprite(out,z.opened?ZSPR.emptyCrate:ZSPR.crate,x-1.35,y+1.3,.61);
     zoneSprite(out,ZSPR.wax,x+.98,y-1.35,.46,{glow:true});
   }else if(z.type==='collapsed'){
     zoneSprite(out,ZSPR.ruin,x0,y0,1.12);
@@ -1362,8 +1375,9 @@ function crossingDressing(out,i,j){
     zoneSprite(out,ZSPR.ash,x+.38,y-1.45,.35);
   }else if(z.type==='shrine'||z.type==='vigil'){
     zoneSprite(out,ZSPR.shrine,x0,y0,1.12,{sh:true});
-    zoneSprite(out,ZSPR.wax,x-1.30,y+1.33,.47,{glow:true});
-    zoneSprite(out,ZSPR.wax,x+.90,y-1.45,.44,{glow:true});
+    if(!z.opened){zoneSprite(out,ZSPR.wax,x-1.30,y+1.33,.47,{glow:true});
+      zoneSprite(out,ZSPR.wax,x+.90,y-1.45,.44,{glow:true})}
+    else zoneSprite(out,ZSPR.ash,x-1.30,y+1.33,.21);
   }
 }
 function addZoneDressing(out){
