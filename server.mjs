@@ -19,7 +19,7 @@ const server=createServer(async (req, res) => {
     if (path === "/" || path === "") path = "/index.html";
     const file = normalize(join(root, path));
     const rel = "/" + file.slice(root.length);
-    if (!file.startsWith(root) || /\/\.|^\/(server\.mjs|multiplayer\.mjs|package\.json|railway\.toml)$/.test(rel)) throw 404;   // no dotfiles, no server files
+    if (!file.startsWith(root) || /\/\.|^\/(server\.mjs|multiplayer\.mjs|coop-state\.mjs|coop-persistence\.mjs|package\.json|railway\.toml)$/.test(rel)) throw 404;   // no dotfiles, no server files
     if (!(await stat(file)).isFile()) throw 404;
     const body = await readFile(file);
     res.writeHead(200, { "content-type": types[extname(file)] || "application/octet-stream", "cache-control": path === "/index.html" ? "no-cache" : "public, max-age=3600" });
