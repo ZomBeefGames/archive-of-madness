@@ -154,7 +154,7 @@ async function caseRun(label,contextOptions){
     return{groups:groups.length,solo:solos.length,groupParts,soloParts};
   });
   assert.equal(actors.groups,10);assert.equal(actors.solo,8);
-  assert.ok(actors.groupParts>180&&actors.soloParts>135);
+  assert.ok(actors.groupParts>=actors.groups*18&&actors.soloParts>=actors.solo*18);
   assert.deepEqual(errors,[],label+' should not throw in browser rendering');
   console.log('BROWSER PASS',label,'difficulty, opening, both choices, eighteen new NPC/scene puppets');
   await context.close();
