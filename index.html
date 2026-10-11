@@ -124,7 +124,7 @@ function airFloor(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,l
   return false}
 /* where you may stand */
 function walkable(x,y,rad){
-  if(galleryBarricadeAt(x,y,rad))return false;
+  if(galleryBarricadeAt(x,y,rad)||placedBlockAt(x,y,rad))return false;
   const i=Math.round(x/P),j=Math.round(y/P),lx=x-i*P,ly=y-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
   if(inHexL(lx,ly,A-rad))return lx*lx+ly*ly>=(RS+rad)*(RS+rad);
   if(ay<=HW-rad&&ax>=A-rad-0.05&&ax<=CWI+rad+0.01)return true;
@@ -157,7 +157,7 @@ function galleryZone(i,j,fl=G.floor){
   const seed=hashStr('condition|'+key),r=prng(seed),roll=r();
   let type=roll<.60?'normal':roll<.76?'burned':roll<.85?'burning':roll<.97?'barricaded':'refuge';
   if(G.startGallery===i+','+j+':'+fl)type='normal'; // do not spawn the player inside a fire or a locked doorway
-  z={key,type,seed,side:r()<.5?-1:1,opened:false,breached:false};
+  z={key,type,seed,side:r()<.5?-1:1,opened:false,breached:false,salvaged:false};
   G.zoneState.set(key,z);return z;
 }
 function crossingZone(ci,cj,fl=G.floor){
@@ -168,8 +168,111 @@ function crossingZone(ci,cj,fl=G.floor){
   const seed=hashStr('condition|'+key),r=prng(seed),v=r();
   const type=hub?(v<.58?'plain':v<.82?'barricaded':v<.93?'scorched':'vigil')
     :(v<.35?'plain':v<.55?'ash':v<.70?'barricaded':v<.85?'watch':v<.95?'collapsed':'shrine');
-  z={key,type,seed,hub,opened:false,breached:false};
+  z={key,type,seed,hub,opened:false,breached:false,salvaged:false};
   G.zoneState.set(key,z);return z;
+}
+/* Portable boards share the same collision function as every moving character.
+   A repaired barricade needs 3 OTHER reclaimed barricades to become immune
+   to weapon damage; an owner may still dismantle it to move it elsewhere. */
+const BUILD={barriers:new Map(),wrecks:new Map(),planks:0,next:1};
+function placedBlockAt(x,y,rad=0,fl=G.floor){
+  for(const b of BUILD.barriers.values())if(b.floor===fl&&Math.abs(x-b.x)<.62+rad&&Math.abs(y-b.y)<.56+rad)return b;
+  return null;
+}
+function portableTarget(){
+  let best=null;
+  for(const item of [...BUILD.barriers.values(),...BUILD.wrecks.values()]){
+    if(item.floor!==G.floor)continue;
+    const d=Math.hypot(item.x-G.x,item.y-G.y);
+    if(d>2.35||Math.abs(angDiff(Math.atan2(item.y-G.y,item.x-G.x),G.ang))>.95)continue;
+    if(!best||d<best.dist)best={item,dist:d,wreck:BUILD.wrecks.has(item.id)};
+  }
+  return best;
+}
+function wreckageTarget(){
+  const i0=Math.round(G.x/P),j0=Math.round(G.y/P);let best=null;
+  const check=(z,x,y)=>{
+    if(!z||z.type!=='barricaded'||!z.breached||z.salvaged)return;
+    const d=Math.hypot(x-G.x,y-G.y);
+    if(d<=2.4&&Math.abs(angDiff(Math.atan2(y-G.y,x-G.x),G.ang))<1.02&&(!best||d<best.dist))
+      best={zone:z,x,y,dist:d};
+  };
+  for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){
+    const z=galleryZone(i,j);check(z,i*P+z.side*A,j*P);
+  }
+  if(!G.inRoom){const c=crossingAt(G.x,G.y);if(c.stairs)check(crossingZone(c.ci,c.cj),c.x+1.36,c.y-.36)}
+  return best;
+}
+function buildOperate(action,item={}){
+  if(NET.ready){
+    NET.send({type:'barrier',action,...item});
+    return true;
+  }
+  if(action==='breach'||action==='salvage'){
+    const z=G.zoneState.get(item.key);
+    if(!z)return false;
+    if(action==='breach')z.breached=true;
+    else if(z.breached&&!z.salvaged){z.salvaged=true;BUILD.planks++;sfx('+1 RECLAIMED BARRICADE','mind')}
+    return true;
+  }
+  if(action==='place'){
+    if(BUILD.planks<1)return false;
+    const b={id:'local-'+BUILD.next++,x:item.x,y:item.y,floor:item.floor,level:0,hp:3,owner:'you'};
+    BUILD.barriers.set(b.id,b);BUILD.planks--;sfx('BARRICADE PLACED','mind');return true;
+  }
+  if(action==='pickup-wreck'){
+    const w=BUILD.wrecks.get(item.id);if(!w)return false;
+    BUILD.wrecks.delete(item.id);BUILD.planks++;sfx('BOARDS RECOVERED','mind');return true;
+  }
+  const b=BUILD.barriers.get(item.id);if(!b)return false;
+  if(action==='reinforce'){
+    if(b.level>=3||BUILD.planks<1)return false;
+    BUILD.planks--;b.level++;b.hp=3+b.level*4;
+    sfx(b.level===3?'INDESTRUCTIBLE · TRIPLE BRACED':'REINFORCED '+b.level+'/3','mind');return true;
+  }
+  if(action==='take'){
+    BUILD.barriers.delete(b.id);BUILD.planks+=1+b.level;sfx('BARRICADE RECOVERED','mind');return true;
+  }
+  if(action==='hit'){
+    if(b.level>=3){sfx('INDESTRUCTIBLE','mind');return true}
+    b.hp--;if(b.hp<=0){BUILD.barriers.delete(b.id);const w={id:'wreck-'+b.id,x:b.x,y:b.y,floor:b.floor};
+      BUILD.wrecks.set(w.id,w);sfx('BOARDS SHATTER','mind')}
+    else sfx('BOARDS CRACK','mind');
+    return true;
+  }
+  return false;
+}
+function buildPlaceOrReinforce(){
+  if(G.state!=='play')return false;
+  const t=portableTarget();
+  if(t&&!t.wreck){
+    if(t.item.level>=3){sfx('ALREADY INDESTRUCTIBLE');return true}
+    if(BUILD.planks<=0){sfx('YOU NEED ANOTHER BARRICADE');return true}
+    return buildOperate('reinforce',{id:t.item.id});
+  }
+  if(BUILD.planks<=0){sfx('RECOVER BOARDS FROM A BROKEN BARRICADE');return true}
+  const x=Math.round((G.x+Math.cos(G.ang)*1.6)*4)/4,y=Math.round((G.y+Math.sin(G.ang)*1.6)*4)/4;
+  if(!walkable(x,y,.65)||inWell(x,y)||Math.hypot(x-G.x,y-G.y)<.95){
+    sfx('CANNOT BUILD HERE','red');return true;
+  }
+  return buildOperate('place',{x,y,floor:G.floor});
+}
+function buildRead(){
+  const t=portableTarget();
+  if(t){
+    buildOperate(t.wreck?'pickup-wreck':'take',{id:t.item.id});
+    return true;
+  }
+  const w=wreckageTarget();
+  if(w){
+    if(NET.ready){buildOperate('salvage',{key:w.zone.key,x:w.x,y:w.y,floor:G.floor});
+      // State and inventory are committed by the room server.
+    }else buildOperate('salvage',{key:w.zone.key});
+    openNote('RECLAIMED WOOD','The broken boards can be moved now. Carry them and place a barricade with B, or tap BUILD on the screen. Point at a placed barricade and use B to reinforce it. After three reinforcements it cannot be destroyed.',
+      'BARRICADES CAN BE MOVED · EACH REINFORCEMENT COSTS ONE MORE');
+    return true;
+  }
+  return false;
 }
 function standingZone(){
   if(G.inRoom&&G.room)return galleryZone(G.room.i,G.room.j);
