@@ -14,7 +14,8 @@ window.__AOM_TEST={
   get G(){return G},get FILM(){return FILM},get view(){return view},
   get HUI(){return HUI},get TX(){return TX},get bookCard(){return bookCard},
   get DW(){return DW},get DH(){return DH},get ENCS(){return ENCS},
-  filmStage,openBookUI
+  get ENCRIG(){return ENCRIG},get FIGRIG(){return FIGRIG},
+  filmStage,openBookUI,figLayers
 };
 `;
 assert.ok(originalHTML.includes('</script>'));
@@ -128,8 +129,33 @@ async function caseRun(label,contextOptions){
   await page.waitForFunction(()=>window.__chosen==='second',{timeout:10000});
   assert.equal(await page.evaluate(()=>window.__AOM_TEST.G.note.text),'SECOND OPTION WAS CHOSEN');
   await page.screenshot({path:'browser-artifacts/choice-'+label+'.png'});
+  // Load each new costume and group cast through the actual game paper-puppet
+  // renderer, not a fake sprite. This catches missing rigs and pose errors.
+  const actors=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,G=a.G,groups=['auction','trial','choir','watch','firebrigade'];
+    const solos=['cartographer','surgeon','warden'];let groupParts=0,soloParts=0;
+    for(const id of groups){
+      let cast=null;
+      for(const [x,y] of [[2.9,0],[-2.9,0],[0,2.9],[0,-2.9]])
+        if((cast=a.ENCS[id].build({x:G.room.cx+x,y:G.room.cy+y})))break;
+      if(!cast||cast.length<3)throw Error('Cannot place group '+id);
+      const out=[];a.figLayers(cast[0],out);
+      if(out.length<18)throw Error('Group '+id+' has no visible puppet');
+      groupParts+=out.length;
+    }
+    for(const id of solos){
+      const actor={type:'fig',x:G.x+1,y:G.y+1,f:Math.PI/2,seed:1,pose:a.ENCS[id].pose,
+        rig:a.ENCRIG[id],hit:0,walk:0};
+      const out=[];a.figLayers(actor,out);
+      if(out.length<18)throw Error('Solo '+id+' has no puppet parts');
+      soloParts+=out.length;
+    }
+    return{groups:groups.length,solo:solos.length,groupParts,soloParts};
+  });
+  assert.equal(actors.groups,5);assert.equal(actors.solo,3);
+  assert.ok(actors.groupParts>80&&actors.soloParts>50);
   assert.deepEqual(errors,[],label+' should not throw in browser rendering');
-  console.log('BROWSER PASS',label,'difficulty selected, title, opening, both event choices');
+  console.log('BROWSER PASS',label,'difficulty, opening, both choices, eight new NPC/scene puppets');
   await context.close();
 }
 
