@@ -2427,6 +2427,10 @@ function renderScene(MEP){
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
   lifeLayers(POSE);
+  if(typeof NET!=='undefined'&&NET.ready)for(const p of NET.peers.values())
+    if(p.floor===G.floor&&Math.hypot(p.x-G.x,p.y-G.y)<35){
+      p.rig=FIGRIG[1+(p.coat%2)];figLayers(p,POSE);
+    }
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.97-low*0.25;TB=0.9+low*0.2;
   {const d=dayLight(hourOf());LDAY=0.6+0.55*d;AMB=0.12+0.085*d;TR*=0.86+0.14*d;TG*=0.9+0.1*d;TB*=1.06-0.06*d}
@@ -3775,7 +3779,9 @@ function action(a){
   }
   if(CTLS[a]){const c=CTLS[a];c.flash=0.16;c.pressT=0;c.sv-=6;if(a==='read')c.fq=2}
   if(G.state==='intro'){if(a==='read'||a==='swing'){G.state='start';G.startT=0}return}
-  if(G.state==='dead'||G.state==='won'){if(a==='read'||a==='swing'){reset();drawIntro();G.state='start';G.startT=0.3}return}
+  if(G.state==='dead'||G.state==='won'){if(a==='read'||a==='swing'){
+    if(typeof NET!=='undefined'&&NET.ready){NET.leave();reset();G.state='title';FILM.selection=0}
+    else{reset();drawIntro();G.state='start';G.startT=0.3}}return}
   if(G.state==='book'&&G.choice==='food'){if(a==='up'||a==='prev')orderMeal('bread');else if(a==='down'||a==='next')orderMeal('soup');else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.choice==='hatch'){const n=hatchItems().length;if(a==='up'||a==='prev'){G.hsel=(Math.min(G.hsel,n-1)+n-1)%n;snd('page');drawBook()}else if(a==='down'){G.hsel=(Math.min(G.hsel,n-1)+1)%n;snd('page');drawBook()}else if(a==='next'||a==='buy')hatchBuy();else if(a==='read'||a==='close'||a==='swing'){G.choice=null;closeBook()}return}
   if(G.state==='book'&&G.choice==='enc'){if(a==='up'||a==='prev')encChoose(true);else if(a==='down'||a==='next')encChoose(false);else if(a==='read'||a==='close'||a==='swing'){G.choice=null;closeBook()}return}
@@ -3805,6 +3811,7 @@ function frame(now){
   else update(dt);
   G.flip=Math.max(0,(G.flip||0)-dt);
   for(const k in CTLS)CTLS[k].flash=Math.max(0,CTLS[k].flash-dt);
+  if(typeof NET!=='undefined'&&NET.ready)NET.tick(dt);
   if(!['title','cinematic','wake','waking'].includes(G.state))render();
   display(dt);requestAnimationFrame(frame);
 }
@@ -3845,7 +3852,11 @@ addEventListener('keydown',ev=>{
   if(c==='Space'){action('swing');ev.preventDefault()}
   if(c==='KeyE'||c==='Enter'){action('read');ev.preventDefault()}
   if(c==='KeyJ'||c==='Tab'){action('journal');ev.preventDefault()}
-  if(G.state==='play'){if(c==='KeyB'){action('build');ev.preventDefault()}if(c==='KeyQ')cycleWeapon();else if(c==='Digit1')setWeapon('press');else if(c==='Digit2')setWeapon('rod');else if(c==='Digit3')setWeapon('oil');else if(c==='Digit4')setWeapon('torch');else if(c==='KeyI')useIncense()}
+  if(G.state==='play'){
+    if(c==='KeyB'){action('build');ev.preventDefault()}
+    if(c==='KeyC'&&NET.ready)NET.share();
+    if(c==='KeyT'&&NET.ready)NET.say();
+    if(c==='KeyQ')cycleWeapon();else if(c==='Digit1')setWeapon('press');else if(c==='Digit2')setWeapon('rod');else if(c==='Digit3')setWeapon('oil');else if(c==='Digit4')setWeapon('torch');else if(c==='KeyI')useIncense()}
   if(c==='KeyM')soundToggle();
   if(c==='KeyV')toggleView();
 });
@@ -3861,6 +3872,12 @@ view.addEventListener('pointerdown',ev=>{
   ev.preventDefault();try{view.focus({preventScroll:true})}catch(e){}
   try{view.setPointerCapture(ev.pointerId)}catch(e){}
   const pt=canvasPt(ev);
+  if(G.state==='play'&&BUILD.uiButton&&pt.x>=BUILD.uiButton.x0&&pt.x<=BUILD.uiButton.x1&&pt.y>=BUILD.uiButton.y0&&pt.y<=BUILD.uiButton.y1){
+    action('build');return;
+  }
+  if(G.state==='play'&&NET.ready&&NET.shareButton&&pt.x>=NET.shareButton.x0&&pt.x<=NET.shareButton.x1&&pt.y>=NET.shareButton.y0&&pt.y<=NET.shareButton.y1){
+    NET.share();return;
+  }
   if(G.state==='play'&&ctlA>0.5){const k=hitCtl(pt.x,pt.y);if(k){holdCtl(k,ev.pointerId);return}if(STICK.id==null&&inStickZone(pt.x,pt.y)){grabStick(ev.pointerId,pt);return}
     // tap your weapon hand to switch weapons, tap your face in the mirror to burn incense
     const hc=LAY.hands.c;if(pt.x>=LAY.hands.pressX-hc&&pt.x<=LAY.hands.pressX+11*hc&&pt.y>=DH-10*hc){cycleWeapon();return}
@@ -3928,6 +3945,9 @@ function resize(){
 if(window.ResizeObserver)new ResizeObserver(()=>{needResize=true}).observe(room);
 addEventListener('resize',()=>{needResize=true});
 reset();G.state='title';FILM.selection=0;FILM.help=false;
+try{const code=new URLSearchParams(location.search).get('room')?.toUpperCase();
+  if(/^[A-HJ-NP-Z2-9]{6}$/.test(code||'')){FILM.partyMode='join';FILM.partyCode=code}}
+catch(_){}
 resize();MOT.ang=G.ang;MOT.x=G.x;MOT.y=G.y;requestAnimationFrame(frame);
 </script>
 
