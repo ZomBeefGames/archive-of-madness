@@ -6,7 +6,7 @@ You wake as a copy of yourself shelved in an endless library of hexagonal rooms.
 
 ## Play
 
-The whole game is one self-contained file, `index.html`. Open it in a browser on desktop or phone; there is no build step and nothing to install.
+The single-player client remains contained in `index.html`: open it in a browser on desktop or phone for offline solo play. **Multiplayer requires the online Node server** (`server.mjs` and `multiplayer.mjs`) because your other players and placed barricades are synchronized over WebSockets.
 
 To serve it locally:
 
@@ -17,7 +17,7 @@ python3 -m http.server 8000
 
 ## Title screen & cinematic scenes
 
-A new illustrated **ZomBeef Games** title screen opens before the Library. It uses the game's pixel-paper, ink, brass and lantern palette, with animated archive shelves and a responsive **Begin Your Story / Difficulty / How to Play / Sound** menu. Select the Difficulty row and press A/D or Left/Right to cycle modes, or tap it repeatedly on mobile; then Begin Your Story. W/S chooses a menu row and Enter confirms.
+The illustrated **ZomBeef Games** title screen uses pixel-paper, ink, brass and lantern motifs, with a responsive **Begin Your Story / Play Mode / Difficulty / How to Play / Sound** menu. Play Mode cycles through **Single Player**, **Create Co-op Room**, and **Join Co-op Room**. W/S selects a row; A/D or Left/Right cycles the selected mode or difficulty; Enter confirms. Touch players tap the row to cycle it, then tap Begin.
 
 Beginning a new run now plays a four-shot opening sequence before the familiar "burned into your mind" introduction. The first nearby Purifier triggers a two-shot warning; your first interaction with the Index triggers another two-shot reveal. Daybreak and finding your page have animated book-and-parchment interludes. All story scenes pause active combat and game time, then return to the original action. **E / Enter / Space or tap to advance; Escape, X or the top-right SKIP label to skip**. Scene reveals occur once per run, and the animation respects reduced-motion preferences.
 
@@ -36,17 +36,42 @@ A day takes eight in-game minutes and resets still follow the existing 2, 2, 3, 
 
 Archive proofs are unique discoveries. Recover them by clearing a gallery barricade, opening a hidden stash or unusual landing, or making certain meaningful choices in an encounter. Duplicate evidence from the same scene category during one Library reset does not count again; newly discovered locations always have their own evidence IDs. Collected proofs survive normal dawns and full resets.
 
+## Live co-op multiplayer (up to 8 readers)
+
+This update supports real **invite-code multiplayer** on the same Railway deployment. One reader opens the title menu, selects **Create Co-op Room**, and chooses **Enter the Shared Library**. The game shows a six-character room code. Tap the CO-OP panel or press **C** to share a link. Your friend opens that link, chooses **Enter the Shared Library**, and joins the same session. Alternatively select **Join Co-op Room** and enter the code manually. You can see other readers moving in the Library as distinct paper-puppet librarians, and write short messages with **T** on desktop.
+
+**Currently shared across the network:** up to eight live player positions and visible characters, room membership, text chat, original barricades cleared or salvaged, your recovered wood inventory, and the placement, destruction, retrieval, and reinforcement state of movable barricades. Everyone in the room sees the same constructed obstacles, and they affect local movement/pathing.
+
+**Currently individual:** enemies and their combat state, NPC conversations and group-event outcomes, inventories other than barricade planks, journal quests, story choices, day clocks and endings. The same initial Library coordinates and phrase are used when you join, but this is a **session co-op foundation, not yet a fully synchronized campaign or combat simulation**. Co-op actions are validated by the server; the room supports one Railway instance and does not support shared progression across server replicas.
+
+Rooms and buildings are held **in server memory**, not a database. A room stays available for 30 minutes after the last member leaves. Server restarts, redeployments or separate server instances clear its current session and placed barricades. Solo play remains available without WebSocket connectivity.
+
+## Reclaimable and reinforced barricades
+
+Barricades now act as physical items you can reuse:
+
+1. Face an existing barricaded gallery entrance or blocked checkpoint and use **Read (E)** to clear it.
+2. Aim at the broken boards and use **Read (E)** again to **recover one portable barricade**.
+3. Look at an open floor or catwalk section ahead and press **B** (or tap **BUILD** on mobile) to place your recovered barricade. It becomes a solid obstacle.
+4. Recover more broken barricades from other rooms. Aim at your placed barricade and press **B** to reinforce it, spending one recovered barricade each time. Reinforcements 1 and 2 increase durability; **reinforcement 3 makes it immune to weapon attacks**.
+5. Aim and press **Read** to pick the placement back up and recover the original barricade plus all reinforcements. Unreinforced barricades can be broken with weapon strikes; their splintered wreck can be collected again.
+
+Both solo games and co-op sessions use the same interactions. An indestructible barricade can still be **deliberately dismantled** by a reader to relocate it. Collected portable barricades and placed constructions survive ordinary dawns and Library resets during your ongoing run/session, but a fresh run resets solo building inventory.
+
 ## Controls
 
 | Action | Keyboard | Touch |
 | --- | --- | --- |
-| Title menu | W/S selects; A/D or Left/Right changes difficulty; Enter confirms | Tap the difficulty row to cycle; tap Begin to start |
+| Title menu | W/S chooses a row; A/D changes Play Mode or Difficulty; Enter confirms | Tap Play Mode or Difficulty to cycle; tap Begin |
 | Advance a cinematic | E, Enter or Space | Tap screen |
 | Skip a cinematic | Escape or X | Tap SKIP (top right) |
 | Walk / turn | W A S D or arrows | Thumbstick (bottom left) |
 | Look around, up and down | Drag, or R / F | Drag |
-| Read shelves, search bodies, or use what is in front of you | E or Enter | Read button |
-| Attack with your weapon (or throw oil) | Space | Swing button |
+| Read, clear a barricade, salvage its wood or reclaim a placement | E or Enter | Read button |
+| Attack enemies or damage a placed barricade | Space | Swing button |
+| Place or reinforce portable barricade (3 reinforcements = indestructible) | B | BUILD / REINFORCE button |
+| Share multiplayer invite | C | Tap the CO-OP room panel |
+| Multiplayer chat | T | Desktop chat shortcut; invite link works on mobile |
 | Switch weapon: bookpress, shelf rod, oil flask, recovered torch | Q, or 1 2 3 4 | Tap your weapon hand |
 | Burn sect incense | I | Tap your face in the mirror |
 | Sound on / off | M | Tap the bottom of the journal |
@@ -95,7 +120,7 @@ The rooms follow Borges' story; the space between them is open air:
 - Distinct hand-pixelled character portraits: the counter’s spectacles, the peddler’s cap and pouch, Rose’s grey hair and shawl, and different sleeping, laughing and weeping expressions. Purifiers have ash-grey robes with stitched trim and brass details; the player wears a tailored coat with a leather strap.
 - Paper puppets: Purifiers, Seekers, and librarians are jointed paper figures with **camera-aligned front/rear cards** so their bodies remain fully readable through 360° of motion. Painted collars, sleeve shoulders and waist seams now overlap the torso without disconnected joints; two-bone arm reach attaches torches, weapons, lanterns, and books to the **visible palms**. Shoes use the actual cutout sole for floor placement, and the pelvis settles enough for planted feet to remain grounded during high-bob walks.
 - Third person: the camera follows over your right shoulder and slides in when a wall or the mirror is behind you. You are a jointed paper librarian too, with painted backs to the coat and head, a swinging lantern, and your weapon wound up and struck out into the room. V switches back to first person.
-- Other lives: some pages hold the stories of other librarians (six of them, five pages each, found in order, highlighted in green). Each page is a comfort (+8 sanity, and the Index takes it like a sentence), but it settles into you and your own words fade: the journal shows your phrase losing letters and the HUD counts how faded you are (out of 6). The fifth page is an ending, and the book asks before you read it. Read it with your words still holding and you let that life go (+25 sanity, some of your words come back); read it when they are 5 of 6 faded and its ending becomes yours, and the game is over. Each new day gives two letters back.
+- Other lives: some pages hold the stories of other librarians (**ten characters, five pages each**; four additional 5-page biographies of Milo, Ada, Jun and Salma), found in order and highlighted in green. Each page is a comfort (+8 sanity, and the Index takes it like a sentence), but it settles into you and your own words fade: the journal shows your phrase losing letters and the HUD counts how faded you are (out of 6). The fifth page is an ending, and the book asks before you read it. Read it with your words still holding and you let that life go (+25 sanity, some of your words come back); read it when they are 5 of 6 faded and its ending becomes yours, and the game is over. Each new day gives two letters back.
 - The way to your page remains a six-step quest, with difficulty-dependent costs and evidence:
   1. The floor: feed the Index a real sentence.
   2. The hexagon: collect the mode's number of distinct sentences and pay its second Index fragment fee on the required day.
@@ -105,8 +130,8 @@ The rooms follow Borges' story; the space between them is open air:
   6. Shelved: at dawn on or after the mode's minimum day, with enough unique true sentences and archive proofs. Before then the page is blank.
 - The Library goes on without you: every half a minute or so, somewhere you are looking (a far stretch of catwalk on your floor, or one or two floors up or down), another librarian runs across screaming, climbs the rail and jumps, is pushed off by a Purifier, or runs burning until they fall. Events are only placed where you can actually see them (a per-pixel depth buffer also hides figures behind the catwalks and floors in front of them).
 - The dead stay: Purifiers and Seekers you kill remain in galleries and catwalks until the next true Library reset. Additional bodies appear as time advances through that reset epoch, sometimes burned or hanging from a railing on nearby floors; ordinary dawns no longer clean them away.
-- People: now **nine individual encounter characters**. Existing librarians include the laughing man, counter, weeping librarian, peddler, sleepwalker and Rose, the old woman. New unique figures include **the Cartographer** (a costly but authentic record, or stolen type), **the Ink Surgeon** (restore your fading words at a sanity cost, or sell a false memory), and **the Lantern Warden** (share oil for a ledger entry, or purchase extra oil). Their painted coats, badges and gestures distinguish them, and your choices carry inventory, sanity, memory or proof consequences.
-- **Nine group encounters**, all drawn with independently animated jointed NPCs. The original mob, sect ritual, funeral and sermon remain. New scenes include **the Brass Auction** (pay for a real catalogue card or steal), **the Unfinished Trial** (defend an accused reader or testify falsely), **the Chain of Readers** (finish a sentence or preserve your sanity), **the Night Watch** (sign its ledger or raid its supplies), and **the Paper Fire Brigade** (help save names, potentially ending an active gallery fire, or steal burning lead type). Choices can give unique proofs or sentences, consume resources, affect sanity or memory, add permanent recorded misdeeds, or leave hazards behind. Event choices have separate outlined tap targets on mobile and desktop; keyboard 1/2 and W/S choose explicitly, and touch requires pressing and releasing on the same option.
+- **Fourteen individual encounter characters**: the earlier readers, Cartographer, Ink Surgeon and Lantern Warden return. Five newly illustrated characters are **the Last Bookbinder** (bind a testimony or sell its ribbon), **Midnight Bellkeeper** (sound the missing bell or seek silence), **Girl With Two Titles** (recover a sentence or preserve her story), **Exiled Cataloguer** (testify to kindness or falsify a record), and **Blind Glassmaker** (polish your lantern or trade memory for comfort). Their new coat colors, embroidered badges and expressions match the existing jointed paper-figure style.
+- **Fourteen group encounters**, independently animated as full paper puppets: the mob, ritual, funeral and sermon, plus the Brass Auction, Unfinished Trial, Chain of Readers, Night Watch and Paper Fire Brigade. Newly added are **Quarantine of Words** (save erased names or take their warning), **Four-Fold Council** (vote to keep a landing open or seal it), **Pilgrims of Page Zero** (trade a real question or share lamp oil), **Roof of Books** (save a family's shelter or strip the fastenings), and **Ledger on the Fire** (save the missing people's records or let them burn). These stories award evidence, true sentences, survival supplies, or recorded misdeeds. Each choice has its own desktop and mobile hitbox; tapping a choice requires pressing and releasing on the same row.
 - The Library is brighter: more light from the lamps and the air, a longer lantern, and less murk between floors.
 - Voices: screams (near and falling away), maniacal cackling, sobbing, whispering, muttering and humming are synthesised with a small formant voice in the browser, placed in the Library (quieter and duller with distance, panned left or right). Recorded CC0 sounds can replace any of them: see `sfx/README.md`.
 - Lead type and the hatch: Purifiers (3–5) and Seekers (2) drop lead type when they fall, and loose type lies on gallery floors. The food hatch is now a menu: bread (free), lentil soup and bitter tea (+30 sanity) for 3 type, three trinkets a day from the stock, and a cheaper sealed parcel holding a random one you do not have. Trinkets last the whole run: grey spectacles (noise costs no sanity), iron thimble (+1 damage), leather apron (40% less damage taken), the Index key (sentences and other lives count twice), slow wick (oil lasts twice as long), pocket mirror (once a day, survive at 30 health) and silk bookmark (each dawn your words come back in full).
@@ -119,10 +144,10 @@ The full game design document is in [`docs/GDD.md`](docs/GDD.md), including plan
 
 ## Hosting
 
-The game is the single file `index.html`. On Railway it is served by `server.mjs` (Node, no dependencies): `railway.toml` builds it with Railpack and starts `node server.mjs`, which listens on `$PORT`, serves `index.html` at `/` and the files beside it (such as `sfx/`), and refuses dotfiles and its own server files. Locally: `npm start`, then open http://localhost:3000.
+The client remains a self-contained `index.html`. Railway runs `server.mjs`, which serves the game and attaches the dedicated `multiplayer.mjs` WebSocket room server to `/coop`. The only production Node dependency is a pinned version of `ws`. Install with `npm install` and start with `npm start` (port `$PORT` or 3000). The static server prevents dotfile and internal module access. One running server holds up to eight readers in each lobby. For reliable co-op, use one Railway instance (sticky routing or a shared database/pub-sub layer would be required for horizontal scaling).
 
 ## Checks
 
-Run `npm run check` (Node 18 or newer; no runtime dependencies). It parses the actual game JavaScript and runs focused regressions for combat, bodies, character rigs, environment persistence, **four difficulty levels, progression day gates, distinct sentence and proof requirements, shelf-mark access, new encounter consequences**, and event input. GitHub Actions also runs headless Chromium smoke tests of the actual desktop and phone title menu, difficulty selector, cutscenes and both event choices. The browser job uses Playwright only in CI; the live game remains dependency-free.
+Run `npm install` and `npm run check` (Node 18 or newer, with the `ws` runtime dependency installed). It parses the actual game JavaScript and runs focused regressions for combat, bodies, character rigs, environment persistence, **four difficulty levels, progression day gates, distinct sentence and proof requirements, shelf-mark access, new encounter consequences**, and event input. GitHub Actions also runs headless Chromium smoke tests of the actual desktop and phone title menu, difficulty selector, cutscenes and both event choices. The browser job uses Playwright only in CI; the live game remains dependency-free.
 
-The visual presentation uses detailed jointed paper-cutout characters, engraved brass gauges, leather-bound journal covers, layered parchment pages, and illustrated lanterns and hand tools. Character textures render at twice their original sampling density while retaining their existing world size and animation pivots.
+The visual presentation now also includes richer engraved type, detailed glass oil flasks, refined incense sticks, patterned food bowls, brighter multi-tier timber barricades with metal bracing, and collectible splinter artwork. The visual presentation continues to use detailed jointed paper-cutout characters, engraved brass gauges, leather-bound journal covers, layered parchment pages, and illustrated lanterns and hand tools. Character textures render at twice their original sampling density while retaining their existing world size and animation pivots.
