@@ -351,6 +351,7 @@ function zoneRead(){
   const door=barrierTarget();
   if(door){
     door.zone.breached=true;collectProof('door|'+door.zone.key);
+    buildOperate('breach',{key:door.zone.key,x:door.x,y:door.y,floor:G.floor});
     G.lastHit={t:door.dist};snd('clack');sfx('BARRICADE BROKEN','mind');
     openNote('THE BARRICADED DOOR','A wall of broken shelves, torn canvas and prayer-rope blocks this doorway. You pry the timbers loose. A crooked gap opens through to the catwalk.','PASSAGE OPEN · THIS STAYS OPEN UNTIL THE NEXT LIBRARY RESET');
     return true;
@@ -368,7 +369,9 @@ function zoneRead(){
   if(feature){
     const z=feature.zone;G.lastHit={t:feature.dist};snd('page');
     let award='';
-    if(z.type==='barricaded'&&!z.breached){z.breached=true;z.inspected=true;G.type+=1;award='BARRICADE CLEARED · +1 TYPE'}
+    if(z.type==='barricaded'&&!z.breached){z.breached=true;z.inspected=true;G.type+=1;
+      buildOperate('breach',{key:z.key,x:feature.x,y:feature.y,floor:G.floor});
+      award='CHECKPOINT CLEARED · +1 TYPE · SALVAGE THE BOARDS'}
     else if(!z.opened&&(z.type==='watch'||z.type==='shrine'||z.type==='vigil')){
       z.opened=true;
       if(z.type==='watch'){G.oil+=2;award='+2 OIL · LOOKOUT CACHE EMPTIED'}
@@ -1755,6 +1758,7 @@ function newDay(){
 function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
 function reset(){
+  BUILD.barriers.clear();BUILD.wrecks.clear();BUILD.planks=0;BUILD.next=1;
   BG.acts=[];BG.t=8;ENC.list=[];ENC.t=45;
   const phrase=PHRASES[Math.floor(Math.random()*PHRASES.length)];
   const P=bioPlan(phrase),difficulty=FILM.difficulty||'archivist',r=difficultyRules(difficulty);
@@ -2047,6 +2051,9 @@ function setWeapon(w){if(!hasWeapon(w)){sfx(w==='torch'?'NO TORCH':w==='rod'?'NO
 function cycleWeapon(){const L=['press','rod','oil','torch'];let i=L.indexOf(G.weapon);for(let k=0;k<L.length;k++){i=(i+1)%L.length;if(hasWeapon(L[i])){setWeapon(L[i]);return}}}
 function doSwing(){
   if(G.swingCd>0)return;
+  const barrier=portableTarget();
+  if(barrier&&!barrier.wreck){G.swingCd=.44;G.swing=1;snd('clack');
+    buildOperate('hit',{id:barrier.item.id});return}
   if(G.weapon==='oil'){throwOil();return}
   const rod=G.weapon==='rod',torch=torchLit(),reach=rod?2.1:torch?1.65:1.35,cone=rod?0.3:0.65,dmg=(rod?1:2)+Math.min(2,G.dark)+(G.tr.thimble?1:0);
   G.swingCd=rod?0.35:torch?0.47:0.6;G.swing=1;snd(torch?'fire':rod?'poke':'swing');
@@ -2083,6 +2090,7 @@ function sin(kind,wallN,gid){const at=placeWords(gid==null?G.gal:gid,G.floor);
   G.sins.push(at+(kind==='kill'?'you struck down a weeping librarian and took their oil.':'you burned wall '+numWords(wallN)+' and every book on it.'))}
 /* Read does whatever is in front of you: a shelf, the Index, the stair, a closet, the mirror */
 function doRead(){
+  if(buildRead())return;
   if(encTalk())return;
   const body=bodyTarget();if(body){searchBody(body);return}
   if(zoneRead())return;
@@ -3581,7 +3589,7 @@ function action(a){
   if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0;encClosed()}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
-  if(G.state==='play'){if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
+  if(G.state==='play'){if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
 }
 let last=performance.now(),needResize=true;
 function frame(now){
@@ -3643,7 +3651,7 @@ addEventListener('keydown',ev=>{
   if(c==='Space'){action('swing');ev.preventDefault()}
   if(c==='KeyE'||c==='Enter'){action('read');ev.preventDefault()}
   if(c==='KeyJ'||c==='Tab'){action('journal');ev.preventDefault()}
-  if(G.state==='play'){if(c==='KeyQ')cycleWeapon();else if(c==='Digit1')setWeapon('press');else if(c==='Digit2')setWeapon('rod');else if(c==='Digit3')setWeapon('oil');else if(c==='Digit4')setWeapon('torch');else if(c==='KeyI')useIncense()}
+  if(G.state==='play'){if(c==='KeyB'){action('build');ev.preventDefault()}if(c==='KeyQ')cycleWeapon();else if(c==='Digit1')setWeapon('press');else if(c==='Digit2')setWeapon('rod');else if(c==='Digit3')setWeapon('oil');else if(c==='Digit4')setWeapon('torch');else if(c==='KeyI')useIncense()}
   if(c==='KeyM')soundToggle();
   if(c==='KeyV')toggleView();
 });
