@@ -2832,7 +2832,7 @@ function drawFaceTex(){const t=TX.face,g=t.g;paper(t);
 function drawStat(){const t=TX.stat,g=t.g;paper(t);
   gridC(g,LANT.slice(0,10),22,26,9,G.oil<=0?{y:'#5a4a2a',f:'#5a4a2a',Y:'#5a4a2a'}:null);
   g.textBaseline='top';g.fillStyle=G.oil<=0?'#b3261e':'#2a2018';g.font='bold 34px Impact,"Arial Black",sans-serif';g.fillText(G.oil<=0?'DARK':'OIL '+String(G.oil).padStart(2,'0'),104,28);
-  g.fillStyle='#2a2018';g.font='bold 15px "Courier New",monospace';g.fillText('HEX '+G.gal+' · FLOOR '+G.floor,104,86);
+  g.fillStyle='#2a2018';g.font='bold 15px "Courier New",monospace';g.fillText(CHAR.name+' · HEX '+G.gal+' · FLOOR '+G.floor,104,86,395);
   g.font='13px "Courier New",monospace';g.fillText('rooms '+G.rooms.size+' · books '+G.books,104,114);
   g.fillText('boards '+BUILD.planks+' · placed '+BUILD.barriers.size,104,140)}
 function wrapG(g,text,maxW){const words=text.split(' '),lines=[];let cur='';for(const wd of words){const t=cur?cur+' '+wd:wd;if(g.measureText(t).width>maxW&&cur){lines.push(cur);cur=wd}else cur=t}if(cur)lines.push(cur);return lines}
@@ -3081,7 +3081,7 @@ const NET={
     ws.onopen=()=>{
       const start={x:G.x,y:G.y,floor:G.floor};
       this.send({type:'join',mode,room:roomCode,start,difficulty:G.difficulty,phrase:G.phrase,
-        name:'READER '+Math.floor(100+Math.random()*900)});
+        name:CHAR.name,appearance:normalCharacter(CHAR)});
     };
     ws.onmessage=evt=>{
       if(this.ws!==ws)return;
@@ -3136,9 +3136,17 @@ const NET={
   peer(p){
     if(!p||p.id===this.id||!Number.isFinite(p.x)||!Number.isFinite(p.y))return;
     const old=this.peers.get(p.id);
-    if(old){old.tx=p.x;old.ty=p.y;old.tf=p.f;old.floor=p.floor;old.pose=p.pose}
-    else this.peers.set(p.id,{type:'fig',x:p.x,y:p.y,tx:p.x,ty:p.y,f:p.f,tf:p.f,
-      floor:p.floor,coat:(Number(p.coat)||0)%3,pose:'stand',seed:Number(p.id)||1,walk:0});
+    const profile=normalCharacter(p.appearance);
+    if(old){
+      old.tx=p.x;old.ty=p.y;old.tf=p.f;old.floor=p.floor;old.pose=p.pose;
+      old.name=String(p.name||old.name).slice(0,18);
+      const key=JSON.stringify(profile);
+      if(old.profileKey!==key){old.profileKey=key;old.rig=characterRig(profile)}
+    }else this.peers.set(p.id,{type:'fig',x:p.x,y:p.y,tx:p.x,ty:p.y,f:p.f,tf:p.f,
+      floor:p.floor,coat:(Number(p.coat)||0)%3,pose:'stand',seed:Number(p.id)||1,
+      walk:0,name:String(p.name||'READER').slice(0,18),rig:characterRig(profile),
+      profileKey:JSON.stringify(profile)});
+
   },
   tick(dt){
     if(!this.ready)return;
@@ -4175,6 +4183,11 @@ function drawCoopHUD(){
     g.fillText('CO-OP  '+NET.code+'  ·  '+(1+NET.peers.size)+'/8',x+13*u,y+8*u,w-24*u);
     g.font=Math.round(12*u)+'px "Courier New"';g.fillStyle='#d1b28d';
     g.fillText('T CHAT  ·  C / TAP INVITE',x+13*u,y+31*u,w-24*u);
+    if(NET.peers.size){
+      const names=[...NET.peers.values()].slice(0,4).map(p=>p.name);
+      g.font=Math.round(12*u)+'px "Courier New"';g.fillStyle='#e5c795';
+      g.fillText('WITH '+names.join(' · '),x+5*u,y+h+13*u,325*u);
+    }
     NET.shareButton={x0:x,y0:y,x1:x+w,y1:y+h};
     for(let i=0;i<NET.chat.length;i++){
       const chat=NET.chat[i];if(performance.now()-chat.time>9000)continue;
