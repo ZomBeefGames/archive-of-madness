@@ -27,7 +27,9 @@ function studio(w=1280,h=720){
   const SND={on:true};
   const CHAR={name:'THE READER',gender:0,age:28,outfit:0,coat:0,pants:0,skin:2,hair:1};
   const APPEARANCE={gender:['MALE','FEMALE','NONBINARY'],outfit:['LONG COAT','HOODED COAT','WAISTCOAT','ARCHIVE ROBE'],
-    coat:[['BURGUNDY','#743844']],pants:[['ONYX','#303038']],skin:[['TAN','#b78361']],hair:[['BLACK','#242027']]};
+    coat:[['BURGUNDY','#743844'],['CHARCOAL','#42464f']],pants:[['ONYX','#303038']],
+    skin:[['PORCELAIN','#f1ccb0'],['LIGHT','#dfad86'],['TAN','#b78361'],['BROWN','#84583d']],
+    hair:[['BLACK','#242027'],['CHESTNUT','#633d2d'],['BLONDE','#c3a269']]};
   const context=vm.createContext({DW:w,DH:h,G,SND,CHAR,APPEARANCE,
     CHARACTER_FIELDS:['name','gender','age','outfit','coat','pants','skin','hair'],FINE:true,CALM:false,
     characterLabel(field){return field==='age'?CHAR.age+' YEARS':field==='name'?CHAR.name:
