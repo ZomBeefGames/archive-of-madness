@@ -59,8 +59,13 @@ async function caseRun(label,contextOptions){
   const page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+PORT+'/',{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>typeof G!=='undefined'&&G.state==='title',
-    {timeout:20000});
+  await page.waitForFunction(()=>{
+    // Inline game initialization builds high-resolution puppet textures, and
+    // the browser may briefly observe its top-level lexical declarations in
+    // their temporal dead zone. Keep polling rather than failing on startup.
+    try{return G?.state==='title'&&FILM?.buttons?.length===3&&view?.width>0}
+    catch{return false}
+  },null,{timeout:30000});
   const render=await page.evaluate(()=>{
     const ctx=view.getContext('2d'),data=ctx.getImageData(0,0,view.width,view.height).data;
     let bright=0;for(let i=0;i<data.length;i+=257*4)if(data[i]+data[i+1]+data[i+2]>110)bright++;
