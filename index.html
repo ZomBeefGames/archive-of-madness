@@ -692,13 +692,25 @@ function coatTailDepth(e,near){
   const rear=e===ME||(e._rigBack===undefined?((e.x-G.x)*Math.cos(e.f)+(e.y-G.y)*Math.sin(e.f)>0):e._rigBack);
   return rear?(near?-0.053:-0.043):(near?0.037:0.026);
 }
-/* a leg from the hip to a planted or swinging foot: thigh, shin and foot; the knee bends forward */
-function legOut(put,R,hx,hz,f,depth,thL,shL,ank){
-  const shoe=R.boot||R.foot,angle=f[2]||0,v=partAt(shoe,angle),sc=shoe.scale||1;
+/* a leg from the hip to a planted or swinging foot: thigh, shin and foot.
+   Use the actual rendered pixel sole, not fixed ankle offsets for each character. */
+function shoeSole(R,angle){
+  const shoe=R.boot||R.foot,v=partAt(shoe,angle||0),sc=shoe.scale||1;
+  return Math.max(0,(v.card.h-v.cy)/sc-.25);
+}
+function settleHip(hz,R,thL,shL,feet){
+  // During a high bob the old pelvis rose beyond leg reach, leaving the feet
+  // floating. Limit the height against both current ankle/sole positions.
+  const reach=thL+shL-.15;
+  for(const f of feet)hz=Math.min(hz,(f[1]||0)+shoeSole(R,f[2])+reach);
+  return hz;
+}
+function legOut(put,R,hx,hz,f,depth,thL,shL,_ank){
+  const shoe=R.boot||R.foot,angle=f[2]||0;
   // The bottom painted pixel is the sole. Ground it at f[1] even while the
   // ankle bends or the foot swings; the previous fixed ankle offsets varied
   // from rig to rig and buried shoes under the floor.
-  const sole=Math.max(0,(v.card.h-v.cy)/sc-.25);
+  const sole=shoeSole(R,angle);
   const footZ=f[1]+sole,reach=thL+shL-.075,vertical=hz-footZ;
   // If a wide stride would extend the knee farther than the two bones allow,
   // shorten the stride horizontally rather than lifting the planted foot.
@@ -729,7 +741,8 @@ function purLayers(e,out){
   const bob=walk*1.3*Math.cos(4*Math.PI*((e.gp||0)-0.25))+0.4*Math.sin(T*2.1+seed);
   let hz=27+bob-dd*20,hx=dd*-3;
   const lean=4*walk*Math.sign(A)+10*raise+(e.lunge||0)*14-hit*14+dd*72,breath=Math.sin(T*2.1+seed);
-  fa[0]+=1.5;fb[0]-=1;if(dd){fa[0]=lerp(fa[0],7,dd);fb[0]=lerp(fb[0],-2,dd);fa[1]*=1-dd;fb[1]*=1-dd;fa[2]*=1-dd;fb[2]*=1-dd}
+  fa[0]+=1.5;fb[0]-=1;if(dd){fa[0]=lerp(fa[0],7,dd);fb[0]=lerp(fb[0],-2,dd);fa[1]*=1-dd;fb[1]*=1-dd;fa[2]*=1-dd}
+  hz=settleHip(hz,R,13,12,[fa,fb]);
   const ca=lean*Math.PI/180,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs];
   const[shx,shz]=at(0.5,16.5+breath*0.3),[nkx,nkz]=at(1.2,19.2+breath*0.3),[cpx,cpz]=at(-2,18.5);
   // the cape, three hinged pieces on springs
@@ -767,8 +780,9 @@ function seekLayers(e,out){
   const fa=footAt(e.gp||0,A,lift),fb=footAt(((e.gp||0)+0.5)%1,A,lift);
   const bob=walk*(1+run)*Math.cos(4*Math.PI*((e.gp||0)-0.25))+0.3*Math.sin(T*1.6+seed);
   let hz=20+bob-dd*15,hx=0;
-  const lean=18+run*14*walk-hit*16+dd*60,ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs];
   if(dd){fa[0]=lerp(fa[0],6,dd);fb[0]=lerp(fb[0],-1,dd);fa[1]*=1-dd;fb[1]*=1-dd}
+  hz=settleHip(hz,R,9.5,9,[fa,fb]);
+  const lean=18+run*14*walk-hit*16+dd*60,ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs];
   const[shx,shz]=at(0.5,12.5),[nkx,nkz]=at(1.5,14.2),S=e.spr||[0,0,0,0,0,0,0,0,0,0];
   const[px,dep,pz]=rel(e),sw=walk*Math.sin(2*Math.PI*(e.gp||0)),reading=!run&&!dd;
   // reading: both hands hold the book up before the face; charging: both arms claw at you; fleeing: flailing, oil in hand
@@ -859,8 +873,9 @@ function meLayers(out){
   const A=Math.max(-8,Math.min(8,(e.vin||0)/PS/(4*Math.max(1.1,Math.hypot(e.vx||0,e.vy||0)/(1.45*0.5))))),lift=3.5*walk;
   const fa=footAt(e.gp||0,A,lift),fb=footAt(((e.gp||0)+0.5)%1,A,lift);
   const bob=walk*1.1*Math.cos(4*Math.PI*((e.gp||0)-0.25))+0.35*Math.sin(T*2+1);
-  const hz=26+bob-fall*19,hx=0,lean=3*walk*Math.sign(A)+fall*65-(G.flash||0)*8;
-  fa[0]+=1.2;fb[0]-=0.8;if(fall){fa[0]=lerp(fa[0],7,fall);fb[0]=lerp(fb[0],-2,fall);fa[1]*=1-fall;fb[1]*=1-fall;fa[2]*=1-fall;fb[2]*=1-fall}
+  let hz=26+bob-fall*19;const hx=0,lean=3*walk*Math.sign(A)+fall*65-(G.flash||0)*8;
+  fa[0]+=1.2;fb[0]-=0.8;if(fall){fa[0]=lerp(fa[0],7,fall);fb[0]=lerp(fb[0],-2,fall);fa[1]*=1-fall;fb[1]*=1-fall;fa[2]*=1-fall}
+  hz=settleHip(hz,R,11.5,11,[fa,fb]);
   const ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs];
   const[shx,shz]=at(0.3,13.6+0.25*Math.sin(T*2)),[nkx,nkz]=at(1,16.4),S=e.spr||[0,0,0,0,0,0,0,0,0,0],sw=walk*Math.sin(2*Math.PI*(e.gp||0));
   // the lantern hand, on the far side: held out and a little up, swinging as you walk
@@ -922,7 +937,7 @@ function figLayers(e,out){
   const fa=footAt(e.gp||0,A,lift),fb=footAt(((e.gp||0)+0.5)%1,A,lift);
   if(pose==='fall'){const k=Math.sin(T*9+seed);fa[0]=6*k;fa[1]=4+3*k;fb[0]=-6*k;fb[1]=4-3*k}
   if(pose==='kneel'){fa[0]=-8;fa[1]=0;fa[2]=75;fb[0]=-10.5;fb[1]=0;fb[2]=75}
-  const bob=walk*1.4*Math.cos(4*Math.PI*((e.gp||0)-0.25))+(pose==='laugh'?Math.abs(Math.sin(G.time*16))*0.9:0),hz=26+bob+(pose==='fall'?2:0)+(pose==='kneel'?-12:0),hx=0,lean=(pose==='fall'?e.spin||0:8*walk*Math.sign(A))+(e.lunge||0)*-20+(pose==='beat'?16+6*Math.sin(T*9+seed):pose==='kneel'?12+3*Math.sin(T*1.3+seed):0);
+  const bob=walk*1.4*Math.cos(4*Math.PI*((e.gp||0)-0.25))+(pose==='laugh'?Math.abs(Math.sin(G.time*16))*0.9:0),hz=settleHip(26+bob+(pose==='fall'?2:0)+(pose==='kneel'?-12:0),R,11.5,11,[fa,fb]),hx=0,lean=(pose==='fall'?e.spin||0:8*walk*Math.sign(A))+(e.lunge||0)*-20+(pose==='beat'?16+6*Math.sin(T*9+seed):pose==='kneel'?12+3*Math.sin(T*1.3+seed):0);
   const ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs],[shx,shz]=at(0.3,13.6),[nkx,nkz]=at(1,16.4),sw=walk*Math.sin(2*Math.PI*(e.gp||0));
   const PT={laugh:k=>[shx+4+k,shz-9+Math.sin(T*16+k)*1.5],weep:k=>[nkx+5-k,nkz-1.5],count:k=>k?[shx+13,shz-3+Math.sin(T*6)*2]:[shx+2,shz-15],sleep:k=>[shx+16,shz-1-k],
       fly:k=>k?[shx+17,shz+1]:[shx-17,shz+1],stand:k=>[shx+2+k,shz-15],kneel:k=>[shx+6,shz-4-k],carry:k=>[shx+4+k*2,shz+3],
