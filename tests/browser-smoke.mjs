@@ -159,11 +159,65 @@ async function caseRun(label,contextOptions){
   await context.close();
 }
 
+
+async function clickTitle(page,id,touch=false){
+  const p=await page.evaluate(which=>{
+    const a=window.__AOM_TEST,b=a.FILM.buttons.find(x=>x.id===which);
+    if(!b)throw Error('Missing menu button '+which);
+    const st=a.filmStage(),r=a.view.getBoundingClientRect();
+    return{x:r.left+(st.x+(b.x+b.w/2)*st.s)/a.DW*r.width,
+      y:r.top+(st.y+(b.y+b.h/2)*st.s)/a.DH*r.height};
+  },id);
+  if(touch)await page.touchscreen.tap(p.x,p.y);
+  else await page.mouse.click(p.x,p.y);
+}
+async function coopSmoke(){
+  const hostContext=await browser.newContext({viewport:{width:1100,height:750}});
+  const joinContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  const host=await hostContext.newPage(),guest=await joinContext.newPage(),errors=[];
+  host.on('pageerror',e=>errors.push('host: '+e.message));
+  guest.on('pageerror',e=>errors.push('guest: '+e.message));
+  try{
+    await host.goto('http://127.0.0.1:'+PORT+'/');
+    await host.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===5);
+    await clickTitle(host,'party');
+    assert.equal(await host.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'host');
+    await clickTitle(host,'begin');
+    await host.waitForFunction(()=>window.__AOM_TEST?.NET.ready,null,{timeout:12000});
+    const code=await host.evaluate(()=>window.__AOM_TEST.NET.code);
+    assert.match(code,/^[A-HJ-NP-Z2-9]{6}$/);
+    assert.match(host.url(),new RegExp('room='+code));
+    await guest.goto('http://127.0.0.1:'+PORT+'/?room='+code);
+    await guest.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===5);
+    assert.equal(await guest.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'join');
+    await clickTitle(guest,'begin',true);
+    await guest.waitForFunction(()=>window.__AOM_TEST?.NET.ready,null,{timeout:12000});
+    await host.waitForFunction(()=>window.__AOM_TEST?.NET.peers.size===1,null,{timeout:8000});
+    await guest.waitForFunction(()=>window.__AOM_TEST?.NET.peers.size===1,null,{timeout:8000});
+    assert.equal(await guest.evaluate(()=>window.__AOM_TEST.NET.code),code);
+    const shared=await guest.evaluate(()=>{
+      const a=window.__AOM_TEST,p=[...a.NET.peers.values()][0],parts=[];
+      a.figLayers(p,parts);return{phrase:a.G.phrase,parts:parts.length,
+        floor:a.G.floor,peerFloor:p.floor};
+    });
+    assert.ok(shared.parts>=18,'joined companion must have all paper-puppet parts');
+    assert.equal(shared.floor,shared.peerFloor);
+    assert.equal(shared.phrase,await host.evaluate(()=>window.__AOM_TEST.G.phrase));
+    await guest.evaluate(()=>window.__AOM_TEST.NET.send({type:'chat',text:'Hello from the shared Library'}));
+    await host.waitForFunction(()=>window.__AOM_TEST?.NET.chat.some(x=>x.text.includes('Hello from')),null,{timeout:8000});
+    console.log('BROWSER PASS co-op',code,'two real sockets, shared world seed, player models and chat');
+    assert.deepEqual(errors,[],'No browser errors in connected readers');
+  }finally{
+    await hostContext.close();await joinContext.close();
+  }
+}
+
 try{
   await ready();
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   await caseRun('desktop',{viewport:{width:1280,height:800},deviceScaleFactor:1});
   await caseRun('phone',{viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+  await coopSmoke();
 }finally{
   if(browser)await browser.close();
   server.kill('SIGTERM');
