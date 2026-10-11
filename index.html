@@ -87,7 +87,7 @@ function cornerComm(i,j,lx,ly,fl=G.floor){return cornerStair(i,j,lx,ly)&&hubFloo
 /* A full communal pillar exists ONLY on real community floors. Upper and
    lower floor projections must never reuse a wall from another hub level. */
 function levelHasWall(type,fl){
-  return !['pillar','sleep','privy','mirror','food'].includes(type)||hubFloor(fl);
+  return !['pillar','sleep','privy','mirror','frame','food'].includes(type)||hubFloor(fl);
 }
 /* the segments of one square of the grid, in coordinates centred on its gallery: the gallery's walls seen from inside,
    and everything in the open air around it - the gallery's outside, the platform pillars, the railings. A square's
@@ -828,7 +828,8 @@ function rigOut(e,out){
   return(p,deg,x,z,depth,glow,shadow)=>{
     const P=p,v=partAt(P,deg),X=x+shake,sc=P.scale||1;
     const lat=(X+(v.card.w/2-v.cx)/sc)*sideScale,zb=z-(v.card.h-v.cy)/sc;
-    out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:F,z0:zb*PS+zw,hgt:v.card.h*PS/sc,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,sideScale,pe:e,sh:shadow})};
+    out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:F,z0:zb*PS+zw,hgt:v.card.h*PS/sc,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,sideScale,pe:e,
+      rearHead:e===ME&&p===(e.rig||MERIG).head,sh:shadow})};
 }
 const PS=1.35/60;   // world size of one pixel of a puppet
 /* Coat tails must paint OVER trousers from behind as well as from the front.
@@ -1115,14 +1116,27 @@ function avatarPortrait(profile,complexion,hair){
     if(shape===1){capsule(g,2.5,6,2.5,14,2.1,2.4,hairR);
       capsule(g,13,6,13,14,2.1,2.4,hairR)}
     else if(shape===2){capsule(g,3,5,3,11,1.7,2.4,hairR)}
-    paint(g,(x,y)=>((x-7.2)/6.1)**2+((y-6.4)/5.1)**2<=1&&
-      (back||y<3.5+((x|0)%3)*.5||x<3.5||(shape===1&&x>11)),
-      (x,y)=>.66-.24*x/16,hairR);
     if(back){
-      stamp(g,['..n..n.','.n..n..','..nn...'],4,6,{n:hairR[hairR.length-1]});
+      // The old rear sprite left most of the crown as bare skin. A continuous,
+      // layered hair cap follows the entire back of the head, not just the
+      // sparse forelock used on the front portrait. Keep the neck uncovered.
+      paint(g,(x,y)=>{
+        const nx=(x-7.5)/6.05,ny=(y-7.15)/6.0;
+        return nx*nx+ny*ny<=1&&y<13.35+(Math.floor(x*2)%5===0?.3:0);
+      },(x,y)=>.78-.31*x/16-.18*y/18,hairR,false);
+      // Side locks extend down over the ears without becoming a separate
+      // floating piece as the head leans during a walk.
+      paint(g,(x,y)=>y>6.5&&y<13.8&&
+        (x>2.4&&x<4.0||(x>11.5&&x<13.1)),
+        (x,y)=>.45-.10*y/18,hairR,false);
+      stamp(g,['n.n..n.','.n.nn..','..n.n..','n...n..'],4,3,{n:hairR[Math.min(4,hairR.length-1)]});
+      stamp(g,['n..n..n','..n.n..'],4,9,{n:hairR[1]});
       paint(g,(x,y)=>y>14&&y<16.2&&Math.abs(x-7.5)<3.5,()=>.65,RCREAM,false);
       return;
     }
+    paint(g,(x,y)=>((x-7.2)/6.1)**2+((y-6.4)/5.1)**2<=1&&
+      (y<3.5+((x|0)%3)*.5||x<3.5||(shape===1&&x>11)),
+      (x,y)=>.66-.24*x/16,hairR);
     const eyes={k:INK,p:rgb('#2d2827'),s:complexion[1],n:rgb('#e7cfbd'),w:rgb('#f3ead6')};
     stamp(g,['kk..kk.','wp..wp.'],6,7,eyes);
     if(shape===1)stamp(g,['k.....k'],5,6,{k:hairR[0]});
@@ -2813,7 +2827,12 @@ function drawCard(e){
       const tX=-nY,tY=nX,ax=e.x-tX*wid/2,ay=e.y-tY*wid/2,ex=tX*wid,ey=tY*wid,den=dx*ey-dy*ex;if(Math.abs(den)<1e-9)continue;
       const wx=ax-ox,wy=ay-oy,tl=(wx*ey-wy*ex)/den,k=(wx*dy-wy*dx)/den;if(tl<=1e-4||k<0||k>1)continue;
       const t=t0+tl;if(t<0.08||t>=t1||t>=zbuf[x])continue;
-      const front=nX*(ox-e.x)+nY*(oy-e.y)>0,data=front?card.front:card.back,u=front?1-k:k,col=Math.min(card.w-1,u*card.w|0);
+      const facingFront=nX*(ox-e.x)+nY*(oy-e.y)>0;
+      // Third-person camera sits BEHIND the player. Always paint the custom
+      // rear scalp on the direct ray path; reflected rays still use the true
+      // view-facing art so mirrors remain correct.
+      const front=facingFront&&!(THIRD&&j===0&&e.rearHead),
+        data=front?card.front:card.back,u=front?1-k:k,col=Math.min(card.w-1,u*card.w|0);
       const yBot=HZ+(EYE-z0-bob)*PROJ/t,yTop=HZ-(z0+hgt+bob-EYE)*PROJ/t,span=yBot-yTop;
       if(j===0&&(e.sh||!z0)&&!glow){const sh=Math.max(1,0.07*PROJ/t);for(let y=Math.max(0,Math.ceil(yBot));y<Math.min(H,Math.ceil(yBot+sh));y++){const i=(y*W+x)*4;buf[i]*=0.45;buf[i+1]*=0.45;buf[i+2]*=0.45}}
       for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){
