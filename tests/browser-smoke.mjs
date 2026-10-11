@@ -72,7 +72,7 @@ async function caseRun(label,contextOptions){
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+PORT+'/',{waitUntil:'domcontentloaded'});
   try{
-    await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===3&&a.view.width>0},null,{timeout:12000});
+    await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===4&&a.view.width>0},null,{timeout:12000});
   }catch(e){
     const probe=await page.evaluate(()=>({
       ready:document.readyState,bridge:!!window.__AOM_TEST,
@@ -89,9 +89,19 @@ async function caseRun(label,contextOptions){
     return {pixels:bright,screen:[view.width,view.height],buttons:app.FILM.buttons.length}
   });
   assert.ok(render.pixels>10,label+' title should paint visible artwork');
-  assert.equal(render.buttons,3);
+  assert.equal(render.buttons,4);
   await mkdir('browser-artifacts',{recursive:true});
   await page.screenshot({path:'browser-artifacts/title-'+label+'.png'});
+  // Tap the real illustrated difficulty button in each responsive layout.
+  // Its selection must survive the fresh run created by BEGIN YOUR STORY.
+  const difficultyButton=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,b=a.FILM.buttons.find(q=>q.id==='difficulty'),st=a.filmStage(),r=a.view.getBoundingClientRect();
+    return{x:r.left+(st.x+(b.x+b.w/2)*st.s)/a.DW*r.width,
+      y:r.top+(st.y+(b.y+b.h/2)*st.s)/a.DH*r.height}
+  });
+  if(contextOptions.hasTouch)await page.touchscreen.tap(difficultyButton.x,difficultyButton.y);
+  else await page.mouse.click(difficultyButton.x,difficultyButton.y);
+  await page.waitForFunction(()=>window.__AOM_TEST?.FILM.difficulty==='lost',null,{timeout:10000});
   // Actual canvas click through the title screen.
   const begin=await page.evaluate(()=>{
     const a=window.__AOM_TEST,b=a.FILM.buttons[0],st=a.filmStage(),r=a.view.getBoundingClientRect();
@@ -101,6 +111,8 @@ async function caseRun(label,contextOptions){
   if(contextOptions.hasTouch)await page.touchscreen.tap(begin.x,begin.y);
   else await page.mouse.click(begin.x,begin.y);
   await page.waitForFunction(()=>window.__AOM_TEST?.G.state==='cinematic',null,{timeout:10000});
+  assert.equal(await page.evaluate(()=>window.__AOM_TEST.G.difficulty),'lost',
+    'new run should inherit selected harder difficulty');
   // Skip the opening using the existing keyboard flow, then use real book UI.
   await page.keyboard.press('Escape');
   await openEvent(page);
@@ -117,7 +129,7 @@ async function caseRun(label,contextOptions){
   assert.equal(await page.evaluate(()=>window.__AOM_TEST.G.note.text),'SECOND OPTION WAS CHOSEN');
   await page.screenshot({path:'browser-artifacts/choice-'+label+'.png'});
   assert.deepEqual(errors,[],label+' should not throw in browser rendering');
-  console.log('BROWSER PASS',label,'title, opening, first and second event choices');
+  console.log('BROWSER PASS',label,'difficulty selected, title, opening, both event choices');
   await context.close();
 }
 
