@@ -106,6 +106,7 @@ export class GameRooms {
     if(Math.abs(msg.floor-p.floor)>1&&p.lastPose)return;
     p.x=x;p.y=y;p.f=f;p.floor=msg.floor;
     p.pose=['stand','run','carry'].includes(msg.pose)?msg.pose:'stand';
+    p.active=msg.active===true;
     p.lastPose=now;
     this.broadcast(p.room,{type:'peer',player:copyPlayer(p)},p.ws);
   }
