@@ -25,7 +25,21 @@ function studio(w=1280,h=720){
   const events={audio:0,intro:0,index:0,release:0,reset:0};
   const G={state:'title',cutSeen:{},journal:false,phrase:'the lamp forgot',wakeT:1.5,winT:1.2,day:2};
   const SND={on:true};
-  const context=vm.createContext({DW:w,DH:h,G,SND,FINE:true,CALM:false,
+  const CHAR={name:'THE READER',gender:0,age:28,outfit:0,coat:0,pants:0,skin:2,hair:1};
+  const APPEARANCE={gender:['MALE','FEMALE','NONBINARY'],outfit:['LONG COAT','HOODED COAT','WAISTCOAT','ARCHIVE ROBE'],
+    coat:[['BURGUNDY','#743844']],pants:[['ONYX','#303038']],skin:[['TAN','#b78361']],hair:[['BLACK','#242027']]};
+  const context=vm.createContext({DW:w,DH:h,G,SND,CHAR,APPEARANCE,FINE:true,CALM:false,
+    characterLabel(field){return field==='age'?CHAR.age+' YEARS':field==='name'?CHAR.name:
+      ['gender','outfit'].includes(field)?APPEARANCE[field][CHAR[field]]:
+        (APPEARANCE[field][CHAR[field]]||['BURGUNDY'])[0]},
+    characterRig(){return Object.fromEntries(['boot','shin','thigh','upper','fore','skirt','chest','waist','collar','shoulder','head','lantern'].map(k=>[k,{scale:2}]))},
+    partAt(){return{cx:1,cy:1,card:{w:3,h:3,front:new Uint8ClampedArray(36)}}},
+    ImageData:class{constructor(data,width,height){this.data=data;this.width=width;this.height=height}},
+    applyCharacter(p){Object.assign(CHAR,p);return CHAR},
+    changeCharacter(field,step){if(field==='name'){CHAR.name='ECHO READER';return}
+      if(field==='age'){CHAR.age=Math.max(18,Math.min(90,CHAR.age+step));return}
+      if(field==='gender')CHAR.gender=(CHAR.gender+step+3)%3;
+      if(field==='outfit')CHAR.outfit=(CHAR.outfit+step+4)%4},
     BUILD:{barriers:new Map(),wrecks:new Map(),planks:0},
     vctx:fakeCanvasContext(),
     document:{createElement(){return{width:0,height:0,getContext:()=>fakeCanvasContext()}}},
@@ -43,11 +57,11 @@ test('game and cinematic engine JavaScript parse',()=>{
   assert.doesNotThrow(()=>new vm.Script(script));
   assert.doesNotThrow(()=>new vm.Script(theatre));
 });
-test('title renders five readable choices on desktop and phone',()=>{
+test('title renders six readable choices on desktop and phone',()=>{
   for(const [w,h] of [[1280,720],[750,1450]]){
     const t=studio(w,h);
     assert.doesNotThrow(()=>t.run('filmDrawTitle()'));
-    assert.equal(t.run('FILM.buttons.length'),5);
+    assert.equal(t.run('FILM.buttons.length'),6);
     assert.equal(t.run('filmStage().portrait'),h>w*1.2);
     const values=t.run('({s:filmStage(),buttons:FILM.buttons.map(b=>({...b}))})');
     for(const b of values.buttons){
@@ -61,7 +75,9 @@ test('title navigation, help and sound toggles are reversible',()=>{
   const t=studio();
   t.run("filmTitleAction('down')");
   assert.equal(t.run('FILM.selection'),1);
-  t.run("filmTitleAction('read')");assert.equal(t.run('FILM.partyMode'),'host');
+  t.run("filmTitleAction('read')");assert.equal(t.run('FILM.customizing'),true);
+  t.run("filmTitleAction('back')");assert.equal(t.run('FILM.customizing'),false);
+  t.run("filmTitleAction('down');filmTitleAction('read')");assert.equal(t.run('FILM.partyMode'),'host');
   t.run("filmTitleAction('down');filmTitleAction('read')");assert.equal(t.run('FILM.difficulty'),'lost');
   t.run("filmTitleAction('down');filmTitleAction('read')");assert.equal(t.run('FILM.help'),true);
   assert.doesNotThrow(()=>t.run('filmDrawTitle()'));
@@ -132,4 +148,30 @@ test('difficulty mode cycles through four challenge durations and back',()=>{
   assert.equal(t.run('FILM.difficulty'),'reader');
   t.run("filmTitleAction('prev')");
   assert.equal(t.run('FILM.difficulty'),'condemned');
+});
+
+
+test('character creator is keyboard/touch navigable in portrait and landscape',()=>{
+  for(const [w,h] of [[1280,720],[750,1450]]){
+    const t=studio(w,h);
+    t.run("filmTitleAction('character');filmDrawTitle()");
+    assert.equal(t.run('FILM.customizing'),true);
+    assert.equal(t.run('FILM.buttons.length'),9);
+    assert.equal(t.run("FILM.buttons.filter(b=>b.id.startsWith('char:')).length"),9);
+    const values=t.run('({s:filmStage(),buttons:FILM.buttons.map(b=>({...b}))})');
+    for(const b of values.buttons){
+      assert.ok(b.x>=0&&b.y>=0&&b.x+b.w<=values.s.w&&b.y+b.h<=values.s.h,'creator row within canvas');
+      const x=values.s.x+(b.x+b.w*.8)*values.s.s,y=values.s.y+(b.y+b.h/2)*values.s.s;
+      const choice=t.run('filmHit('+x+','+y+')');
+      assert.equal(choice,b.id==='char:done'?'char:done':b.id+':next');
+    }
+    t.run("filmTitleAction('char:gender:next')");
+    assert.equal(t.run('CHAR.gender'),1);
+    t.run("filmTitleAction('char:age:next')");
+    assert.equal(t.run('CHAR.age'),29);
+    t.run("filmTitleAction('char:name:next')");
+    assert.equal(t.run('CHAR.name'),'ECHO READER');
+    t.run("filmTitleAction('char:done')");
+    assert.equal(t.run('FILM.customizing'),false);
+  }
 });
