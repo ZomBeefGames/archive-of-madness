@@ -2208,7 +2208,7 @@ function setWeapon(w){if(!hasWeapon(w)){sfx(w==='torch'?'NO TORCH':w==='rod'?'NO
 function cycleWeapon(){const L=['press','rod','oil','torch'];let i=L.indexOf(G.weapon);for(let k=0;k<L.length;k++){i=(i+1)%L.length;if(hasWeapon(L[i])){setWeapon(L[i]);return}}}
 function doSwing(){
   if(G.swingCd>0)return;
-  const barrier=portableTarget();
+  const barrier=typeof portableTarget==='function'?portableTarget():null;
   if(barrier&&!barrier.wreck){G.swingCd=.44;G.swing=1;snd('clack');
     buildOperate('hit',{id:barrier.item.id});return}
   if(G.weapon==='oil'){throwOil();return}
