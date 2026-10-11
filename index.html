@@ -158,6 +158,7 @@ function galleryZone(i,j,fl=G.floor){
   let type=roll<.60?'normal':roll<.76?'burned':roll<.85?'burning':roll<.97?'barricaded':'refuge';
   if(G.startGallery===i+','+j+':'+fl)type='normal'; // do not spawn the player inside a fire or a locked doorway
   z={key,type,seed,side:r()<.5?-1:1,opened:false,breached:false,salvaged:false};
+  if(typeof NET!=='undefined'&&NET.zones.has(key))Object.assign(z,NET.zones.get(key));
   G.zoneState.set(key,z);return z;
 }
 function crossingZone(ci,cj,fl=G.floor){
@@ -169,6 +170,7 @@ function crossingZone(ci,cj,fl=G.floor){
   const type=hub?(v<.58?'plain':v<.82?'barricaded':v<.93?'scorched':'vigil')
     :(v<.35?'plain':v<.55?'ash':v<.70?'barricaded':v<.85?'watch':v<.95?'collapsed':'shrine');
   z={key,type,seed,hub,opened:false,breached:false,salvaged:false};
+  if(typeof NET!=='undefined'&&NET.zones.has(key))Object.assign(z,NET.zones.get(key));
   G.zoneState.set(key,z);return z;
 }
 /* Portable boards share the same collision function as every moving character.
@@ -204,7 +206,7 @@ function wreckageTarget(){
   return best;
 }
 function buildOperate(action,item={}){
-  if(NET.ready){
+  if(typeof NET!=='undefined'&&NET.ready){
     NET.send({type:'barrier',action,...item});
     return true;
   }
@@ -265,7 +267,7 @@ function buildRead(){
   }
   const w=wreckageTarget();
   if(w){
-    if(NET.ready){buildOperate('salvage',{key:w.zone.key,x:w.x,y:w.y,floor:G.floor});
+    if(typeof NET!=='undefined'&&NET.ready){buildOperate('salvage',{key:w.zone.key,x:w.x,y:w.y,floor:G.floor});
       // State and inventory are committed by the room server.
     }else buildOperate('salvage',{key:w.zone.key});
     openNote('RECLAIMED WOOD','The broken boards can be moved now. Carry them and place a barricade with B, or tap BUILD on the screen. Point at a placed barricade and use B to reinforce it. After three reinforcements it cannot be destroyed.',
