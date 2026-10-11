@@ -17,9 +17,19 @@ python3 -m http.server 8000
 
 ## Title screen & cinematic scenes
 
-The illustrated **ZomBeef Games** title screen uses pixel-paper, ink, brass and lantern motifs, with a responsive **Begin Your Story / Play Mode / Difficulty / How to Play / Sound** menu. Play Mode cycles through **Single Player**, **Create Co-op Room**, and **Join Co-op Room**. W/S selects a row; A/D or Left/Right cycles the selected mode or difficulty; Enter confirms. Touch players tap the row to cycle it, then tap Begin.
+The illustrated **ZomBeef Games** title screen uses pixel-paper, ink, brass and lantern motifs, with a responsive **Begin Your Story / Character / Play Mode / Difficulty / How to Play / Sound** menu. The Character row opens an illustrated character creator with a live 3D-style paper-puppet preview. Play Mode cycles through **Single Player**, **Create Co-op Room**, and **Join Co-op Room**. W/S selects a row; A/D or Left/Right cycles modes or settings; Enter confirms. On phones, tap each setting directly before starting the story.
 
 Beginning a new run now plays a four-shot opening sequence before the familiar "burned into your mind" introduction. The first nearby Purifier triggers a two-shot warning; your first interaction with the Index triggers another two-shot reveal. Daybreak and finding your page have animated book-and-parchment interludes. All story scenes pause active combat and game time, then return to the original action. **E / Enter / Space or tap to advance; Escape, X or the top-right SKIP label to skip**. Scene reveals occur once per run, and the animation respects reduced-motion preferences.
+
+## Character creation
+
+Select **Character** on the title screen before beginning a run. Personalize your librarian using eight fields: **name**, **male / female / nonbinary presentation**, **age (18–90)**, **clothing style**, **coat color**, **trouser color**, **skin tone**, and **hair color**. The four outfit silhouettes are **long coat**, **hooded coat**, **waistcoat**, and **archive robe**. There are eight coat colors, six trouser colors, six skin tones, and seven hair colors.
+
+The character preview is composed from the same hand-painted, jointed front/back paper-puppet components used in the game. Different clothing styles change the character silhouette, colors change the actual costume and head pixels, and age changes hair highlights and facial marks. Age and presentation are cosmetic and do **not** change health, damage, or difficulty.
+
+On desktop, use **W/S** to select a field, **A/D** or **Left/Right** to change it, **Enter** to edit or advance, and **Escape** to finish. On phones, tap a row's arrows to change an attribute; tapping **Name** opens the phone keyboard. Press **Finish Character** to return to the title screen. Your appearance is saved locally in the browser for subsequent runs.
+
+Co-op characters send their chosen name and appearance to the multiplayer server. Other readers see the correct clothing, face, hair and age-dependent art instead of a generic NPC costume; names are also visible in the co-op HUD. The server validates appearance values before sharing them. Changing clothes remains a cosmetic, pre-run action.
 
 ## Difficulty and playthrough length
 
@@ -40,7 +50,7 @@ Archive proofs are unique discoveries. Recover them by clearing a gallery barric
 
 This update supports real **invite-code multiplayer** on the same Railway deployment. One reader opens the title menu, selects **Create Co-op Room**, and chooses **Enter the Shared Library**. The game shows a six-character room code. Tap the CO-OP panel or press **C** to share a link. Your friend opens that link, chooses **Enter the Shared Library**, and joins the same session. Alternatively select **Join Co-op Room** and enter the code manually. You can see other readers moving in the Library as distinct paper-puppet librarians, and write short messages with **T** on desktop.
 
-**Currently shared across the network:** up to eight live player positions and visible characters, room membership, text chat, original barricades cleared or salvaged, your recovered wood inventory, and the placement, destruction, retrieval, and reinforcement state of movable barricades. Everyone in the room sees the same constructed obstacles, and they affect local movement/pathing.
+**Currently shared across the network:** up to eight live player positions, their selected character names and customized avatars, room membership, text chat, original barricades cleared or salvaged, your recovered wood inventory, and the placement, destruction, retrieval, and reinforcement state of movable barricades. Everyone in the room sees the same constructed obstacles, and they affect local movement/pathing.
 
 **Currently individual:** enemies and their combat state, NPC conversations and group-event outcomes, inventories other than barricade planks, journal quests, story choices, day clocks and endings. The same initial Library coordinates and phrase are used when you join, but this is a **session co-op foundation, not yet a fully synchronized campaign or combat simulation**. Co-op actions are validated by the server; the room supports one Railway instance and does not support shared progression across server replicas.
 
@@ -62,7 +72,7 @@ Both solo games and co-op sessions use the same interactions. An indestructible 
 
 | Action | Keyboard | Touch |
 | --- | --- | --- |
-| Title menu | W/S chooses a row; A/D changes Play Mode or Difficulty; Enter confirms | Tap Play Mode or Difficulty to cycle; tap Begin |
+| Title / character creator | W/S chooses a row; A/D changes a setting; Enter edits or confirms; Escape closes creator | Tap Character, edit name with keyboard and other rows with arrows, then tap Finish |
 | Advance a cinematic | E, Enter or Space | Tap screen |
 | Skip a cinematic | Escape or X | Tap SKIP (top right) |
 | Walk / turn | W A S D or arrows | Thumbstick (bottom left) |
@@ -148,6 +158,6 @@ The client remains a self-contained `index.html`. Railway runs `server.mjs`, whi
 
 ## Checks
 
-Run `npm install` and `npm run check` (Node 18 or newer, with the `ws` runtime dependency installed). It parses the actual game JavaScript and runs focused regressions for combat, bodies, character rigs, environment persistence, **four difficulty levels, progression day gates, distinct sentence and proof requirements, shelf-mark access, new encounter consequences**, and event input. GitHub Actions also runs headless Chromium smoke tests of the actual desktop and phone title menu, difficulty selector, cutscenes and both event choices. The browser job uses Playwright only in CI; the live game remains dependency-free.
+Run `npm install` and `npm run check` (Node 18 or newer, with the `ws` runtime dependency installed). It parses the actual game JavaScript and runs focused regressions for combat, bodies, character rigs, **customized faces, outfit silhouettes, colors, ages, name validation and co-op appearance replication**, environment persistence, difficulty, progression, and event input. GitHub Actions also runs headless Chromium smoke tests of the actual desktop and phone title menu, difficulty selector, cutscenes and both event choices. The browser job uses Playwright only in CI; the live game remains dependency-free.
 
 The visual presentation now also includes richer engraved type, detailed glass oil flasks, refined incense sticks, patterned food bowls, brighter multi-tier timber barricades with metal bracing, and collectible splinter artwork. The visual presentation continues to use detailed jointed paper-cutout characters, engraved brass gauges, leather-bound journal covers, layered parchment pages, and illustrated lanterns and hand tools. Character textures render at twice their original sampling density while retaining their existing world size and animation pivots.
