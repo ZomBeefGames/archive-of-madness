@@ -1116,6 +1116,7 @@ function encTalk(){
       return true}}
   return false}
 function encChoose(up){const e=G.encOn,D=e&&ENCS[e.enc];if(!D){closeBook();return}
+  HUI.encHover=-1;
   e.keep=false;const msg=(up?D.A:D.B)(e);G.choice=null;if(!e.keep){e.state='talked';e.t=0}else if(e.state==='idle'){/* try again */}
   G.note={title:D.title,text:msg};G.verdict='';drawBook()}
 function encClosed(){const e=G.encOn;if(!e)return;G.encOn=null;const D=ENCS[e.enc];if(e.state==='said'){if(D.close)D.close(e);else{e.state='talked';e.t=0}}}
@@ -2304,12 +2305,23 @@ function drawBook(){
   if(b.shelf>1)g.fillText(FINE?'▲ W · shelf above':'▲ shelf above',t.w/2,5);if(b.shelf<5)g.fillText(FINE?'▼ S · shelf below':'▼ shelf below',t.w/2,t.h-18);g.textAlign='left';
 }
 /* a note card: the mirror, a closet, the Index, ash - or the stair, where each page is a way to go */
-const HUI={rows:[],buy:null,enc:[]};
+const HUI={rows:[],buy:null,enc:[],encHover:-1};
 /* Hit boxes live in book-texture coordinates, never screen halves.
    Both event choices are printed on the SAME page in landscape and portrait. */
 function eventChoiceAt(x,y){
   if(G.choice!=='enc'||!G.encOn)return -1;
   return HUI.enc.findIndex(r=>x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3]);
+}
+/* Share the exact page coordinate transform across every input method. */
+function eventChoiceAtScreen(x,y){
+  const r=bookCard.rect;
+  if(!r||x<r.x0||x>r.x1||y<r.y0||y>r.y1||r.x1<=r.x0||r.y1<=r.y0||!TX.book)return -1;
+  return eventChoiceAt((x-r.x0)*TX.book.w/(r.x1-r.x0),(y-r.y0)*TX.book.h/(r.y1-r.y0));
+}
+function eventHover(n){
+  if(HUI.encHover===n)return;
+  HUI.encHover=n;
+  if(G.state==='book'&&G.choice==='enc')drawBook();
 }
 function drawNote(g,px,py,pw,ph,x2,y2){
   const n=G.note,st=G.choice==='stairs';HUI.enc=[];
@@ -2321,18 +2333,24 @@ function drawNote(g,px,py,pw,ph,x2,y2){
                     {title:D.b,desc:f(D.bd),top:y2+ph*.59,bottom:y2+ph*.84}];
     HUI.enc=sections.map(r=>[x2+20,r.top,x2+pw-20,r.bottom]);
     sections.forEach((r,i)=>{
-      const yy=i===0?y2+ph*.42:y2+ph*.68;
-      g.fillStyle=i===0?'rgba(156,66,45,.10)':'rgba(114,82,55,.09)';
-      g.fillRect(x2+21,r.top,pw-42,r.bottom-r.top);
-      g.strokeStyle='rgba(138,98,59,.48)';g.lineWidth=2;
-      g.strokeRect(x2+21,r.top,pw-42,r.bottom-r.top);
-      g.fillStyle='#b3261e';g.font='bold 25px Georgia,serif';
-      g.fillText((i===0?'I.  ':'II.  ')+r.title,x2+34,yy,pw-72);
-      g.fillStyle='#2a2018';g.font='italic 19px Georgia,serif';
-      g.fillText(r.desc,x2+38,yy+30,pw-76);
+      const chosen=HUI.encHover===i,rect=HUI.enc[i],hh=rect[3]-rect[1];
+      g.fillStyle=chosen?'rgba(179,38,30,.20)':i===0?'rgba(156,66,45,.10)':'rgba(114,82,55,.09)';
+      g.fillRect(rect[0],rect[1],rect[2]-rect[0],hh);
+      g.strokeStyle=chosen?'#b3261e':'rgba(138,98,59,.54)';g.lineWidth=chosen?4:2;
+      g.strokeRect(rect[0]+1,rect[1]+1,rect[2]-rect[0]-2,hh-2);
+      const tx=x2+35;
+      g.fillStyle=chosen?'#9f231b':'#b3261e';g.font='bold 22px Georgia,serif';
+      const titleLines=wrapG(g,(i===0?'1.  ':'2.  ')+r.title,pw-78).slice(0,2);
+      let yy=r.top+Math.min(31,hh*.26);
+      for(const line of titleLines){g.fillText(line,tx,yy,pw-72);yy+=23}
+      g.font='italic 17px Georgia,serif';g.fillStyle='#493424';
+      const maxDesc=Math.max(1,Math.min(3,Math.floor((r.bottom-yy-9)/21)));
+      for(const line of wrapG(g,r.desc,pw-80).slice(0,maxDesc)){g.fillText(line,tx+3,yy+8,pw-76);yy+=21}
+      g.font='bold 12px "Courier New",monospace';g.fillStyle=chosen?'#b3261e':'#91775b';
+      g.fillText(chosen?'▶ SELECT THIS':'TAP TO CHOOSE',x2+pw-149,r.bottom-11,125);
     });
     g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';
-    g.fillText(FINE?'W / S select · tap a choice · E walk away':'tap one choice · tap outside to leave',x2+34,y2+30,pw-65);return}
+    g.fillText(FINE?'W/S or 1/2 choose · E walk away':'tap choice 1 or 2 · outside to leave',x2+34,y2+30,pw-65);return}
   if(G.choice==='hatch'){
     const L=hatchItems(),sel=Math.min(G.hsel,L.length-1),it=L[sel];HUI.rows=[];
     g.font='bold 16px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText('TYPE '+G.type,px+pw-130,py+30);
@@ -3329,6 +3347,10 @@ addEventListener('keydown',ev=>{
     ev.preventDefault();return;
   }
   if(G.state==='book'){
+    if(G.choice==='enc'&&(c==='Digit1'||c==='Numpad1'||c==='Digit2'||c==='Numpad2')){
+      if(!ev.repeat)action((c==='Digit1'||c==='Numpad1')?'up':'down');
+      ev.preventDefault();return;
+    }
     if(c==='ArrowRight'||c==='KeyD'){action('next');ev.preventDefault()}
     else if(c==='ArrowLeft'||c==='KeyA'){action('prev');ev.preventDefault()}
     else if(c==='ArrowUp'||c==='KeyW'){action('up');ev.preventDefault()}
