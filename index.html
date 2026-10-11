@@ -1523,11 +1523,11 @@ function shelvingReady(){
    time or for a price, and the page itself is not on its shelf until the last is done ---- */
 const QSTEPS=[
   {name:'THE FLOOR',how:'Feed the Index a real sentence.'},
-  {name:'THE HEXAGON',how:'Feed the Index two more sentences, on day 2 or later.'},
+  {name:'THE HEXAGON',how:'Supply the distinct sentences and fragment payment required by this difficulty.'},
   {name:'THE WALL',how:'Stand in your hexagon at night, when the lamps are low.'},
-  {name:'THE SHELF',how:'Buy the shelf-mark slip at a food hatch, from day 3.'},
+  {name:'THE SHELF',how:'Buy the shelf-mark slip at the kitchen hatch once its ledger opens.'},
   {name:'THE BOOK',how:'Let another life go: read an ending while your own words still hold.'},
-  {name:'SHELVED',how:'Wait for dawn on day 5 or later. Your page is shelved overnight.'}];
+  {name:'SHELVED',how:'Reach your difficulty’s earliest shelving dawn with all evidence recorded.'}];
 function qDone(n,msg){if(G.q!==n-1)return;G.q=n;G.xp+=5;snd('pickup');sfx(QSTEPS[n-1].name+'!','mind');
   if(n===4&&G.taleDone.some(Boolean))setTimeout(()=>qDone(5),1200);return msg}
 function questLines(){const P=bioPlan(G.phrase),out=[],d=P.f-G.floor,r=difficultyRules(G.difficulty);
@@ -2011,7 +2011,8 @@ function useIndex(){
   // First contact plays once, then resumes the exact original Index interaction.
   if(G.state==='play'&&!G.cutSeen.index&&filmBegin('index','index'))return;
   const P=bioPlan(G.phrase);
-  if(G.q>=2){openNote('THE INDEX','The drums turn and settle. It has told you all it will. The rest the Library shows in other ways.',QSTEPS[Math.min(5,G.q)].how);return}
+  if(G.q>=2){const next=questLines().find(x=>x.startsWith('NEXT · '));
+    openNote('THE INDEX','The drums turn and settle. It has told you all it will. The rest the Library shows in other ways.',next?next.slice(7):QSTEPS[Math.min(5,G.q)].how);return}
   const r=difficultyRules(G.difficulty);
   if(G.q===1&&G.day<r.indexDay){openNote('THE INDEX','The drums will not turn yet. This catalogue opens its second ledger on day '+r.indexDay+'.');return}
   if(G.q===1&&G.sentencesFound<r.sentences){openNote('THE INDEX','This difficulty asks you to discover '+r.sentences+' different true sentences first. You have '+G.sentencesFound+'.');return}
@@ -2141,7 +2142,7 @@ function showPage(isNew){
   if(!G.opened.has(p.key)){
     G.opened.add(p.key);if(isNew)G.books++;
     if(p.kind==='prophecy'){G.sanity=Math.max(0,G.sanity-30);G.dark=Math.min(3,G.dark+1);G.written++;verdict='It describes what you did, in the past tense. −30 sanity. Something dark wakes in your hands.';sfx('PROPHECY','red');snd('bad')}
-    else if(p.kind==='noise'&&page1Mine(b)){G.opened.delete(p.key);verdict='This is your book. Page one is blank, waiting'+(G.q>=5?' for a dawn on day 5 or later.':'.')}
+    else if(p.kind==='noise'&&page1Mine(b)){G.opened.delete(p.key);verdict='This is your book. Page one is blank, waiting'+(G.q>=5?' for your next eligible dawn (day '+difficultyRules(G.difficulty).minDay+'+, with enough true sentences and archive proofs).':'.')}
     else if(p.kind==='noise'){const loss=G.tr.specs?0:isNew?2:1;G.sanity=Math.max(0,G.sanity-loss);verdict=loss?'Noise. Pure noise. −'+loss+' sanity':'Noise. Your grey spectacles blur it kindly.'}
     else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);G.frags+=G.tr.key?2:1;G.xp++;verdict='A real sentence! +6 sanity. The Index will want this.';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));rememberSentence('page|'+p.key);sfx('+6 SANITY','mind')}
     else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;rememberSentence('personal|'+p.key);G.won=true;G.winG=b.g;G.winF=b.f;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
