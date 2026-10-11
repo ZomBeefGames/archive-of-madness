@@ -28,6 +28,8 @@ function setup(portrait=false){
   const g=new Proxy({font:'20px Georgia',measureText:s=>({width:String(s).length*9})},
     {get:(obj,key)=>key in obj?obj[key]:()=>{},set:(obj,key,val)=>(obj[key]=val,true)});
   const ctx=vm.createContext({G,ENCS,FINE:true,PORT:portrait,g,CTLS:{},
+    TX:{book:{w:portrait?800:960,h:portrait?900:720}},
+    bookCard:{rect:{x0:100,x1:700,y0:80,y1:620}},
     wrapG:()=>['sample'],blockG:(ctx,rows,x,y)=>y+70,
     closeBook(){},drawBook(){},snd(){},filmTitleAction(){},filmAdvance(){}
   });
@@ -48,7 +50,9 @@ function setup(portrait=false){
 }
 test('production click handlers have explicit event-row dispatch and correct action mapping',()=>{
   assert.match(script,/else if\(G\.choice==='enc'\)\{const picked=eventChoiceAt\(fx\*TX\.book\.w,fy\*TX\.book\.h\)/);
-  assert.match(script,/if\(picked===0\)action\('up'\);else if\(picked===1\)action\('down'\)/);
+  assert.match(script,/picked>=0&&picked===p\.startChoice/);
+  assert.match(script,/action\(picked===0\?'up':'down'\)/);
+  assert.match(script,/c==='Digit1'\|\|c==='Numpad1'/);
   assert.doesNotThrow(()=>new vm.Script(production));
 });
 for(const portrait of [false,true]){
@@ -78,3 +82,28 @@ test('keyboard W/S outcome routing remains unchanged',()=>{
   assert.deepEqual(a.choices,['first']);
   assert.deepEqual(b.choices,['second']);
 });
+
+
+for(const portrait of [false,true]){
+  const device=portrait?'phone':'desktop';
+  test(device+': book-rect conversion gives the same result as texture coordinates',()=>{
+    const s=setup(portrait);s.render();
+    const rect=s.run('HUI.enc.map(r=>[...r])');
+    for(let i=0;i<2;i++){
+      const [x0,y0,x1,y1]=rect[i];
+      const tex=s.run('TX.book'),r=s.run('bookCard.rect');
+      const sx=r.x0+((x0+x1)/2)/tex.w*(r.x1-r.x0);
+      const sy=r.y0+((y0+y1)/2)/tex.h*(r.y1-r.y0);
+      assert.equal(s.run('eventChoiceAtScreen('+sx+','+sy+')'),i);
+    }
+    assert.equal(s.run('eventChoiceAtScreen(-20,-20)'),-1);
+  });
+  test(device+': hover changes visual focus without committing any event choice',()=>{
+    const s=setup(portrait);s.render();
+    s.run('eventHover(0)');
+    assert.equal(s.run('HUI.encHover'),0);
+    assert.deepEqual(s.choices,[]);
+    s.run('eventHover(-1)');
+    assert.equal(s.run('HUI.encHover'),-1);
+  });
+}
