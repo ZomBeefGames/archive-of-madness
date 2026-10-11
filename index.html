@@ -171,6 +171,16 @@ function crossingZone(ci,cj,fl=G.floor){
   z={key,type,seed,hub,opened:false,breached:false};
   G.zoneState.set(key,z);return z;
 }
+function standingZone(){
+  if(G.inRoom&&G.room)return galleryZone(G.room.i,G.room.j);
+  const c=crossingAt(G.x,G.y);
+  return c.stairs?crossingZone(c.ci,c.cj):null;
+}
+function zoneStatus(z){
+  if(!z)return'OPEN CATWALK';
+  const name=z.hub?CROSS_NAMES[z.type]:CROSS_NAMES[z.type]&&z.type!=='burned'&&z.type!=='burning'&&z.type!=='refuge'?CROSS_NAMES[z.type]:GALLERY_NAMES[z.type];
+  return (name||'THE LIBRARY')+(z.breached?' · BREACHED':z.opened?' · SEARCHED':'');
+}
 function zoneDescription(z){
   if(!z)return'';
   if(z.hub)return({
@@ -1387,12 +1397,18 @@ function addZoneDressing(out){
   for(let i=x0-1;i<=x0+1;i++)for(let j=y0-1;j<=y0+1;j++)if(isStair(i,j))crossingDressing(out,i,j);
 }
 function addZoneFireLights(){
-  const i0=Math.round(LX/P),j0=Math.round(LY/P);
+  const i0=Math.round(LX/P),j0=Math.round(LY/P),near=[];
   for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){
     if(galleryZone(i,j).type!=='burning')continue;
-    const x=i*P,y=j*P;if(Math.hypot(x-LX,y-LY)>17)continue; // only a nearby burning gallery illuminates the scene
-    for(const a of [.85,2.28,4.13])FIREL.push(x+Math.cos(a)*2.85,y+Math.sin(a)*2.85);
+    const x=i*P,y=j*P,d=Math.hypot(x-LX,y-LY);
+    if(d<17)near.push({x,y,d});
   }
+  // Raycasting samples illumination thousands of times a frame. Two nearest
+  // burning galleries give vivid flicker without multiplying the per-pixel
+  // light work across an entire neighborhood of fires.
+  near.sort((a,b)=>a.d-b.d);
+  for(const q of near.slice(0,2))for(const a of [.85,2.28,4.13])
+    FIREL.push(q.x+Math.cos(a)*2.85,q.y+Math.sin(a)*2.85);
 }
 
 
@@ -2408,7 +2424,7 @@ function drawJournal(){
   const t=TX.journal,{g,px,py,pw,ph,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+20);
   g.font='italic 17px Georgia,serif';
-  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Sentences ${G.frags} · Type ${G.type}`,`Grid ${hubStride()} rooms / ${hubStride()} floors · ${G.sentencesFound} found`,`Reset day ${G.nextResetDay} · interval ${G.resetInterval} days`,`Zone: ${G.inRoom?GALLERY_NAMES[galleryZone(G.room.i,G.room.j).type]:crossingAt(G.x,G.y).stairs?CROSS_NAMES[crossingZone(crossingAt(G.x,G.y).ci,crossingAt(G.x,G.y).cj).type]:'OPEN CATWALK'}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
+  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Sentences ${G.frags} · Type ${G.type}`,`Grid ${hubStride()} rooms / ${hubStride()} floors · ${G.sentencesFound} found`,`Reset day ${G.nextResetDay} · interval ${G.resetInterval} days`,`Zone: ${zoneStatus(standingZone())}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
   g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+fadedPhrase()+'"'+(G.echo?'  fading '+G.echo+'/'+ECHO_MAX:''),px+26,yy+28);
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE WAY TO YOUR PAGE · '+G.q+'/6',px+26,yy+64);
@@ -2417,7 +2433,9 @@ function drawJournal(){
   const tk=Object.keys(G.tr).map(k=>TRINKETS[k].name.toLowerCase());if(tk.length){yy+=8;g.font='bold 14px "Courier New",monospace';g.fillText('CARRYING',px+26,yy);yy+=20;g.font='italic 15px Georgia,serif';blockG(g,wrapG(g,tk.join(' · '),pw-52),px+26,yy,18);yy+=18*wrapG(g,tk.join(' · '),pw-52).length}
   if(lives.length){yy+=8;g.font='bold 14px "Courier New",monospace';g.fillText('OTHER LIVES',px+26,yy);yy+=20;g.font='italic 15px Georgia,serif';lives.forEach(l=>{g.fillText(l,px+26,yy);yy+=18})}
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('MAP · FLOOR '+G.floor,x2+24,y2+20);
-  drawMap(g,x2+18,y2+42,pw-36,ph-90);
+  drawMap(g,x2+18,y2+42,pw-36,ph-119);
+  g.font='bold 12px "Courier New",monospace';g.fillStyle='#6b5a44';
+  g.fillText('X burned · ! fire · # sealed · + refuge',x2+24,y2+ph-59,pw-44);
   g.font='bold 13px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText('♪ sound '+(SND.on?'on':'off')+(FINE?' · M':' · tap here'),x2+24,y2+ph-36);
 }
 /* a sketch map of this floor around you: galleries you have searched are shaded, the vestibules between them are the
@@ -2449,6 +2467,12 @@ function drawMap(g,x0,y0,w,h){
     const zone=galleryZone(i,j);hexPath(g,X(x),Y(y),R*sc);
     const zoneFill=zone.type==='burned'?'#3b3735':zone.type==='burning'?'#b74429':zone.type==='barricaded'?'#936645':zone.type==='refuge'?'#b0bdad':'#efe5c8';
     g.fillStyle=here?'#c9a46a':seen?zoneFill:'#efe5c8';g.fill();g.strokeStyle='#6b5a44';g.stroke();
+    if((seen||here)&&zone.type!=='normal'){
+      const glyph={burned:'X',burning:'!',barricaded:'#',refuge:'+'}[zone.type];
+      g.font='bold 14px "Courier New",monospace';g.fillStyle='#f4e7c8';g.textAlign='center';
+      g.fillText(glyph,X(x),Y(y)+4);g.textAlign='left';
+      if(zone.opened||zone.breached){g.strokeStyle='#f3d388';g.lineWidth=2;g.beginPath();g.arc(X(x),Y(y),R*sc*.7,0,Math.PI*2);g.stroke()}
+    }
     g.beginPath();g.arc(X(x),Y(y),RS*sc,0,Math.PI*2);g.strokeStyle='rgba(42,32,24,.35)';g.stroke()}
   if(G.q>=2){const Pl=bioPlan(G.phrase),ti=Pl.i,tj=Pl.j;
     let mx=X(ti*P),my=Y(tj*P);const off=mx<x0+10||mx>x0+w-10||my<y0+10||my>y0+h-10;
@@ -3240,6 +3264,16 @@ function display(dt){
   texT-=dt;if(texT<=0){texT=0.1;drawVit();drawFaceTex();drawStat();if(G.journal)drawJournal()}
   vctx.imageSmoothingEnabled=false;vctx.drawImage(scene,0,0,W,H,0,0,DW,DH);
   if(SCENEVIGNETTE){vctx.fillStyle=SCENEVIGNETTE;vctx.fillRect(0,0,DW,DH)}
+  if(G.state==='play'&&G.inRoom){
+    const z=standingZone();
+    if(z&&z.type==='burning'){
+      const heat=Math.max(0,Math.min(1,(Math.hypot(G.x-G.room.cx,G.y-G.room.cy)-1.7)/2));
+      const flicker=.025+.02*heat*(.5+.5*Math.sin(G.time*11+z.seed));
+      vctx.fillStyle='rgba(235,83,29,'+flicker+')';vctx.fillRect(0,0,DW,DH);
+    }else if(z&&z.type==='burned'){
+      vctx.fillStyle='rgba(22,18,17,.055)';vctx.fillRect(0,0,DW,DH);
+    }
+  }
   const low=G.sanity<25?(25-G.sanity)/25:0,L=LAY,st=G.state;
   if(st==='play'){
     const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r);
