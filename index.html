@@ -2399,6 +2399,19 @@ function doSwing(){
   const barrier=typeof portableTarget==='function'?portableTarget():null;
   if(barrier&&!barrier.wreck){G.swingCd=.44;G.swing=1;snd('clack');
     buildOperate('hit',{id:barrier.item.id});return}
+  if(typeof NET!=='undefined'&&NET.ready){
+    const rod=G.weapon==='rod',torch=torchLit(),oil=G.weapon==='oil';
+    if(oil){throwOil()}else{G.swingCd=rod?.35:torch?.47:.6;G.swing=1;snd(torch?'fire':rod?'poke':'swing')}
+    const reach=rod?2.1:torch?1.65:oil?4:1.35,cone=rod?.40:oil?.55:.80;
+    let target=null,best=reach+.1;
+    for(const e of NET.enemies.values())if(!e.dead&&e.floor===G.floor){
+      const dx=e.x-G.x,dy=e.y-G.y,d=Math.hypot(dx,dy);
+      if(d<best&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<cone){best=d;target=e}
+    }
+    if(target)NET.send({type:'combat',id:target.id,weapon:G.weapon});
+    else if(!oil)sfx('WHUFF');
+    return;
+  }
   if(G.weapon==='oil'){throwOil();return}
   const rod=G.weapon==='rod',torch=torchLit(),reach=rod?2.1:torch?1.65:1.35,cone=rod?0.3:0.65,dmg=(rod?1:2)+Math.min(2,G.dark)+(G.tr.thimble?1:0);
   G.swingCd=rod?0.35:torch?0.47:0.6;G.swing=1;snd(torch?'fire':rod?'poke':'swing');
@@ -2748,9 +2761,14 @@ function renderScene(MEP){
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
   lifeLayers(POSE);
+  if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
+    if(e.floor!==G.floor||Math.hypot(e.x-G.x,e.y-G.y)>35)continue;
+    if(e.type==='pur')purLayers(e,POSE);else seekLayers(e,POSE);
+  }
   if(typeof NET!=='undefined'&&NET.ready)for(const p of NET.peers.values())
     if(p.floor===G.floor&&Math.hypot(p.x-G.x,p.y-G.y)<35){
-      p.rig=FIGRIG[1+(p.coat%2)];figLayers(p,POSE);
+      if(!p.rig)p.rig=FIGRIG[1+(p.coat%2)];
+      figLayers(p,POSE);
     }
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.97-low*0.25;TB=0.9+low*0.2;
@@ -3171,6 +3189,7 @@ const NET={
         for(const key of m.salvaged)this.zones.set(key,{...(this.zones.get(key)||{}),salvaged:true});
         this.peers.clear();for(const p of m.players)if(p.id!==m.id)this.peer(p);
         this.host=m.host;
+        G.ents=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek');
         if(mode==='join')this.applyWorld(m.world);
         this.receiveWorld(m.world,true,m.records);
         this.receiveEnemies(m.enemies||[]);
@@ -4375,7 +4394,7 @@ function drawCoopHUD(){
     g.font='bold '+font+'px "Courier New"';g.fillStyle='#f4d9a0';
     g.fillText('CO-OP  '+NET.code+'  ·  '+(1+NET.peers.size)+'/8',x+13*u,y+8*u,w-24*u);
     g.font=Math.round(12*u)+'px "Courier New"';g.fillStyle='#d1b28d';
-    g.fillText('T CHAT  ·  C / TAP INVITE',x+13*u,y+31*u,w-24*u);
+    g.fillText('DAY '+G.day+' · QUEST '+G.q+'/6 · T CHAT · C INVITE',x+13*u,y+31*u,w-24*u);
     if(NET.peers.size){
       const names=[...NET.peers.values()].slice(0,4).map(p=>p.name);
       g.font=Math.round(12*u)+'px "Courier New"';g.fillStyle='#e5c795';
