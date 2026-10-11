@@ -15,6 +15,7 @@ window.__AOM_TEST={
   get HUI(){return HUI},get TX(){return TX},get bookCard(){return bookCard},
   get DW(){return DW},get DH(){return DH},get ENCS(){return ENCS},
   get ENCRIG(){return ENCRIG},get FIGRIG(){return FIGRIG},
+  get CHAR(){return CHAR},get ME(){return ME},
   filmStage,openBookUI,figLayers,get NET(){return NET},get BUILD(){return BUILD}
 };
 `;
@@ -73,7 +74,7 @@ async function caseRun(label,contextOptions){
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+PORT+'/',{waitUntil:'domcontentloaded'});
   try{
-    await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===5&&a.view.width>0},null,{timeout:12000});
+    await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===6&&a.view.width>0},null,{timeout:12000});
   }catch(e){
     const probe=await page.evaluate(()=>({
       ready:document.readyState,bridge:!!window.__AOM_TEST,
@@ -90,9 +91,27 @@ async function caseRun(label,contextOptions){
     return {pixels:bright,screen:[view.width,view.height],buttons:app.FILM.buttons.length}
   });
   assert.ok(render.pixels>10,label+' title should paint visible artwork');
-  assert.equal(render.buttons,5);
+  assert.equal(render.buttons,6);
   await mkdir('browser-artifacts',{recursive:true});
   await page.screenshot({path:'browser-artifacts/title-'+label+'.png'});
+  // Real desktop and mobile canvas interactions with the character creator.
+  await clickTitle(page,'character',!!contextOptions.hasTouch);
+  await page.waitForFunction(()=>window.__AOM_TEST?.FILM.customizing&&window.__AOM_TEST.FILM.buttons.length===9);
+  await page.screenshot({path:'browser-artifacts/character-'+label+'.png'});
+  await clickTitle(page,'char:gender',!!contextOptions.hasTouch,.82);
+  await clickTitle(page,'char:outfit',!!contextOptions.hasTouch,.82);
+  await clickTitle(page,'char:coat',!!contextOptions.hasTouch,.82);
+  await clickTitle(page,'char:skin',!!contextOptions.hasTouch,.82);
+  await clickTitle(page,'char:hair',!!contextOptions.hasTouch,.82);
+  page.once('dialog',async dialog=>{assert.equal(dialog.type(),'prompt');await dialog.accept('MORGAN '+label.toUpperCase())});
+  await clickTitle(page,'char:name',!!contextOptions.hasTouch,.82);
+  assert.deepEqual(await page.evaluate(()=>{
+    const a=window.__AOM_TEST,c=a.CHAR;
+    return{name:c.name,gender:c.gender,outfit:c.outfit,coat:c.coat,skin:c.skin,hair:c.hair,
+      liveRig:a.ME.rig?.head?.g?.w>0,stored:!!localStorage.getItem('aom.character.v1')}
+  }),{name:'MORGAN '+label.toUpperCase(),gender:1,outfit:1,coat:1,skin:3,hair:2,liveRig:true,stored:true});
+  await clickTitle(page,'char:done',!!contextOptions.hasTouch);
+  await page.waitForFunction(()=>!window.__AOM_TEST?.FILM.customizing&&window.__AOM_TEST.FILM.buttons.length===6);
   // Tap the real illustrated difficulty button in each responsive layout.
   // Its selection must survive the fresh run created by BEGIN YOUR STORY.
   const difficultyButton=await page.evaluate(()=>{
@@ -161,14 +180,14 @@ async function caseRun(label,contextOptions){
 }
 
 
-async function clickTitle(page,id,touch=false){
-  const p=await page.evaluate(which=>{
+async function clickTitle(page,id,touch=false,fraction=.5){
+  const p=await page.evaluate(({which,fraction})=>{
     const a=window.__AOM_TEST,b=a.FILM.buttons.find(x=>x.id===which);
     if(!b)throw Error('Missing menu button '+which);
     const st=a.filmStage(),r=a.view.getBoundingClientRect();
-    return{x:r.left+(st.x+(b.x+b.w/2)*st.s)/a.DW*r.width,
+    return{x:r.left+(st.x+(b.x+b.w*fraction)*st.s)/a.DW*r.width,
       y:r.top+(st.y+(b.y+b.h/2)*st.s)/a.DH*r.height};
-  },id);
+  },{which:id,fraction});
   if(touch)await page.touchscreen.tap(p.x,p.y);
   else await page.mouse.click(p.x,p.y);
 }
@@ -180,7 +199,7 @@ async function coopSmoke(){
   guest.on('pageerror',e=>errors.push('guest: '+e.message));
   try{
     await host.goto('http://127.0.0.1:'+PORT+'/');
-    await host.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===5);
+    await host.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===6);
     await clickTitle(host,'party');
     assert.equal(await host.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'host');
     await clickTitle(host,'begin');
@@ -189,7 +208,7 @@ async function coopSmoke(){
     assert.match(code,/^[A-HJ-NP-Z2-9]{6}$/);
     assert.match(host.url(),new RegExp('room='+code));
     await guest.goto('http://127.0.0.1:'+PORT+'/?room='+code);
-    await guest.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===5);
+    await guest.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===6);
     assert.equal(await guest.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'join');
     await clickTitle(guest,'begin',true);
     await guest.waitForFunction(()=>window.__AOM_TEST?.NET.ready,null,{timeout:12000});
