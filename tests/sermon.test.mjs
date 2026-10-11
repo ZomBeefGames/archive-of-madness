@@ -22,7 +22,7 @@ function game(inRoom) {
     state: 'play', time: 0, health: 100, sanity: 100, frags: 0, tr: {},
     hurtCd: 0, floor: 0, fires: [], swingCd: 0, weapon: 'press', dark: 0 };
   const voices = [];
-  const context = vm.createContext({ G, voices, ENCS: {}, PUR: [],
+  const context = vm.createContext({ G, voices, HUI:{encHover:-1}, ENCS: {}, PUR: [],
     FIGRIG: [[], [], []], ENCRIG: { sleep: [], weep: [], peddler: [], count: [] },
     gaitUpd() {}, voice: (...args) => voices.push(args), sfx() {}, snd() {}, torchLit(){return false}, rememberSentence() {},
     drawBook() {}, closeBook() {}, galleryBarricadeAt(){return null}, burned: new Set() });
