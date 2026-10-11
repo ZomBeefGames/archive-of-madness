@@ -17,7 +17,8 @@ window.__AOM_TEST={
   get ENCRIG(){return ENCRIG},get FIGRIG(){return FIGRIG},
   get CHAR(){return CHAR},get ME(){return ME},
   filmStage,openBookUI,figLayers,get NET(){return NET},get BUILD(){return BUILD},
-  placeOf,getRoom,walkable,airFloor,levelHasWall,
+  placeOf,getRoom,walkable,airFloor,levelHasWall,characterRig,
+  get ENC(){return ENC},get BG(){return BG},
   get VIEW(){return VIEW}
 };
 `;
@@ -183,7 +184,12 @@ async function caseRun(label,contextOptions){
     const a=window.__AOM_TEST,g=a.G;
     g.state='play';g.floor=-587;g.x=10.4;g.y=8.7;g.ang=Math.PI*0.98;
     g.cell=a.placeOf(g.x,g.y);g.room=a.getRoom(0,0);g.inRoom=false;
-    g.journal=false;g.ents=[];a.VIEW.third=true;
+    g.journal=false;g.ents=[];g.phantoms=[];g.day=1;g.clock=0;
+    a.BG.acts=[];a.ENC.list=[];a.VIEW.third=true;
+    // Expose the head rather than hiding it inside the hood selected earlier
+    // by the title-screen customization test. Make skin/hair high contrast.
+    a.CHAR.outfit=0;a.CHAR.gender=0;a.CHAR.skin=0;a.CHAR.hair=0;
+    a.ME.rig=a.characterRig(a.CHAR);
     const footprints=[[6.55,6.55],[6.55,9.45],[9.45,6.55],[9.45,9.45]];
     const transit=footprints.every(([x,y])=>a.airFloor(x,y)&&a.walkable(x,y,.1));
     const ghost=!a.levelHasWall('pillar',-587)&&a.levelHasWall('pillar',-585);
