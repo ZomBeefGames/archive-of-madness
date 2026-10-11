@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install multiplayer runtime dependency
+        run: npm install --no-audit --no-fund --ignore-scripts
       - name: Run game syntax and regression tests
         run: npm run check
 
