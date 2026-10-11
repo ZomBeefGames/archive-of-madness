@@ -28,7 +28,8 @@ function studio(w=1280,h=720){
   const CHAR={name:'THE READER',gender:0,age:28,outfit:0,coat:0,pants:0,skin:2,hair:1};
   const APPEARANCE={gender:['MALE','FEMALE','NONBINARY'],outfit:['LONG COAT','HOODED COAT','WAISTCOAT','ARCHIVE ROBE'],
     coat:[['BURGUNDY','#743844']],pants:[['ONYX','#303038']],skin:[['TAN','#b78361']],hair:[['BLACK','#242027']]};
-  const context=vm.createContext({DW:w,DH:h,G,SND,CHAR,APPEARANCE,FINE:true,CALM:false,
+  const context=vm.createContext({DW:w,DH:h,G,SND,CHAR,APPEARANCE,
+    CHARACTER_FIELDS:['name','gender','age','outfit','coat','pants','skin','hair'],FINE:true,CALM:false,
     characterLabel(field){return field==='age'?CHAR.age+' YEARS':field==='name'?CHAR.name:
       ['gender','outfit'].includes(field)?APPEARANCE[field][CHAR[field]]:
         (APPEARANCE[field][CHAR[field]]||['BURGUNDY'])[0]},
