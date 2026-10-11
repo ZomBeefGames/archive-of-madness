@@ -15,7 +15,7 @@ window.__AOM_TEST={
   get HUI(){return HUI},get TX(){return TX},get bookCard(){return bookCard},
   get DW(){return DW},get DH(){return DH},get ENCS(){return ENCS},
   get ENCRIG(){return ENCRIG},get FIGRIG(){return FIGRIG},
-  filmStage,openBookUI,figLayers
+  filmStage,openBookUI,figLayers,get NET(){return NET},get BUILD(){return BUILD}
 };
 `;
 assert.ok(originalHTML.includes('</script>'));
@@ -73,7 +73,7 @@ async function caseRun(label,contextOptions){
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+PORT+'/',{waitUntil:'domcontentloaded'});
   try{
-    await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===4&&a.view.width>0},null,{timeout:12000});
+    await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===5&&a.view.width>0},null,{timeout:12000});
   }catch(e){
     const probe=await page.evaluate(()=>({
       ready:document.readyState,bridge:!!window.__AOM_TEST,
@@ -90,7 +90,7 @@ async function caseRun(label,contextOptions){
     return {pixels:bright,screen:[view.width,view.height],buttons:app.FILM.buttons.length}
   });
   assert.ok(render.pixels>10,label+' title should paint visible artwork');
-  assert.equal(render.buttons,4);
+  assert.equal(render.buttons,5);
   await mkdir('browser-artifacts',{recursive:true});
   await page.screenshot({path:'browser-artifacts/title-'+label+'.png'});
   // Tap the real illustrated difficulty button in each responsive layout.
