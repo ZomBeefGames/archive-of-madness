@@ -2781,6 +2781,121 @@ const FILM={
   id:null,shot:0,t:0,clock:0,after:null,selection:0,help:false,difficulty:'archivist',
   buttons:[],skipRect:null,backdrop:null,backW:0,backH:0
 };
+/* Cooperative rooms use a real Railway WebSocket, not a simulation.
+   Shared: player movement, solid constructions, their damage/salvage, and chat.
+   Personal: NPC AI, reading decisions and each player's ending/clock. */
+const NET={
+  ws:null,ready:false,id:null,code:'',status:'',peers:new Map(),zones:new Map(),
+  lastPose:0,drawButton:null,shareButton:null,chat:[],
+  send(msg){if(this.ws&&this.ws.readyState===1)try{this.ws.send(JSON.stringify(msg))}catch{}},
+  leave(){
+    if(this.ws)try{this.ws.close(1000,'Leaving Library')}catch{}
+    this.ws=null;this.ready=false;this.id=null;this.code='';this.peers.clear();this.zones.clear();
+    BUILD.barriers.clear();BUILD.wrecks.clear();BUILD.planks=0;
+  },
+  connect(mode,code){
+    this.leave();
+    let roomCode=String(code||'').trim().toUpperCase();
+    if(mode==='join'&&!/^[A-HJ-NP-Z2-9]{6}$/.test(roomCode)){
+      roomCode=String(window.prompt('Enter a six-character Library code:',roomCode)||'').trim().toUpperCase();
+      if(!/^[A-HJ-NP-Z2-9]{6}$/.test(roomCode)){this.status='Enter a valid invite code.';return}
+    }
+    if(typeof WebSocket==='undefined'){this.status='Co-op requires an online server.';return}
+    this.status='Opening a shared Library...';
+    const ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/coop');
+    this.ws=ws;let accepted=false;
+    ws.onopen=()=>{
+      const start={x:G.x,y:G.y,floor:G.floor};
+      this.send({type:'join',mode,room:roomCode,start,difficulty:G.difficulty,phrase:G.phrase,
+        name:'READER '+Math.floor(100+Math.random()*900)});
+    };
+    ws.onmessage=evt=>{
+      if(this.ws!==ws)return;
+      let m;try{m=JSON.parse(evt.data)}catch{return}
+      if(m.type==='welcome'){
+        accepted=true;this.ready=true;this.code=m.code;this.id=m.id;this.status='';
+        BUILD.planks=m.inventory;BUILD.barriers=new Map(m.barriers.map(b=>[b.id,b]));
+        BUILD.wrecks=new Map(m.wrecks.map(w=>[w.id,w]));
+        this.zones.clear();for(const key of m.broken)this.zones.set(key,{breached:true});
+        for(const key of m.salvaged)this.zones.set(key,{...(this.zones.get(key)||{}),salvaged:true});
+        this.peers.clear();for(const p of m.players)if(p.id!==m.id)this.peer(p);
+        if(mode==='join')this.applyWorld(m.world);
+        // The invite is shareable as a normal HTTPS game link.
+        try{const url=new URL(location.href);url.searchParams.set('room',this.code);history.replaceState(null,'',url)}catch{}
+        this.status='ROOM '+this.code+' · '+m.players.length+'/'+8+' READERS';
+        filmBeginStoryNow();
+      }else if(m.type==='peer'||m.type==='peer-join')this.peer(m.player);
+      else if(m.type==='peer-leave')this.peers.delete(m.id);
+      else if(m.type==='zone'){
+        const z=this.zones.get(m.key)||{};
+        Object.assign(z,m);this.zones.set(m.key,z);
+        const current=G.zoneState.get(m.key);if(current)Object.assign(current,z);
+      }else if(m.type==='inventory'){BUILD.planks=m.planks;sfx('BOARDS '+BUILD.planks,'mind')}
+      else if(m.type==='barrier'){
+        if(m.action==='upsert')BUILD.barriers.set(m.barrier.id,m.barrier);
+        if(m.action==='remove')BUILD.barriers.delete(m.id);
+        if(m.action==='wreck')BUILD.wrecks.set(m.wreck.id,m.wreck);
+        if(m.action==='remove-wreck')BUILD.wrecks.delete(m.id);
+      }else if(m.type==='chat'){
+        this.chat.push({text:m.name+': '+m.text,time:performance.now()});this.chat=this.chat.slice(-4);
+      }else if(m.type==='error'){this.status=String(m.message).slice(0,110);sfx(this.status,'red');
+        if(!accepted){try{ws.close()}catch{}}
+      }
+    };
+    ws.onclose=()=>{
+      if(this.ws!==ws)return;
+      this.ready=false;this.ws=null;this.peers.clear();
+      if(!accepted&&G.state==='title')this.status=this.status||'Could not join the Library.';
+      else this.status='Connection lost · return to title to rejoin';
+    };
+    ws.onerror=()=>{if(this.ws===ws&&!accepted)this.status='Could not reach multiplayer server.'};
+  },
+  applyWorld(world){
+    FILM.difficulty=world.difficulty;
+    G.phrase=world.phrase;G.difficulty=world.difficulty;
+    G.x=world.x;G.y=world.y;G.floor=world.floor;G.ang=-Math.PI/2+.35;
+    const room=getRoom(Math.round(G.x/P),Math.round(G.y/P));
+    G.cell=placeOf(G.x,G.y);G.room=room;G.inRoom=G.cell.kind==='g';G.gal=room.gid;
+    G.startGallery=G.gal+':'+G.floor;G.rooms=new Set([G.startGallery]);
+    G.zoneState.clear();G.zoneVisited.clear();G.ents=[];spawnRoom(true);
+  },
+  peer(p){
+    if(!p||p.id===this.id||!Number.isFinite(p.x)||!Number.isFinite(p.y))return;
+    const old=this.peers.get(p.id);
+    if(old){old.tx=p.x;old.ty=p.y;old.tf=p.f;old.floor=p.floor;old.pose=p.pose}
+    else this.peers.set(p.id,{type:'fig',x:p.x,y:p.y,tx:p.x,ty:p.y,f:p.f,tf:p.f,
+      floor:p.floor,coat:(Number(p.coat)||0)%3,pose:'stand',seed:Number(p.id)||1,walk:0});
+  },
+  tick(dt){
+    if(!this.ready)return;
+    for(const p of this.peers.values()){
+      const rate=Math.min(1,dt*11),dx=p.tx-p.x,dy=p.ty-p.y;
+      p.x+=dx*rate;p.y+=dy*rate;p.f+=angDiff(p.tf,p.f)*rate;
+      const moving=Math.hypot(dx,dy)>.04;
+      p.pose=moving?'run':'stand';gaitUpd(p,dt,.5);
+    }
+    const t=performance.now();
+    if(t-this.lastPose>110){
+      this.lastPose=t;this.send({type:'pose',x:G.x,y:G.y,f:G.ang,floor:G.floor,
+        pose:Math.abs(ME.walk||0)>.13?'run':'stand'});
+    }
+  },
+  share(){
+    if(!this.code)return;
+    const url=location.origin+location.pathname+'?room='+this.code;
+    if(navigator.share){navigator.share({title:'Join my Archives of Madness Library',url}).catch(()=>{})}
+    else if(navigator.clipboard){navigator.clipboard.writeText(url)
+      .then(()=>sfx('INVITE LINK COPIED','mind'))
+      .catch(()=>window.prompt('Share this invite link:',url))}
+    else window.prompt('Share this invite link:',url);
+  },
+  say(){
+    if(!this.ready)return;
+    const text=window.prompt('Send a note to this Library (120 characters):','');
+    if(text)this.send({type:'chat',text:text.slice(0,120)});
+  }
+};
+
 const FILMS={
   opening:[
     {art:'seal',duration:2.5,tag:'A ZOMBEEF GAMES STORY',title:'SOME STORIES ARE ALREADY WRITTEN',text:'Somewhere in the stacks, the library has opened a book with your name on it.'},
