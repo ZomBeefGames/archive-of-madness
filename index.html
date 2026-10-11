@@ -2683,7 +2683,8 @@ function drawStat(){const t=TX.stat,g=t.g;paper(t);
   gridC(g,LANT.slice(0,10),22,26,9,G.oil<=0?{y:'#5a4a2a',f:'#5a4a2a',Y:'#5a4a2a'}:null);
   g.textBaseline='top';g.fillStyle=G.oil<=0?'#b3261e':'#2a2018';g.font='bold 34px Impact,"Arial Black",sans-serif';g.fillText(G.oil<=0?'DARK':'OIL '+String(G.oil).padStart(2,'0'),104,28);
   g.fillStyle='#2a2018';g.font='bold 15px "Courier New",monospace';g.fillText('HEX '+G.gal+' · FLOOR '+G.floor,104,86);
-  g.font='13px "Courier New",monospace';g.fillText('rooms '+G.rooms.size+' · books '+G.books,104,114);if(FINE)g.fillText('J journal',104,140)}
+  g.font='13px "Courier New",monospace';g.fillText('rooms '+G.rooms.size+' · books '+G.books,104,114);
+  g.fillText('boards '+BUILD.planks+' · placed '+BUILD.barriers.size,104,140)}
 function wrapG(g,text,maxW){const words=text.split(' '),lines=[];let cur='';for(const wd of words){const t=cur?cur+' '+wd:wd;if(g.measureText(t).width>maxW&&cur){lines.push(cur);cur=wd}else cur=t}if(cur)lines.push(cur);return lines}
 function blockG(g,lines,x,y,lh){lines.forEach((l,i)=>g.fillText(l,x,y+i*lh));return y+lines.length*lh}
 let PORT=false;
@@ -2802,7 +2803,7 @@ function drawJournal(){
   const t=TX.journal,{g,px,py,pw,ph,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+20);
   g.font='italic 17px Georgia,serif';
-  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()} · ${difficultyRules(G.difficulty).name}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Fragments ${G.frags} · Type ${G.type}`,`Archive proofs ${G.proofs||0}/${difficultyRules(G.difficulty).proofs} · true sentences ${G.sentencesFound}/${difficultyRules(G.difficulty).sentences} · earliest shelf day ${difficultyRules(G.difficulty).minDay}`,`Grid ${hubStride()} rooms / ${hubStride()} floors · ${G.sentencesFound} found`,`Reset day ${G.nextResetDay} · interval ${G.resetInterval} days`,`Zone: ${zoneStatus(standingZone())}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
+  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()} · ${difficultyRules(G.difficulty).name}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Fragments ${G.frags} · Type ${G.type}`,`Archive proofs ${G.proofs||0}/${difficultyRules(G.difficulty).proofs} · true sentences ${G.sentencesFound}/${difficultyRules(G.difficulty).sentences} · earliest shelf day ${difficultyRules(G.difficulty).minDay}`,`Boards carried ${BUILD.planks} · placed ${BUILD.barriers.size} · co-op room ${NET.ready?NET.code:'solo'}`,`Grid ${hubStride()} rooms / ${hubStride()} floors · ${G.sentencesFound} found`,`Reset day ${G.nextResetDay} · interval ${G.resetInterval} days`,`Zone: ${zoneStatus(standingZone())}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
   g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+fadedPhrase()+'"'+(G.echo?'  fading '+G.echo+'/'+ECHO_MAX:''),px+26,yy+28);
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE WAY TO YOUR PAGE · '+G.q+'/6',px+26,yy+64);
@@ -3290,15 +3291,19 @@ function filmHelp(g,w,h,portrait){
     ['WEAPONS','Q, 1-4 OR TAP YOUR WEAPON'],
     ['JOURNAL','J, TAB OR TAP JOURNAL'],
     ['INCENSE','I OR TAP YOUR PORTRAIT'],
-    ['VIEW','V SWITCHES FIRST / THIRD PERSON']
+    ['VIEW','V SWITCHES FIRST / THIRD PERSON'],
+    ['BUILD / REINFORCE','B OR TAP BUILD · 3 BRACES = INVINCIBLE'],
+    ['PLAY TOGETHER','HOST / JOIN ON TITLE · TAP INVITE']
   ]:[
     ['MOVE / TURN','WASD, ARROWS OR THUMBSTICK'],['READ / SEARCH','E, ENTER OR TAP READ'],
     ['LOOK','DRAG OR R / F'],['ATTACK','SPACE OR TAP SWING'],
     ['WEAPONS','Q, 1-4 OR TAP YOUR WEAPON'],['JOURNAL','J, TAB OR TAP JOURNAL'],
-    ['INCENSE','I OR TAP YOUR PORTRAIT'],['VIEW','V SWITCHES CAMERA']
+    ['INCENSE','I OR TAP YOUR PORTRAIT'],['VIEW','V SWITCHES CAMERA'],
+    ['SALVAGE / BUILD','READ BROKEN BOARDS · B TO PLACE'],
+    ['CO-OP CHAT / INVITE','T CHAT · C INVITE · 8 READERS']
   ];
   g.textAlign='left';
-  const y0=portrait?228:229,step=portrait?67:55,cols=portrait?1:2,bw=(w-110)/cols;
+  const y0=portrait?212:229,step=portrait?57:55,cols=portrait?1:2,bw=(w-110)/cols;
   for(let i=0;i<rows.length;i++){
     const col=i%cols,row=Math.floor(i/cols),x=54+col*bw,y=y0+row*step;
     g.fillStyle='#b89767';g.font='bold '+(portrait?19:17)+'px "Courier New"';
@@ -3806,11 +3811,14 @@ function display(dt){
   const low=G.sanity<25?(25-G.sanity)/25:0,L=LAY,st=G.state;
   if(st==='play'){
     const r=Math.max(2,Math.round(DH/300));vctx.fillStyle='rgba(255,236,190,0.55)';vctx.fillRect(Math.round(DW/2-r/2),Math.round(DH/2-r/2),r,r);
-    const b=bodyTarget(),door=b?null:barrierTarget(),cache=b||door?null:galleryCacheTarget(),
+    const portable=portableTarget(),wreck=portable?null:wreckageTarget(),
+      b=portable||wreck?null:bodyTarget(),door=b?null:barrierTarget(),cache=b||door?null:galleryCacheTarget(),
       prop=b||door||cache?null:crossingFeatureTarget(),
-      target=b||door||cache||(prop&&!prop.zone.inspected?prop:null);
+      target=portable||wreck||b||door||cache||(prop&&!prop.zone.inspected?prop:null);
     if(target&&!G.journal){
-      const what=b?'SEARCH BODY':door?'PRY BARRICADE':cache?'SEARCH CACHE':prop.zone.type==='barricaded'?'CLEAR CHECKPOINT':'EXAMINE LANDING';
+      const what=portable?portable.wreck?'PICK UP SPLINTERS':'RECLAIM PLACED BARRICADE':
+        wreck?'SALVAGE WOOD':b?'SEARCH BODY':door?'PRY BARRICADE':cache?'SEARCH CACHE':
+        prop.zone.type==='barricaded'?'CLEAR CHECKPOINT':'EXAMINE LANDING';
       const label=(FINE?'E  ·  ':'READ  ·  ')+what,font=Math.max(13,Math.round(DH*0.021));
       vctx.save();vctx.font='bold '+font+'px Georgia';const w=vctx.measureText(label).width+28,x=(DW-w)/2,y=DH*0.56;
       vctx.fillStyle='rgba(19,14,12,.82)';vctx.fillRect(x,y,w,font+19);
