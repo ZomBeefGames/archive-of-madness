@@ -1070,12 +1070,18 @@ const ENCRIG={
   count:recolorRig(MERIG,c=>COATS.has(c)?hue(150,230,190)(c):c),
   weep:recolorRig(MERIG,c=>COATS.has(c)?hue(150,180,250)(c):c),
   peddler:recolorRig(MERIG,c=>COATS.has(c)?hue(250,120,90)(c):c),
-  sleep:recolorRig(MERIG,c=>COATS.has(c)?hue(250,245,225)(c):c)};
+  sleep:recolorRig(MERIG,c=>COATS.has(c)?hue(250,245,225)(c):c),
+  cartographer:recolorRig(MERIG,c=>COATS.has(c)?hue(160,194,185)(c):c),
+  surgeon:recolorRig(MERIG,c=>COATS.has(c)?hue(212,210,196)(c):c),
+  warden:recolorRig(MERIG,c=>COATS.has(c)?hue(206,164,92)(c):c)};
 for(const kind of Object.keys(ENCRIG))ENCRIG[kind].head=portraitPart(kind);
 // Each recurring encounter has a small identifying costume detail.
 stamp(ENCRIG.rose.chest.g,['nnnnnnnnn','..nnnnn..','...nnn...'],4,2,{n:rgb('#c0b6c9')});
 stamp(ENCRIG.count.chest.g,['kkkkk','knnnk','knnnk','kkkkk'],2,6,{k:INK,n:rgb('#d4c79e')});
 stamp(ENCRIG.peddler.chest.g,['kkkkk','ktttk','ktYtk','ktttk','kkkkk'],1,9,{k:INK,t:rgb('#82613c'),Y:rgb('#d9b96b')});
+stamp(ENCRIG.cartographer.chest.g,['n..n','nnnn','n..n'],5,7,{n:rgb('#bce0d0')});
+stamp(ENCRIG.surgeon.chest.g,['..r..','.rrr.','..r..'],4,6,{r:rgb('#b04235')});
+stamp(ENCRIG.warden.chest.g,['..Y..','YYYYY','..Y..'],4,5,{Y:rgb('#ecc471')});
 const ENCS={
   rose:{title:'AN OLD WOMAN',pose:'stand',rail:true,idle:'hum',every:6,
     text:()=>'She is very, very old, in a grey shawl, one hand on the rail. She looks at you as if you have kept her waiting, and then as if you were someone else entirely.\n\n"It\'s been 84 years..."',
@@ -1104,7 +1110,22 @@ const ENCS={
     text:()=>'His eyes are shut. He is walking very slowly, reciting under his breath, and what he is reciting is "'+G.phrase+'".',
     a:'▲ WAKE HIM',ad:'he will not like it',b:'▼ LISTEN',bd:'your own words, said for you',
     A:e=>{G.sanity=Math.max(0,G.sanity-5);voice('scream',e,{vol:1.3});e.state='flee';e.t=0;e.keep=true;return'His eyes open. He looks at you and screams, "WHO TOLD YOU MY NAME," and runs. −5 sanity.'},
-    B:e=>{const back=G.echo>0;G.echo=Math.max(0,G.echo-1);return back?'You walk beside him and listen. Hearing your words in another mouth, you remember them a little better.':'You walk beside him and listen until he turns a corner you do not.'}}
+    B:e=>{const back=G.echo>0;G.echo=Math.max(0,G.echo-1);return back?'You walk beside him and listen. Hearing your words in another mouth, you remember them a little better.':'You walk beside him and listen until he turns a corner you do not.'}},
+  cartographer:{title:'THE CARTOGRAPHER',pose:'count',idle:'murmur',every:4.7,
+    text:()=>'A librarian spreads a map across both arms. Every street ends in a hexagon. In the margin, your own handwriting appears beside an empty square. "A map can be a confession," she says.',
+    a:'BUY A TRUE ROUTE',ad:'3 type · an archive proof',b:'TEAR OFF THE MARGIN',bd:'+4 type · −7 sanity · a recorded offense',
+    A:e=>{if(G.type<3){e.keep=true;return'"Three letters of type. I cannot sell what is not written."'}G.type-=3;eventProof(e);return'She marks the route you took with a pin of brass. You copy the line into your journal. A surviving route has become proof.'},
+    B:e=>{G.type+=4;G.sanity=Math.max(0,G.sanity-7);G.sins.push(placeWords(G.gal,G.floor)+'you destroyed a map that belonged to someone else.');return'You tear the map in half. Four lead letters spill from the fold, but she knows your face now.'}},
+  surgeon:{title:'THE INK SURGEON',pose:'stand',idle:'whisper',every:5.6,
+    text:()=>'A pale librarian stitches sentences into broken bindings using a needle and black thread. "I can mend a word," they offer. "But it must come from somewhere."',
+    a:'SURRENDER YOUR PAIN',ad:'−9 sanity · restore lost words · archive proof',b:'SELL A FALSE MEMORY',bd:'+5 type · your words fade',
+    A:e=>{G.sanity=Math.max(0,G.sanity-9);G.echo=Math.max(0,G.echo-2);eventProof(e);return'For a moment the needle moves through your own memory. The words come back. You save the stitch pattern in your journal.'},
+    B:e=>{G.type+=5;G.echo=Math.min(ECHO_MAX,G.echo+1);return'They purchase an invented childhood, and you can no longer tell which memory was the lie.'}},
+  warden:{title:'THE LANTERN WARDEN',pose:'carry',idle:'murmur',every:6.1,
+    text:()=>'An old lamplighter carries a bundle of glass chimneys, each holding the name of someone who kept a flame alive. "Give me one measure and I will keep their names."',
+    a:'SHARE A MEASURE',ad:'−1 oil · +1 incense · archive proof',b:'BUY MORE OIL',bd:'4 type · +2 oil',
+    A:e=>{if(G.oil<1){e.keep=true;return'"An empty lantern has nothing to share."'}G.oil--;G.incense++;eventProof(e);return'You pour oil into a small brass cup. The warden gives you incense and engraves the moment onto the glass.'},
+    B:e=>{if(G.type<4){e.keep=true;return'"Four letters for two measures. The glass is worth more than the flame."'}G.type-=4;G.oil+=2;return'He fills your lamp carefully, saving every drop. You leave with two measures of oil.'}}
 };
 const ENC={list:[],t:45};
 /* a spot a few steps ahead that you could walk to; for the old woman it must be at a railing */
@@ -1120,12 +1141,13 @@ function encSpot(rail){
     if(walkable(x,y,0.35)&&Math.hypot(x-G.x,y-G.y)>2.6)return{x,y,out:a+Math.PI}}
   return null}
 function encStart(force){
-  const pool=['laugh','count','weep','peddler','sleep','mob','funeral','sermon','mob'].concat(G.inRoom?['ritual','ritual']:[]);if(!G.met.rose&&(G.day>=2||force==='rose')&&Math.random()<0.35)pool.push('rose','rose');
+  const pool=['laugh','count','weep','peddler','sleep','cartographer','surgeon','warden',
+    'mob','funeral','sermon','auction','trial','choir','watch','firebrigade'].concat(G.inRoom?['ritual','ritual','firebrigade']:[]);if(!G.met.rose&&(G.day>=2||force==='rose')&&Math.random()<0.35)pool.push('rose','rose');
   const id=force||pool[Math.floor(Math.random()*pool.length)],D=ENCS[id];if(D.scene)return sceneStart(id);const sp=encSpot(D.rail);if(!sp)return false;
   const e={type:'fig',enc:id,rig:ENCRIG[id],pose:D.pose,x:sp.x,y:sp.y,out:sp.out,f:sp.out+Math.PI/2,seed:Math.random()*6.28,state:'idle',t:0,said:0,lvl:0,zw:0};
   gaitUpd(e,0,0.5);ENC.list.push(e);if(id==='rose')G.met.rose=true;return true}
 function encUpd(dt){
-  ENC.t-=dt;if(ENC.t<=0&&!ENC.list.length&&G.state==='play'){ENC.t=encStart()?55+Math.random()*45:6}
+  ENC.t-=dt;if(ENC.t<=0&&!ENC.list.length&&G.state==='play'){const d=difficultyRules(G.difficulty);ENC.t=encStart()?d.encMin+Math.random()*d.encSpan:6}
   for(const e of ENC.list){if(e.members){sceneUpd(e,dt);continue}const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=dt;
     if(e.state==='idle'||e.state==='talked'){e.said-=dt;if(e.said<=0&&d<14){e.said=D.every*(0.8+Math.random()*0.5);voice(D.idle,e)}
       if(D.walk){const v=0.35;e.x+=Math.cos(e.out+Math.PI)*v*dt;e.y+=Math.sin(e.out+Math.PI)*v*dt;if(!walkable(e.x,e.y,0.3)){e.out+=Math.PI}}
