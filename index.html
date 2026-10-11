@@ -124,7 +124,7 @@ function airFloor(px,py){const i=Math.round(px/P),j=Math.round(py/P),lx=px-i*P,l
   return false}
 /* where you may stand */
 function walkable(x,y,rad){
-  if(galleryBarricadeAt(x,y,rad)||placedBlockAt(x,y,rad))return false;
+  if(galleryBarricadeAt(x,y,rad)||(typeof placedBlockAt==='function'&&placedBlockAt(x,y,rad)))return false;
   const i=Math.round(x/P),j=Math.round(y/P),lx=x-i*P,ly=y-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
   if(inHexL(lx,ly,A-rad))return lx*lx+ly*ly>=(RS+rad)*(RS+rad);
   if(ay<=HW-rad&&ax>=A-rad-0.05&&ax<=CWI+rad+0.01)return true;
@@ -1611,8 +1611,8 @@ function paintBarricade(level){
       px(x,y,x===1||x===24||y===top||y===top+4?'k':(x+j*7+y)%9===0?'Y':(x*3+y)%7===0?'c':j===1?'t':'y');
     for(const x of[4,21]){px(x,top+2,'G');px(x+1,top+2,'Y')}
   }
-  line(3,2,22,23,'k');line(4,2,23,22,'T');
-  line(22,2,3,23,'k');line(21,2,2,22,'T');
+  line(3,2,22,23,'k');line(4,2,23,22,'c');
+  line(22,2,3,23,'k');line(21,2,2,22,'c');
   for(let j=1;j<=level;j++){
     const x=[0,7,17,12][j];
     for(let y=0;y<h;y++)for(let t=-1;t<=1;t++)px(x+t,y,t===0?'n':'G');
