@@ -35,7 +35,7 @@ function game(mode='archivist'){
   };
   const notes=[],FX=[],voices=[];
   const context=vm.createContext({
-    G,HUI:{encHover:-1},ECHO_MAX:6,TRINKETS:{},MEALS:{bread:{name:'BREAD',cost:0,desc:'food'}},FULLT:45,
+    G,HUI:{encHover:-1},ECHO_MAX:6,DAYLEN:480,TRINKETS:{},MEALS:{bread:{name:'BREAD',cost:0,desc:'food'}},FULLT:45,
     FIGRIG:[{name:'figure0'},{name:'figure1'},{name:'figure2'}],
     ENCRIG:Object.fromEntries(['peddler','cartographer','surgeon','warden','weep','count','sleep'].map(k=>[k,{name:k}])),
     snd:()=>{},sfx:(...v)=>FX.push(v),voice:(...v)=>voices.push(v),
