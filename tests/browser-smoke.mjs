@@ -16,7 +16,10 @@ window.__AOM_TEST={
   get DW(){return DW},get DH(){return DH},get ENCS(){return ENCS},
   get ENCRIG(){return ENCRIG},get FIGRIG(){return FIGRIG},
   get CHAR(){return CHAR},get ME(){return ME},
-  filmStage,openBookUI,figLayers,get NET(){return NET},get BUILD(){return BUILD}
+  filmStage,openBookUI,figLayers,get NET(){return NET},get BUILD(){return BUILD},
+  placeOf,getRoom,walkable,airFloor,
+  get levelHasWall(){return typeof levelHasWall==='function'?levelHasWall:()=>true},
+  get VIEW(){return VIEW}
 };
 `;
 assert.ok(originalHTML.includes('</script>'));
@@ -175,7 +178,29 @@ async function caseRun(label,contextOptions){
   assert.equal(actors.groups,10);assert.equal(actors.solo,8);
   assert.ok(actors.groupParts>=actors.groups*18&&actors.soloParts>=actors.solo*18);
   assert.deepEqual(errors,[],label+' should not throw in browser rendering');
-  console.log('BROWSER PASS',label,'difficulty, opening, both choices, eighteen new NPC/scene puppets');
+  // Regression location: transit hub at (8,8), floor -587 (not a hub),
+  // with the four old pillar footprints around the open spiral stair.
+  const geometry=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G;
+    g.state='play';g.floor=-587;g.x=10.4;g.y=8.7;g.ang=Math.PI*0.98;
+    g.cell=a.placeOf(g.x,g.y);g.room=a.getRoom(0,0);g.inRoom=false;
+    g.journal=false;g.ents=[];a.VIEW.third=true;
+    const footprints=[[6.55,6.55],[6.55,9.45],[9.45,6.55],[9.45,9.45]];
+    const transit=footprints.every(([x,y])=>a.airFloor(x,y)&&a.walkable(x,y,.1));
+    const ghost=!a.levelHasWall('pillar',-587)&&a.levelHasWall('pillar',-585);
+    return{floor:g.floor,transit,ghost};
+  });
+  assert.equal(geometry.floor,-587);assert.equal(geometry.transit,true,
+    label+' baseline landing coordinates');
+  await page.waitForTimeout(350);
+  await page.screenshot({path:'browser-artifacts/transit-negative-'+label+'.png'});
+  await page.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G;g.floor=-585;g.cell=a.placeOf(g.x,g.y);
+  });
+  await page.waitForTimeout(250);
+  await page.screenshot({path:'browser-artifacts/communal-negative-'+label+'.png'});
+  assert.deepEqual(errors,[],label+' should render both upper and lower community floors without JS errors');
+  console.log('BROWSER PASS',label,'event choices, character rig and negative-floor hub/transit screenshots');
   await context.close();
 }
 
