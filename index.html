@@ -1939,10 +1939,10 @@ function archCard(kind){
  if(kind==='chain'){for(const x of [5,12,19])for(let y=1;y<24;y+=3){px(x,y,'G');px(x+1,y+1,'Y')}}
  if(['study','observatory','puriflab','research'].includes(kind)){frame(3,2,22,13,'y');for(let i=0;i<12;i++)px(4+(i*13)%18,3+(i*7)%10,'Y');bar(3,16,22,19,'t');frame(7,20,17,24,'G')}
  if(['obliterated','collapse','ashvoid','skeleton'].includes(kind)){for(const x of [3,9,15,21]){line(x,2+(x%9),x+2,22,'G');line(x+2,12,x+5,18,'t')}for(let x=1;x<24;x++)px(x,23+(x%2),'g')}
- if(kind==='flooded'){for(let y=12;y<25;y+=3)for(let x=2;x<23;x++)px(x,y+(x%3===0?1:0),'b');frame(4,1,8,12,'t');frame(16,3,21,14,'t')}
+ if(kind==='flooded'){for(let y=12;y<25;y+=3)for(let x=2;x<23;x++)px(x,y+(x%3===0?1:0),'G');frame(4,1,8,12,'t');frame(16,3,21,14,'t')}
  if(kind==='quarantine'){frame(2,2,22,24,'G');for(let x=4;x<22;x+=4)line(x,2,x,24,'k');line(2,4,22,23,'r')}
  if(kind==='bindery'){bar(3,13,22,17,'t');bar(7,4,18,12,'n');line(12,4,12,12,'k');frame(6,17,18,23,'G')}
- if(kind==='mirrorhall'){for(let x=2;x<23;x+=7){frame(x,2,x+5,22,'Y');line(x+1,5,x+4,20,'b')}}
+ if(kind==='mirrorhall'){for(let x=2;x<23;x+=7){frame(x,2,x+5,22,'Y');line(x+1,5,x+4,20,'g')}}
  if(kind==='vault'){frame(2,1,22,24,'G');frame(4,3,20,22,'Y');for(let y=6;y<22;y+=4)line(5,y,19,y,'G');px(12,14,'Y')}
  if(['broken','collapsed','burned','patch','beam'].includes(kind)){for(const x of [2,8,14,20]){bar(x,9,x+3,17,kind==='burned'?'g':'t');if(['broken','collapsed'].includes(kind))px(x+1,12,'.')}line(0,5,24,5,'G');line(0,22,24,22,'G');if(kind==='beam')bar(10,5,14,22,'y')}
  if(['service','checkpoint','overlook','fork'].includes(kind)){frame(2,13,22,23,'t');frame(9,3,15,14,'G');line(3,18,21,18,'Y');if(kind==='fork')line(2,6,21,6,'n')}
