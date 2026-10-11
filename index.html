@@ -2229,16 +2229,35 @@ function drawBook(){
   if(b.shelf>1)g.fillText(FINE?'▲ W · shelf above':'▲ shelf above',t.w/2,5);if(b.shelf<5)g.fillText(FINE?'▼ S · shelf below':'▼ shelf below',t.w/2,t.h-18);g.textAlign='left';
 }
 /* a note card: the mirror, a closet, the Index, ash - or the stair, where each page is a way to go */
-const HUI={rows:[],buy:null};
+const HUI={rows:[],buy:null,enc:[]};
+/* Hit boxes live in book-texture coordinates, never screen halves.
+   Both event choices are printed on the SAME page in landscape and portrait. */
+function eventChoiceAt(x,y){
+  if(G.choice!=='enc'||!G.encOn)return -1;
+  return HUI.enc.findIndex(r=>x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3]);
+}
 function drawNote(g,px,py,pw,ph,x2,y2){
-  const n=G.note,st=G.choice==='stairs';
+  const n=G.note,st=G.choice==='stairs';HUI.enc=[];
 
   g.font='bold 17px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(n.title,px+34,py+30);
   g.font='italic 25px Georgia,serif';g.fillStyle='#2a2018';{let yy=py+74;for(const para of n.text.split('\n\n')){yy=blockG(g,wrapG(g,para,pw-68),px+34,yy,34)+16}}
   if(G.choice==='enc'&&G.encOn){const D=ENCS[G.encOn.enc],f=v=>typeof v==='function'?v():v||'';
-    g.font='bold 28px Georgia,serif';g.fillStyle='#b3261e';g.fillText(D.a,x2+34,y2+ph*0.42);g.fillText(D.b,x2+34,y2+ph*0.68);
-    g.font='italic 21px Georgia,serif';g.fillStyle='#2a2018';g.fillText(f(D.ad),x2+38,y2+ph*0.42+34);g.fillText(f(D.bd),x2+38,y2+ph*0.68+34);
-    g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText(FINE?'W / S choose · E walk away':'tap a page · tap outside to walk away',x2+34,y2+30);return}
+    const sections=[{title:D.a,desc:f(D.ad),top:y2+ph*.33,bottom:y2+ph*.56},
+                    {title:D.b,desc:f(D.bd),top:y2+ph*.59,bottom:y2+ph*.84}];
+    HUI.enc=sections.map(r=>[x2+20,r.top,x2+pw-20,r.bottom]);
+    sections.forEach((r,i)=>{
+      const yy=i===0?y2+ph*.42:y2+ph*.68;
+      g.fillStyle=i===0?'rgba(156,66,45,.10)':'rgba(114,82,55,.09)';
+      g.fillRect(x2+21,r.top,pw-42,r.bottom-r.top);
+      g.strokeStyle='rgba(138,98,59,.48)';g.lineWidth=2;
+      g.strokeRect(x2+21,r.top,pw-42,r.bottom-r.top);
+      g.fillStyle='#b3261e';g.font='bold 25px Georgia,serif';
+      g.fillText((i===0?'I.  ':'II.  ')+r.title,x2+34,yy,pw-72);
+      g.fillStyle='#2a2018';g.font='italic 19px Georgia,serif';
+      g.fillText(r.desc,x2+38,yy+30,pw-76);
+    });
+    g.font='bold 14px "Courier New",monospace';g.fillStyle='#6b5a44';
+    g.fillText(FINE?'W / S select · tap a choice · E walk away':'tap one choice · tap outside to leave',x2+34,y2+30,pw-65);return}
   if(G.choice==='hatch'){
     const L=hatchItems(),sel=Math.min(G.hsel,L.length-1),it=L[sel];HUI.rows=[];
     g.font='bold 16px "Courier New",monospace';g.fillStyle='#6b5a44';g.fillText('TYPE '+G.type,px+pw-130,py+30);
@@ -3295,6 +3314,8 @@ function endPtr(ev,cancel){
   else if(G.state==='book'){const r=bookCard.rect,pt=canvasPt(ev);
     if(r&&pt.x>=r.x0&&pt.x<=r.x1&&pt.y>=r.y0&&pt.y<=r.y1){const fx=(pt.x-r.x0)/(r.x1-r.x0),fy=(pt.y-r.y0)/(r.y1-r.y0);if(G.choice==='hatch'){const tx=fx*TX.book.w,ty=fy*TX.book.h,i=HUI.rows.findIndex(q=>tx>=q[0]&&tx<=q[2]&&ty>=q[1]&&ty<=q[3]),B=HUI.buy;
       if(i>=0){G.hsel=i;snd('page');drawBook()}else if(B&&tx>=B[0]&&tx<=B[2]&&ty>=B[1]&&ty<=B[3])action('buy');else action('close')}
+    else if(G.choice==='enc'){const picked=eventChoiceAt(fx*TX.book.w,fy*TX.book.h);
+      if(picked===0)action('up');else if(picked===1)action('down');else action('close')}
     else if(G.choice)action((PORT?fy:fx)<0.5?'up':'down');else if(G.page&&fx>=0.3&&fx<=0.7&&(fy<0.1||fy>0.9))action(fy<0.1?'up':'down');else action(fx<0.3?'prev':fx>0.7?'next':'close')}else action('close')}
 }
 view.addEventListener('pointerup',ev=>endPtr(ev,false));
