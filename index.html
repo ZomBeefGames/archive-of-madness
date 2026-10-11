@@ -581,7 +581,7 @@ const PURIG={
   cape:[0,1,2].map(k=>part(14+2*k,12,7+k,0,g=>{const hw=y=>3.8+k*1.1+y*0.11+(k===0&&y<2?-1.2+y*0.6:0);
     paint(g,(x,y)=>Math.abs(x-7.5-k)<=hw(y)&&(k<2||y<10.6-((x*5|0)%3===0?1.6:0)),(x,y)=>0.55-0.35*(x-7.5-k)/hw(y)-((x|0)%4===1?0.22:0),RCAPE)})),
   torch:part(5,16,2,9,g=>{capsule(g,2.5,4,2.5,15,1.3,1.1,RWOOD);paint(g,(x,y)=>y>0.5&&y<4.6&&Math.abs(x-2.5)<2.1,(x,y)=>0.4-0.1*y,RLEG)}),
-  brand:part(5,15,2,2,g=>{capsule(g,2.5,1.5,2.5,9,1.3,1,RWOOD);capsule(g,2.5,9,2.5,13,1,1.3,RIRON);stamp(g,["e"],2,13,HOT)}),
+  brand:part(5,15,2,6,g=>{capsule(g,2.5,1.5,2.5,9,1.3,1,RWOOD);capsule(g,2.5,9,2.5,13,1,1.3,RIRON);stamp(g,["e"],2,13,HOT)}),
   flame:[["..o...","..oo..",".oOo..",".oOOo.","oOYOo.","oOYYOo",".oYYo.","..oo.."],["...o..","..oo..","..oOo.",".oOOo.",".oOYOo","oOYYOo",".oYYo.","..oo.."],
     [".o....","..oo..",".oOoo.",".oOOo.","oOYOo.","oOYYOo",".oYYOo","..oo.."],["..o...",".oo...",".oOo..","oOOOo.","oOYOo.","oOYYo.",".oYYo.","..oo.."]].map(r=>mkPart(r,PPAL,3,7,false))
 };
@@ -659,6 +659,7 @@ function gaitUpd(e,dt,legW){
   for(let i=0;i<5;i++){const a=e.spr[2*i],v=e.spr[2*i+1],ac=(tg[i]-a)*(i<3?38-i*8:70)-v*(i<3?5:9);e.spr[2*i+1]=v+ac*dt;e.spr[2*i]=a+e.spr[2*i+1]*dt}
 }
 function footAt(u,A,lift){
+  if(Math.abs(A)<.15&&lift<.05)return[0,0,0]; // both heels rest flat when standing still
   if(u<0.5){const s=u/0.5;return[A*(1-2*s),0,s>0.7?(s-0.7)*40:0]}                                  // planted, heel peeling off late
   const s=(u-0.5)/0.5,m=smooth(s);return[-A+2*A*m,lift*Math.sin(Math.PI*s),-14*Math.sin(Math.PI*s)+(1-s)*12]}
 
@@ -680,10 +681,15 @@ function faceToward(f,x,y,e){
 function rigOut(e,out){
   const zw=e.zw||0;if(e.lvl!==undefined){e.lc=placeOf(e.x,e.y);e.fog=FOG[Math.min(AIRLV,Math.abs(Math.round(zw/FH)))]}
   const F=e===ME?e.f:faceToward(e.f,e.x,e.y,e),nX=Math.cos(F),nY=Math.sin(F),tX=-nY,tY=nX,shake=e.hit>0?Math.sin(G.time*70)*e.hit*1.2:0;
-  e._rigFacing=F;
+  // Slight, continuous perspective compression on the sides preserves a sense
+  // of turning without ever letting the cards go edge-on and disappear.
+  const look=Math.atan2(G.y-e.y,G.x-e.x);
+  const sideScale=e===ME?1:1-.10*Math.abs(Math.sin(angDiff(e.f,look)));
+  e._rigFacing=F;e._rigSideScale=sideScale;
   return(p,deg,x,z,depth,glow,shadow)=>{
-    const P=p,v=partAt(P,deg),X=x+shake,sc=P.scale||1,lat=X+(v.card.w/2-v.cx)/sc,zb=z-(v.card.h-v.cy)/sc;
-    out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:F,z0:zb*PS+zw,hgt:v.card.h*PS/sc,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,pe:e,sh:shadow})};
+    const P=p,v=partAt(P,deg),X=x+shake,sc=P.scale||1;
+    const lat=(X+(v.card.w/2-v.cx)/sc)*sideScale,zb=z-(v.card.h-v.cy)/sc;
+    out.push({type:'pp',x:e.x-tX*lat*PS+nX*depth,y:e.y-tY*lat*PS+nY*depth,f:F,z0:zb*PS+zw,hgt:v.card.h*PS/sc,cards:[v.card],frame:0,hit:e.hit,glow,dead:0,ord:depth,sideScale,pe:e,sh:shadow})};
 }
 const PS=1.35/60;   // world size of one pixel of a puppet
 /* Coat tails must paint OVER trousers from behind as well as from the front.
@@ -730,7 +736,10 @@ function armOut(put,R,sx,sz,tx,tz,depth,upL,foL,fdepth){
   const grip=R.fore.gripOffset||0;
   return[hx-Math.sin(fa/DEG)*grip,hz-Math.cos(fa/DEG)*grip,fa]}
 /* where the player is in the puppet's own frame: across the paper (forward +), out of it (toward the front +), and up */
-function rel(e){e.dir=e.dir||1;const dx=LX-e.x,dy=LY-e.y,tX=-Math.sin(e.f),tY=Math.cos(e.f);return[-(dx*tX+dy*tY)/PS,(dx*Math.cos(e.f)+dy*Math.sin(e.f)),0.5/PS]}
+function rel(e){e.dir=e.dir||1;const dx=LX-e.x,dy=LY-e.y,f=e._rigFacing??e.f,tX=-Math.sin(f),tY=Math.cos(f);
+  // Reaching and head-turn tracking must use the SAME billboard frame as the
+  // hands, otherwise a side-on Purifier points its torch away from the player.
+  return[-(dx*tX+dy*tY)/PS,(dx*Math.cos(f)+dy*Math.sin(f)),0.5/PS]}
 
 function purLayers(e,out){
   if(e.ox===undefined)gaitUpd(e,0,0.58);
@@ -849,7 +858,7 @@ const MERIG={
   dim:part(9,14,4,0,g=>stamp(g,["","","","",".....",".....",".kyyk"],0,0,{...LPAL,y:rgb('#5a4a2a')})),
   press:part(10,11,4,10,g=>stamp(g,["kkkkkkkkkk","kIIIIIIIIk","kiiiiiiiik","kkkkiikkkk","...kiik...","...kttk...","...kTtk...","...kttk...","...kTtk...","...kttk...","...kkkk..."],0,0,LPAL)),
   rod:part(4,26,1,21,g=>{capsule(g,1.5,1.5,1.5,24,1,1.2,RWOOD);stamp(g,["n","n"],1,0,LPAL)}),
-  flask:part(6,8,3,7,g=>stamp(g,["..kk..","..kk..",".kccck","kyyyyk","kyYyyk","kyyyyk","kyyyyk",".kkkk."],0,0,LPAL))
+  flask:part(6,8,3,2,g=>stamp(g,["..kk..","..kk..",".kccck","kyyyyk","kyYyyk","kyyyyk","kyyyyk",".kkkk."],0,0,LPAL))
 };
 // Lapels, pocket stitching and a diagonal leather satchel strap.
 for(const g of [MERIG.chest.g,MERIG.chest.bk]){if(!g)continue;
@@ -937,7 +946,7 @@ function figLayers(e,out){
   const fa=footAt(e.gp||0,A,lift),fb=footAt(((e.gp||0)+0.5)%1,A,lift);
   if(pose==='fall'){const k=Math.sin(T*9+seed);fa[0]=6*k;fa[1]=4+3*k;fb[0]=-6*k;fb[1]=4-3*k}
   if(pose==='kneel'){fa[0]=-8;fa[1]=0;fa[2]=75;fb[0]=-10.5;fb[1]=0;fb[2]=75}
-  const bob=walk*1.4*Math.cos(4*Math.PI*((e.gp||0)-0.25))+(pose==='laugh'?Math.abs(Math.sin(G.time*16))*0.9:0),hz=settleHip(26+bob+(pose==='fall'?2:0)+(pose==='kneel'?-12:0),R,11.5,11,[fa,fb]),hx=0,lean=(pose==='fall'?e.spin||0:8*walk*Math.sign(A))+(e.lunge||0)*-20+(pose==='beat'?16+6*Math.sin(T*9+seed):pose==='kneel'?12+3*Math.sin(T*1.3+seed):0);
+  const bob=walk*1.4*Math.cos(4*Math.PI*((e.gp||0)-0.25))+(pose==='laugh'?Math.abs(Math.sin(G.time*16))*0.9:0),hz=settleHip(26+bob+(pose==='fall'?2:0)+(pose==='kneel'?-12:0),R,11.5,11,[fa,fb]),hx=0,lean=(pose==='fall'?e.spin||0:8*walk*Math.sign(A))+(e.lunge||0)*-20+(pose==='beat'?16+6*Math.sin(T*9+seed):pose==='kneel'?12+3*Math.sin(T*1.3+seed):pose==='stand'?1.5*Math.sin(T*1.2+seed):0);
   const ca=lean/DEG,cs=Math.cos(ca),sn=Math.sin(ca),at=(lx,lz)=>[hx+lx*cs+lz*sn,hz-lx*sn+lz*cs],[shx,shz]=at(0.3,13.6),[nkx,nkz]=at(1,16.4),sw=walk*Math.sin(2*Math.PI*(e.gp||0));
   const PT={laugh:k=>[shx+4+k,shz-9+Math.sin(T*16+k)*1.5],weep:k=>[nkx+5-k,nkz-1.5],count:k=>k?[shx+13,shz-3+Math.sin(T*6)*2]:[shx+2,shz-15],sleep:k=>[shx+16,shz-1-k],
       fly:k=>k?[shx+17,shz+1]:[shx-17,shz+1],stand:k=>[shx+2+k,shz-15],kneel:k=>[shx+6,shz-4-k],carry:k=>[shx+4+k*2,shz+3],
@@ -2198,7 +2207,7 @@ function drawCard(e){
   if(THIRD&&e.pe!==ME&&e._d<0.45)return;   // nothing may stand in the camera's face
   const card=e.cards[e.frame||0],FC=e.bill||e.self||e.type==='pp'?e.f:faceToward(e.f,e.x,e.y);
   const dies=(e.type==='pur'||e.type==='seek')&&e.dead,crumple=dies?Math.max(0.12,1-e.dead*1.4):1;
-  const hgt=e.hgt*crumple,wid=e.hgt*card.w/card.h*(dies?1+e.dead*0.3:1);
+  const hgt=e.hgt*crumple,wid=e.hgt*card.w/card.h*(dies?1+e.dead*0.3:1)*(e.sideScale||1);
   const bob=e.type==='pp'?0:(e.type==='flask'||e.type==='type')?0.05+0.03*Math.sin(G.time*3):(e.type==='lamp'?0.02*Math.sin(G.time*1.3+e.x):((e.frame||0)%2===0?0.03:0)),z0=e.z0||0;
   const flashOn=e.hit>0&&Math.floor(G.time*20)%2===0,glow=e.glow||e.type==='lamp'||e.type==='ph'||e.type==='fire';
   const L=glow?1:e.pe&&e.pe.lvl!==undefined?Math.max(0.55*e.pe.fog,e.pe.fog*Math.min(1.45,lightP(e.pe.lc,e.x,e.y,Math.hypot(e.x-LX,e.y-LY))*2.1)):Math.min(1.45,lightP(e.self?G.cell:G.room,e.x,e.y,Math.max(e.self?1.6:e.pe===ME?1.1:0,Math.hypot(e.x-LX,e.y-LY)))*2.1);
