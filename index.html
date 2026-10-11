@@ -1181,7 +1181,12 @@ const ENCRIG={
   sleep:recolorRig(MERIG,c=>COATS.has(c)?hue(250,245,225)(c):c),
   cartographer:recolorRig(MERIG,c=>COATS.has(c)?hue(160,194,185)(c):c),
   surgeon:recolorRig(MERIG,c=>COATS.has(c)?hue(212,210,196)(c):c),
-  warden:recolorRig(MERIG,c=>COATS.has(c)?hue(206,164,92)(c):c)};
+  warden:recolorRig(MERIG,c=>COATS.has(c)?hue(206,164,92)(c):c),
+  binder:recolorRig(MERIG,c=>COATS.has(c)?hue(132,105,83)(c):c),
+  bellkeeper:recolorRig(MERIG,c=>COATS.has(c)?hue(189,172,225)(c):c),
+  orphan:recolorRig(MERIG,c=>COATS.has(c)?hue(107,153,188)(c):c),
+  exile:recolorRig(MERIG,c=>COATS.has(c)?hue(189,97,86)(c):c),
+  glassmaker:recolorRig(MERIG,c=>COATS.has(c)?hue(175,218,218)(c):c)};
 for(const kind of Object.keys(ENCRIG))ENCRIG[kind].head=portraitPart(kind);
 // Each recurring encounter has a small identifying costume detail.
 stamp(ENCRIG.rose.chest.g,['nnnnnnnnn','..nnnnn..','...nnn...'],4,2,{n:rgb('#c0b6c9')});
@@ -1190,6 +1195,11 @@ stamp(ENCRIG.peddler.chest.g,['kkkkk','ktttk','ktYtk','ktttk','kkkkk'],1,9,{k:IN
 stamp(ENCRIG.cartographer.chest.g,['n..n','nnnn','n..n'],5,7,{n:rgb('#bce0d0')});
 stamp(ENCRIG.surgeon.chest.g,['..r..','.rrr.','..r..'],4,6,{r:rgb('#b04235')});
 stamp(ENCRIG.warden.chest.g,['..Y..','YYYYY','..Y..'],4,5,{Y:rgb('#ecc471')});
+stamp(ENCRIG.binder.chest.g,['n...n','.n.n.','..n..','.n.n.','n...n'],5,5,{n:rgb('#dbc39b')});
+stamp(ENCRIG.bellkeeper.chest.g,['.YYY.','YnYnY','YYYYY','..n..'],3,4,{Y:rgb('#cfb16b'),n:INK});
+stamp(ENCRIG.orphan.chest.g,['..rr.','.r..r','..rr.'],4,7,{r:rgb('#a96c6c')});
+stamp(ENCRIG.exile.chest.g,['kkkkk','krrrk','krrrk','kkkkk'],3,6,{k:INK,r:rgb('#973d36')});
+stamp(ENCRIG.glassmaker.chest.g,['..n..','.nYn.','nYYYy','..n..'],3,5,{n:rgb('#c0d4cf'),Y:rgb('#f2dfab'),y:rgb('#b5a27e')});
 const ENCS={
   rose:{title:'AN OLD WOMAN',pose:'stand',rail:true,idle:'hum',every:6,
     text:()=>'She is very, very old, in a grey shawl, one hand on the rail. She looks at you as if you have kept her waiting, and then as if you were someone else entirely.\n\n"It\'s been 84 years..."',
@@ -1219,6 +1229,33 @@ const ENCS={
     a:'▲ WAKE HIM',ad:'he will not like it',b:'▼ LISTEN',bd:'your own words, said for you',
     A:e=>{G.sanity=Math.max(0,G.sanity-5);voice('scream',e,{vol:1.3});e.state='flee';e.t=0;e.keep=true;return'His eyes open. He looks at you and screams, "WHO TOLD YOU MY NAME," and runs. −5 sanity.'},
     B:e=>{const back=G.echo>0;G.echo=Math.max(0,G.echo-1);return back?'You walk beside him and listen. Hearing your words in another mouth, you remember them a little better.':'You walk beside him and listen until he turns a corner you do not.'}},
+  binder:{title:'THE LAST BOOKBINDER',pose:'carry',idle:'murmur',every:4.9,
+    text:()=>'An old bookbinder sews together blank signatures with thread made from a once-red ribbon. Every knot is a person they remember. They hold out a cover labeled with a date that has not happened.',
+    a:'HELP BIND THE TESTIMONY',ad:'−5 sanity · archive proof · the names survive',b:'SELL THEM THE RED RIBBON',bd:'+6 type · a name disappears',
+    A:e=>{G.sanity=Math.max(0,G.sanity-5);eventProof(e);return'You hold each page while the binder stitches it. Five names find a permanent binding. You copy the title into your archive.'},
+    B:e=>{G.type+=6;G.sins.push(placeWords(G.gal,G.floor)+'you sold a page of testimony for lead type.');return'Six letters clatter into your pocket. By the time you leave, one of the names has vanished from the book.'}},
+  bellkeeper:{title:'THE MIDNIGHT BELLKEEPER',pose:'count',idle:'hum',every:5.8,
+    text:()=>'The bellkeeper has no bell, only its shadow drawn in chalk on the floor. They lift a wooden hammer and ask what you want a bell to mean when every floor is awake.',
+    a:'SOUND THE UNMADE BELL',ad:'−6 sanity · +1 incense · archive proof',b:'ASK FOR QUIET',bd:'+5 sanity · a peaceful interval',
+    A:e=>{G.sanity=Math.max(0,G.sanity-6);G.incense++;eventProof(e);voice('hum',e);return'You strike the chalk. Somewhere far above a real bell answers. The keeper writes the distance between sounds in your journal.'},
+    B:e=>{G.sanity=Math.min(100,G.sanity+5);return'You sit beside the silent outline until you can hear your own breath again.'}},
+  orphan:{title:'THE GIRL WITH TWO TITLES',pose:'stand',idle:'whisper',every:4.0,
+    text:()=>'A young reader has two books tucked beneath one arm. The first says I WAS FOUND. The second says I WAS LEFT. "They are both mine," she tells you. "Will you keep one?"',
+    a:'KEEP THE BOOK SHE CHOOSES',ad:'−1 oil to read · +1 sentence · archive proof',b:'LET HER KEEP BOTH',bd:'+12 sanity · no record',
+    A:e=>{if(G.oil<1){e.keep=true;return'There is not enough light to read her small handwriting.'}G.oil--;
+      G.frags+=G.tr.key?2:1;rememberSentence('orphan|'+G.resetEpoch+'|'+Math.round(e.x)+','+Math.round(e.y));eventProof(e);
+      return'She chooses a book with no title. The first page holds a sentence that is true. You record it and give the book back.'},
+    B:e=>{G.sanity=Math.min(100,G.sanity+12);return'You tell her that neither title needs to be surrendered. She smiles like someone opening a door.'}},
+  exile:{title:'THE EXILED CATALOGUER',pose:'weep',idle:'murmur',every:6,
+    text:()=>'A catalogue clerk has been sentenced to carry an empty file drawer. "The punishment," they explain, "is to index every act of kindness, then prove none of it happened."',
+    a:'ATTEST TO ONE KINDNESS',ad:'archive proof · −4 sanity',b:'EXCHANGE A FALSE ENTRY',bd:'+5 type · a lie in your own ledger',
+    A:e=>{G.sanity=Math.max(0,G.sanity-4);eventProof(e);return'You swear that a stranger once shared a lamp with you. The clerk places a small brass number under your hand.'},
+    B:e=>{G.type+=5;G.sins.push(placeWords(G.gal,G.floor)+'you falsified a kindness in the index.');return'The clerk gives you five pieces of type. Their drawer becomes slightly heavier.'}},
+  glassmaker:{title:'THE BLIND GLASSMAKER',pose:'stand',idle:'murmur',every:5.4,
+    text:()=>'A maker of lantern glass can tell how many stories a lamp has seen by the soot on its chimney. Their own lenses are milky white. "A little darkness is worth keeping," they say.',
+    a:'POLISH THE LANTERN GLASS',ad:'+2 oil · −3 sanity · archive proof',b:'LOOK INTO THE BLACK GLASS',bd:'+10 sanity · memories fade by one',
+    A:e=>{G.oil+=2;G.sanity=Math.max(0,G.sanity-3);eventProof(e);return'The lamp is bright and clean again. The glassmaker scratches your initials into the rim as proof it was here.'},
+    B:e=>{G.sanity=Math.min(100,G.sanity+10);G.echo=Math.min(ECHO_MAX,G.echo+1);return'You see the warmest room you ever entered. When you look away, you cannot recall how to find it.'}},
   cartographer:{title:'THE CARTOGRAPHER',pose:'count',idle:'murmur',every:4.7,
     text:()=>'A librarian spreads a map across both arms. Every street ends in a hexagon. In the margin, your own handwriting appears beside an empty square. "A map can be a confession," she says.',
     a:'BUY A TRUE ROUTE',ad:'3 type · an archive proof',b:'TEAR OFF THE MARGIN',bd:'+4 type · −7 sanity · a recorded offense',
@@ -1250,7 +1287,9 @@ function encSpot(rail){
   return null}
 function encStart(force){
   const pool=['laugh','count','weep','peddler','sleep','cartographer','surgeon','warden',
-    'mob','funeral','sermon','auction','trial','choir','watch','firebrigade'].concat(G.inRoom?['ritual','ritual','firebrigade']:[]);if(!G.met.rose&&(G.day>=2||force==='rose')&&Math.random()<0.35)pool.push('rose','rose');
+    'binder','bellkeeper','orphan','exile','glassmaker',
+    'mob','funeral','sermon','auction','trial','choir','watch','firebrigade',
+    'quarantine','council','pilgrims','shelter','ledgerfire'].concat(G.inRoom?['ritual','ritual','firebrigade','quarantine','shelter']:[]);if(!G.met.rose&&(G.day>=2||force==='rose')&&Math.random()<0.35)pool.push('rose','rose');
   const id=force||pool[Math.floor(Math.random()*pool.length)],D=ENCS[id];if(D.scene)return sceneStart(id);const sp=encSpot(D.rail);if(!sp)return false;
   const e={type:'fig',enc:id,rig:ENCRIG[id],pose:D.pose,x:sp.x,y:sp.y,out:sp.out,f:sp.out+Math.PI/2,seed:Math.random()*6.28,state:'idle',t:0,said:0,lvl:0,zw:0};
   gaitUpd(e,0,0.5);ENC.list.push(e);if(id==='rose')G.met.rose=true;return true}
