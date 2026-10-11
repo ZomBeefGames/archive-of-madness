@@ -396,7 +396,11 @@ const PALRGB={};for(const k in PAL)PALRGB[k]=rgb(PAL[k]);
 function buildCard(rows,pal){
   const gw=Math.max(...rows.map(r=>r.length)),gh=rows.length,w=gw+2,h=gh+2;
   const mask=new Uint8Array(w*h),col=new Array(w*h);
-  rows.forEach((r,y)=>[...r].forEach((ch,x)=>{if(ch!=='.'){mask[(y+1)*w+x+1]=1;col[(y+1)*w+x+1]=(pal&&pal[ch])?rgb(pal[ch]):PALRGB[ch]}}));
+  rows.forEach((r,y)=>[...r].forEach((ch,x)=>{if(ch!=='.'){
+    const color=(pal&&pal[ch])?rgb(pal[ch]):PALRGB[ch];
+    if(!color)throw new Error('UNKNOWN PAPER PIXEL '+JSON.stringify(ch)+' AT '+x+','+y);
+    mask[(y+1)*w+x+1]=1;col[(y+1)*w+x+1]=color
+  }}));
   const front=new Uint8ClampedArray(w*h*4),back=new Uint8ClampedArray(w*h*4);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
     const i=y*w+x;let edge=false;
@@ -1275,7 +1279,7 @@ const ZSPR={
     "ktk........ktk","ktk........ktk","ktk..ggg...ktk",
     "ktk........ktk","kttttttttttttk",".kkkkkkkkkkkk."
   ]),
-  ember:buildCard(["..o..",".oOo.","..O..","..o.."]),
+  ember:buildCard(["..o..",".ofo.","..f..","..o.."]),
   boards:buildCard([
     ".....t..t.....","...t.tt.tt.t...","..ktttttttttk..","..ktytytttytk..",
     "ktttttttttttttk","kttyttttttytttk","..ktttttttttk..","...tkttttkt....",
