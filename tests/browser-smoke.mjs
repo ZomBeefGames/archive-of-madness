@@ -200,6 +200,13 @@ async function coopSmoke(){
   try{
     await host.goto('http://127.0.0.1:'+PORT+'/');
     await host.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===6);
+    await clickTitle(host,'character');
+    host.once('dialog',async d=>{await d.accept('WARDEN HOST')});
+    await clickTitle(host,'char:name',false,.82);
+    await clickTitle(host,'char:gender',false,.82);
+    await clickTitle(host,'char:outfit',false,.82);
+    await clickTitle(host,'char:coat',false,.82);
+    await clickTitle(host,'char:done');
     await clickTitle(host,'party');
     assert.equal(await host.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'host');
     await clickTitle(host,'begin');
@@ -218,14 +225,20 @@ async function coopSmoke(){
     const shared=await guest.evaluate(()=>{
       const a=window.__AOM_TEST,p=[...a.NET.peers.values()][0],parts=[];
       a.figLayers(p,parts);return{phrase:a.G.phrase,parts:parts.length,
-        floor:a.G.floor,peerFloor:p.floor};
+        floor:a.G.floor,peerFloor:p.floor,name:p.name,rig:p.rig?.head?.g?.w>0,
+        gender:JSON.parse(p.profileKey).gender,outfit:JSON.parse(p.profileKey).outfit,
+        coat:JSON.parse(p.profileKey).coat};
     });
     assert.ok(shared.parts>=18,'joined companion must have all paper-puppet parts');
+    assert.equal(shared.name,'WARDEN HOST','custom name transmitted to the guest');
+    assert.equal(shared.rig,true,'guest draws host with a real custom paper puppet');
+    assert.deepEqual({gender:shared.gender,outfit:shared.outfit,coat:shared.coat},
+      {gender:1,outfit:1,coat:1},'guest sees the host wardrobe');
     assert.equal(shared.floor,shared.peerFloor);
     assert.equal(shared.phrase,await host.evaluate(()=>window.__AOM_TEST.G.phrase));
     await guest.evaluate(()=>window.__AOM_TEST.NET.send({type:'chat',text:'Hello from the shared Library'}));
     await host.waitForFunction(()=>window.__AOM_TEST?.NET.chat.some(x=>x.text.includes('Hello from')),null,{timeout:8000});
-    console.log('BROWSER PASS co-op',code,'two real sockets, shared world seed, player models and chat');
+    console.log('BROWSER PASS co-op',code,'two real sockets, custom named outfits, world seed, paper puppets and chat');
     assert.deepEqual(errors,[],'No browser errors in connected readers');
   }finally{
     await hostContext.close();await joinContext.close();
