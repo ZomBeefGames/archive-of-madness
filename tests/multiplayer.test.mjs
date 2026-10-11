@@ -3,7 +3,7 @@ import test from 'node:test';
 import {createServer} from 'node:http';
 import {once} from 'node:events';
 import {WebSocket} from 'ws';
-import {GameRooms,attachMultiplayer,MAX_PARTY,validCode} from '../multiplayer.mjs';
+import {GameRooms,attachMultiplayer,MAX_PARTY,validCode,cleanAppearance} from '../multiplayer.mjs';
 
 function mock(){
   return {readyState:WebSocket.OPEN,messages:[],
@@ -148,4 +148,32 @@ test('live WebSocket handshake serves two real clients and one real six-characte
     await Promise.all([once(a,'close'),once(b,'close')]);
     attached.close();await new Promise(resolve=>server.close(resolve));
   }
+});
+
+test('shared appearances are bounded to safe palette, presentation and age choices',()=>{
+  assert.deepEqual(cleanAppearance({gender:1,age:73,outfit:3,coat:6,pants:5,skin:5,hair:6}),
+    {gender:1,age:73,outfit:3,coat:6,pants:5,skin:5,hair:6});
+  assert.deepEqual(cleanAppearance({gender:-1,age:350,outfit:999,coat:Infinity,
+    pants:2.2,skin:'<script>',hair:29}),{
+    gender:0,age:90,outfit:0,coat:0,pants:0,skin:2,hair:1
+  });
+  assert.deepEqual(cleanAppearance(null),{
+    gender:0,age:28,outfit:0,coat:0,pants:0,skin:2,hair:1
+  });
+});
+test('co-op members see each other’s chosen name and appearance in join and pose packets',()=>{
+  const {rooms,host,code}=lobby(),guest=mock();
+  const appearance={gender:1,age:65,outfit:1,coat:7,pants:2,skin:3,hair:4};
+  post(rooms,guest,{type:'join',room:code,name:'MORGAN THE LATE',appearance});
+  assert.equal(guest.messages[0].type,'welcome');
+  assert.equal(guest.messages[0].players.at(-1).name,'MORGAN THE LATE');
+  assert.deepEqual(guest.messages[0].players.at(-1).appearance,appearance);
+  const joined=host.messages.find(m=>m.type==='peer-join');
+  assert.ok(joined);
+  assert.deepEqual(joined.player.appearance,appearance);
+  const hostView=post(rooms,guest,{type:'pose',x:4.5,y:.1,f:1,floor:0,pose:'run'});
+  const seen=host.messages.find(m=>m.type==='peer'&&m.player.id===guest.player.id);
+  assert.ok(seen);
+  assert.deepEqual(seen.player.appearance,appearance);
+  assert.equal(seen.player.name,'MORGAN THE LATE');
 });
