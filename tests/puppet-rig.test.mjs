@@ -64,3 +64,29 @@ test('weapon grips are aligned with the painted hands beyond the IK wrists',()=>
   assert.match(script,/R\.book,-8\+2\*Math\.sin/);
   assert.match(script,/e\._rigFacing\)\*X\*PS/);
 });
+
+
+test('both heels settle flat when standing still',()=>{
+  const t=setup();const poses=t.run('[footAt(0,0,0),footAt(.5,0,0),footAt(.9,0,0)]');
+  poses.forEach((p,i)=>assert.deepEqual([...p],[0,0,0],'idle foot '+i));
+});
+test('paper puppet keeps at least ninety percent of silhouette on side turns',()=>{
+  const t=setup();const q=t.run("(()=>{const e={type:'pur',x:3,y:0,f:Math.PI/2,seed:3,dead:0,hit:0},out=[];purLayers(e,out);return {scale:e._rigSideScale,widths:out.filter(x=>x.type==='pp').map(x=>x.sideScale),facing:e._rigFacing}})()");
+  assert.ok(q.scale>=.90&&q.scale<=1);
+  assert.ok(q.widths.every(w=>w===q.scale));
+  assert.ok(Number.isFinite(q.facing));
+});
+test('head look and torch reach use the same camera-aligned frame as the body',()=>{
+  const t=setup();
+  const values=t.run("(()=>{const e={type:'pur',x:3,y:0,f:Math.PI/2};rigOut(e,[]);const [side,forward]=rel(e);return{side,forward,f:e._rigFacing}})()");
+  assert.ok(Math.abs(values.side)<.00001,'camera is centered, not off to the side of billboard');
+  assert.ok(Math.abs(values.forward)>0,'camera depth must be measurable');
+});
+test('torch brand and oil flask grip pins sit on their painted handles',()=>{
+  const t=setup();
+  const p=t.run("({brand:PURIG.brand.py/PURIG.brand.scale,flask:MERIG.flask.py/MERIG.flask.scale,torch:PURIG.torch.py/PURIG.torch.scale,rod:MERIG.rod.py/MERIG.rod.scale})");
+  assert.ok(p.brand>5&&p.brand<8);
+  assert.ok(p.flask>1&&p.flask<4);
+  assert.ok(p.torch>7&&p.torch<11);
+  assert.ok(p.rod>19&&p.rod<23);
+});
