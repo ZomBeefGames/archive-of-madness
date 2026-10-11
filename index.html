@@ -3113,11 +3113,14 @@ const FILM={
    Personal: NPC AI, reading decisions and each player's ending/clock. */
 const NET={
   ws:null,ready:false,id:null,code:'',status:'',peers:new Map(),zones:new Map(),
-  lastPose:0,drawButton:null,shareButton:null,chat:[],
+  enemies:new Map(),stories:new Map(),world:null,shared:null,host:null,
+  lastPose:0,lastResources:0,endingRequested:false,drawButton:null,shareButton:null,chat:[],
   send(msg){if(this.ws&&this.ws.readyState===1)try{this.ws.send(JSON.stringify(msg))}catch{}},
   leave(){
     if(this.ws)try{this.ws.close(1000,'Leaving Library')}catch{}
     this.ws=null;this.ready=false;this.id=null;this.code='';this.peers.clear();this.zones.clear();
+    this.enemies.clear();this.stories.clear();this.shared=null;this.world=null;
+    this.host=null;this.endingRequested=false;
     BUILD.barriers.clear();BUILD.wrecks.clear();BUILD.planks=0;
   },
   connect(mode,code){
@@ -3146,12 +3149,28 @@ const NET={
         this.zones.clear();for(const key of m.broken)this.zones.set(key,{breached:true});
         for(const key of m.salvaged)this.zones.set(key,{...(this.zones.get(key)||{}),salvaged:true});
         this.peers.clear();for(const p of m.players)if(p.id!==m.id)this.peer(p);
+        this.host=m.host;
         if(mode==='join')this.applyWorld(m.world);
+        this.receiveWorld(m.world,true,m.records);
+        this.receiveEnemies(m.enemies||[]);
+        for(const e of m.stories||[])this.receiveStory({action:'start',story:e});
         // The invite is shareable as a normal HTTPS game link.
         try{const url=new URL(location.href);url.searchParams.set('room',this.code);history.replaceState(null,'',url)}catch{}
         this.status='ROOM '+this.code+' · '+m.players.length+'/'+8+' READERS';
         filmBeginStoryNow();
-      }else if(m.type==='peer'||m.type==='peer-join')this.peer(m.player);
+      }else if(m.type==='world'||m.type==='dawn')this.receiveWorld(m.world);
+      else if(m.type==='resources')this.receiveResources(m.resources,m.tr);
+      else if(m.type==='enemies')this.receiveEnemies(m.enemies||[]);
+      else if(m.type==='combat'){if(m.action==='kill')sfx('THE LIBRARY REMEMBERS THE FALL','mind')}
+      else if(m.type==='damage'&&m.id===this.id){
+        G.health=Math.max(0,G.health-(Number(m.health)||0));
+        G.sanity=Math.max(0,G.sanity-(Number(m.sanity)||0));
+        sfx('AN ENEMY STRIKES','red');snd('hit');if(G.health<=0&&G.state==='play')die();
+      }else if(m.type==='story')this.receiveStory(m);
+      else if(m.type==='host')this.host=m.id;
+      else if(m.type==='ending')this.receiveEnding(m);
+      else if(m.type==='zone-reset'){this.zones.clear();G.zoneState.clear();G.zoneVisited.clear()}
+      else if(m.type==='peer'||m.type==='peer-join')this.peer(m.player);
       else if(m.type==='peer-leave')this.peers.delete(m.id);
       else if(m.type==='zone'){
         const z=this.zones.get(m.key)||{};
@@ -3172,6 +3191,7 @@ const NET={
     ws.onclose=()=>{
       if(this.ws!==ws)return;
       this.ready=false;this.ws=null;this.peers.clear();
+      this.enemies.clear();this.stories.clear();
       if(!accepted&&G.state==='title')this.status=this.status||'Could not join the Library.';
       else this.status='Connection lost · return to title to rejoin';
     };
@@ -3185,6 +3205,104 @@ const NET={
     G.cell=placeOf(G.x,G.y);G.room=room;G.inRoom=G.cell.kind==='g';G.gal=room.gid;
     G.startGallery=G.gal+':'+G.floor;G.rooms=new Set([G.startGallery]);
     G.zoneState.clear();G.zoneVisited.clear();G.ents=[];spawnRoom(true);
+  },
+  receiveResources(resources,tr){
+    if(!resources||typeof resources!=='object')return;
+    // Publish this frame's earned/spent resources before applying a remote
+    // canonical snapshot. Multiple players can collect and spend concurrently.
+    this.sendResourceDeltas();
+    const r={};
+    for(const k of ['oil','type','incense','torches','frags']){
+      const n=resources[k];if(typeof n==='number'&&Number.isFinite(n))r[k]=Math.max(0,n);
+    }
+    for(const [k,v]of Object.entries(r))G[k]=v;
+    if(typeof resources.boards==='number')BUILD.planks=resources.boards;
+    if(tr&&typeof tr==='object')for(const[k,v]of Object.entries(tr))if(v===true)G.tr[k]=true;
+    this.shared={...r};
+  },
+  sendResourceDeltas(){
+    if(!this.ready||!this.shared||G.state==='title')return;
+    const delta={};let any=false;
+    for(const k of ['oil','type','incense','torches','frags']){
+      const d=Math.round((G[k]||0)-(this.shared[k]||0));
+      if(d&&Math.abs(d)<=20){delta[k]=d;this.shared[k]+=d;any=true}
+    }
+    const tr={};
+    for(const[k,v]of Object.entries(G.tr||{}))if(v===true)tr[k]=true;
+    if(any||Object.keys(tr).length)this.send({type:'resources',delta,tr});
+  },
+  receiveWorld(w,initial=false,records=null){
+    if(!w)return;
+    this.world=w;
+    if(initial&&records){
+      G.proofKeys=new Set(records.proofs||[]);
+      G.seenSentences=new Set(records.sentences||[]);
+    }
+    // One server-controlled calendar. Each normal client newDay still performs
+    // its local wake animation and room reset at the *same* epoch transition.
+    if(!initial&&w.day>G.day){
+      for(let k=0;k<Math.min(25,w.day-G.day);k++)newDay();
+      sfx('DAY '+w.day+' · THE SHARED LIBRARY','mind');
+    }
+    if(G.resetEpoch!==w.epoch){G.zoneState.clear();G.zoneVisited.clear();WD.key=null;LAMPS.key=null}
+    G.day=w.day;G.clock=w.clock;G.resetEpoch=w.epoch;
+    G.resetCount=w.resetCount;G.resetInterval=w.resetInterval;G.nextResetDay=w.nextResetDay;
+    G.q=w.quest;G.proofs=w.proofs;G.sentencesFound=w.sentences;
+    if(!G.proofKeys)G.proofKeys=new Set();
+    if(!G.seenSentences)G.seenSentences=new Set();
+    this.receiveResources(w.resources,w.tr);
+    if(w.ending)this.receiveEnding({day:w.day,difficulty:w.difficulty});
+  },
+  receiveEnemies(list){
+    const next=new Map();
+    for(const obj of list){
+      if(!obj||!['pur','seek'].includes(obj.type)||!Number.isFinite(obj.x)||!Number.isFinite(obj.y))continue;
+      const prev=this.enemies.get(obj.id)||{};
+      next.set(obj.id,{...prev,...obj,hp:obj.hp,dead:obj.dead?Math.max(.05,prev.dead||.05):0,
+        hit:Math.max(0,(prev.hit||0)-.07),seed:Number(obj.id?.length||1),
+        zw:0,walk:obj.dead?0:.7});
+    }
+    this.enemies=next;
+  },
+  publishStory(e){
+    if(!this.ready||this.host!==this.id||!e||!e.enc)return;
+    const id='story:'+this.id+'-'+Math.floor(performance.now()).toString(36)+Math.floor(Math.random()*10000).toString(36);
+    e.netId=id;
+    this.stories.set(id,e);
+    this.send({type:'story-start',id,kind:e.enc,x:e.x,y:e.y,floor:G.floor});
+  },
+  receiveStory(msg){
+    const ev=msg.story;if(!ev||!ENCS[ev.kind])return;
+    if(msg.action==='choose'){
+      let e=this.stories.get(ev.id);
+      if(e){e.state='talked';e.t=0;e.netChoice=ev.choice}
+      return;
+    }
+    if(ev.floor!==G.floor||ev.state!=='idle')return;
+    if(this.stories.has(ev.id))return;
+    const D=ENCS[ev.kind];let e;
+    if(D.scene){
+      const members=D.build({x:ev.x,y:ev.y});
+      if(!members||!members.length)return;
+      e={type:'scene',enc:ev.kind,x:ev.x,y:ev.y,members,state:'idle',t:0,said:.5};
+      if(members.ax)e.members.ax=members.ax;
+    }else{
+      e={type:'fig',enc:ev.kind,rig:ENCRIG[ev.kind],pose:D.pose,x:ev.x,y:ev.y,
+        f:Math.atan2(G.y-ev.y,G.x-ev.x),seed:ev.id.length,state:'idle',t:0,said:0,lvl:0,zw:0,out:0};
+      gaitUpd(e,0,.5);
+    }
+    e.netId=ev.id;this.stories.set(ev.id,e);ENC.list.push(e);
+  },
+  receiveEnding(msg){
+    if(G.state==='won'||G.state==='waking')return;
+    G.won=true;G.winG=G.gal;G.winF=G.floor;
+    G.verdict='The shared Library has shelved your story.';
+    G.state='waking';G.winT=0;G.journal=false;G.choice=null;
+    sfx('THE ENTIRE LIBRARY REMEMBERS','mind');
+  },
+  requestEnding(){
+    if(this.endingRequested)return;
+    this.endingRequested=true;this.send({type:'claim',kind:'complete',key:'ending'});
   },
   peer(p){
     if(!p||p.id===this.id||!Number.isFinite(p.x)||!Number.isFinite(p.y))return;
@@ -3210,6 +3328,7 @@ const NET={
       p.pose=moving?'run':'stand';gaitUpd(p,dt,.5);
     }
     const t=performance.now();
+    if(t-this.lastResources>240){this.lastResources=t;this.sendResourceDeltas()}
     if(t-this.lastPose>110){
       this.lastPose=t;this.send({type:'pose',x:G.x,y:G.y,f:G.ang,floor:G.floor,
         pose:Math.abs(ME.walk||0)>.13?'run':'stand'});
