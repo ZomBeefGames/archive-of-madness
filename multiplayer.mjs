@@ -12,7 +12,17 @@ const EMPTY_TTL=30*60*1000;
 export const validCode=c=>typeof c==='string'&&/^[A-HJ-NP-Z2-9]{6}$/.test(c);
 export const validPosition=p=>!!p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&
   Math.abs(p.x)<=2e6&&Math.abs(p.y)<=2e6&&Number.isInteger(p.floor)&&Math.abs(p.floor)<=10000;
-const copyPlayer=p=>({id:p.id,name:p.name,x:p.x,y:p.y,f:p.f,floor:p.floor,coat:p.coat,pose:p.pose});
+const PROFILE_LIMITS={gender:3,outfit:4,coat:8,pants:6,skin:6,hair:7};
+export function cleanAppearance(a){
+  const obj=a&&typeof a==='object'&&!Array.isArray(a)?a:{};
+  const p={gender:0,age:28,outfit:0,coat:0,pants:0,skin:2,hair:1};
+  for(const [k,size] of Object.entries(PROFILE_LIMITS))
+    if(Number.isInteger(obj[k])&&obj[k]>=0&&obj[k]<size)p[k]=obj[k];
+  if(Number.isInteger(obj.age))p.age=Math.min(90,Math.max(18,obj.age));
+  return p;
+}
+const copyPlayer=p=>({id:p.id,name:p.name,x:p.x,y:p.y,f:p.f,floor:p.floor,coat:p.coat,pose:p.pose,
+  appearance:p.appearance});
 const packBarrier=b=>({id:b.id,x:b.x,y:b.y,floor:b.floor,level:b.level,hp:b.hp,owner:b.owner});
 function shortName(name){
   return String(name||'READER').replace(/[^a-zA-Z0-9 _-]/g,'').trim().slice(0,18)||'READER';
@@ -67,6 +77,7 @@ export class GameRooms {
     const start=isHost?msg.start:room.world;
     const p={ws,id:String(this.nextId++),name:shortName(msg.name),
       x:start.x,y:start.y,f:0,floor:start.floor,coat:this.nextId%3,pose:'stand',
+      appearance:cleanAppearance(msg.appearance),
       planks:0,lastPose:0,lastAction:0,room};
     room.members.add(p);ws.player=p;room.emptyAt=0;
     send(ws,{type:'welcome',id:p.id,inventory:p.planks,...this.publicRoom(room)});
