@@ -1411,7 +1411,11 @@ function sceneStart(id){const D=ENCS[id];if(D.room&&!G.inRoom)return false;
 const seekBody=["....k.kkk.k.....","...khkhhhkhk....","...khhhhhhhk....","...kssssssk.....","...kwpsswpk.....","...ksssSssk.....","...ksmmmsk......","....kssssk......","...kRRRRRRk.....","..kRRnRRRRRk....",".ksRRnnRRRRsk...",".ksRRRRRnRRsk...",".ksRRRRRnRRsk...","..kRRRRRRRRk....","..kRnRRRRRRk....","..kRRRRRRRRk....","..kRRRRkRRRk...."];
 const seekLegs=[["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],["..kRRk..kRRk....",".kssk...kssk....",".kssk....kssk...","kkkk.....kkkk..."],["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],[".kRRk..kRRk.....",".kssk..kssk.....","kssk...kssk.....","kkkk..kkkk......"]];
 const SEEK=seekLegs.map((l,i)=>buildCard(setPx(seekBody.concat(l),i%2?[[4,4,'p'],[5,4,'w'],[8,4,'p'],[9,4,'w']]:[])));
-const FLASK=[buildCard(["..kk..","..kk..",".kccck","kyyyyk","kyYyyk","kyyyyk","kyyyyk",".kkkk."])];
+const FLASK=[buildCard([
+  "....kkkk....","....kYYk....","...kkYYkk...","...kGggGk...", "..kkcccckk..",
+  ".kkcttttckk.","kcccyYYyccck","kcctyYYytcck","kcctyyyytcck","kcctYyyYtcck",
+  "kcctyYYytcck","kcctyyyytcck",".kcccttccck.","..kcccccck..","...kkkkkk..."
+])];
 const PRESS=["kkkkkkkkkk","kaaaaaaaak","kkkkaakkkk","...kaak...","...kaak...","...kttk...","...kttk...","...kttk...","...kkkk..."];
 
 const face=["....kkkkkkkk....","...khhhhhhhhk...","..khhhhhhhhhhk..","..khsssssssshk..",".kksssssssssskk.",".kssssssssssssk.",".kskkksssskkksk.",".kswpwsssswpwsk.",".kssssssSsssssk.",".kssssssssssssk.",".kssskkkkkksssk.","..kssssssssssk..","...kkssssssskk..",".....kkkkkk.....","....keeeeeek....","..keeeeeeeeeek.."];
@@ -1428,10 +1432,21 @@ const LIBC=buildCard(setPx(["....kkkkkk......","...khhhhhhk.....","...khsssshk..
 /* the Index: a brass machine of lettered drums on a lectern at the railing of the air shaft */
 const INDEXC=buildCard(["..kkkkkkkkkk..",".kyyyyyyyyyyk.",".kyRRRRRRRRyk.",".kyRwRnRwRRyk.",".kyRRRRRRRRyk.",".kyyyyyyyyyyk.","..kkkkkkkkkk..","...kttttttk...","....kttttk....","....kttttk....","....kttttk....","....kttttk....","...kttttttk...","..kkkkkkkkkk.."]);
 /* sect incense dropped by Purifiers or left on the floor, and the flames of thrown lantern oil */
-const INCC=buildCard(["..n...","...n..","..n...",".kok..",".ktk..",".ktk..",".ktk..",".ktk..","kkkkk."]);
+const INCC=buildCard([
+  ".....n.....","....nnn....",".....G.....","....nGn....",".....n.....",
+  "...ktttk...","..ktYyYtk..","..ktyYytk..","..ktttttk..","..ktttttk..",
+  "..ktYyYtk..","..ktttttk..","..ktttttk..","..ktttttk..","..kkkkkkk.."
+]);
 const FIREC=[["...o....","..of.o..",".ofYo...","ofYYfo..","ofYYYfo.",".ofYYfo.","..offo..","...oo..."],["....o...",".o.fo...","..oYfo..",".ofYYfo.","ofYYYfo.",".ofYYfo.","..offo..","...oo..."],["..o.....","..fo.o..",".ofYfo..","ofYYfo..","ofYYYfo.",".ofYYYo.","..offo..","...oo..."]].map(r=>buildCard(r));
-const MEALC=buildCard(["..n..n..","...n.n..","..n..n..","kkkkkkkk","kyyfyyyk",".kccccck","..kkkkk."]);
-const LAMPC=buildCard(["..kkkk..",".kYYYYk.","kYYYYYyk","kYYYYyyk","kYYYyyyk","kYYyyyyk",".kyyyyk.","..kkkk.."]);
+const MEALC=buildCard([
+  "...n..n..n...","....n..n.....","..n....n.n...","..kkkkkkkkk..",
+  ".kYYYYYYYYYk.","ktyyyyyyyyytk","ktYfyYfyYfYtk","ktYyyyYyyyYtk",
+  "ktYfYfYfYfYtk",".kcccccccck.","..kkkkkkkk..","...kttttk...."
+]);
+const LAMPC=buildCard([
+  "....kkkk....","...kYYYYk...","..kYyyyyYk..",".kYyYYYyyYk.","kYyYfYfYyyYk",
+  "kYyYfYfYyyYk","kYyYYYYYyyYk",".kYyyyyyyYk.","..kYyyyyYk..","...kkkkkk..."
+]);
 
 /* Ruined places share the game's paper-cutout ink, warm brass and char palette.
    Sprites have distinct silhouettes and stamped detail, not generic colored boxes. */
@@ -1503,6 +1518,40 @@ const ZSPR={
     "......kttttk.",".......kkkkk."
   ])
 };
+/* Layered salvage art: timber grain, overlapping cross-beams, gold straps and
+   rivets are painted directly as a real pixel sprite. Each reinforcement visibly
+   changes its silhouette without changing the old paper-cutout rendering style. */
+function paintBarricade(level){
+  const w=26,h=25,p=Array.from({length:h},()=>Array(w).fill('.'));
+  const px=(x,y,c)=>{if(x>=0&&x<w&&y>=0&&y<h)p[y][x]=c};
+  const line=(x0,y0,x1,y1,c)=>{const n=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))||1;
+    for(let q=0;q<=n;q++){const t=q/n;px(Math.round(x0+(x1-x0)*t),Math.round(y0+(y1-y0)*t),c)}};
+  for(const [j,top] of [2,10,18].entries()){
+    for(let y=top;y<top+5;y++)for(let x=1;x<25;x++)
+      px(x,y,x===1||x===24||y===top||y===top+4?'k':(x+j*7+y)%9===0?'Y':(x*3+y)%7===0?'c':j===1?'t':'y');
+    for(const x of[4,21]){px(x,top+2,'G');px(x+1,top+2,'Y')}
+  }
+  line(3,2,22,23,'k');line(4,2,23,22,'T');
+  line(22,2,3,23,'k');line(21,2,2,22,'T');
+  for(let j=1;j<=level;j++){
+    const x=[0,7,17,12][j];
+    for(let y=0;y<h;y++)for(let t=-1;t<=1;t++)px(x+t,y,t===0?'n':'G');
+    for(const y of[3,12,21]){px(x,y,'Y');px(x-1,y,'k');px(x+1,y,'k')}
+  }
+  if(level>=3){
+    for(let y=1;y<h-1;y++){px(2,y,'Y');px(23,y,'Y')}
+    for(const y of[1,23])for(let x=2;x<=23;x++)px(x,y,'G');
+    for(const x of[2,23])for(const y of[2,12,22])px(x,y,'Y');
+  }
+  return buildCard(p.map(row=>row.join('')));
+}
+const BARRICADE_CARDS=[0,1,2,3].map(paintBarricade);
+const SPLINTER_CARD=buildCard([
+  "..tt........kt.","..kty......tkt.","..ktYt....ktt..","...ttt..ktYt...",
+  ".......ktkt....","....ktttt.....","..ktttttk.....",".kttYttttk....",
+  ".ktttttYtk....","..kkkkkkk....."
+]);
+
 function zoneSprite(out,card,x,y,height=1.1,options={}){
   const dx=x-G.x,dy=y-G.y;
   if(dx*dx+dy*dy>18*18)return;
@@ -1576,6 +1625,10 @@ function crossingDressing(out,i,j){
   }
 }
 function addZoneDressing(out){
+  for(const b of BUILD.barriers.values())if(b.floor===G.floor)
+    zoneSprite(out,BARRICADE_CARDS[b.level],b.x,b.y,1.52,{sh:true});
+  for(const w of BUILD.wrecks.values())if(w.floor===G.floor)
+    zoneSprite(out,SPLINTER_CARD,w.x,w.y,.37,{sh:true});
   const i0=Math.round(G.x/P),j0=Math.round(G.y/P);
   for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++)galleryDressing(out,i,j);
   const x0=Math.round(G.x/P-.5),y0=Math.round(G.y/P-.5);
@@ -2145,7 +2198,11 @@ const TRINKETS={
   mirror:{name:'POCKET MIRROR',cost:20,desc:'Once a day, when your health would reach 0, the glass cracks instead and you get up with 30.'},
   ribbon:{name:'SILK BOOKMARK',cost:16,desc:'Each dawn all of your own words come back, however faded they were.'}
 };
-const TYPEC=buildCard(["kkkkkk","kGgGGk","kGkkGk","kGkkGk","kGGgGk","kkkkkk"]);
+const TYPEC=buildCard([
+  "..kkkkkkkk..",".kGgGGgGGGk.","kGGgGggGgGGk","kGGkkGGGkGGk","kGgkGgGgkGgk",
+  "kGGkGGGGkGGk","kGGkGGGGkGGk","kGgkGggGkGgk","kGGkkGGGkGGk","kGGgGggGgGGk",
+  ".kGGGgGGGGk.","..kkkkkkkk.."
+]);
 function keepDead(kind,e){recordCorpse(kind,e,false)}
 
 /* Read searches one unsearched body in reach and line of sight. Recorded deaths and
