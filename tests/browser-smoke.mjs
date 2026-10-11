@@ -271,9 +271,26 @@ async function coopSmoke(){
       {gender:1,outfit:1,coat:1},'guest sees the host wardrobe');
     assert.equal(shared.floor,shared.peerFloor);
     assert.equal(shared.phrase,await host.evaluate(()=>window.__AOM_TEST.G.phrase));
+    // Real network assertions, not two copies of an unsynchronized game.
+    await host.evaluate(()=>{const a=window.__AOM_TEST;a.G.type+=3;a.NET.sendResourceDeltas()});
+    await guest.waitForFunction(()=>window.__AOM_TEST?.G.type===3,null,{timeout:10000});
+    await host.evaluate(()=>window.__AOM_TEST.NET.send({type:'claim',kind:'proof',key:'smoke|proof|archive'}));
+    await guest.waitForFunction(()=>window.__AOM_TEST?.G.proofs===1,null,{timeout:10000});
+    await host.evaluate(()=>window.__AOM_TEST.NET.send({type:'claim',kind:'quest',step:1,key:'quest|1'}));
+    await guest.waitForFunction(()=>window.__AOM_TEST?.G.q===1,null,{timeout:10000});
+    const times=await Promise.all([host,guest].map(page=>page.evaluate(()=>window.__AOM_TEST.G.clock)));
+    assert.ok(Math.abs(times[0]-times[1])<3,'participants share the same Library clock');
+    await host.evaluate(()=>{
+      const a=window.__AOM_TEST;
+      a.NET.publishStory({enc:'cartographer',x:a.G.x+1,y:a.G.y,pose:'count'});
+    });
+    await guest.waitForFunction(()=>window.__AOM_TEST?.NET.stories.size>=1,null,{timeout:10000});
+    const storyId=await guest.evaluate(()=>[...window.__AOM_TEST.NET.stories.keys()][0]);
+    await guest.evaluate(id=>window.__AOM_TEST.NET.send({type:'story-choice',id,choice:0}),storyId);
+    await host.waitForFunction(id=>window.__AOM_TEST?.NET.stories.get(id)?.netChoice===0,storyId,{timeout:10000});
     await guest.evaluate(()=>window.__AOM_TEST.NET.send({type:'chat',text:'Hello from the shared Library'}));
     await host.waitForFunction(()=>window.__AOM_TEST?.NET.chat.some(x=>x.text.includes('Hello from')),null,{timeout:8000});
-    console.log('BROWSER PASS co-op',code,'two real sockets, custom named outfits, world seed, paper puppets and chat');
+    console.log('BROWSER PASS co-op',code,'real sockets, pooled type, shared proof and quest, shared clock, resolved scene, custom puppets and chat');
     assert.deepEqual(errors,[],'No browser errors in connected readers');
   }finally{
     await hostContext.close();await joinContext.close();
