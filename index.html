@@ -1094,12 +1094,12 @@ const ENCS={
   count:{title:'THE COUNTER',pose:'count',idle:'murmur',every:2.4,
     text:()=>'"...three hundred and ninety-nine, four hundred... DON\'T. Don\'t speak. I am counting the letters on this floor. I have been counting since before the lamps were lit."',
     a:'▲ ASK HIM THE TOTAL',ad:'he loses count',b:'▼ LEAVE HIM BE',bd:'+3 sanity',
-    A:e=>{voice('scream',e);G.frags+=G.tr.key?2:1;rememberSentence('enc|count|'+G.resetEpoch+'|'+e.x+','+e.y);sfx('+1 SENTENCE','mind');return'He loses his place. He screams once, then tears out the only real sentence he ever found and pushes it at you. "Take it. I have to start again." The Index will want it.'},
+    A:e=>{voice('scream',e);G.frags+=G.tr.key?2:1;rememberSentence('enc|count|'+G.resetEpoch+'|'+e.x+','+e.y);eventProof(e);sfx('+1 SENTENCE','mind');return'He loses his place. He screams once, then tears out the only real sentence he ever found and pushes it at you. "Take it. I have to start again." The Index will want it.'},
     B:e=>{G.sanity=Math.min(100,G.sanity+3);return'You leave him counting. There is a strange comfort in it.'}},
   weep:{title:'A WEEPING LIBRARIAN',pose:'weep',idle:'sob',every:4.2,
     text:()=>'She is crying into a book with no words in it at all. "It was the only one that didn\'t lie to me," she says, "because it didn\'t say anything."',
     a:'▲ COMFORT HER',ad:'+10 sanity · she gives you incense',b:'▼ ROB HER',bd:'+5 type · −10 sanity · it will be written down',
-    A:e=>{G.sanity=Math.min(100,G.sanity+10);G.incense++;sfx('+1 INCENSE');return'You sit with her a while. When she can speak she gives you a stick of sect incense, "for the bad nights".'},
+    A:e=>{G.sanity=Math.min(100,G.sanity+10);G.incense++;eventProof(e);sfx('+1 INCENSE');return'You sit with her a while. When she can speak she gives you a stick of sect incense, "for the bad nights".'},
     B:e=>{G.type+=5;G.sanity=Math.max(0,G.sanity-10);G.sins.push(placeWords(G.gal,G.floor)+'you robbed a weeping librarian of five letters of type.');voice('sob',e,{vol:1.3});return'You take the type from her apron. She does not stop crying, or look up. Somewhere a page writes this down.'}},
   peddler:{title:'A PEDDLER',pose:'stand',idle:'murmur',every:7,
     text:()=>'A librarian with a pack of oddments and a lamp-oil can. "Oil, friend? Smoke? The kitchen robs you. I only rob you a little."',
@@ -1190,6 +1190,15 @@ function sceneSlots(c,n,r){
   for(const[ax,ay]of[[1,0],[0,1]]){const L=[...Array(n)].map((_,k)=>{const o=(k-(n-1)/2)*0.95+(k>=n/2?0.5:-0.5);return[c.x+ax*o,c.y+ay*o]});if(L.every(([x,y])=>walkable(x,y,0.22)))return L}
   return null}
 function convertHostile(m){G.ents.push({type:'pur',x:m.x,y:m.y,f:m.f,ft:0,frame:0,ft2:0,head:0,turnT:0,hit:0,dead:0,hgt:1.35,cards:PUR,burnCd:2,hp:6,seed:m.seed,roaming:!G.inRoom});G.alerted=true}
+/* Reuse the jointed NPC renderer for event casts instead of static cardboard
+   props. Every participant keeps its own painted coat and idle body pose. */
+function sceneCast(c,poses,rigs){
+  const slots=sceneSlots(c,poses.length,1.0);if(!slots)return null;
+  return slots.map(([x,y],k)=>{
+    const m=mkFig(x,y,0,rigs[k%rigs.length],poses[k]);m.f=toward(m,c.x,c.y);
+    return m;
+  });
+}
 /* An ID follows each corpse through the live puppet, room respawns and catwalks. */
 function recordCorpse(kind,m,burnt){
   const id=m.lootId||'body|'+G.day+'|'+G.floor+'|'+(++G.corpseSeq);
@@ -1215,14 +1224,14 @@ Object.assign(ENCS,{
     a:'▲ JOIN IN',ad:'4 type from his robe · −6 sanity',b:'▼ STOP THEM',bd:'they might listen',
     A:e=>{const v=e.members.find(m=>m.vic);e.members=e.members.filter(m=>!m.vic);corpseHere('pur',v);G.type+=4;G.sanity=Math.max(0,G.sanity-6);voice('laugh',e,{vol:0.8});sfx('+4 TYPE');
       return'You find out what it feels like. When he is still, they cheer, go through his robe, give you your share, and drift away arguing about the next one.'},
-    B:e=>{G.incense+=2;G.sanity=Math.min(100,G.sanity+4);e.flee=true;const v=e.members.find(m=>m.vic);v.dead=0;v.hurt=true;
+    B:e=>{G.incense+=2;G.sanity=Math.min(100,G.sanity+4);eventProof(e);e.flee=true;const v=e.members.find(m=>m.vic);v.dead=0;v.hurt=true;
       return'You step in with your weapon up. They look at you, at each other, and scatter. The Purifier gets up very slowly, presses two sticks of sect incense into your hand without a word, and limps away. +2 incense.'}},
   ritual:{scene:true,room:true,title:'THE SECT AT PRAYER',idle:'murmur',every:1.8,
     build:c=>{const S=sceneSlots(c,3,1.15);if(!S)return null;const v=mkFig(c.x,c.y,0,ENCRIG.weep,'kneel');v.vic=true;v.f=toward(v,G.x,G.y);
       return[v,...S.map(([x,y])=>{const m=mkPur(x,y,0,1);m.f=toward(m,c.x,c.y);return m})]},
     text:()=>'Three Purifiers stand over a kneeling librarian with their torches held above her head. One reads her sins aloud from a book that has not been written yet. She is very quiet.\n\n"Burn it clean," they answer, together. "Burn it clean."',
     a:'▲ ATTACK THEM',ad:'three Purifiers · she will repay you',b:'▼ WALK AWAY',bd:'they will burn her',
-    A:e=>{for(const m of e.members)if(m.type==='pur')convertHostile(m);e.members=e.members.filter(m=>m.type!=='pur');G.type+=6;sfx('+6 TYPE');e.flee=true;voice('scream',e);
+    A:e=>{for(const m of e.members)if(m.type==='pur')convertHostile(m);e.members=e.members.filter(m=>m.type!=='pur');G.type+=6;eventProof(e);sfx('+6 TYPE');e.flee=true;voice('scream',e);
       return'You go at them. As the torches turn on you she throws her purse of type at your feet, "for after," and runs. +6 type. Now fight.'},
     B:e=>{e.burn=2.2;return'You turn away. Behind you the chanting stops, and the light changes.'}},
   funeral:{scene:true,title:'A FUNERAL',idle:'hum',every:5,walk:0.5,
@@ -1231,14 +1240,46 @@ Object.assign(ENCS,{
       const body=mkFig(c.x,c.y,ms[0].f,ENCRIG.weep,'dead');body.zw=0.95;body.body=true;ms.push(body);ms.ax=ax;return ms},
     text:()=>'Four librarians are carrying a fifth between them, shoulder high, to the nearest railing. That is how it is done here: the drop takes the dead.\n\n"Will you say a word for her?" the oldest asks. "Anyone\'s word will do. We have forgotten her name."',
     a:'▲ SAY A WORD',ad:'+8 sanity · saying a name helps you hold your own',b:'▼ STAY SILENT',bd:'they walk on',
-    A:e=>{G.sanity=Math.min(100,G.sanity+8);G.echo=Math.max(0,G.echo-1);e.keepWalk=true;return'You give her a name. They repeat it, carefully, and walk on with her. You find you remember your own words a little better.'},
+    A:e=>{G.sanity=Math.min(100,G.sanity+8);G.echo=Math.max(0,G.echo-1);eventProof(e);e.keepWalk=true;return'You give her a name. They repeat it, carefully, and walk on with her. You find you remember your own words a little better.'},
     B:e=>{e.keepWalk=true;return'They nod as if they expected that, and walk on.'}},
+  auction:{scene:true,title:'THE BRASS AUCTION',idle:'murmur',every:3.4,
+    build:c=>sceneCast(c,['count','stand','carry','count'],[ENCRIG.peddler,ENCRIG.cartographer,FIGRIG[2],ENCRIG.count]),
+    text:()=>'Four librarians bid on an iron case filled with catalogue cards. One card bears the same scratched insignia as your lantern. "Five letters for a trustworthy record," the auctioneer announces.',
+    a:'BUY THE CATALOGUE CARD',ad:'5 type · +1 archive proof',b:'SNATCH THE LETTERS',bd:'+5 type · −10 sanity · a recorded theft',
+    A:e=>{if(G.type<5){e.keep=true;return'"Five letters. The auction is not a charity."'}G.type-=5;eventProof(e);return'The auctioneer stamps your ledger and opens the case. The record is yours, a proof the Library cannot erase.'},
+    B:e=>{G.type+=5;G.sanity=Math.max(0,G.sanity-10);G.sins.push(placeWords(G.gal,G.floor)+'you stole type at the brass auction.');voice('scream',e);return'You lift five pieces of lead from the bidders and scatter them. A dozen eyes follow you into the dark.'}},
+  trial:{scene:true,title:'THE UNFINISHED TRIAL',idle:'murmur',every:3.1,
+    build:c=>sceneCast(c,['stand','kneel','stand','count'],[ENCRIG.surgeon,ENCRIG.weep,FIGRIG[1],ENCRIG.count]),
+    text:()=>'A circle of librarians conducts a trial without a judge. A kneeling stranger is accused of having written a page that has not yet been discovered. "The evidence is missing," someone says. "Will you speak?"',
+    a:'DEFEND THE STRANGER',ad:'−10 sanity · +1 incense · +1 archive proof',b:'OFFER FALSE EVIDENCE',bd:'+5 type · your lie is recorded',
+    A:e=>{G.sanity=Math.max(0,G.sanity-10);G.incense++;eventProof(e);return'You describe the missing evidence as carefully as you can. The prisoner stands. A witness gives you incense and signs your ledger.'},
+    B:e=>{G.type+=5;G.sins.push(placeWords(G.gal,G.floor)+'you testified against a stranger using a false page.');return'The circle applauds. You pocket five letters as payment. The accused never learns your name.'}},
+  choir:{scene:true,title:'THE CHAIN OF READERS',idle:'hum',every:3.0,
+    build:c=>sceneCast(c,['carry','count','stand','sleep'],[FIGRIG[1],ENCRIG.count,ENCRIG.surgeon,FIGRIG[2]]),
+    text:()=>'Four readers trade a single page from hand to hand, reciting one word each. Together their fragments make a sentence, but nobody will be the one to finish it.',
+    a:'FINISH THEIR SENTENCE',ad:'−8 sanity · real sentence · archive proof',b:'LET THE PAGE CIRCULATE',bd:'+7 sanity · no record',
+    A:e=>{G.frags+=G.tr.key?2:1;rememberSentence('choir|'+G.resetEpoch+'|'+Math.round(e.x)+','+Math.round(e.y));G.sanity=Math.max(0,G.sanity-8);eventProof(e);sfx('TRUE SENTENCE','mind');return'You finish the sentence aloud. All four fall silent. You record the words and the unusual order in which they were found.'},
+    B:e=>{G.sanity=Math.min(100,G.sanity+7);return'You listen until the words lose their edges. The cadence steadies your thoughts, but you take no page.'}},
+  watch:{scene:true,title:'THE NIGHT WATCH',idle:'whisper',every:4.1,
+    build:c=>sceneCast(c,['stand','carry','stand'],[ENCRIG.warden,FIGRIG[1],FIGRIG[2]]),
+    text:()=>'Three librarians stand watch with lanterns dimmed, counting strangers who cross the catwalk. Their ledger has one empty line. "Tell us what you carried through the dark."',
+    a:'SIGN THE WATCH LEDGER',ad:'−4 sanity · +1 incense · archive proof',b:'SEIZE THE WATCH RATIONS',bd:'+2 oil · −10 sanity · witnesses remember',
+    A:e=>{G.sanity=Math.max(0,G.sanity-4);G.incense++;eventProof(e);return'You sign for the things you have survived. The watchkeeper adds a brass seal and offers incense for the next shift.'},
+    B:e=>{G.oil+=2;G.sanity=Math.max(0,G.sanity-10);G.sins.push(placeWords(G.gal,G.floor)+'you raided a night watch for its lamp oil.');return'You seize their spare oil. As you leave, someone reads your description into the ledger.'}},
+  firebrigade:{scene:true,title:'THE PAPER FIRE BRIGADE',idle:'scream',every:4.0,
+    build:c=>sceneCast(c,['carry','carry','weep'],[ENCRIG.warden,ENCRIG.peddler,ENCRIG.weep]),
+    text:()=>'Three librarians pass charred books between them in a fragile line. "One measure of oil for the lamp that keeps the fire from crossing," their leader begs. "We cannot save the shelves, only the names."',
+    a:'HELP SAVE THE NAMES',ad:'−1 oil · +8 sanity · archive proof',b:'TAKE THE LEAD TYPE',bd:'+4 type · the embers catch',
+    A:e=>{if(G.oil<1){e.keep=true;return'"Your lamp is dry. Bring a measure and there may still be time."'}G.oil--;G.sanity=Math.min(100,G.sanity+8);eventProof(e);
+      if(G.inRoom){const z=galleryZone(G.room.i,G.room.j);if(z.type==='burning')z.type='burned'}
+      return'The last named pages are saved beneath a lantern. The surviving librarians sign their names in your journal. The room settles into ash.'},
+    B:e=>{G.type+=4;G.sanity=Math.max(0,G.sanity-6);G.fires.push({x:e.x,y:e.y,fl:G.floor,t:9});voice('scream',e);return'You take the lead letters out of a burning binding. Behind you, the fire spreads and the line breaks.'}},
   sermon:{scene:true,title:'THE SERMON',idle:'murmur',every:2.2,
     build:c=>{const S=sceneSlots(c,3,1.1);if(!S)return null;const pr=mkPur(c.x,c.y,0,0.8);pr.f=toward(pr,G.x,G.y);pr.preach=true;
       return[pr,...S.map(([x,y])=>{const m=mkFig(x,y,0,[FIGRIG[1],FIGRIG[2],ENCRIG.sleep][Math.floor(Math.random()*3)],'kneel');m.f=toward(m,c.x,c.y);return m})]},
     text:()=>'A Purifier is preaching to three kneeling librarians, his torch raised over them.\n\n"The Library is infinite, and the Library is sick. Every false book is a fever. We are the cure." His listeners nod with their eyes closed.',
     a:'▲ LISTEN',ad:'he quotes a real sentence · −8 sanity',b:'▼ HECKLE',bd:'he will not take it well',
-    A:e=>{G.frags+=G.tr.key?2:1;rememberSentence('enc|sermon|'+G.resetEpoch+'|'+e.x+','+e.y);G.sanity=Math.max(0,G.sanity-8);sfx('+1 SENTENCE','mind');return'You kneel with them. In the middle of the sermon he quotes a real sentence, perfectly, and you keep it. The rest of it stays with you less kindly.'},
+    A:e=>{G.frags+=G.tr.key?2:1;rememberSentence('enc|sermon|'+G.resetEpoch+'|'+e.x+','+e.y);G.sanity=Math.max(0,G.sanity-8);eventProof(e);sfx('+1 SENTENCE','mind');return'You kneel with them. In the middle of the sermon he quotes a real sentence, perfectly, and you keep it. The rest of it stays with you less kindly.'},
     B:e=>{const pr=e.members.find(m=>m.preach);convertHostile(pr);e.members=e.members.filter(m=>m!==pr);e.flee=true;voice('scream',e,{vol:0.7});
       return'"Heretic," he says, quite softly, and lowers the torch toward you. His congregation runs.'}}
 });
