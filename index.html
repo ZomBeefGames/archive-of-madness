@@ -349,6 +349,7 @@ function collectProof(id){
   if(!G.proofKeys)G.proofKeys=new Set();
   if(G.proofKeys.has(id))return false;
   G.proofKeys.add(id);G.proofs=(G.proofs||0)+1;
+  if(typeof NET!=='undefined'&&NET.ready)NET.send({type:'claim',kind:'proof',key:String(id).slice(0,155)});
   sfx('ARCHIVE PROOF '+G.proofs,'mind');return true;
 }
 function eventProof(e){
@@ -1455,15 +1456,21 @@ function encSpot(rail){
     if(walkable(x,y,0.35)&&Math.hypot(x-G.x,y-G.y)>2.6)return{x,y,out:a+Math.PI}}
   return null}
 function encStart(force){
+  if(typeof NET!=='undefined'&&NET.ready&&NET.host!==NET.id)return false;
   const pool=['laugh','count','weep','peddler','sleep','cartographer','surgeon','warden',
     'binder','bellkeeper','orphan','exile','glassmaker',
     'mob','funeral','sermon','auction','trial','choir','watch','firebrigade',
     'quarantine','council','pilgrims','shelter','ledgerfire'].concat(G.inRoom?['ritual','ritual','firebrigade','quarantine','shelter']:[]);if(!G.met.rose&&(G.day>=2||force==='rose')&&Math.random()<0.35)pool.push('rose','rose');
   const id=force||pool[Math.floor(Math.random()*pool.length)],D=ENCS[id];if(D.scene)return sceneStart(id);const sp=encSpot(D.rail);if(!sp)return false;
   const e={type:'fig',enc:id,rig:ENCRIG[id],pose:D.pose,x:sp.x,y:sp.y,out:sp.out,f:sp.out+Math.PI/2,seed:Math.random()*6.28,state:'idle',t:0,said:0,lvl:0,zw:0};
-  gaitUpd(e,0,0.5);ENC.list.push(e);if(id==='rose')G.met.rose=true;return true}
+  gaitUpd(e,0,0.5);ENC.list.push(e);
+  if(typeof NET!=='undefined'&&NET.ready)NET.publishStory(e);
+  if(id==='rose')G.met.rose=true;return true}
 function encUpd(dt){
-  ENC.t-=dt;if(ENC.t<=0&&!ENC.list.length&&G.state==='play'){const d=difficultyRules(G.difficulty);ENC.t=encStart()?d.encMin+Math.random()*d.encSpan:6}
+  ENC.t-=dt;if(ENC.t<=0&&!ENC.list.length&&G.state==='play'&&
+    !(typeof NET!=='undefined'&&NET.ready&&NET.host!==NET.id)){
+    const d=difficultyRules(G.difficulty);ENC.t=encStart()?d.encMin+Math.random()*d.encSpan:6
+  }
   for(const e of ENC.list){if(e.members){sceneUpd(e,dt);continue}const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=dt;
     if(e.state==='idle'||e.state==='talked'){e.said-=dt;if(e.said<=0&&d<14){e.said=D.every*(0.8+Math.random()*0.5);voice(D.idle,e)}
       if(D.walk){const v=0.35;e.x+=Math.cos(e.out+Math.PI)*v*dt;e.y+=Math.sin(e.out+Math.PI)*v*dt;if(!walkable(e.x,e.y,0.3)){e.out+=Math.PI}}
@@ -1490,7 +1497,10 @@ function encTalk(){
   return false}
 function encChoose(up){const e=G.encOn,D=e&&ENCS[e.enc];if(!D){closeBook();return}
   HUI.encHover=-1;
-  e.keep=false;const msg=(up?D.A:D.B)(e);G.choice=null;if(!e.keep){e.state='talked';e.t=0}else if(e.state==='idle'){/* try again */}
+  e.keep=false;const msg=(up?D.A:D.B)(e);G.choice=null;
+  if(!e.keep&&typeof NET!=='undefined'&&NET.ready&&e.netId)
+    NET.send({type:'story-choice',id:e.netId,choice:up?0:1});
+  if(!e.keep){e.state='talked';e.t=0}else if(e.state==='idle'){/* try again */}
   G.note={title:D.title,text:msg};G.verdict='';drawBook()}
 function encClosed(){const e=G.encOn;if(!e)return;G.encOn=null;const D=ENCS[e.enc];if(e.state==='said'){if(D.close)D.close(e);else{e.state='talked';e.t=0}}}
 /* ---- scenes: a group you stumble on a few steps ahead. A mob beating a Purifier; the sect about to burn a kneeling
@@ -1655,7 +1665,10 @@ function sceneUpd(e,dt){const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=d
 function sceneStart(id){const D=ENCS[id];if(D.room&&!G.inRoom)return false;
   for(let tries=0;tries<20;tries++){const a=G.ang+(Math.random()-0.5)*0.8,dd=4.4+Math.random()*2.4,c={x:G.x+Math.cos(a)*dd,y:G.y+Math.sin(a)*dd};
     if(!walkable(c.x,c.y,0.3))continue;const ms=D.build(c);if(!ms)continue;
-    const e={type:'scene',enc:id,x:c.x,y:c.y,members:ms,state:'idle',t:0,said:0.5};if(ms.ax)e.members.ax=ms.ax;ENC.list.push(e);return true}
+    const e={type:'scene',enc:id,x:c.x,y:c.y,members:ms,state:'idle',t:0,said:0.5};if(ms.ax)e.members.ax=ms.ax;
+    ENC.list.push(e);
+    if(typeof NET!=='undefined'&&NET.ready)NET.publishStory(e);
+    return true}
   return false}
 const seekBody=["....k.kkk.k.....","...khkhhhkhk....","...khhhhhhhk....","...kssssssk.....","...kwpsswpk.....","...ksssSssk.....","...ksmmmsk......","....kssssk......","...kRRRRRRk.....","..kRRnRRRRRk....",".ksRRnnRRRRsk...",".ksRRRRRnRRsk...",".ksRRRRRnRRsk...","..kRRRRRRRRk....","..kRnRRRRRRk....","..kRRRRRRRRk....","..kRRRRkRRRk...."];
 const seekLegs=[["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],["..kRRk..kRRk....",".kssk...kssk....",".kssk....kssk...","kkkk.....kkkk..."],["..kRRk.kRRk.....","..kssk.kssk.....","..kssk.kssk.....",".kkkk..kkkk....."],[".kRRk..kRRk.....",".kssk..kssk.....","kssk...kssk.....","kkkk..kkkk......"]];
@@ -1936,7 +1949,9 @@ const QSTEPS=[
   {name:'THE SHELF',how:'Buy the shelf-mark slip at the kitchen hatch once its ledger opens.'},
   {name:'THE BOOK',how:'Let another life go: read an ending while your own words still hold.'},
   {name:'SHELVED',how:'Reach your difficulty’s earliest shelving dawn with all evidence recorded.'}];
-function qDone(n,msg){if(G.q!==n-1)return;G.q=n;G.xp+=5;snd('pickup');sfx(QSTEPS[n-1].name+'!','mind');
+function qDone(n,msg){if(G.q!==n-1)return;G.q=n;G.xp+=5;
+  if(typeof NET!=='undefined'&&NET.ready)NET.send({type:'claim',kind:'quest',step:n,key:'quest|'+n});
+  snd('pickup');sfx(QSTEPS[n-1].name+'!','mind');
   if(n===4&&G.taleDone.some(Boolean))setTimeout(()=>qDone(5),1200);return msg}
 function questLines(){const P=bioPlan(G.phrase),out=[],d=P.f-G.floor,r=difficultyRules(G.difficulty);
   if(G.q>=1)out.push('Floor '+P.f+' ('+(d===0?'this floor':Math.abs(d)+(d>0?' up':' down'))+')');
@@ -2051,6 +2066,7 @@ function hoursSinceReset(){return (G.day-G.lastResetDay)*24+hourOf()}
 function rememberSentence(id){
   if(G.seenSentences.has(id))return false;
   G.seenSentences.add(id);G.sentencesFound++;
+  if(typeof NET!=='undefined'&&NET.ready)NET.send({type:'claim',kind:'sentence',key:String(id).slice(0,155)});
   LAMPS.key=null;WD.key=null;
   sfx('LIBRARY STRETCHES · '+hubStride()+' ROOMS / '+hubStride()+' FLOORS','mind');
   return true;
@@ -2124,6 +2140,7 @@ function spawnRoom(first){
     else G.ents.push({type:'fig',pose:'dead',...common,coat:c.coat||0,burnt:c.burnt,seed:c.x%6,dead:0})
   }
   if(zone.type!=='burned'&&zone.type!=='burning'&&(first||(h>>>3)%3===0)){const a=first?Math.PI*0.75:rnd()*Math.PI*2;G.ents.push({type:'index',x:C.cx+Math.cos(a)*(RS+0.32),y:C.cy+Math.sin(a)*(RS+0.32),f:a,frame:0,hgt:0.9,cards:[INDEXC],dead:0})}
+  if(typeof NET!=='undefined'&&NET.ready)G.ents=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek');
 }
 
 /* keep a body inside its gallery (gallery-local coordinates) and out of the air shaft */
@@ -2300,7 +2317,9 @@ function update(dt){
     sfx(G.torches?'NEXT TORCH':'TORCH GUTTERS OUT','mind');
   }}
   G.oilTimer+=dt;if(G.oilTimer>(G.tr.wick?80:40)&&G.oil>0){G.oilTimer=0;G.oil--}
-  G.clock+=dt;if(G.clock>=DAYLEN){G.clock=DAYLEN-1e-3;blackout();return}
+  if(!(typeof NET!=='undefined'&&NET.ready)){
+    G.clock+=dt;if(G.clock>=DAYLEN){G.clock=DAYLEN-1e-3;blackout();return}
+  }
   if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
@@ -2586,7 +2605,9 @@ function showPage(isNew){
     else if(p.kind==='noise'&&page1Mine(b)){G.opened.delete(p.key);verdict='This is your book. Page one is blank, waiting'+(G.q>=5?' for your next eligible dawn (day '+difficultyRules(G.difficulty).minDay+'+, with enough true sentences and archive proofs).':'.')}
     else if(p.kind==='noise'){const loss=G.tr.specs?0:isNew?2:1;G.sanity=Math.max(0,G.sanity-loss);verdict=loss?'Noise. Pure noise. −'+loss+' sanity':'Noise. Your grey spectacles blur it kindly.'}
     else if(p.kind==='sentence'){G.sanity=Math.min(100,G.sanity+6);G.frags+=G.tr.key?2:1;G.xp++;verdict='A real sentence! +6 sanity. The Index will want this.';G.found.push(p.chars.slice(p.at,p.at+p.len).join(''));rememberSentence('page|'+p.key);sfx('+6 SANITY','mind')}
-    else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;rememberSentence('personal|'+p.key);G.won=true;G.winG=b.g;G.winF=b.f;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
+    else{G.sanity=Math.min(100,G.sanity+20);G.foundBio=true;rememberSentence('personal|'+p.key);
+      if(typeof NET!=='undefined'&&NET.ready)NET.requestEnding();else G.won=true;
+      G.winG=b.g;G.winF=b.f;verdict='Your own words. This page is about you. Close the book and wake up.';sfx('YOUR STORY!','mind')}
   }else verdict=p.kind==='noise'?'You read this one already. Still noise.':'You remember this page.';
   if(page1Mine(b)){p.chars.fill(' ');p.at=-1}
   G.note=null;G.choice=null;openBookUI(p,verdict);
