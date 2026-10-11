@@ -231,6 +231,10 @@ async function coopSmoke(){
     await host.goto('http://127.0.0.1:'+PORT+'/');
     await host.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===6);
     await clickTitle(host,'character');
+    // Rendering the workshop can take several frames on low-powered runners.
+    // Do not tap an unrendered button while the title animation is changing.
+    await host.waitForFunction(()=>window.__AOM_TEST?.FILM.customizing&&
+      window.__AOM_TEST.FILM.buttons.some(b=>b.id==='char:name'),null,{timeout:12000});
     host.once('dialog',async d=>{await d.accept('WARDEN HOST')});
     await clickTitle(host,'char:name',false,.82);
     await clickTitle(host,'char:gender',false,.82);
