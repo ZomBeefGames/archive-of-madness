@@ -178,7 +178,7 @@ function standingZone(){
 }
 function zoneStatus(z){
   if(!z)return'OPEN CATWALK';
-  const name=z.hub?CROSS_NAMES[z.type]:CROSS_NAMES[z.type]&&z.type!=='burned'&&z.type!=='burning'&&z.type!=='refuge'?CROSS_NAMES[z.type]:GALLERY_NAMES[z.type];
+  const name=typeof z.hub==='boolean'?CROSS_NAMES[z.type]:GALLERY_NAMES[z.type];
   return (name||'THE LIBRARY')+(z.breached?' · BREACHED':z.opened?' · SEARCHED':'');
 }
 function zoneDescription(z){
