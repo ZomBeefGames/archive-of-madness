@@ -30,13 +30,14 @@ function harness(){
   const G={floor:0,sentencesFound:0,seenSentences:new Set(),
     day:1,lastResetDay:1,nextResetDay:3,resetInterval:2,resetCount:0,
     resetEpoch:1,justReset:false,clock:480*7/24,tr:{},q:0,room:{},
+    zoneState:new Map(),zoneVisited:new Set(),
     corpses:{old:[1]},wcorpse:{old:[1]},looted:new Set(['body']),
     corpseSeq:2,fires:[{t:8}],over:{ink:1},meal:{kind:'soup'},fedAt:5,sleepCd:4,
     echo:3,phantoms:[{}],journal:true};
   const WD={key:'old'},LAMPS={key:'old'},BG={acts:[1],t:2},
-    ENC={list:[{id:'speaker'}],t:14},burned=new Set(['shelf']),events=[];
+    ENC={list:[{id:'speaker'}],t:14},burned=new Set(['shelf']),texCache=new Map(),events=[];
   let roomSpawns=0;
-  const ctx=vm.createContext({G,WD,LAMPS,BG,ENC,burned,
+  const ctx=vm.createContext({G,WD,LAMPS,BG,ENC,burned,texCache,
     galleryBarricadeAt(){return null}, sfx:(message)=>events.push(message),
     spawnRoom:()=>{roomSpawns++},
     setTimeout:()=>{}
