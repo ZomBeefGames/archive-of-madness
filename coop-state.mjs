@@ -189,6 +189,7 @@ export class SharedWorld {
         w.spawned=[];w.enemies=[];w.stories=[];
         room.broken.clear();room.salvaged.clear();
         this.emit({type:'zone-reset',epoch:w.epoch});
+        this.emit({type:'enemies',enemies:[]});
       }
       this.touch();advanceQuest(room);this.emit({type:'dawn',world:worldPublic(w)});
     }
