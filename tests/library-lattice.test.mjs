@@ -161,3 +161,70 @@ test('combat, book, encounter, corpse and quest flow integrate with expanding wo
   assert.match(script,/G\.resetEpoch\)\,rnd=prng\(h\)/);
   assert.match(script,/G\.resetEpoch\+'\|'\+fl/);
 });
+
+
+test('former pillar footprints remain solid floors on transit levels, including deep negatives',()=>{
+  const h=harness();
+  const corners=[[6.55,6.55],[6.55,9.45],[9.45,6.55],[9.45,9.45]];
+  for(const floor of [-587,-586,-584,-583,-1,1,2,4,5]){
+    h.G.floor=floor;
+    assert.equal(h.run('hubFloor()'),false,'expected stair-only floor '+floor);
+    const layout=h.run('SQV[sqLayout(0,0)]');
+    assert.ok(!layout.solid.some(s=>['pillar','sleep','privy','mirror','food'].includes(s.type)),'phantom pillars on '+floor);
+    for(const [x,y] of corners){
+      assert.equal(h.run('airFloor('+x+','+y+')'),true,'landing floor missing '+floor+' '+x+','+y);
+      assert.equal(h.run('walkable('+x+','+y+',0.1)'),true,'phantom pillar collision on '+floor+' '+x+','+y);
+      assert.equal(h.run('inWell('+x+','+y+')'),false,'former pillar turned into shaft');
+    }
+    assert.equal(h.run('isStair(0,0)'),true,'stair must remain on transit floor '+floor);
+  }
+  for(const floor of [-588,-585,-3,0,3,6]){
+    h.G.floor=floor;
+    assert.equal(h.run('hubFloor()'),true,'expected real community floor '+floor);
+    for(const [x,y] of corners){
+      assert.equal(h.run('airFloor('+x+','+y+')'),true,'solid ground under legitimate hub pillar');
+      assert.equal(h.run('walkable('+x+','+y+',0.1)'),false,'real hub pillar should still block movement');
+    }
+  }
+});
+test('vertical pillar projection is permitted only on actual 3D communal hub floors',()=>{
+  const h=harness();
+  for(let sentences=0;sentences<5;sentences++){
+    h.G.sentencesFound=sentences;const gap=h.run('hubStride()');
+    for(const floor of [-2*gap,-gap,0,gap,2*gap]){
+      assert.equal(h.run("levelHasWall('pillar',"+floor+")"),true);
+      assert.equal(h.run("levelHasWall('sleep',"+floor+")"),true);
+      assert.equal(h.run("levelHasWall('frame',"+floor+")"),true);
+      assert.equal(h.run("levelHasWall('ext',"+floor+")"),true);
+      for(const offset of [1,2]){
+        assert.equal(h.run("levelHasWall('pillar',"+(floor+offset)+")"),false);
+        assert.equal(h.run("levelHasWall('frame',"+(floor+offset)+")"),false);
+        assert.equal(h.run("levelHasWall('ext',"+(floor+offset)+")"),true);
+      }
+    }
+  }
+});
+test('raycaster excludes an old pillar surface when projecting onto a transit floor',()=>{
+  const source=script.slice(script.indexOf('function surfPx('),script.indexOf('let PDv=0,DEP=',script.indexOf('function surfPx(')));
+  assert.ok(source.startsWith('function surfPx('),'actual surfPx implementation');
+  const calls=[];
+  const context=vm.createContext({
+    G:{floor:-585,sentencesFound:0},
+    HIT:{type:'pillar',seg:{},u:0.2},
+    EYE:0.7,FH:2.15,AIRLV:3,WALLH:1.9,AMB:0.14,CW_LAMP:0.1,CW_D2:4,
+    FOG:[1,0.8,0.6,0.4],
+    lanL:()=>0.1,
+    pointAt(){},
+    wallPx(){calls.push('wall')},ceilPx(){calls.push('ceiling')},
+    catPx(){calls.push('landing')},put(){calls.push('fallback')}
+  });
+  vm.runInContext(geometry+'\nlet PX_=6.55,PY_=6.55;\n'+source,context);
+  vm.runInContext('surfPx(0,FH+0.8,1)',context);
+  assert.deepEqual(calls,['landing'],'upper transit floor must not inherit lower hub pillar');
+  calls.length=0;
+  vm.runInContext('surfPx(0,0.8,1)',context);
+  assert.deepEqual(calls,['wall'],'true hub floor retains its physical pillars');
+  calls.length=0;context.G.floor=-587;
+  vm.runInContext('surfPx(0,2*FH+0.8,1)',context);
+  assert.deepEqual(calls,['wall'],'two floors above a transit level is a real hub');
+});
