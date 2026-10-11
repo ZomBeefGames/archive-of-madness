@@ -170,3 +170,36 @@ test('feature art covers ruined and barricaded hubs, and every non-hub landing c
     const n=s.run('(()=>{let out=[];crossingDressing(out,0,0);return out.length})()');
     assert.ok(n>0,type)}
 });
+
+test('looted crates and cleared warning boards visibly change until reset',()=>{
+  const s=setup(),z=s.run('galleryZone(0,0)');z.type='refuge';
+  assert.equal(s.run("(()=>{const p=[];galleryDressing(p,0,0);return p.some(q=>q.cards[0]===ZSPR.crate)})()"),true);
+  z.opened=true;
+  assert.equal(s.run("(()=>{const p=[];galleryDressing(p,0,0);return p.some(q=>q.cards[0]===ZSPR.emptyCrate)})()"),true);
+  assert.equal(s.run("(()=>{const p=[];galleryDressing(p,0,0);return p.some(q=>q.cards[0]===ZSPR.crate)})()"),false);
+  z.type='barricaded';z.breached=true;
+  assert.equal(s.run("(()=>{const p=[];galleryDressing(p,0,0);return p.some(q=>q.cards[0]===ZSPR.warning)})()"),false);
+  const h=s.run('crossingZone(0,0)');h.type='barricaded';h.breached=true;
+  assert.equal(s.run("(()=>{const p=[];crossingDressing(p,0,0);return p.some(q=>q.cards[0]===ZSPR.warning)})()"),false);
+});
+test('burning gallery embers rise over time without changing the persistent zone',()=>{
+  const s=setup(),z=s.run('galleryZone(0,0)');z.type='burning';
+  const a=s.run("(()=>{const p=[];galleryDressing(p,0,0);return p.filter(q=>q.cards[0]===ZSPR.ember).map(q=>q.z0)})()");
+  s.G.time+=.9;
+  const b=s.run("(()=>{const p=[];galleryDressing(p,0,0);return p.filter(q=>q.cards[0]===ZSPR.ember).map(q=>q.z0)})()");
+  assert.equal(a.length,6);assert.equal(b.length,6);
+  assert.notDeepEqual([...a],[...b],'fire should look animated');
+  assert.strictEqual(s.run('galleryZone(0,0)'),z);
+});
+test('raycaster firelights cap at two adjacent burning galleries',()=>{
+  const s=setup();for(const [i,j] of [[0,0],[1,0],[0,1]])s.run('galleryZone('+i+','+j+').type="burning"');
+  s.run('addZoneFireLights()');
+  assert.equal(s.fireLights.length,12,'two room sets of three x/y light positions');
+});
+test('gallery and community barricade labels preserve distinct names and cleared status',()=>{
+  const s=setup(),g=s.run('galleryZone(0,0)'),h=s.run('crossingZone(0,0)');
+  g.type='barricaded';g.breached=true;
+  h.type='barricaded';h.breached=true;
+  assert.match(s.run('zoneStatus(galleryZone(0,0))'),/SEALED LIBRARY · BREACHED/);
+  assert.match(s.run('zoneStatus(crossingZone(0,0))'),/BARRICADED HUB · BREACHED/);
+});
