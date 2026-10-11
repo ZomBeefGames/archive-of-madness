@@ -17,7 +17,7 @@ const solo=part('const ENCS={','const ENC=');
 const scenes=part('Object.assign(ENCS,{','function sceneUpd(');
 const art=part('const ZSPR={','function zoneSprite(');
 function constructionGame(){
-  const G={floor:0,x:2,y:0,ang:0,zoneState:new Map(),resetEpoch:1,type:0,incense:0};
+  const G={state:'play',floor:0,x:2,y:0,ang:0,zoneState:new Map(),resetEpoch:1,type:0,incense:0};
   const zones=new Map(),sounds=[],notes=[];
   const zone=(key)=>{if(!zones.has(key))zones.set(key,{key,type:'barricaded',side:1,
     breached:false,salvaged:false});const z=zones.get(key);G.zoneState.set(key,z);return z};
