@@ -233,10 +233,21 @@ function galleryCacheTarget(){
   if(d>1.85||Math.abs(angDiff(Math.atan2(dy,dx),G.ang))>.9)return null;
   return{zone:z,x:px,y:py,dist:d};
 }
+/* Archive proofs record unique decisions and salvage operations. They survive
+   daybreak and full Library resets, while locations get fresh IDs per epoch. */
+function collectProof(id){
+  if(!G.proofKeys)G.proofKeys=new Set();
+  if(G.proofKeys.has(id))return false;
+  G.proofKeys.add(id);G.proofs=(G.proofs||0)+1;
+  sfx('ARCHIVE PROOF '+G.proofs,'mind');return true;
+}
+function eventProof(e){
+  return collectProof('event|'+e.enc+'|'+G.resetEpoch);
+}
 function zoneRead(){
   const door=barrierTarget();
   if(door){
-    door.zone.breached=true;
+    door.zone.breached=true;collectProof('door|'+door.zone.key);
     G.lastHit={t:door.dist};snd('clack');sfx('BARRICADE BROKEN','mind');
     openNote('THE BARRICADED DOOR','A wall of broken shelves, torn canvas and prayer-rope blocks this doorway. You pry the timbers loose. A crooked gap opens through to the catwalk.','PASSAGE OPEN · THIS STAYS OPEN UNTIL THE NEXT LIBRARY RESET');
     return true;
@@ -244,6 +255,7 @@ function zoneRead(){
   const cache=galleryCacheTarget();
   if(cache){
     const z=cache.zone;z.opened=true;G.lastHit={t:cache.dist};snd('pickup');
+    collectProof('cache|'+z.key);
     if(z.type==='burned'){G.type+=2;sfx('+2 SCORCHED TYPE');openNote('AMONG THE CINDERS','A small iron box survived the fire beneath a shelf of ruined bindings.','+2 TYPE · SALVAGED ONCE THIS RESET')}
     else if(z.type==='refuge'){G.oil+=2;G.incense++;sfx('HIDDEN SUPPLIES','mind');openNote('THE FORGOTTEN REFUGE','Under a folded coat and a torn map, someone kept supplies for the next reader.','+2 OIL · +1 INCENSE · CACHE EMPTY UNTIL RESET')}
     else{G.type+=3;sfx('+3 TYPE');openNote('BEHIND THE BARRICADE','The last occupants hid lead letters beneath a pile of broken boards.','+3 TYPE · CACHE EMPTY UNTIL RESET')}
@@ -262,7 +274,7 @@ function zoneRead(){
     else if(!z.opened&&z.type==='ash'){z.opened=true;G.type++;award='+1 CHARRED TYPE'}
     else if(!z.inspected){z.inspected=true}
     else return false; // let the regular Read action open the still-usable stairs
-    if(award)z.inspected=true; // do not consume the stair action twice after taking loot
+    if(award){z.inspected=true;collectProof('landing|'+z.key)} // unique surviving records
     sfx(award||'THE LANDING REMEMBERS','mind');
     openNote(CROSS_NAMES[z.type],zoneDescription(z),award||'THE SPIRAL STAIR REMAINS OPEN');
     return true;
