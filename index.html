@@ -1822,7 +1822,31 @@ const TALES=[
    'i began to talk to my reflection. she answered a little late, as though she had to think.',
    'she started to wake before me. i would find her already standing in the glass, watching the stair.',
    'she asked me, very politely, if she could have a turn. she had read so much of my story, she said, she knew it by heart.',
-   'i said yes. i am the one in the glass now. she is out there searching for my page, and she is better at it than i ever was.']}
+   'i said yes. i am the one in the glass now. she is out there searching for my page, and she is better at it than i ever was.']},
+ {name:'Milo, who built the first barricade',frags:[
+   'i was not brave. when the fire came i carried a table across a doorway and called it a wall. three strangers held the legs while i drove the nails.',
+   'the first night someone tried to break through. we held. the second night we found another table and made the wall thicker. one of the strangers began to sing.',
+   'on the third night we braced the wall a third time with iron from a fallen railing. the hammers rang against it and not a single board moved.',
+   'by morning the danger had moved on, but nobody could remember who had asked us to hide. the wall had become the most certain thing in the room.',
+   'i learned that nothing built here lasts forever except the promise to move it. i left the wall for whoever needed it next. if you find my nails, do not guard the empty room.']}
+ ,{name:'Ada, the keeper of erased names',frags:[
+   'i tended a ledger of the missing. each day new names appeared in the book and old ones vanished. the ink was always dry.',
+   'once i found my own name crossed out in the careful handwriting of a woman i had not met. beneath it someone had written the word returned.',
+   'i visited a librarian who remembered me, then another who did not. at every crossing the world gave me a different answer about whether i existed.',
+   'the ledger taught me something the mirrors would not. a name survives wherever another person still speaks it, even when every book denies its owner.',
+   'i stopped erasing. i gave a copy of the ledger to the watch and carried one myself. perhaps both are false. there are now two places where my name can live.']}
+ ,{name:'Jun, who counted the bells',frags:[
+   'there was a bell on every floor of my childhood. i used their echoes to know where my sister had gone. one ring meant stay, two meant run.',
+   'then the bell on the floor below rang a third time. my sister asked who had taught it to make that sound, and neither of us knew.',
+   'we followed the wrong echo for thirty floors. the stairs changed while we climbed. every landing returned us to a place we recognized from a dream.',
+   'i began writing the silence between bells instead. those silences stayed true even when the notes and the floors moved around me.',
+   'we never found the first bell. but i learned how to answer my sister across the dark: one silence for i am here, two for i will not leave.']}
+ ,{name:'Salma, whose books sheltered the living',frags:[
+   'my father said a book is only paper, and paper burns. i built a roof from dictionaries anyway, because those were the only boards the library gave me.',
+   'the first child slept beneath the letter a. by morning a traveler had brought another cover, and we raised the roof one word higher.',
+   'a Purifier came to burn the shelter. when he saw the children he put down his torch. he stayed a week and learned to repair the bindings.',
+   'after that we stopped asking each stranger where they came from. we asked what they could carry, and what they wanted to put down.',
+   'the books did burn in the end. we carried the children into the next room, then built again. the only true library i knew was the one we carried together.']}
 ];
 const ECHO_MAX=6,TALE_GAIN=8;
 /* your own words as you can still remember them: letters drop out as the echo of other lives grows */
@@ -1831,7 +1855,7 @@ function fadedPhrase(){const ph=G.phrase,n=Math.round(ph.replace(/ /g,'').length
 /* does this page hold someone's story? Decided the first time it is opened, and kept: the books stay the same */
 function taleFor(key){
   if(G.tales[key])return G.tales[key];
-  const h=hashStr(key+'|tale');if(h%100>=5)return null;
+  const h=hashStr(key+'|tale');if(h%100>=8)return null;
   const n=TALES.length;for(let k=0;k<n;k++){const s=(h>>>8)%n+k,t=s%n;if(G.taleDone[t]||G.taleN[t]>=5)continue;return G.tales[key]={s:t,i:G.taleN[t],read:false}}
   return null}
 function taleOverlay(p,T){const txt=TALES[T.s].frags[T.i];T.at=T.at??Math.floor((hashStr(p.key+'|at')%1000)/1000*(3200-txt.length));
