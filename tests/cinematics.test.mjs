@@ -9,6 +9,9 @@ assert.ok(script,'inline game script must exist');
 const begin=script.indexOf('const FILM='),end=script.indexOf('const ARWPAL=',begin);
 assert.ok(begin>0&&end>begin,'cinematic engine must be embedded in the game');
 const theatre=script.slice(begin,end);
+const d0=script.indexOf('const DIFFICULTIES='),d1=script.indexOf('/* ---- the way to your page:',d0);
+assert.ok(d0>=0&&d1>d0,'Difficulty profiles must be declared');
+const modes=script.slice(d0,d1);
 function fakeCanvasContext(){
   const base={
     font:'15px serif',
@@ -19,7 +22,7 @@ function fakeCanvasContext(){
   return new Proxy(base,{get(obj,key){return key in obj?obj[key]:()=>{}},set(obj,key,value){obj[key]=value;return true}});
 }
 function studio(w=1280,h=720){
-  const events={audio:0,intro:0,index:0,release:0};
+  const events={audio:0,intro:0,index:0,release:0,reset:0};
   const G={state:'title',cutSeen:{},journal:false,phrase:'the lamp forgot',wakeT:1.5,winT:1.2,day:2};
   const SND={on:true};
   const context=vm.createContext({DW:w,DH:h,G,SND,FINE:true,CALM:false,
@@ -27,10 +30,11 @@ function studio(w=1280,h=720){
     document:{createElement(){return{width:0,height:0,getContext:()=>fakeCanvasContext()}}},
     smooth(p){p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)},
     snd(){events.audio++},drawIntro(){events.intro++},
+    reset(){events.reset++;G.cutSeen={};G.state='intro'},
     useIndex(){events.index++},releaseAll(){events.release++},
     soundToggle(){SND.on=!SND.on}
   });
-  vm.runInContext(theatre,context);
+  vm.runInContext(modes+'\n'+theatre,context);
   return {G,SND,events,context,run:code=>vm.runInContext(code,context)};
 }
 
@@ -38,11 +42,11 @@ test('game and cinematic engine JavaScript parse',()=>{
   assert.doesNotThrow(()=>new vm.Script(script));
   assert.doesNotThrow(()=>new vm.Script(theatre));
 });
-test('title renders a usable three-choice menu on desktop and phone',()=>{
+test('title renders four readable choices on desktop and phone',()=>{
   for(const [w,h] of [[1280,720],[750,1450]]){
     const t=studio(w,h);
     assert.doesNotThrow(()=>t.run('filmDrawTitle()'));
-    assert.equal(t.run('FILM.buttons.length'),3);
+    assert.equal(t.run('FILM.buttons.length'),4);
     assert.equal(t.run('filmStage().portrait'),h>w*1.2);
     const values=t.run('({s:filmStage(),buttons:FILM.buttons.map(b=>({...b}))})');
     for(const b of values.buttons){
@@ -56,7 +60,8 @@ test('title navigation, help and sound toggles are reversible',()=>{
   const t=studio();
   t.run("filmTitleAction('down')");
   assert.equal(t.run('FILM.selection'),1);
-  t.run("filmTitleAction('read')");assert.equal(t.run('FILM.help'),true);
+  t.run("filmTitleAction('read')");assert.equal(t.run('FILM.difficulty'),'lost');
+  t.run("filmTitleAction('down');filmTitleAction('read')");assert.equal(t.run('FILM.help'),true);
   assert.doesNotThrow(()=>t.run('filmDrawTitle()'));
   t.run("filmTitleAction('back')");assert.equal(t.run('FILM.help'),false);
   t.run("filmTitleAction('down');filmTitleAction('read')");
@@ -67,6 +72,7 @@ test('new game plays four skippable shots and returns to the original intro book
   const t=studio();
   t.run("filmTitleAction('begin')");
   assert.equal(t.G.state,'cinematic');assert.equal(t.G.cutSeen.opening,true);
+  assert.equal(t.events.reset,1,'starting the selected challenge resets a clean new run');
   assert.equal(t.run('FILMS.opening.length'),4);
   for(let i=0;i<4;i++){
     assert.doesNotThrow(()=>t.run('filmDrawCut()'));
@@ -108,4 +114,20 @@ test('keyboard, touch, quest and encounter hooks do not silently bypass cinemati
   assert.match(script,/filmBegin\('index','index'\)/);
   assert.match(script,/filmBegin\('purifier','play'\)/);
   assert.match(script,/if\(!\['title','cinematic','wake','waking'\]\.includes\(G\.state\)\)render\(\)/);
+});
+
+test('difficulty mode cycles through four challenge durations and back',()=>{
+  const t=studio();
+  const keys=['reader','archivist','lost','condemned'];
+  for(const k of keys){
+    assert.equal(t.run('Boolean(DIFFICULTIES['+JSON.stringify(k)+'])'),true);
+  }
+  t.run("filmTitleAction('difficulty')");
+  assert.equal(t.run('FILM.difficulty'),'lost');
+  t.run("filmTitleAction('next')");
+  assert.equal(t.run('FILM.difficulty'),'condemned');
+  t.run("filmTitleAction('next')");
+  assert.equal(t.run('FILM.difficulty'),'reader');
+  t.run("filmTitleAction('prev')");
+  assert.equal(t.run('FILM.difficulty'),'condemned');
 });
