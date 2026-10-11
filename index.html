@@ -3288,6 +3288,7 @@ const NET={
     G.day=w.day;G.clock=w.clock;G.resetEpoch=w.epoch;
     G.resetCount=w.resetCount;G.resetInterval=w.resetInterval;G.nextResetDay=w.nextResetDay;
     G.q=w.quest;G.proofs=w.proofs;G.sentencesFound=w.sentences;
+    if(!w.ending)this.endingRequested=false;
     if(!G.proofKeys)G.proofKeys=new Set();
     if(!G.seenSentences)G.seenSentences=new Set();
     this.receiveResources(w.resources,w.tr);
@@ -3371,7 +3372,7 @@ const NET={
     if(t-this.lastResources>240){this.lastResources=t;this.sendResourceDeltas()}
     if(t-this.lastPose>110){
       this.lastPose=t;this.send({type:'pose',x:G.x,y:G.y,f:G.ang,floor:G.floor,
-        pose:Math.abs(ME.walk||0)>.13?'run':'stand'});
+        pose:Math.abs(ME.walk||0)>.13?'run':'stand',active:G.state==='play'});
     }
   },
   share(){
