@@ -1010,7 +1010,7 @@ tailorRig(MERIG,RCOAT,2.35);
 const ME={type:'me',x:0,y:0,f:0,hit:0,dead:0};
 /* your puppet: built from where you stand and how you move; the weapon arm swings with your strikes */
 function meLayers(out){
-  const e=ME,R=MERIG,T=G.time;e.x=G.x;e.y=G.y;e.f=G.ang;if(e.ox===undefined)gaitUpd(e,0,0.5);
+  const e=ME,R=e.rig||MERIG,T=G.time;e.x=G.x;e.y=G.y;e.f=G.ang;if(e.ox===undefined)gaitUpd(e,0,0.5);
   const put=rigOut(e,out),walk=e.walk||0,dd=(G.state==='dying'||G.state==='dead')?smooth(Math.min(1,(G.dieT||0)/1.1)):0;
   const sleep=G.state==='blackout'?smooth(Math.min(1,G.boT/(BLACKOUT*0.8))):0,fall=Math.max(dd,sleep);
   const A=Math.max(-8,Math.min(8,(e.vin||0)/PS/(4*Math.max(1.1,Math.hypot(e.vx||0,e.vy||0)/(1.45*0.5))))),lift=3.5*walk;
@@ -1030,6 +1030,7 @@ function meLayers(out){
   put(R.chest,lean,hx,hz,0,false);torsoJoins(e,put,R,hx,hz,lean,shx,shz,nkx,nkz);
   e.thA=legOut(put,R,hx+1.2,hz,fa,0.012,11.5,11,4.5);
   put(R.skirt,(S[6]||0)+fall*25,hx+1.2,hz+1.3,coatTailDepth(e,true),false);
+  if(R.hood)put(R.hood,lean*.4,nkx,nkz-.6,0.020,false);
   put(R.head,lean*0.4+G.pitch*-60+fall*30,nkx,nkz-1,0.028,false);
   // the weapon hand, on the camera side: a wind-up, then the strike goes out into the room ahead of you
   const s=G.swing||0,k=1-s,wind=s>0?(k<0.25?k/0.25:Math.max(0,1-(k-0.25)/0.45)):0,hit=s>0&&k>=0.25?Math.sin(Math.min(1,(k-0.25)/0.5)*Math.PI):0;
@@ -1059,6 +1060,154 @@ const COATS=new Set(RCOAT);
 const FIGRIG=[MERIG,recolorRig(MERIG,c=>COATS.has(c)?hue(150,230,190)(c):c),recolorRig(MERIG,c=>COATS.has(c)?hue(230,150,240)(c):c),
   recolorRig(MERIG,c=>c===INK?c:[c[0]*0.22|0,c[1]*0.19|0,c[2]*0.17|0])];
 FIGRIG[1].head=portraitPart('scholar');FIGRIG[2].head=portraitPart('elder');
+/* CHARACTER WORKSHOP. Every visible avatar uses the original jointed paper
+   rig, but with hand-tailored silhouettes, hair, complexion and cloth colors.
+   The profile is cosmetic: age/presentation never alter combat statistics. */
+const APPEARANCE={
+  gender:['MALE','FEMALE','NONBINARY'],
+  outfit:['LONG COAT','HOODED COAT','WAISTCOAT','ARCHIVE ROBE'],
+  coat:[['BURGUNDY','#743844'],['CHARCOAL','#42464f'],['MOSS','#53684b'],
+    ['IVORY','#b5a484'],['INDIGO','#454669'],['RUST','#9c563b'],
+    ['BRASS','#94713e'],['MIDNIGHT','#252c37']],
+  pants:[['ONYX','#303038'],['BROWN','#675043'],['SLATE','#5f6670'],
+    ['OLIVE','#555d45'],['PLUM','#62445e'],['CREAM','#b2a38c']],
+  skin:[['PORCELAIN','#f1ccb0'],['LIGHT','#dfad86'],['TAN','#b78361'],
+    ['BROWN','#84583d'],['DEEP','#5b382c'],['UMBER','#3f2b28']],
+  hair:[['BLACK','#242027'],['CHESTNUT','#633d2d'],['BLONDE','#c3a269'],
+    ['AUBURN','#9a5033'],['SILVER','#c2bab0'],['BLUE','#435a77'],['WHITE','#e5ded0']]
+};
+const DEFAULT_CHARACTER={name:'THE READER',gender:0,age:28,outfit:0,coat:0,pants:0,skin:2,hair:1};
+function normalCharacter(profile){
+  const obj=profile&&typeof profile==='object'?profile:{},p={...DEFAULT_CHARACTER};
+  p.name=String(obj.name??p.name).replace(/[^A-Za-z0-9 _'-]/g,'').trim().slice(0,18)||'THE READER';
+  for(const key of ['gender','outfit','coat','pants','skin','hair']){
+    const n=Number(obj[key]),max=APPEARANCE[key].length;
+    p[key]=Number.isInteger(n)&&n>=0&&n<max?n:p[key];
+  }
+  const age=Number(obj.age);
+  p.age=Number.isFinite(age)?Math.max(18,Math.min(90,Math.round(age))):p.age;
+  return p;
+}
+function storedCharacter(){
+  try{if(typeof localStorage!=='undefined')return normalCharacter(JSON.parse(localStorage.getItem('aom.character.v1')||'null'))}
+  catch{}
+  return normalCharacter(null);
+}
+const CHAR=storedCharacter(),AVATAR_RIGS=new Map();
+const colorRamp=hex=>{
+  const c=rgb(hex);
+  return [.40,.60,.80,1,1.18].map(f=>c.map(v=>Math.min(255,Math.round(v*f))));
+};
+function avatarPortrait(profile,complexion,hair){
+  const old=profile.age>=52,aged=profile.age>=68,shape=profile.gender;
+  const grey=ramp('#77736d','#aca69a','#d3cab9');
+  const hairR=aged?hair.map((c,i)=>c.map((v,k)=>Math.min(255,v*.45+grey[Math.min(i,2)][k]*.55))):hair;
+  const front=back=>g=>{
+    const wide=shape===0?5.8:shape===1?5.1:5.5;
+    // Head, ears and hair are separately painted on front and back.
+    capsule(g,7.2,9,7.7,11,wide,4.8,complexion);
+    capsule(g,3.1,10,3.2,11,1.1,1.2,complexion,false);
+    if(shape===1){capsule(g,2.5,6,2.5,14,2.1,2.4,hairR);
+      capsule(g,13,6,13,14,2.1,2.4,hairR)}
+    else if(shape===2){capsule(g,3,5,3,11,1.7,2.4,hairR)}
+    paint(g,(x,y)=>((x-7.2)/6.1)**2+((y-6.4)/5.1)**2<=1&&
+      (back||y<3.5+((x|0)%3)*.5||x<3.5||(shape===1&&x>11)),
+      (x,y)=>.66-.24*x/16,hairR);
+    if(back){
+      stamp(g,['..n..n.','.n..n..','..nn...'],4,6,{n:hairR[hairR.length-1]});
+      paint(g,(x,y)=>y>14&&y<16.2&&Math.abs(x-7.5)<3.5,()=>.65,RCREAM,false);
+      return;
+    }
+    const eyes={k:INK,p:rgb('#2d2827'),s:complexion[1],n:rgb('#e7cfbd'),w:rgb('#f3ead6')};
+    stamp(g,['kk..kk.','wp..wp.'],6,7,eyes);
+    if(shape===1)stamp(g,['k.....k'],5,6,{k:hairR[0]});
+    stamp(g,shape===0?['.kkk.','.sss.']:shape===1?['.sss.','.kkk.']:['.sss.','..kk.'],5,12,eyes);
+    if(old){
+      stamp(g,['ss','s.'],2,10,{s:complexion[1]});
+      stamp(g,['ss','.s'],12,10,{s:complexion[1]});
+    }
+    if(aged)stamp(g,['nnn','n.n'],6,14,{n:grey[1]});
+    if(shape===0&&profile.age>=35)stamp(g,['.ss.','ssss'],6,13,{s:complexion[0]});
+  };
+  return part(16,18,7,17,front(false),false,front(true));
+}
+function avatarSkirt(profile,coat){
+  if(profile.outfit===2)return part(13,8,6,0,g=>{
+    paint(g,(x,y)=>Math.abs(x-6.5)<5.1&&y<7,(x,y)=>.67-.29*x/13,coat);
+    stamp(g,['kkkkkkkk'],2,5,{k:INK});
+  });
+  if(profile.outfit===3)return part(16,23,8,0,g=>{
+    paint(g,(x,y)=>Math.abs(x-8)<(4.7+y*.16)&&y<21.3-(x%5===0?.7:0),
+      (x,y)=>.74-.35*x/16,coat);
+    for(const y of [11,17])stamp(g,['nn','nn'],7,y,{n:coat[4]});
+  });
+  if(profile.outfit===1)return part(14,19,7,0,g=>{
+    paint(g,(x,y)=>Math.abs(x-7)<5+y*.13&&y<17,
+      (x,y)=>.64-.30*x/14,coat);
+  });
+  return null;
+}
+function avatarHood(coat){
+  return part(21,19,10,16,g=>{
+    capsule(g,10,10,10,9,8.5,8,coat);
+    capsule(g,10,11,10,9.8,6,6,RCREAM,false);
+    paint(g,(x,y)=>Math.abs(x-10)<8&&y>=12&&y<17,(x,y)=>.61-.2*x/20,coat);
+  },false,g=>{
+    capsule(g,10,10,10,9,8.5,8,coat);
+    paint(g,(x,y)=>Math.abs(x-10)<7&&y>=12&&y<17,()=>.46,coat);
+  });
+}
+function characterRig(source=CHAR){
+  const p=normalCharacter(source),key=[p.gender,p.age,p.outfit,p.coat,p.pants,p.skin,p.hair].join('|');
+  const old=AVATAR_RIGS.get(key);if(old)return old;
+  const coat=colorRamp(APPEARANCE.coat[p.coat][1]),pants=colorRamp(APPEARANCE.pants[p.pants][1]),
+    skin=colorRamp(APPEARANCE.skin[p.skin][1]),hair=colorRamp(APPEARANCE.hair[p.hair][1]);
+  const cc=new Map(RCOAT.map((x,i)=>[x,coat[i]])),tt=new Map(RTROU.map((x,i)=>[x,pants[Math.min(i,4)]])),
+    sc=new Map(RSKIN.map((x,i)=>[x,skin[Math.min(i,4)]])),hc=new Map(RHAIR.map((x,i)=>[x,hair[Math.min(i,4)]]));
+  const rig=recolorRig(MERIG,c=>cc.get(c)||tt.get(c)||sc.get(c)||hc.get(c)||c);
+  rig.head=avatarPortrait(p,skin,hair);
+  const skirt=avatarSkirt(p,coat);if(skirt){clothBack(skirt,coat,'tail');rig.skirt=skirt}
+  if(p.outfit===1)rig.hood=avatarHood(coat);
+  // Tailored breast and lapel stitching alters the coat front for different
+  // presentations, while leaving the IK shoulder/waist pin geometry intact.
+  if(p.gender===1){
+    stamp(rig.chest.g,['nn.....nn','n.......n'],2,8,{n:coat[4]});
+    stamp(rig.chest.bk,['nnnn'],6,10,{n:coat[3]});
+  }else if(p.gender===2){
+    stamp(rig.chest.g,['nn.nn','n...n'],5,8,{n:coat[4]});
+  }
+  if(AVATAR_RIGS.size>=80)AVATAR_RIGS.delete(AVATAR_RIGS.keys().next().value);
+  AVATAR_RIGS.set(key,rig);return rig;
+}
+function applyCharacter(profile,persist=false){
+  const p=normalCharacter(profile);Object.assign(CHAR,p);
+  ME.rig=characterRig(CHAR);
+  if(persist)try{if(typeof localStorage!=='undefined')localStorage.setItem('aom.character.v1',JSON.stringify(CHAR))}catch{}
+  return CHAR;
+}
+ME.rig=characterRig(CHAR);
+const CHARACTER_FIELDS=['name','gender','age','outfit','coat','pants','skin','hair'];
+function characterLabel(field,p=CHAR){
+  const val=p[field];
+  if(field==='name')return val;
+  if(field==='age')return val+' YEARS';
+  const entries=APPEARANCE[field];
+  return (field==='coat'||field==='pants'||field==='skin'||field==='hair'?entries[val][0]:entries[val]);
+}
+function changeCharacter(field,step){
+  if(field==='name'){
+    if(typeof window!=='undefined'&&typeof window.prompt==='function'){
+      const name=window.prompt('Name your librarian (18 characters):',CHAR.name);
+      if(name!==null)applyCharacter({...CHAR,name},true);
+    }
+    return;
+  }
+  let value;
+  if(field==='age')value=Math.max(18,Math.min(90,CHAR.age+step));
+  else value=(CHAR[field]+step+APPEARANCE[field].length)%APPEARANCE[field].length;
+  applyCharacter({...CHAR,[field]:value},true);
+}
+
 /* a librarian figure (your own rig, in other coats): running, flailing, falling, hanging or lying dead */
 function figLayers(e,out){
   const R=e.rig||FIGRIG[e.burnt?3:e.coat||0],T=G.time,put=rigOut(e,out),seed=e.seed||0,pose=e.pose,walk=e.walk||0;
