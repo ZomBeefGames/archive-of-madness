@@ -95,9 +95,19 @@ export class GameRooms {
     const error=reason=>send(p.ws,{type:'error',message:reason});
     if(action==='breach'||action==='salvage'){
       const key=String(msg.key||'');
-      if(!/^\d+\|(g|hub|transit)\|-?\d+,-?\d+\|-?\d+$/.test(key)||key.length>95)
-        return error('Invalid barricade location.');
-      if(!validPosition(msg)||!vicinity(p,msg,3.0))return error('Get closer to those boards.');
+      const m=/^(\d+)\|(g|hub|transit)\|(-?\d+),(-?\d+)\|(-?\d+)$/.exec(key);
+      if(!m||key.length>95)return error('Invalid barricade location.');
+      if(!validPosition(msg)||!vicinity(p,msg,3.0)||Number(m[5])!==msg.floor)
+        return error('Get closer to those boards.');
+      const [i,j]=[Number(m[3]),Number(m[4])];
+      if(!Number.isInteger(i)||!Number.isInteger(j)||Math.abs(i)>125000||Math.abs(j)>125000)
+        return error('Invalid barricade coordinates.');
+      const x0=m[2]==='g'?i*16:(i+.5)*16+1.36;
+      const y0=m[2]==='g'?j*16:(j+.5)*16-.36;
+      const validSpot=m[2]==='g'?Math.abs(msg.y-y0)<.8&&
+        Math.min(Math.abs(msg.x-(x0+5*Math.cos(Math.PI/6))),Math.abs(msg.x-(x0-5*Math.cos(Math.PI/6))))<.8:
+        Math.hypot(msg.x-x0,msg.y-y0)<.9;
+      if(!validSpot)return error('No salvageable barricade at that address.');
       if(action==='breach'){
         room.broken.add(key);
         this.broadcast(room,{type:'zone',key,breached:true});
