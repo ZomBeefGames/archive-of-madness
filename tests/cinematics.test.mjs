@@ -26,6 +26,7 @@ function studio(w=1280,h=720){
   const G={state:'title',cutSeen:{},journal:false,phrase:'the lamp forgot',wakeT:1.5,winT:1.2,day:2};
   const SND={on:true};
   const context=vm.createContext({DW:w,DH:h,G,SND,FINE:true,CALM:false,
+    BUILD:{barriers:new Map(),wrecks:new Map(),planks:0},
     vctx:fakeCanvasContext(),
     document:{createElement(){return{width:0,height:0,getContext:()=>fakeCanvasContext()}}},
     smooth(p){p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)},
@@ -42,11 +43,11 @@ test('game and cinematic engine JavaScript parse',()=>{
   assert.doesNotThrow(()=>new vm.Script(script));
   assert.doesNotThrow(()=>new vm.Script(theatre));
 });
-test('title renders four readable choices on desktop and phone',()=>{
+test('title renders five readable choices on desktop and phone',()=>{
   for(const [w,h] of [[1280,720],[750,1450]]){
     const t=studio(w,h);
     assert.doesNotThrow(()=>t.run('filmDrawTitle()'));
-    assert.equal(t.run('FILM.buttons.length'),4);
+    assert.equal(t.run('FILM.buttons.length'),5);
     assert.equal(t.run('filmStage().portrait'),h>w*1.2);
     const values=t.run('({s:filmStage(),buttons:FILM.buttons.map(b=>({...b}))})');
     for(const b of values.buttons){
@@ -60,7 +61,8 @@ test('title navigation, help and sound toggles are reversible',()=>{
   const t=studio();
   t.run("filmTitleAction('down')");
   assert.equal(t.run('FILM.selection'),1);
-  t.run("filmTitleAction('read')");assert.equal(t.run('FILM.difficulty'),'lost');
+  t.run("filmTitleAction('read')");assert.equal(t.run('FILM.partyMode'),'host');
+  t.run("filmTitleAction('down');filmTitleAction('read')");assert.equal(t.run('FILM.difficulty'),'lost');
   t.run("filmTitleAction('down');filmTitleAction('read')");assert.equal(t.run('FILM.help'),true);
   assert.doesNotThrow(()=>t.run('filmDrawTitle()'));
   t.run("filmTitleAction('back')");assert.equal(t.run('FILM.help'),false);
