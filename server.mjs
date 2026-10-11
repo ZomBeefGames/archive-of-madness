@@ -1,5 +1,6 @@
 // A tiny static server for Railway: serves the game (index.html) and anything beside it (sfx/, docs/).
 import { createServer } from "node:http";
+import {attachMultiplayer} from "./multiplayer.mjs";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,7 +13,7 @@ const types = {
   ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ico": "image/x-icon",
 };
 
-createServer(async (req, res) => {
+const server=createServer(async (req, res) => {
   try {
     let path = decodeURIComponent(new URL(req.url, "http://x").pathname);
     if (path === "/" || path === "") path = "/index.html";
@@ -27,4 +28,6 @@ createServer(async (req, res) => {
     res.writeHead(404, { "content-type": "text/plain" });
     res.end("Not found");
   }
-}).listen(port, "0.0.0.0", () => console.log(`Archives of Madness on :${port}`));
+});
+attachMultiplayer(server);
+server.listen(port, "0.0.0.0", () => console.log(`Archives of Madness multiplayer on :${port}`));
