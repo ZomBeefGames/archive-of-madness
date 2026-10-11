@@ -1927,6 +1927,30 @@ const ZSPR={
     "......kttttk.",".......kkkkk."
   ])
 };
+/* Architecture stamps use the same handmade paper palette as the base game.
+   They are decorative, never obstruct a door or the central shaft. */
+function archCard(kind){
+ const w=25,h=26,p=Array.from({length:h},()=>Array(w).fill('.'));
+ const px=(x,y,c)=>{x=Math.round(x);y=Math.round(y);if(x>=0&&x<w&&y>=0&&y<h)p[y][x]=c};
+ const line=(x,y,X,Y,c)=>{const n=Math.max(1,Math.abs(X-x),Math.abs(Y-y));for(let i=0;i<=n;i++)px(x+(X-x)*i/n,y+(Y-y)*i/n,c)};
+ const frame=(x,y,X,Y,c)=>{line(x,y,X,y,c);line(X,y,X,Y,c);line(x,y,x,Y,c);line(X,y,X,Y,c)};
+ const bar=(x,y,X,Y,c)=>{for(let i=x;i<=X;i++)for(let j=y;j<=Y;j++)px(i,j,c)};
+ if(['confession','judgment','memory'].includes(kind)){frame(6,4,19,14,'G');bar(7,16,18,18,'t');frame(9,18,17,24,'k');px(12,5,'Y')}
+ if(kind==='chain'){for(const x of [5,12,19])for(let y=1;y<24;y+=3){px(x,y,'G');px(x+1,y+1,'Y')}}
+ if(['study','observatory','puriflab','research'].includes(kind)){frame(3,2,22,13,'y');for(let i=0;i<12;i++)px(4+(i*13)%18,3+(i*7)%10,'Y');bar(3,16,22,19,'t');frame(7,20,17,24,'G')}
+ if(['obliterated','collapse','ashvoid','skeleton'].includes(kind)){for(const x of [3,9,15,21]){line(x,2+(x%9),x+2,22,'G');line(x+2,12,x+5,18,'t')}for(let x=1;x<24;x++)px(x,23+(x%2),'g')}
+ if(kind==='flooded'){for(let y=12;y<25;y+=3)for(let x=2;x<23;x++)px(x,y+(x%3===0?1:0),'b');frame(4,1,8,12,'t');frame(16,3,21,14,'t')}
+ if(kind==='quarantine'){frame(2,2,22,24,'G');for(let x=4;x<22;x+=4)line(x,2,x,24,'k');line(2,4,22,23,'r')}
+ if(kind==='bindery'){bar(3,13,22,17,'t');bar(7,4,18,12,'n');line(12,4,12,12,'k');frame(6,17,18,23,'G')}
+ if(kind==='mirrorhall'){for(let x=2;x<23;x+=7){frame(x,2,x+5,22,'Y');line(x+1,5,x+4,20,'b')}}
+ if(kind==='vault'){frame(2,1,22,24,'G');frame(4,3,20,22,'Y');for(let y=6;y<22;y+=4)line(5,y,19,y,'G');px(12,14,'Y')}
+ if(['broken','collapsed','burned','patch','beam'].includes(kind)){for(const x of [2,8,14,20]){bar(x,9,x+3,17,kind==='burned'?'g':'t');if(['broken','collapsed'].includes(kind))px(x+1,12,'.')}line(0,5,24,5,'G');line(0,22,24,22,'G');if(kind==='beam')bar(10,5,14,22,'y')}
+ if(['service','checkpoint','overlook','fork'].includes(kind)){frame(2,13,22,23,'t');frame(9,3,15,14,'G');line(3,18,21,18,'Y');if(kind==='fork')line(2,6,21,6,'n')}
+ if(kind==='cage'){frame(1,1,23,24,'Y');for(let x=3;x<23;x+=3)line(x,1,x,24,'G')}
+ if(kind==='chain'){for(const x of [2,22])for(let y=0;y<24;y+=3){px(x,y,'G');px(x+1,y+1,'Y')}bar(4,15,20,19,'t')}
+ return buildCard(p.map(r=>r.join('')));
+}
+const ARCH_CARDS=Object.fromEntries([...new Set([...Object.keys(ROOM_DESCRIPTIONS),...Object.keys(BRIDGE_NAMES)])].map(type=>[type,archCard(type)]));
 /* Layered salvage art: timber grain, overlapping cross-beams, gold straps and
    rivets are painted directly as a real pixel sprite. Each reinforcement visibly
    changes its silhouette without changing the old paper-cutout rendering style. */
@@ -2004,6 +2028,13 @@ function galleryDressing(out,i,j){
     zoneSprite(out,ZSPR.lookout,x-2.6,y+2.2,.89,{sh:true});
     zoneSprite(out,zone.opened?ZSPR.emptyCrate:ZSPR.crate,x+2.4,y+2.4,.66,{sh:true});
     zoneSprite(out,ZSPR.wax,x+2.65,y+2.05,.40,{glow:true});
+  }else if(ARCH_CARDS[zone.type]){
+    zoneSprite(out,ARCH_CARDS[zone.type],spots[0][0],spots[0][1],1.3,{sh:true});
+    zoneSprite(out,ARCH_CARDS[zone.type],spots[2][0],spots[2][1],.98,{sh:true});
+    if(['obliterated','collapse','ashvoid','skeleton'].includes(zone.type))zoneSprite(out,ZSPR.ruin,spots[1][0],spots[1][1],1.15);
+    if(['confession','chain','judgment','quarantine'].includes(zone.type))zoneSprite(out,ZSPR.chain,spots[1][0],spots[1][1],1.0,{z0:.3});
+    if(['memory','study','observatory','puriflab'].includes(zone.type))zoneSprite(out,ZSPR.wax,spots[1][0],spots[1][1],.33,{glow:true});
+    zoneSprite(out,zone.opened?ZSPR.emptyCrate:ZSPR.crate,x+2.4,y+2.4,.58,{sh:true});
   }
 }
 function crossingDressing(out,i,j){
@@ -2033,6 +2064,14 @@ function crossingDressing(out,i,j){
     else zoneSprite(out,ZSPR.ash,x-1.30,y+1.33,.21);
   }
 }
+function bridgeDressing(out,axis,i,j){
+ const z=bridgeZone(axis,i,j);if(z.type==='plain')return;
+ const x=(i+.5)*P+(axis==='h'?P/2:0),y=(j+.5)*P+(axis==='v'?P/2:0);
+ if(Math.hypot(x-G.x,y-G.y)>18)return;
+ zoneSprite(out,ARCH_CARDS[z.type],x,y,z.type==='cage'?1.5:.87,{sh:true});
+ if(['broken','collapsed','burned'].includes(z.type))zoneSprite(out,ZSPR.ash,x+.3,y-.3,.25);
+ if(!z.opened&&['service','overlook','patch'].includes(z.type))zoneSprite(out,ZSPR.crate,x+.42,y+.32,.4);
+}
 function addZoneDressing(out){
   for(const b of BUILD.barriers.values())if(b.floor===G.floor)
     zoneSprite(out,BARRICADE_CARDS[b.level],b.x,b.y,1.52,{sh:true});
@@ -2042,6 +2081,9 @@ function addZoneDressing(out){
   for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++)galleryDressing(out,i,j);
   const x0=Math.round(G.x/P-.5),y0=Math.round(G.y/P-.5);
   for(let i=x0-1;i<=x0+1;i++)for(let j=y0-1;j<=y0+1;j++)if(isStair(i,j))crossingDressing(out,i,j);
+  for(let i=x0-2;i<=x0+2;i++)for(let j=y0-2;j<=y0+2;j++){
+    bridgeDressing(out,'h',i,j);bridgeDressing(out,'v',i,j);
+  }
 }
 function addZoneFireLights(){
   const i0=Math.round(LX/P),j0=Math.round(LY/P),near=[];
@@ -2886,7 +2928,18 @@ function airPx(i,s,up,r){
   }
   buf[i]=buf[i+1]=buf[i+2]=0;
 }
-function catPx(i,px,py,L){const ti=((((px%1)+1)%1*32|0)*32+(((py%1)+1)%1*32|0))*4;put(i,floorTex[ti]*0.85,floorTex[ti+1]*0.8,floorTex[ti+2]*0.75,L*2.2)}
+function catPx(i,px,py,L){
+ const b=bridgeSegment(px,py);
+ if(b&&b.zone.type!=='plain'){
+   const kind=b.zone.type,along=b.axis==='h'?px:py,across=b.axis==='h'?py-b.y:px-b.x;
+   const groove=Math.abs(((along*.85)%1+1)%1-.5)<.055;
+   const rust=['burned','collapsed','broken'].includes(kind);
+   const brass=['research','service','checkpoint','cage'].includes(kind);
+   const tone=Math.sin(along*13.1+across*18.7)*4+(groove?-30:0);
+   put(i,(rust?55:brass?104:78)+tone,(rust?38:brass?89:59)+tone,(rust?30:brass?65:39)+tone,L*1.95);
+   return;
+ }
+ const ti=((((px%1)+1)%1*32|0)*32+(((py%1)+1)%1*32|0))*4;put(i,floorTex[ti]*0.85,floorTex[ti+1]*0.8,floorTex[ti+2]*0.75,L*2.2)}
 /* the camera: in third person it hangs behind your right shoulder and slides in toward you when a wall or the mirror is
    behind you. While the scene draws, the view origin moves to the camera; light still comes from your lantern (LX,LY) */
 let LX=0,LY=0,THIRD=false;const VIEW={third:true,d:2.35};
@@ -3234,10 +3287,10 @@ function drawMap(g,x0,y0,w,h){
     g.fillStyle='#8a7b5c';g.fillRect(X(x+A),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);g.fillRect(X(x-CWI),Y(y)-HW*sc,(CWI-A)*sc,2*HW*sc);
     const seen=G.rooms.has(galId(i,j)+':'+G.floor),here=G.room.id===i+','+j;
     const zone=galleryZone(i,j);hexPath(g,X(x),Y(y),R*sc);
-    const zoneFill=zone.type==='burned'?'#3b3735':zone.type==='burning'?'#b74429':zone.type==='barricaded'?'#936645':zone.type==='refuge'?'#b0bdad':'#efe5c8';
+    const zoneFill=['burned','obliterated','collapse','ashvoid','skeleton'].includes(zone.type)?'#3b3735':zone.type==='burning'?'#b74429':zone.type==='barricaded'?'#936645':zone.type==='refuge'?'#b0bdad':['study','memory','observatory','puriflab'].includes(zone.type)?'#4c8487':['confession','chain','judgment','quarantine'].includes(zone.type)?'#855058':'#c8b38b';
     g.fillStyle=here?'#c9a46a':seen?zoneFill:'#efe5c8';g.fill();g.strokeStyle='#6b5a44';g.stroke();
     if((seen||here)&&zone.type!=='normal'){
-      const glyph={burned:'X',burning:'!',barricaded:'#',refuge:'+'}[zone.type];
+      const glyph={burned:'X',burning:'!',barricaded:'#',refuge:'+',confession:'C',chain:'H',judgment:'J',study:'S',memory:'M',observatory:'O',puriflab:'R',obliterated:'X',collapse:'X',ashvoid:'X',flooded:'~',skeleton:'X',quarantine:'Q',bindery:'B',mirrorhall:'M',vault:'V'}[zone.type]||'?';
       g.font='bold 14px "Courier New",monospace';g.fillStyle='#f4e7c8';g.textAlign='center';
       g.fillText(glyph,X(x),Y(y)+4);g.textAlign='left';
       if(zone.opened||zone.breached){g.strokeStyle='#f3d388';g.lineWidth=2;g.beginPath();g.arc(X(x),Y(y),R*sc*.7,0,Math.PI*2);g.stroke()}
