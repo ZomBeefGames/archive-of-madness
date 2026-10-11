@@ -3209,7 +3209,11 @@ const NET={
       }else if(m.type==='story')this.receiveStory(m);
       else if(m.type==='host')this.host=m.id;
       else if(m.type==='ending')this.receiveEnding(m);
-      else if(m.type==='zone-reset'){this.zones.clear();G.zoneState.clear();G.zoneVisited.clear()}
+      else if(m.type==='zone-reset'){
+        this.zones.clear();this.enemies.clear();this.stories.clear();
+        ENC.list=ENC.list.filter(e=>!e.netId);
+        G.zoneState.clear();G.zoneVisited.clear();
+      }
       else if(m.type==='peer'||m.type==='peer-join')this.peer(m.player);
       else if(m.type==='peer-leave')this.peers.delete(m.id);
       else if(m.type==='zone'){
