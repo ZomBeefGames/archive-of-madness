@@ -17,15 +17,30 @@ python3 -m http.server 8000
 
 ## Title screen & cinematic scenes
 
-A new illustrated **ZomBeef Games** title screen opens before the Library. It uses the game's own pixel-paper, ink, brass and lantern palette, with animated archive shelves and a responsive **Begin Your Story / How to Play / Sound** menu. Use W/S or the arrow keys and Enter on desktop, or tap a menu choice on mobile.
+A new illustrated **ZomBeef Games** title screen opens before the Library. It uses the game's pixel-paper, ink, brass and lantern palette, with animated archive shelves and a responsive **Begin Your Story / Difficulty / How to Play / Sound** menu. Select the Difficulty row and press A/D or Left/Right to cycle modes, or tap it repeatedly on mobile; then Begin Your Story. W/S chooses a menu row and Enter confirms.
 
 Beginning a new run now plays a four-shot opening sequence before the familiar "burned into your mind" introduction. The first nearby Purifier triggers a two-shot warning; your first interaction with the Index triggers another two-shot reveal. Daybreak and finding your page have animated book-and-parchment interludes. All story scenes pause active combat and game time, then return to the original action. **E / Enter / Space or tap to advance; Escape, X or the top-right SKIP label to skip**. Scene reveals occur once per run, and the animation respects reduced-motion preferences.
+
+## Difficulty and playthrough length
+
+Difficulty affects **how long the story takes to complete**, not simply damage numbers. Harder modes begin farther from the target, require more distinct true sentences for the Index, demand more archive proofs, unlock the shelf-mark ledger later, and cannot shelve the final page until a later in-game day. New choices and special rooms give you several ways to earn proofs.
+
+| Mode | Earliest final shelving | Distinct sentences | Archive proofs | Second Index payment | Shelf-mark access |
+| --- | ---: | ---: | ---: | ---: | --- |
+| **Reader** (short story) | Day 3 | 2 | 1 | 1 fragment | Day 2 |
+| **Archivist** (standard) | Day 5 | 3 | 2 | 2 fragments | Day 3 |
+| **Lost** (long) | Day 8 | 5 | 4 | 3 fragments | Day 5 |
+| **Condemned** (longest) | Day 12 | 7 | 6 | 4 fragments | Day 7 |
+
+A day takes eight in-game minutes and resets still follow the existing 2, 2, 3, 3, ... interval. The listed days are **earliest possible ending days**, not guaranteed playtime. If a proof or sentence is still missing on the required day, the page remains unshelved until those requirements are met and another dawn arrives. The journal tracks current proofs, true sentences, the selected difficulty and the earliest ending day. The difficulty is chosen **before beginning a new run**.
+
+Archive proofs are unique discoveries. Recover them by clearing a gallery barricade, opening a hidden stash or unusual landing, or making certain meaningful choices in an encounter. Duplicate evidence from the same scene category during one Library reset does not count again; newly discovered locations always have their own evidence IDs. Collected proofs survive normal dawns and full resets.
 
 ## Controls
 
 | Action | Keyboard | Touch |
 | --- | --- | --- |
-| Title menu | W/S or arrows, Enter to select | Tap menu choices |
+| Title menu | W/S selects; A/D or Left/Right changes difficulty; Enter confirms | Tap the difficulty row to cycle; tap Begin to start |
 | Advance a cinematic | E, Enter or Space | Tap screen |
 | Skip a cinematic | Escape or X | Tap SKIP (top right) |
 | Walk / turn | W A S D or arrows | Thumbstick (bottom left) |
@@ -81,17 +96,17 @@ The rooms follow Borges' story; the space between them is open air:
 - Paper puppets: Purifiers, Seekers, and librarians are jointed paper figures with **camera-aligned front/rear cards** so their bodies remain fully readable through 360° of motion. Painted collars, sleeve shoulders and waist seams now overlap the torso without disconnected joints; two-bone arm reach attaches torches, weapons, lanterns, and books to the **visible palms**. Shoes use the actual cutout sole for floor placement, and the pelvis settles enough for planted feet to remain grounded during high-bob walks.
 - Third person: the camera follows over your right shoulder and slides in when a wall or the mirror is behind you. You are a jointed paper librarian too, with painted backs to the coat and head, a swinging lantern, and your weapon wound up and struck out into the room. V switches back to first person.
 - Other lives: some pages hold the stories of other librarians (six of them, five pages each, found in order, highlighted in green). Each page is a comfort (+8 sanity, and the Index takes it like a sentence), but it settles into you and your own words fade: the journal shows your phrase losing letters and the HUD counts how faded you are (out of 6). The fifth page is an ending, and the book asks before you read it. Read it with your words still holding and you let that life go (+25 sanity, some of your words come back); read it when they are 5 of 6 faded and its ending becomes yours, and the game is over. Each new day gives two letters back.
-- The way to your page: your page is no longer scattered near its hexagon by chance. It is page one of one book, and it is not on the shelf until six steps are done, in order (the journal shows what you know and the next step):
+- The way to your page remains a six-step quest, with difficulty-dependent costs and evidence:
   1. The floor: feed the Index a real sentence.
-  2. The hexagon: feed the Index two more sentences at once, on day 2 or later.
+  2. The hexagon: collect the mode's number of distinct sentences and pay its second Index fragment fee on the required day.
   3. The wall: stand in your hexagon at night.
-  4. The shelf: buy the shelf-mark slip at a food hatch (12 type, from day 3).
+  4. The shelf: buy the shelf-mark slip from the kitchen once the mode's shelf access day arrives (price rises on longer modes).
   5. The book: let another life go (read an ending while your words still hold).
-  6. Shelved: at the next dawn on day 5 or later the page is put on its shelf. Before then your book is there but page one is blank.
+  6. Shelved: at dawn on or after the mode's minimum day, with enough unique true sentences and archive proofs. Before then the page is blank.
 - The Library goes on without you: every half a minute or so, somewhere you are looking (a far stretch of catwalk on your floor, or one or two floors up or down), another librarian runs across screaming, climbs the rail and jumps, is pushed off by a Purifier, or runs burning until they fall. Events are only placed where you can actually see them (a per-pixel depth buffer also hides figures behind the catwalks and floors in front of them).
 - The dead stay: Purifiers and Seekers you kill remain in galleries and catwalks until the next true Library reset. Additional bodies appear as time advances through that reset epoch, sometimes burned or hanging from a railing on nearby floors; ordinary dawns no longer clean them away.
-- People: every minute or two someone is standing a few steps ahead. Walk up and Read to talk. The laughing man (laugh with him for type, at a cost to your mind), the counter (ask the total and he gives up a real sentence), a weeping librarian (comfort her for sanity and incense, or rob her and it will be written down), a peddler (oil or incense for type), a sleepwalker reciting your own words (wake him, or listen and get some of your words back), and, once, from day 2, a very old woman at a railing who has been waiting 84 years.
-- Scenes you stumble on, a few steps ahead, that you can walk up to and Read: a mob beating a Purifier (join in for his type, or stop them and he gives you incense); the sect at prayer, three Purifiers about to burn a kneeling librarian (attack them and they turn on you, or walk away and she burns, and her body stays); a funeral carrying someone to the drop (say a word and get some of your own words back); and a Purifier's sermon (listen for a real sentence at a cost to your mind, or heckle him and he comes for you). **Event options have their own outlined, full-row tap hitboxes on both desktop and mobile**: choosing the first row triggers choice A, the second triggers choice B, and tapping outside closes without choosing either.
+- People: now **nine individual encounter characters**. Existing librarians include the laughing man, counter, weeping librarian, peddler, sleepwalker and Rose, the old woman. New unique figures include **the Cartographer** (a costly but authentic record, or stolen type), **the Ink Surgeon** (restore your fading words at a sanity cost, or sell a false memory), and **the Lantern Warden** (share oil for a ledger entry, or purchase extra oil). Their painted coats, badges and gestures distinguish them, and your choices carry inventory, sanity, memory or proof consequences.
+- **Nine group encounters**, all drawn with independently animated jointed NPCs. The original mob, sect ritual, funeral and sermon remain. New scenes include **the Brass Auction** (pay for a real catalogue card or steal), **the Unfinished Trial** (defend an accused reader or testify falsely), **the Chain of Readers** (finish a sentence or preserve your sanity), **the Night Watch** (sign its ledger or raid its supplies), and **the Paper Fire Brigade** (help save names, potentially ending an active gallery fire, or steal burning lead type). Choices can give unique proofs or sentences, consume resources, affect sanity or memory, add permanent recorded misdeeds, or leave hazards behind. Event choices have separate outlined tap targets on mobile and desktop; keyboard 1/2 and W/S choose explicitly, and touch requires pressing and releasing on the same option.
 - The Library is brighter: more light from the lamps and the air, a longer lantern, and less murk between floors.
 - Voices: screams (near and falling away), maniacal cackling, sobbing, whispering, muttering and humming are synthesised with a small formant voice in the browser, placed in the Library (quieter and duller with distance, panned left or right). Recorded CC0 sounds can replace any of them: see `sfx/README.md`.
 - Lead type and the hatch: Purifiers (3–5) and Seekers (2) drop lead type when they fall, and loose type lies on gallery floors. The food hatch is now a menu: bread (free), lentil soup and bitter tea (+30 sanity) for 3 type, three trinkets a day from the stock, and a cheaper sealed parcel holding a random one you do not have. Trinkets last the whole run: grey spectacles (noise costs no sanity), iron thimble (+1 damage), leather apron (40% less damage taken), the Index key (sentences and other lives count twice), slow wick (oil lasts twice as long), pocket mirror (once a day, survive at 30 health) and silk bookmark (each dawn your words come back in full).
@@ -108,6 +123,6 @@ The game is the single file `index.html`. On Railway it is served by `server.mjs
 
 ## Checks
 
-Run `npm run check` (Node 18 or newer; no dependencies). It checks server syntax, parses the inline game JavaScript, and runs focused tests for sermons, corpse loot, coat-tail ordering, cinematic menus, **NPC front/back facing, torso joints, palm-held items, grounded foot poses, event-choice click targeting in portrait/landscape, 3-D hubs, resets and environmental hazards**. GitHub Actions runs the same checks on pushes to `main` and `fix/*` branches. Tests exercise production code with rendering/audio stubbed; they do not replace visual browser playtests.
+Run `npm run check` (Node 18 or newer; no runtime dependencies). It parses the actual game JavaScript and runs focused regressions for combat, bodies, character rigs, environment persistence, **four difficulty levels, progression day gates, distinct sentence and proof requirements, shelf-mark access, new encounter consequences**, and event input. GitHub Actions also runs headless Chromium smoke tests of the actual desktop and phone title menu, difficulty selector, cutscenes and both event choices. The browser job uses Playwright only in CI; the live game remains dependency-free.
 
 The visual presentation uses detailed jointed paper-cutout characters, engraved brass gauges, leather-bound journal covers, layered parchment pages, and illustrated lanterns and hand tools. Character textures render at twice their original sampling density while retaining their existing world size and animation pivots.
