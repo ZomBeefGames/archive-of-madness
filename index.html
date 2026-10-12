@@ -45,7 +45,11 @@ const view=document.getElementById('view'),vctx=view.getContext('2d');
 const scene=document.createElement('canvas');scene.width=W;scene.height=H;const sctx=scene.getContext('2d');
 let img=sctx.createImageData(W,H),buf=img.data,zbuf,NR,RT,RY0,RY1,MT,MYT,MYB,LGN,LGX,LGY,LGDX,LGDY,LGT0;
 /* per screen column: depth of the wall, railings and the mirror (they hide paper cards behind them), and the path of the ray */
-function allocCols(){zbuf=new Float32Array(W);NR=new Uint8Array(W);RT=new Float32Array(W*4);RY0=new Float32Array(W*4);RY1=new Float32Array(W*4);
+const RAIL_OCCLUSION_SLOTS=24;
+function allocCols(){zbuf=new Float32Array(W);NR=new Uint8Array(W);
+  RT=new Float32Array(W*RAIL_OCCLUSION_SLOTS);
+  RY0=new Float32Array(W*RAIL_OCCLUSION_SLOTS);
+  RY1=new Float32Array(W*RAIL_OCCLUSION_SLOTS);
   MT=new Float32Array(W);MYT=new Float32Array(W);MYB=new Float32Array(W);LGN=new Uint8Array(W);
   LGX=new Float64Array(W*5);LGY=new Float64Array(W*5);LGDX=new Float64Array(W*5);LGDY=new Float64Array(W*5);LGT0=new Float64Array(W*5)}
 allocCols();
@@ -3417,15 +3421,43 @@ function lampHalo(e){
     r=Math.min(18,Math.max(1.5,0.3*PROJ/d)),r2=r*r;
   for(let y=Math.max(0,Math.floor(sy-r));y<Math.min(H,sy+r);y++)for(let x=Math.max(0,Math.floor(sx-r));x<Math.min(W,sx+r);x++){
     const q=((x-sx)*(x-sx)+(y-sy)*(y-sy))/r2;if(q>=1||d>DEP[y*W+x]+0.06)continue;
-    let hidden=false;for(let k=0;k<NR[x];k++)if(d>RT[x*4+k]&&y>=RY0[x*4+k]&&y<RY1[x*4+k]){hidden=true;break}if(hidden)continue;
+    let hidden=false;for(let k=0;k<NR[x];k++)if(d>RT[x*RAIL_OCCLUSION_SLOTS+k]&&y>=RY0[x*RAIL_OCCLUSION_SLOTS+k]&&y<RY1[x*RAIL_OCCLUSION_SLOTS+k]){hidden=true;break}if(hidden)continue;
     const a=(1-q)*(1-q)*22*LDAY,i=(y*W+x)*4;buf[i]+=a;buf[i+1]+=a*0.65;buf[i+2]+=a*0.23;
   }
 }
+/* A single horizontal ray encounters guardrails on its own floor. Their
+   plan-view segments repeat at real levels +/-2, but each projected rail has
+   its own vertical bounds, lighting and wall-depth checks. Also register
+   every projected railing as occlusion so characters and lamp halos behind
+   upper/lower-floor guards do not draw through the iron. */
 function railCol(x,t,a){
-  const yTop=HZ-(RAILH-EYE)*PROJ/t,yBot=HZ+EYE*PROJ/t,post=(((a*24/Math.PI)%2)+2)%2<0.4;pointAt(t);const L=Math.min(1.05,lightP(cellAt(t),PX_,PY_,Math.hypot(PX_-LX,PY_-LY)))*2.0;
-  for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){const z=EYE-(y-HZ)*t/PROJ,i=(y*W+x)*4;
-    if(z>RAILH-0.06)put(i,z>RAILH-0.025?158:79,z>RAILH-0.025?128:86,z>RAILH-0.025?88:83,L);else if(post)put(i,50,54,55,L)}
-  const n=NR[x];if(n<4){RT[x*4+n]=t;RY0[x*4+n]=yTop;RY1[x*4+n]=yBot;NR[x]=n+1}
+  if(t<=.055||t>62)return;
+  const post=(((a*24/Math.PI)%2)+2)%2<.40;
+  pointAt(t);
+  const px=PX_,py=PY_,cell=cellAt(t),
+    ds=Math.hypot(px-LX,py-LY);
+  const bright=Math.min(1.22,lightP(cell,px,py,ds))*2.0;
+  for(let level=-VISIBLE_FLOORS;level<=VISIBLE_FLOORS;level++){
+    const base=level*FH,top=base+RAILH,from=base,
+      yTop=HZ-(top-EYE)*PROJ/t,yBot=HZ-(from-EYE)*PROJ/t;
+    if(yBot<=0||yTop>=H)continue;
+    const fog=FOG[Math.abs(level)]||.45,
+      light=bright*fog*(level===0?1:.95);
+    let painted=false;
+    for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){
+      const i=(y*W+x)*4,z=EYE-(y-HZ)*t/PROJ-base;
+      if(t>DEP[y*W+x]+.075)continue;
+      if(z>RAILH-.067)put(i,z>RAILH-.025?158:79,
+        z>RAILH-.025?128:86,z>RAILH-.025?88:83,light);
+      else if(post)put(i,50,54,55,light);
+      else continue;
+      painted=true;
+    }
+    if(painted&&NR[x]<RAIL_OCCLUSION_SLOTS){
+      const n=x*RAIL_OCCLUSION_SLOTS+NR[x]++;
+      RT[n]=t;RY0[n]=yTop;RY1[n]=yBot;
+    }
+  }
 }
 function frameCol(x,t,first){
   const yz=z=>HZ+(EYE-z)*PROJ/t;pointAt(t-1e-4);const L=lightP(cellAt(t-1e-4),PX_,PY_,Math.hypot(PX_-LX,PY_-LY))*1.8;
@@ -3464,7 +3496,7 @@ function drawCard(e){
       const yBot=HZ+(EYE-z0-bob)*PROJ/t,yTop=HZ-(z0+hgt+bob-EYE)*PROJ/t,span=yBot-yTop;
       if(j===0&&(e.sh||!z0)&&!glow){const sh=Math.max(1,0.07*PROJ/t);for(let y=Math.max(0,Math.ceil(yBot));y<Math.min(H,Math.ceil(yBot+sh));y++){const i=(y*W+x)*4;buf[i]*=0.45;buf[i+1]*=0.45;buf[i+2]*=0.45}}
       for(let y=Math.max(0,Math.ceil(yTop));y<Math.min(H,Math.ceil(yBot));y++){
-        let hid=false;for(let r=0;r<NR[x];r++)if(t>RT[x*4+r]&&y>=RY0[x*4+r]&&y<RY1[x*4+r]){hid=true;break}
+        let hid=false;for(let r=0;r<NR[x];r++)if(t>RT[x*RAIL_OCCLUSION_SLOTS+r]&&y>=RY0[x*RAIL_OCCLUSION_SLOTS+r]&&y<RY1[x*RAIL_OCCLUSION_SLOTS+r]){hid=true;break}
         if(hid||(t>MT[x]&&(y<MYT[x]||y>MYB[x]))||t>DEP[y*W+x]+0.06)continue;
         const row=Math.min(card.h-1,((y-yTop)/span*card.h)|0),ti=(row*card.w+col)*4;
         if(data[ti+3]===0)continue;
