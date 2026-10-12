@@ -1648,7 +1648,10 @@ function encUpd(dt){
     !(typeof NET!=='undefined'&&NET.ready&&NET.host!==NET.id)){
     const d=difficultyRules(G.difficulty);ENC.t=encStart()?d.encMin+Math.random()*d.encSpan:6
   }
-  for(const e of ENC.list){if(e.members){sceneUpd(e,dt);continue}const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=dt;
+  for(const e of ENC.list){
+    if(e.members){sceneUpd(e,dt);continue}
+    if(e.shove||e.fallState){e.t+=dt;continue}
+    const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=dt;
     if(e.state==='idle'||e.state==='talked'){e.said-=dt;if(e.said<=0&&d<14){e.said=D.every*(0.8+Math.random()*0.5);voice(D.idle,e)}
       if(D.walk){const v=0.35;e.x+=Math.cos(e.out+Math.PI)*v*dt;e.y+=Math.sin(e.out+Math.PI)*v*dt;if(!walkable(e.x,e.y,0.3)){e.out+=Math.PI}}
       if(e.state==='talked'&&e.t>1.2){e.state='leave';e.t=0}
@@ -1830,14 +1833,15 @@ function sceneUpd(e,dt){const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=d
   if(e.burn!==undefined){e.burn-=dt;if(e.burn<=0&&!e.burnt){e.burnt=true;const v=e.members.find(m=>m.vic);voice('scream',v,{vol:1.3});G.fires.push({x:v.x,y:v.y,t:7,fl:G.floor});G.sanity=Math.max(0,G.sanity-8);
       e.members=e.members.filter(m=>m!==v);corpseHere('fig',v,true);e.flee=false;e.state='leave';e.t=0}}
   const ax=e.members.ax;
-  if(D.walk&&(e.state!=='leave'||e.keepWalk)){const v=D.walk;let ok=true;for(const m of e.members){const nx=m.x+ax[0]*v*dt,ny=m.y+ax[1]*v*dt;if(!m.body&&!walkable(nx,ny,0.2))ok=false}
-    if(ok){for(const m of e.members){m.x+=ax[0]*v*dt;m.y+=ax[1]*v*dt}e.x+=ax[0]*v*dt;e.y+=ax[1]*v*dt}else e.gone=true;if(e.t>16||d>22)e.gone=true}
+  if(D.walk&&(e.state!=='leave'||e.keepWalk)){const v=D.walk;let ok=true;for(const m of e.members){if(m.shove||m.fallState)continue;const nx=m.x+ax[0]*v*dt,ny=m.y+ax[1]*v*dt;if(!m.body&&!walkable(nx,ny,0.2))ok=false}
+    if(ok){for(const m of e.members){if(m.shove||m.fallState)continue;m.x+=ax[0]*v*dt;m.y+=ax[1]*v*dt}e.x+=ax[0]*v*dt;e.y+=ax[1]*v*dt}else e.gone=true;if(e.t>16||d>22)e.gone=true}
   else if(e.state==='leave'||e.flee&&e.state==='talked'){const fl=e.flee,v=fl?2.4:0.9;
-    for(const m of e.members){if(m.dead||m.body&&!D.walk)continue;const a=Math.atan2(m.y-G.y,m.x-G.x),nx=m.x+Math.cos(a)*v*dt,ny=m.y+Math.sin(a)*v*dt;
+    for(const m of e.members){if(m.shove||m.fallState||m.dead||m.body&&!D.walk)continue;const a=Math.atan2(m.y-G.y,m.x-G.x),nx=m.x+Math.cos(a)*v*dt,ny=m.y+Math.sin(a)*v*dt;
       if(m.type==='fig'&&m.pose!=='dead')m.pose=fl?'flail':'run';if(m.vic&&m.type==='pur'){m.dead=0}if(walkable(nx,ny,0.2)){m.x=nx;m.y=ny}m.f=a+Math.PI/2}
     if(e.t>6||d>18)e.gone=true}
   if(e.state==='talked'&&e.t>1.2&&!D.walk&&e.burn===undefined){e.state='leave';e.t=0}
   if(d>30)e.gone=true;
+  e.members=e.members.filter(m=>!m.gone);
   for(const m of e.members)gaitUpd(m,dt,m.type==='pur'?0.58:0.5)}
 function sceneStart(id){const D=ENCS[id];if(D.room&&!G.inRoom)return false;
   for(let tries=0;tries<20;tries++){const a=G.ang+(Math.random()-0.5)*0.8,dd=4.4+Math.random()*2.4,c={x:G.x+Math.cos(a)*dd,y:G.y+Math.sin(a)*dd};
@@ -2462,7 +2466,7 @@ function reset(){
   let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*20),P.j+Math.round((Math.random()-0.5)*20));f=P.f+Math.round((Math.random()-0.5)*10);d=bioDist(c.gid,f,phrase)}while(d<bounds[0]||d>bounds[1]);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,difficulty,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,fall:null,fallWakeDay:0,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,fall:null,fallWakeDay:0,personCd:0,knockback:null,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
@@ -2652,12 +2656,15 @@ function rNearChar(x,y){return Math.hypot(x,y)>2.3}
 function update(dt){
   G.time+=dt;
   if(G.state!=='play')return;
-  G.playClock+=dt;
+  G.playClock+=dt;G.personCd=Math.max(0,(G.personCd||0)-dt);
+  // If another player shoved this character, resolve it before their controls.
+  const stagger=tickPlayerKnockback(dt);
+  if(G.state!=='play')return;
   const fwd=Math.max(-1,Math.min(1,(keys.up||keys.w?1:0)-(keys.down||keys.s?1:0)+STICK.fwd)),turn=Math.max(-1,Math.min(1,(keys.right||keys.d?1:0)-(keys.left||keys.a?1:0)+STICK.turn));
   G.ang+=turn*2.4*dt;
   if(keys.r||keys.f)G.pitch=Math.max(-0.45,Math.min(0.45,G.pitch+((keys.r?1:0)-(keys.f?1:0))*0.9*dt));
   const pace=G.inRoom&&galleryZone(G.room.i,G.room.j).type==='flooded'?.72:1;
-   const sp=2.2*dt*fwd*pace;
+   const sp=stagger?0:2.2*dt*fwd*pace;
   if(fwd){G.walkT+=dt*8*Math.abs(fwd)}
   if(sp){let nx=G.x+Math.cos(G.ang)*sp,ny=G.y+Math.sin(G.ang)*sp;
     if(!walkable(nx,ny,0.3)){if(walkable(nx,G.y,0.3))ny=G.y;else if(walkable(G.x,ny,0.3))nx=G.x;else{nx=G.x;ny=G.y}}
@@ -2678,6 +2685,11 @@ function update(dt){
   if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
+  for(const e of G.ents)if(e.shove||e.fallState)tickPersonShove(e,dt);
+  for(const e of ENC.list){
+    if(e.members){for(const m of e.members)if(m.shove||m.fallState)tickPersonShove(m,dt)}
+    else if(e.shove||e.fallState)tickPersonShove(e,dt);
+  }
   ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);bgUpd(dt);encUpd(dt);
   if(G.q===2&&G.inRoom&&isNight()){const P=bioPlan(G.phrase);if(G.gal===P.g&&G.floor===P.f){qDone(3);openNote('YOUR HEXAGON','The lamps sink low, and in the dark one wall goes on humming, very quietly, like someone reading under their breath.','It is WALL '+P.wall+'.')}}
   // Freeze combat while the first Purifier reveal plays; never repeat it this run.
@@ -2685,7 +2697,8 @@ function update(dt){
     if(filmBegin('purifier','play'))return;
   }
   for(const e of G.ents){
-    if(e.type==='pur'){updPur(e,dt);gaitUpd(e,dt,0.58)}else if(e.type==='seek'){updSeek(e,dt);gaitUpd(e,dt,0.43)}
+    if(e.type==='pur'){if(!e.shove&&!e.fallState)updPur(e,dt);gaitUpd(e,dt,0.58)}
+    else if(e.type==='seek'){if(!e.shove&&!e.fallState)updSeek(e,dt);gaitUpd(e,dt,0.43)}
     else if(e.type==='flask'&&!e.dead){e.f+=dt*0.8;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.oil+=3;sfx('+3 OIL')}}
     else if(e.type==='type'&&!e.dead){if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.type+=e.n;snd('pickup');sfx('+'+e.n+' TYPE')}}
     else if(e.type==='incense'&&!e.dead){e.f+=dt*0.6;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.incense++;sfx('+1 INCENSE')}}
@@ -2703,7 +2716,7 @@ function update(dt){
   if(fwd){const ph=Math.floor(G.walkT/Math.PI);if(ph!==G.stepPh){G.stepPh=ph;snd('step')}}
   if(G.sanity<25){G.heartT-=dt;if(G.heartT<=0){G.heartT=G.sanity<=0?0.6:0.95;snd('heart')}}
   droneTick();
-  G.ents=G.ents.filter(e=>(e.type==='pur'||e.type==='seek'||e.type==='fig')||e.dead<1);
+  G.ents=G.ents.filter(e=>!e.gone&&((e.type==='pur'||e.type==='seek'||e.type==='fig')||e.dead<1));
   if(G.health<=0){if(G.tr.mirror&&G.mirrorDay!==G.day&&G.lostTo==null){G.mirrorDay=G.day;G.health=30;G.flash=1;snd('bad');sfx('THE MIRROR CRACKS','mind')}else{G.health=0;die()}}
 }
 function updPur(e,dt){
@@ -2739,6 +2752,112 @@ function updSeek(e,dt){
     if(!fl&&dist<0.8&&e.stealCd<=0&&G.oil>0){G.oil--;e.stealCd=3;e.flee=2;sfx('SNATCH!','mind')}
   }else{e.ft2+=dt*1.5;e.frame=Math.floor(e.ft2)%2===0?0:2;e.f+=Math.sin(G.time*0.7)*dt*0.4}
 }
+
+/* PHYSICAL PEOPLE INTERACTIONS. Push staggers someone on this floor; a
+   committed throw drives them farther and can carry them over an actual rail.
+   The stepper checks the same walkable surfaces as the player, not a scripted
+   animation pretending a solid wall is a drop. */
+const PEOPLE_REACH={push:1.95,throw:1.48};
+function personCandidates(){
+  const candidates=[];
+  for(const e of G.ents)if(['pur','seek','fig'].includes(e.type)&&!e.dead&&!e.gone&&!e.fallState)
+    candidates.push({kind:'local',actor:e});
+  for(const e of ENC.list){
+    if(e.members){
+      for(const m of e.members)if(!m.dead&&!m.gone&&!m.fallState)candidates.push({kind:'local',actor:m});
+    }else if(!e.gone&&!e.fallState&&['fig','pur','seek'].includes(e.type))
+      candidates.push({kind:'local',actor:e});
+  }
+  if(typeof NET!=='undefined'&&NET.ready){
+    for(const e of NET.enemies.values())if(!e.dead&&e.floor===G.floor)
+      candidates.push({kind:'enemy',actor:e});
+    for(const p of NET.peers.values())if(p.floor===G.floor&&!p.falling&&p.active!==false)
+      candidates.push({kind:'peer',actor:p});
+  }
+  return candidates;
+}
+function personTarget(mode='push'){
+  if(G.state!=='play'||G.journal)return null;
+  const reach=PEOPLE_REACH[mode]||PEOPLE_REACH.push,ax=Math.cos(G.ang),ay=Math.sin(G.ang);
+  let best=null,nearest=reach+.1;
+  for(const candidate of personCandidates()){
+    const e=candidate.actor,dx=e.x-G.x,dy=e.y-G.y,d=Math.hypot(dx,dy);
+    if(d<.22||d>reach||d>=nearest)continue;
+    if((dx*ax+dy*ay)/d<(mode==='throw'?.77:.64))continue;
+    const h=cast(G.x,G.y,dx/d,dy/d);
+    if(h&&h.t<d-.18)continue;
+    nearest=d;best={...candidate,d};
+  }
+  return best;
+}
+function openDropAhead(x,y,dx,dy){
+  // Only a truly open gallery shaft or a gap beyond the catwalk can produce
+  // a fall. Barricades and ordinary walls always stop the shove instead.
+  const fx=x+dx*.40,fy=y+dy*.40,c=placeOf(fx,fy);
+  if(c.kind==='g')return inHoleC(c,fx,fy);
+  return !airFloor(fx,fy,G.floor)&&!galleryBarricadeAt(fx,fy,.12)&&
+    !placedBlockAt(fx,fy,.12);
+}
+function beginPersonFall(e,dx,dy){
+  e.shove=null;e.fallState={t:0,vz:1.6,dx,dy,fl:G.floor};
+  e.pose='fall';e.zw=.28;e.lvl=.001;e.spin=0;e.hit=1;
+  if(e.type==='seek'||e.type==='pur')e.chasing=false;
+  snd('scream');
+}
+function tickPersonShove(e,dt){
+  if(e.fallState){
+    const f=e.fallState;f.t+=dt;f.vz=Math.max(-18,f.vz-9.8*dt);
+    e.zw+=f.vz*dt;e.lvl=e.zw/FH;
+    e.x+=f.dx*dt*.38;e.y+=f.dy*dt*.38;e.spin=(e.spin||0)+dt*56;
+    if(e.zw<-(VISIBLE_FLOORS+1)*FH)e.gone=true;
+    return true;
+  }
+  if(!e.shove)return false;
+  const p=e.shove,prev=p.t;p.t=Math.min(1,p.t+dt/p.duration);
+  const eased=v=>v*v*(3-2*v),delta=(eased(p.t)-eased(prev))*p.distance,
+    nx=e.x+p.dx*delta,ny=e.y+p.dy*delta;
+  if(walkable(nx,ny,.20)){e.x=nx;e.y=ny}
+  else if(openDropAhead(nx,ny,p.dx,p.dy)){e.x=nx;e.y=ny;beginPersonFall(e,p.dx,p.dy);return true}
+  else {e.shove=null;e.zw=0;e.lvl=0;return false}
+  e.zw=p.mode==='throw'?.33*Math.sin(Math.PI*p.t):.10*Math.sin(Math.PI*p.t);
+  e.lvl=0;e.hit=Math.max(e.hit||0,.34);e.pose='flail';
+  if(p.t>=1){e.shove=null;e.zw=0;e.lvl=0;if(e.enc)e.state='flee'}
+  return true;
+}
+function initiatePersonShove(mode='push'){
+  if(G.state!=='play'||(G.personCd||0)>0)return false;
+  const picked=personTarget(mode);if(!picked)return false;
+  G.personCd=mode==='throw'?1.25:.62;
+  G.swing=Math.max(G.swing,.52);snd(mode==='throw'?'throw':'hit');
+  const e=picked.actor;
+  const dx=Math.cos(G.ang),dy=Math.sin(G.ang);
+  if(picked.kind==='local'){
+    e.shove={mode,dx,dy,distance:mode==='throw'?3.2:1.3,
+      duration:mode==='throw'?.46:.30,t:0};
+    e.hit=1;if(e.type==='seek')e.scared=3;
+    if(e.type==='fig')e.pose='flail';
+    sfx(mode==='throw'?'THROWN!':'SHOVED!','mind');
+  }else if(NET.ready){
+    NET.send({type:'shove',kind:picked.kind,targetId:String(e.id),mode});
+    sfx(mode==='throw'?'THROW!':'PUSH!','mind');
+  }
+  return true;
+}
+function tickPlayerKnockback(dt){
+  const p=G.knockback;if(!p)return false;
+  const prev=p.t;p.t=Math.min(1,p.t+dt/p.duration);
+  const easing=v=>v*v*(3-2*v),d=(easing(p.t)-easing(prev))*p.distance;
+  const nx=G.x+p.dx*d,ny=G.y+p.dy*d;
+  if(walkable(nx,ny,.28)){G.x=nx;G.y=ny;G.cell=placeOf(nx,ny);G.inRoom=G.cell.kind==='g'}
+  else if(openDropAhead(nx,ny,p.dx,p.dy)){
+    G.knockback=null;
+    startRailFreefall({x:nx+p.dx*.65,y:ny+p.dy*.65,kind:'thrown'});
+    return true;
+  }else G.knockback=null;
+  if(G.knockback&&p.t>=1)G.knockback=null;
+  return true;
+}
+
 function startle(){
   for(const e of G.ents){if(e.type==='seek'&&!e.dead&&Math.hypot(e.x-G.x,e.y-G.y)<3.6&&e.scared<=0){e.scared=5;sfx('AAAAAH!','mind');G.alerted=true}}
 }
@@ -5133,7 +5252,7 @@ function action(a){
   if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0;encClosed()}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
-  if(G.state==='play'){if(a==='jump')startRailFreefall();else if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
+  if(G.state==='play'){if(a==='push'||a==='throw')initiatePersonShove(a);else if(a==='jump')startRailFreefall();else if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
 }
 let last=performance.now(),needResize=true;
 function frame(now){
@@ -5196,6 +5315,7 @@ addEventListener('keydown',ev=>{
   }
   if(KEYMAP[c]&&G.state==='play'){keys[KEYMAP[c]]=true;ev.preventDefault()}
   if(c==='KeyG'&&G.state==='play'){if(!ev.repeat)action('jump');ev.preventDefault();return}
+  if((c==='KeyP'||c==='KeyO')&&G.state==='play'){if(!ev.repeat)action(c==='KeyP'?'push':'throw');ev.preventDefault();return}
   if(c==='Space'){action('swing');ev.preventDefault()}
   if(c==='KeyE'||c==='Enter'){action('read');ev.preventDefault()}
   if(c==='KeyJ'||c==='Tab'){action('journal');ev.preventDefault()}
