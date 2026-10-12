@@ -36,7 +36,7 @@ let EYE=0.5;
    address, so the Library goes on without end in every direction and up and down, as large as Borges' Library and
    larger, and the same shelf always holds the same books. */
 const R=5,A=R*Math.cos(Math.PI/6),HW=0.75,P=16,CWI=P/2-0.8,PLI=P/2-1.8,PIL0=PLI,PIL1=PLI+0.7,WALLH=1.9,FH=2.15,RS=1.7,RSW=0.65,RAILH=0.34,LAMPY=3.0,LAMPZ=1.3,JLZ=1.5,CATT=0.12,MZ0=0.16,MZ1=WALLH-0.1;
-const MAXLV=7;
+const MAXLV=7, VISIBLE_FLOORS=2; // Detailed nearby level range; distant levels stay fogged.
 const NRM=[...Array(6)].map((_,w)=>[Math.cos(w*Math.PI/3),Math.sin(w*Math.PI/3)]);
 const wrapN=(v,n)=>((v%n)+n)%n;
 function torusD(a,b,n){const d=wrapN(a-b,n);return Math.min(d,n-d)}
@@ -2403,8 +2403,10 @@ function tickRailFreefall(dt){
   if(dropDt>0){f.speed=Math.min(14,f.speed+9.8*dropDt);f.depth+=f.speed*dropDt}
   // Continuous fall through real stacked levels; crossing a platform does not
   // stop the player. A rising camera arc makes the vault visibly intentional.
-  G.floor=f.fromFloor-Math.floor(f.depth/FH);
-  EYE=.50+.56*Math.sin(Math.PI*vault)-(f.depth%FH);
+  const height=.50+.56*Math.sin(Math.PI*vault)-f.depth;
+  const levels=Math.floor(height/FH);
+  G.floor=f.fromFloor+levels;
+  EYE=height-levels*FH; // camera tracks the real physical floor even while falling
   G.ang+=dt*.045*Math.sin(f.elapsed*.75);
   G.pitch=-.23-.075*Math.sin(f.elapsed*1.2);
   if(!(typeof NET!=='undefined'&&NET.ready)){
@@ -3023,20 +3025,20 @@ function wallPx(i,h,z,lv,L){
 /* Material accents follow the actual gallery coordinates. This small LRU cache
    avoids rehashing procedural rooms for each software-rendered floor pixel. */
 const GOTHIC_FLOOR_LOOKUP=new Map();
-function gothicFloorZone(px,py){
- const gi=Math.round(px/P),gj=Math.round(py/P),key=G.resetEpoch+'|'+G.floor+'|'+gi+','+gj;
+function gothicFloorZone(px,py,fl=G.floor){
+ const gi=Math.round(px/P),gj=Math.round(py/P),key=G.resetEpoch+'|'+fl+'|'+gi+','+gj;
  let item=GOTHIC_FLOOR_LOOKUP.get(key);
  if(!item){
-   item={zone:galleryZone(gi,gj),cx:gi*P,cy:gj*P};
+   item={zone:galleryZone(gi,gj,fl),cx:gi*P,cy:gj*P};
    GOTHIC_FLOOR_LOOKUP.set(key,item);
    if(GOTHIC_FLOOR_LOOKUP.size>80)GOTHIC_FLOOR_LOOKUP.delete(GOTHIC_FLOOR_LOOKUP.keys().next().value);
  }
  return item;
 }
-function floorPx(i,px,py,L){
+function floorPx(i,px,py,L,fl=G.floor){
  const ti=((((py%1)+1)%1*32|0)*32+(((px%1)+1)%1*32|0))*4;
  let r=floorTex[ti],g=floorTex[ti+1],b=floorTex[ti+2],gain=L*2.2;
- const m=gothicFloorZone(px,py),z=m.zone,type=z.type;
+ const m=gothicFloorZone(px,py,fl),z=m.zone,type=z.type;
  // These decals are lighting-only: collisions, floor planes and shelf addresses
  // are never changed. A broken gallery must remain navigable.
  if(type!=='normal'){
@@ -3084,7 +3086,7 @@ function shaftPx(i,t,s,up,r){
   const tn=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;
   if(tn<tw){PDv=tn;pointAt(tn);const cn=r==null?cellAt(tn):TV.c[r];if(cn.kind==='g'&&inHoleC(cn,PX_,PY_)){buf[i]=buf[i+1]=buf[i+2]=0;return}
     const dx=PX_-LX,dy=PY_-LY,dz=(up?m*FH+WALLH:m*FH)-EYE,L=(AMB+lampC(cn,PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*fog;
-    if(up)ceilPx(i,PX_,PY_,L);else floorPx(i,PX_,PY_,L);return}
+    if(up)ceilPx(i,PX_,PY_,L);else floorPx(i,PX_,PY_,L,G.floor+m);return}
   PDv=tw;const zw=up?EYE+s*tw:EYE-s*tw,dz=zw-EYE;if(fin)wallPx(i,HIT,zw-m*FH,m,(AMB+CW_LAMP+lanL(Math.sqrt(CW_D2+dz*dz)))*fog);else put(i,74,48,28,(AMB+0.2)*fog*2);
 }
 /* a ray out in the open air: it falls (or rises) past the other floors and lands on a catwalk, a gallery's floor or
@@ -3100,7 +3102,7 @@ function surfPx(i,z,t){
     pointAt(t);
     if(airFloor(PX_,PY_,G.floor+m)){
       if(zl>WALLH)ceilPx(i,PX_,PY_,L*.65);
-      else catPx(i,PX_,PY_,L*.72);
+      else catPx(i,PX_,PY_,L*.72,G.floor+m);
     }else put(i,79,59,43,L*.95);
     return;
   }
@@ -3118,7 +3120,7 @@ function airPx(i,s,up,r){
       if(r===TV.n-1){if(HIT.cell)surfPx(i,zb,tb);else buf[i]=buf[i+1]=buf[i+2]=0;return}
       if(TV.door[r]&&TV.c[r].kind==='a'){const m=Math.floor(zb/FH),zl=zb-m*FH,am=Math.min(AIRLV,m<0?-m:m);
         if(zl>WALLH){pointAt(tb);put(i,46,32,20,(AMB+lampC(TV.c[r],PX_,PY_))*FOG[am]*2);return}
-        const tf=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;PDv=tf;pointAt(tf);const c=TV.c[r+1],L=(AMB+lampC(c,PX_,PY_))*FOG[am];if(up)ceilPx(i,PX_,PY_,L*0.8);else floorPx(i,PX_,PY_,L);return}
+        const tf=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;PDv=tf;pointAt(tf);const c=TV.c[r+1],L=(AMB+lampC(c,PX_,PY_))*FOG[am];if(up)ceilPx(i,PX_,PY_,L*0.8);else floorPx(i,PX_,PY_,L,G.floor+m);return}
       r++}
     if(r>=TV.n){buf[i]=buf[i+1]=buf[i+2]=0;return}
     while(iv<IVN&&IVB[iv]<tk)iv++;
@@ -3132,15 +3134,15 @@ function airPx(i,s,up,r){
         PDv=tk;
         const dx=PX_-LX,dy=PY_-LY,dz=(up?k:-k)*FH-EYE,
           L=(AMB+lampC(TV.c[r],PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
-        if(up)ceilPx(i,PX_,PY_,L*.7);else catPx(i,PX_,PY_,L);
+        if(up)ceilPx(i,PX_,PY_,L*.7);else catPx(i,PX_,PY_,L,G.floor-k);
         return;
       }
     }
   }
   buf[i]=buf[i+1]=buf[i+2]=0;
 }
-function catPx(i,px,py,L){
- const b=bridgeSegment(px,py);
+function catPx(i,px,py,L,fl=G.floor){
+ const b=bridgeSegment(px,py,fl);
  if(b&&b.zone.type!=='plain'){
    const kind=b.zone.type,along=b.axis==='h'?px:py,across=b.axis==='h'?py-b.y:px-b.x;
    const groove=Math.abs(((along*.85)%1+1)%1-.5)<.055;
