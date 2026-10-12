@@ -3846,7 +3846,7 @@ function titleFlyBackground(g,elapsed){
   const local=CALM?TITLE_SHOT_SECONDS*.40:(elapsed%TITLE_SHOT_SECONDS);
   const shot=scenes[index],u=local/TITLE_SHOT_SECONDS;
   if(index!==TITLE_FLY.index){TITLE_FLY.index=index;TITLE_FLY.lastRender=-1e9}
-  const interval=FILM.help||FILM.customizing?.23:(FINE?.055:.095);
+  const interval=(FILM.help||FILM.customizing)?0.23:(FINE?0.055:0.095);
   if(elapsed-TITLE_FLY.lastRender>=interval||TITLE_FLY.frames===0){
     try{
       titleFlyRender(shot,titleScenePose(shot,u),elapsed);
@@ -3938,6 +3938,7 @@ function cycleDifficulty(step=1){
 }
 function filmChoose(id){
   if(FILM.help){FILM.help=false;return}
+  if(id==='flyby'){titleNextScene();return}
   if(id==='begin')filmBeginStory();
   else if(id==='character'){FILM.customizing=true;FILM.charSelection=0}
   else if(id==='difficulty')cycleDifficulty(1);
@@ -3965,6 +3966,7 @@ function filmTitleAction(a){
     return;
   }
   if(FILM.help){if(a==='read'||a==='close'||a==='swing'||a==='back'){FILM.help=false}return}
+  if(a==='flyby'){titleNextScene();return}
   if(a==='up'){FILM.selection=(FILM.selection+TITLE_ACTIONS.length-1)%TITLE_ACTIONS.length;snd('page')}
   else if(a==='down'){FILM.selection=(FILM.selection+1)%TITLE_ACTIONS.length;snd('page')}
   else if(a==='prev'||a==='next'){
@@ -4285,11 +4287,16 @@ function filmCharacterWorkshop(g,w,h,portrait){
 function filmDrawTitle(){
   const g=vctx,st=filmStage(),{portrait,w,h,s,x,y}=st;
   FILM.buttons.length=0;FILM.skipRect=null;
-  filmBackground(g,FILM.clock);
+  titleFlyBackground(g,FILM.clock);
   g.save();g.translate(x,y);g.scale(s,s);
-  g.fillStyle='rgba(7,7,11,.53)';g.fillRect(0,0,w,h);filmFrame(g,w,h);
+  g.fillStyle='rgba(7,7,11,.32)';g.fillRect(0,0,w,h);filmFrame(g,w,h);
   if(FILM.help){filmHelp(g,w,h,portrait);g.restore();return}
   if(FILM.customizing){filmCharacterWorkshop(g,w,h,portrait);g.restore();return}
+  const current=TITLE_FLY.scenes[TITLE_FLY.index];
+  if(current){g.textAlign='right';g.textBaseline='top';g.fillStyle='#ddc59f';g.font='bold '+(portrait?13:15)+'px Georgia';
+    g.fillText('NOW FLYING THROUGH · '+current.label,w-36,47,w-65);
+    g.fillStyle='#b8a183';g.font='italic '+(portrait?12:13)+'px Georgia';
+    g.fillText('Generated from real Library rooms, enemies and props',w-36,66,w-65)}
   const cy=portrait?116:76;
   filmSeal(g,w/2,cy,portrait?61:49,FILM.clock);
   g.textAlign='center';g.textBaseline='middle';
@@ -4315,6 +4322,10 @@ function filmDrawTitle(){
   filmButton(g,'sound','SOUND  '+(SND.on?'ON':'OFF'),(w-bw)/2,base+5*(bh+gap),bw,bh,FILM.selection===5);
   g.textAlign='center';g.fillStyle='#dbc098';g.font='bold '+(portrait?16:15)+'px "Courier New"';
   g.fillText(diff.tag+' · '+diff.minDay+'+ DAYS · '+diff.sentences+' SENTENCES · '+diff.proofs+' PROOFS',w/2,portrait?885:676,w-50);
+  FILM.buttons.push({id:'flyby',x:w*.72,y:portrait?73:76,w:w*.25,h:portrait?38:32});
+  g.fillStyle='rgba(10,11,13,.72)';g.fillRect(w*.72,portrait?73:76,w*.25,portrait?38:32);
+  g.strokeStyle='#ad8f64';g.strokeRect(w*.72,portrait?73:76,w*.25,portrait?38:32);
+  g.fillStyle='#ecd7ad';g.font='bold '+(portrait?13:14)+'px Georgia';g.fillText('NEXT SCENE  ›',w*.845,portrait?96:97,w*.23);
   if(typeof NET!=='undefined'&&NET.status){g.fillStyle='#f3cc9b';g.font='bold 14px "Courier New"';
     g.fillText(NET.status,w/2,portrait?910:702,w-45)}
   else{g.fillStyle='#927a5f';g.font='bold '+(portrait?14:13)+'px "Courier New"';
