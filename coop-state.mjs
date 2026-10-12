@@ -248,13 +248,6 @@ export class SharedWorld {
         continue;
       }
       if(e.dead)continue;
-      if(e.hanging){
-        if(now-e.hanging.at>16000){
-          e.hp=0;e.dead=true;e.hanging.dead=true;
-          this.touch();this.emit({type:'enemies',enemies:w.enemies});
-        }
-        continue;
-      }
       if(e.knock){
         const k=e.knock,d=Math.min(k.remaining,dt*(k.mode==='throw'?8.0:5.0)),
           nx=e.x+k.dx*d,ny=e.y+k.dy*d,
