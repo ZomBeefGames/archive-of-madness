@@ -20,7 +20,7 @@ test('five level renderer stages floor -2,-1,0,+1,+2 and restores world floor',(
  assert.equal(detail.length,5);
  assert.deepEqual(s.calls,[8,9,10,11,12]);
  assert.equal(s.G.floor,10);
- assert.deepEqual(detail.map(e=>e.floor),[8,9,10,11,12]);
+ assert.deepEqual(Array.from(detail,e=>e.floor),[8,9,10,11,12]);
  for(let i=0;i<detail.length;i++)assert.ok(Math.abs(detail[i].z-(.1+(i-2)*2.15))<1e-8);
 });
 test('camera culling does not draw other floors behind you or outside field of view',()=>{
