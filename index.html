@@ -4980,41 +4980,39 @@ function filmButton(g,id,label,x,y,w,h,selected){
   g.fillText(label,x+w/2,y+h/2,w-40);
 }
 function filmHelp(g,w,h,portrait){
-  g.fillStyle='rgba(13,10,14,.91)';g.fillRect(32,37,w-64,h-74);filmFrame(g,w,h);
-  g.textAlign='center';g.fillStyle='#ecd7a7';g.font='bold '+(portrait?41:50)+'px Georgia';
-  g.fillText('HOW TO SURVIVE',w/2,portrait?136:117);
-  g.fillStyle='#b78b61';g.font='bold '+(portrait?17:18)+'px "Courier New"';
-  g.fillText('AN EXTRACT FROM THE LIBRARIAN\'S HANDBOOK',w/2,portrait?167:156,w-88);
-  const rows=portrait?[
-    ['MOVE / TURN','WASD, ARROWS OR THUMBSTICK'],
-    ['LOOK','DRAG THE WORLD OR USE R / F'],
-    ['READ / SEARCH','E, ENTER OR TAP READ'],
-    ['ATTACK','SPACE OR TAP SWING'],
-    ['WEAPONS','Q, 1-4 OR TAP YOUR WEAPON'],
-    ['JOURNAL','J, TAB OR TAP JOURNAL'],
-    ['INCENSE','I OR TAP YOUR PORTRAIT'],
-    ['VIEW','V SWITCHES FIRST / THIRD PERSON'],
-    ['BUILD / REINFORCE','B OR TAP BUILD · 3 BRACES = INVINCIBLE'],
-    ['PLAY TOGETHER','HOST / JOIN ON TITLE · TAP INVITE']
-  ]:[
-    ['MOVE / TURN','WASD, ARROWS OR THUMBSTICK'],['READ / SEARCH','E, ENTER OR TAP READ'],
-    ['LOOK','DRAG OR R / F'],['ATTACK','SPACE OR TAP SWING'],
-    ['WEAPONS','Q, 1-4 OR TAP YOUR WEAPON'],['JOURNAL','J, TAB OR TAP JOURNAL'],
-    ['INCENSE','I OR TAP YOUR PORTRAIT'],['VIEW','V SWITCHES CAMERA'],
-    ['SALVAGE / BUILD','READ BROKEN BOARDS · B TO PLACE'],
-    ['CO-OP CHAT / INVITE','T CHAT · C INVITE · 8 READERS']
+  g.fillStyle='rgba(13,10,14,.94)';g.fillRect(32,37,w-64,h-74);filmFrame(g,w,h);
+  g.textAlign='center';g.fillStyle='#ecd7a7';g.font='bold '+(portrait?40:50)+'px Georgia';
+  g.fillText('HOW TO SURVIVE',w/2,portrait?132:117);
+  g.fillStyle='#b78b61';g.font='bold '+(portrait?15:18)+'px "Courier New"';
+  g.fillText('EVERY GAME BUTTON HAS A DESKTOP KEY',w/2,portrait?162:158,w-88);
+  const rows=[
+    ['MOVE / TURN','WASD / ARROWS · MOUSE LOOK'],
+    ['LOOK UP / DOWN','R / F OR DRAG'],
+    ['READ / SEARCH','E OR ENTER'],
+    ['ATTACK','SPACE'],
+    ['WEAPONS','Q TO CYCLE · 1–4 SELECT'],
+    ['JOURNAL / MAP','J OR TAB · ESC CLOSE'],
+    ['BUILD / REINFORCE','B · THREE BRACES LAST FOREVER'],
+    ['VAULT RAIL / FREEFALL','G WHEN FACING A RAIL'],
+    ['PUSH / THROW','P PUSH · O THROW'],
+    ['TIE / RELEASE ROPE','H · FIND A RAIL · ROPE FROM HATCH'],
+    ['INCENSE / CAMERA','I INCENSE · V SWITCH VIEW'],
+    ['SOUND / KEY GUIDE','M SOUND · K SHORTCUTS'],
+    ['CO-OP CHAT / INVITE','T CHAT · C INVITE'],
+    ['EVENT CHOICES / STAIRS','1/2 OPTIONS · W/S STAIRS'],
+    ['TITLE OPTIONS / FLYBY','1–6 MAIN MENU · N NEXT SCENE']
   ];
   g.textAlign='left';
-  const y0=portrait?212:229,step=portrait?57:55,cols=portrait?1:2,bw=(w-110)/cols;
+  const y0=portrait?196:213,step=portrait?40:50,cols=portrait?1:2,bw=(w-110)/cols;
   for(let i=0;i<rows.length;i++){
     const col=i%cols,row=Math.floor(i/cols),x=54+col*bw,y=y0+row*step;
-    g.fillStyle='#b89767';g.font='bold '+(portrait?19:17)+'px "Courier New"';
-    g.fillText(rows[i][0],x,y);
-    g.fillStyle='#eee0bf';g.font=(portrait?18:16)+'px Georgia';
-    g.fillText(rows[i][1],x,y+25,bw-20);
+    g.fillStyle='#b89767';g.font='bold '+(portrait?15:17)+'px "Courier New"';
+    g.fillText(rows[i][0],x,y,bw-18);
+    g.fillStyle='#eee0bf';g.font=(portrait?15:16)+'px Georgia';
+    g.fillText(rows[i][1],x,y+20,bw-18);
   }
-  const bh=portrait?68:59,bw2=portrait?w-110:300,by=h-(portrait?131:113),bx=(w-bw2)/2;
-  filmButton(g,'help','CLOSE HANDBOOK',bx,by,bw2,bh,true);
+  const bh=portrait?62:55,bw2=portrait?w-110:300,by=h-(portrait?106:91),bx=(w-bw2)/2;
+  filmButton(g,'help','CLOSE HANDBOOK  ·  ESC',bx,by,bw2,bh,true);
 }
 /* Character workshop: the live preview composes the SAME pixel-painted rig
    parts as the 3D puppet. A real canvas ImageData cache avoids re-rasterizing
@@ -5622,6 +5620,41 @@ function drawRailFreefallHUD(){
  g.fillText('WAKE AT THE NEAREST COMMUNAL LANDING',w*.5,h-58*u,w*.94);
  g.restore();
 }
+/* A compact, in-game reference for the entire desktop control scheme.
+   This uses one overlay rather than making the touch controls disappear. */
+const PC_GUIDE_ROWS=[
+  ['WASD / ARROWS','MOVE + TURN'],['R / F','LOOK UP / DOWN'],
+  ['E / ENTER','READ / SEARCH'],['SPACE','SWING / ATTACK'],
+  ['J / TAB','JOURNAL & MAP'],['B','BUILD / REINFORCE'],
+  ['G','VAULT A RAIL'],['P / O','PUSH / THROW'],
+  ['H','TIE / RELEASE ROPE'],['Q / 1–4','CHANGE WEAPON'],
+  ['I','BURN INCENSE'],['V','CHANGE CAMERA'],
+  ['T / C','CO-OP CHAT / INVITE'],['M','TOGGLE SOUND'],
+  ['ESC','CLOSE / JOURNAL'],['K','CLOSE KEY GUIDE']
+];
+function drawDesktopKeyGuide(){
+  const g=vctx,u=Math.min(1.2,Math.max(.7,Math.min(DW/1050,DH/690))),
+    ww=Math.min(DW-30*u,910*u),hh=490*u,
+    x=(DW-ww)/2,y=(DH-hh)/2;
+  g.save();g.fillStyle='rgba(7,8,12,.91)';g.fillRect(x,y,ww,hh);
+  g.strokeStyle='#cba675';g.lineWidth=2;g.strokeRect(x,y,ww,hh);
+  g.strokeStyle='rgba(213,174,120,.3)';g.strokeRect(x+6*u,y+6*u,ww-12*u,hh-12*u);
+  g.textAlign='center';g.textBaseline='top';g.fillStyle='#ead0a2';
+  g.font='bold '+Math.round(29*u)+'px Georgia';
+  g.fillText('THE LIBRARIAN’S KEYS',x+ww/2,y+21*u);
+  for(let i=0;i<PC_GUIDE_ROWS.length;i++){
+    const col=i%2,row=Math.floor(i/2),bx=x+24*u+col*(ww/2-5*u),yy=y+77*u+row*48*u;
+    g.fillStyle='#d8ae7b';g.font='bold '+Math.round(15*u)+'px Georgia';
+    g.textAlign='left';g.fillText(PC_GUIDE_ROWS[i][0],bx,yy,ww/2-50*u);
+    g.fillStyle='#dcd0b9';g.font=Math.round(13*u)+'px Georgia';
+    g.fillText(PC_GUIDE_ROWS[i][1],bx,yy+19*u,ww/2-50*u);
+  }
+  g.textAlign='center';g.fillStyle='#b89c77';
+  g.font='italic '+Math.round(14*u)+'px Georgia';
+  g.fillText('PRESS K OR ESC TO CLOSE',x+ww/2,y+hh-32*u);
+  g.restore();
+}
+
 function display(dt){
   // Cinematic layers are rendered directly at display resolution, with no HUD or
   // expensive raycaster running underneath them.
@@ -5714,6 +5747,7 @@ function display(dt){
   if(st==='climb'){vctx.fillStyle='rgba(0,0,0,'+(0.96*Math.sin(Math.PI*Math.min(1,G.climbT/1.2)))+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='sleep'){vctx.fillStyle='rgba(4,3,8,'+(0.97*Math.sin(Math.PI*Math.min(1,G.sleepT/2.2)))+')';vctx.fillRect(0,0,DW,DH)}
   drawCoopHUD();
+  if(G.keyGuide&&FINE&&G.state==='play')drawDesktopKeyGuide();
 }
 /* A small floating multiplayer and salvaged-wood HUD. The buttons are genuine
    canvas click targets and have keyboard equivalents on desktop. */
