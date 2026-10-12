@@ -2381,7 +2381,7 @@ function startRailFreefall(){
   const hub=nearestFallCommunity(G.x,G.y,G.floor);
   if(!hub)return false;
   G.fall={fromX:G.x,fromY:G.y,fromFloor:G.floor,hub,
-    depth:0,speed:0,elapsed:0,kind:target.kind};
+    depth:0,speed:0,elapsed:0,kind:target.kind,visualZones:new Map()};
   G.x=target.x;G.y=target.y;
   G.cell=placeOf(G.x,G.y);G.inRoom=G.cell.kind==='g';
   G.pitch=-.25;G.journal=false;G.ents=[];G.phantoms=[];
@@ -3152,6 +3152,16 @@ let LX=0,LY=0,THIRD=false;const VIEW={third:true,d:2.35};
 try{if(localStorage.getItem('aom.view')==='first')VIEW.third=false}catch(_){}
 function toggleView(){VIEW.third=!VIEW.third;sfx(VIEW.third?'THIRD PERSON':'FIRST PERSON');try{localStorage.setItem('aom.view',VIEW.third?'third':'first')}catch(_){}}
 function render(){
+  if(G.state==='freefall'&&G.fall){
+    // Cinematic first-person camera follows the descending position between
+    // actual Library floors. Temporary zone art never pollutes save-world data.
+    LX=G.x;LY=G.y;THIRD=false;
+    const savedZones=G.zoneState;
+    G.zoneState=G.fall.visualZones;
+    if(G.zoneState.size>500)G.zoneState.clear();
+    try{renderScene([])}finally{G.zoneState=savedZones}
+    return;
+  }
   LX=G.x;LY=G.y;THIRD=VIEW.third&&G.state!=='intro'&&G.state!=='start';const MEP=[];if(THIRD)meLayers(MEP);
   if(!THIRD){renderScene(MEP);return}
   const cs=Math.cos(G.ang),sn=Math.sin(G.ang),ox=-cs*VIEW.d-sn*0.6,oy=-sn*VIEW.d+cs*0.6,ol=Math.hypot(ox,oy),ux=ox/ol,uy=oy/ol;
@@ -3167,7 +3177,7 @@ function renderScene(MEP){
   FLICK=.91+.045*Math.sin(G.time*13)+.038*Math.sin(G.time*31.7);LANR=G.oil>0?3.8+Math.min(G.oil,10)*0.6+(torchLit()?0.8:0):torchLit()?4.7:1.1;
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
-  lifeLayers(POSE);
+  if(G.state!=='freefall')lifeLayers(POSE);
   if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
     if(e.floor!==G.floor||Math.hypot(e.x-G.x,e.y-G.y)>35)continue;
     if(e.type==='pur')purLayers(e,POSE);else seekLayers(e,POSE);
@@ -4485,7 +4495,7 @@ function filmDrawDawn(){
   g.fillStyle='#efdcb5';g.textAlign='center';g.font='bold '+(portrait?64:83)+'px Georgia';
   g.fillText('DAY '+G.day,w/2,h*(portrait?.69:.73),w-84);
   g.font='italic '+(portrait?22:25)+'px Georgia';g.fillStyle='#bca27d';
-  g.fillText(G.justReset?'THE LIBRARY IS PUT BACK IN ORDER':'THE LIBRARY REMEMBERS ITS SCARS',w/2,h*(portrait?.75:.82),w-68);
+  g.fillText(G.fallWakeDay===G.day?'THE LIBRARY RETURNED YOU TO THE NEAREST COMMUNITY HUB':G.justReset?'THE LIBRARY IS PUT BACK IN ORDER':'THE LIBRARY REMEMBERS ITS SCARS',w/2,h*(portrait?.75:.82),w-68);
   g.restore();
 }
 function filmDrawFinale(){
@@ -4869,6 +4879,7 @@ function hitCtl(x,y,dpadOnly){
   return best;
 }
 
+let RAIL_JUMP_BUTTON=null;
 const HUD=[{key:'vit',tex:TX.vit,ph:0},{key:'face',tex:TX.face,ph:1.3},{key:'stat',tex:TX.stat,ph:2.6}];
 let texT=0,HT=0;const UI={show:false,t:9},jr={hgt:0.4,ph:0.7},bookCard={hgt:0.6},introCard={hgt:0.8},deadCard={hgt:0.58},wonCard={hgt:0.58};
 function hands(){
@@ -4879,6 +4890,33 @@ function hands(){
   vctx.drawImage(HANDGLOVE,-2.6*c,-.6*c,6.8*c,4.25*c);vctx.restore();
   const lx=lantX-bobX*.35,ly=DH-9.8*c+bobY*.6;
   vctx.save();vctx.imageSmoothingEnabled=true;vctx.drawImage(HANDLAMP[G.oil>0?1:0],lx,ly,5.8*c,8.9*c);vctx.drawImage(HANDGLOVE,lx-.4*c,ly+7.4*c,6.2*c,3.9*c);vctx.restore();
+}
+/* Diegetic freefall: the same environment remains visible at every passing
+   floor, with inexpensive streaks and a readable midnight recovery reminder. */
+function drawRailFreefallHUD(){
+ const fall=G.fall;if(!fall)return;
+ const g=vctx,w=DW,h=DH,u=Math.max(1,Math.min(1.8,Math.min(w,h)/660));
+ g.save();g.textAlign='center';g.textBaseline='middle';
+ if(!CALM)for(let i=0;i<24;i++){
+   const px=((i*203.37+Math.sin(i*3.13+fall.elapsed*.45)*w*.06)%w+w)%w,
+     py=((i*97.31+fall.depth*(7+i%6))%(h+180)+h+180)%(h+180)-90,
+     len=(24+fall.speed*(2+i%5))*u;
+   g.strokeStyle='rgba(224,212,181,'+(.065+(i%6)*.016)+')';
+   g.lineWidth=(i%5===0?2:1)*u;g.beginPath();g.moveTo(px,py-len);g.lineTo(px,py+len);g.stroke();
+ }
+ const shade=g.createLinearGradient(0,0,0,h);
+ shade.addColorStop(0,'rgba(7,10,16,.66)');shade.addColorStop(.33,'rgba(8,9,14,0)');
+ shade.addColorStop(.72,'rgba(8,9,14,0)');shade.addColorStop(1,'rgba(7,10,16,.82)');
+ g.fillStyle=shade;g.fillRect(0,0,w,h);
+ g.fillStyle='#f2d9ae';g.font='bold '+Math.round(19*u)+'px Georgia';
+ g.fillText('THE LIBRARY HAS NO BOTTOM',w*.5,Math.max(35*u,h*.09),w*.92);
+ g.fillStyle='#ceae86';g.font='bold '+Math.round(14*u)+'px Georgia';
+ g.fillText('FLOOR '+G.floor+'  ·  '+clockText(),w*.5,Math.max(61*u,h*.15),w*.92);
+ g.fillStyle='#ddc4a0';g.font=Math.round(14*u)+'px Georgia';
+ g.fillText('FALLING UNTIL MIDNIGHT',w*.5,h-87*u,w*.94);
+ g.fillStyle='#ae9a7b';g.font=Math.round(12*u)+'px Georgia';
+ g.fillText('WAKE AT THE NEAREST COMMUNAL LANDING',w*.5,h-58*u,w*.94);
+ g.restore();
 }
 function display(dt){
   // Cinematic layers are rendered directly at display resolution, with no HUD or
@@ -4891,6 +4929,7 @@ function display(dt){
   texT-=dt;if(texT<=0){texT=0.1;drawVit();drawFaceTex();drawStat();if(G.journal)drawJournal()}
   vctx.imageSmoothingEnabled=false;vctx.drawImage(scene,0,0,W,H,0,0,DW,DH);
   if(SCENEVIGNETTE){vctx.fillStyle=SCENEVIGNETTE;vctx.fillRect(0,0,DW,DH)}
+  if(G.state==='freefall'){drawRailFreefallHUD();return}
   if(G.state==='play'&&G.inRoom){
     const z=standingZone();
     if(z&&z.type==='burning'){
@@ -4975,7 +5014,7 @@ function display(dt){
 /* A small floating multiplayer and salvaged-wood HUD. The buttons are genuine
    canvas click targets and have keyboard equivalents on desktop. */
 function drawCoopHUD(){
-  BUILD.uiButton=null;NET.shareButton=null;
+  BUILD.uiButton=null;NET.shareButton=null;RAIL_JUMP_BUTTON=null;
   if(G.state!=='play')return;
   const g=vctx,u=Math.max(1,Math.min(1.6,Math.min(DW,DH)/630));
   const font=Math.round(16*u),x=18*u,y=18*u;
@@ -5002,6 +5041,18 @@ function drawCoopHUD(){
     }
   }else if(NET.status&&NET.ws){
     g.font='bold '+font+'px "Courier New"';g.fillStyle='#ecc4a5';g.fillText(NET.status,x,y+5*u,340*u);
+  }
+  const rail=railJumpTarget();
+  if(rail){
+    const w=188*u,h=53*u,bx=DW-w-18*u,by=DH*.23;
+    g.fillStyle='rgba(29,23,26,.9)';g.fillRect(bx,by,w,h);
+    g.strokeStyle='#e0b67c';g.lineWidth=2;g.strokeRect(bx+1,by+1,w-2,h-2);
+    g.textAlign='center';g.textBaseline='middle';
+    g.fillStyle='#f0d9b1';g.font='bold '+Math.round(15*u)+'px Georgia';
+    g.fillText('VAULT THE RAIL',bx+w/2,by+19*u,w-12*u);
+    g.font=Math.round(12*u)+'px Georgia';g.fillStyle='#cbb28e';
+    g.fillText(FINE?'G · JUMP':'TAP TO JUMP',bx+w/2,by+39*u,w-12*u);
+    RAIL_JUMP_BUTTON={x0:bx,y0:by,x1:bx+w,y1:by+h};
   }
   const t=portableTarget(),canBuild=BUILD.planks>0||t&&!t.wreck;
   if(!canBuild)return;
@@ -5123,6 +5174,7 @@ view.addEventListener('pointerdown',ev=>{
   ev.preventDefault();try{view.focus({preventScroll:true})}catch(e){}
   try{view.setPointerCapture(ev.pointerId)}catch(e){}
   const pt=canvasPt(ev);
+  if(G.state==='play'&&RAIL_JUMP_BUTTON&&pt.x>=RAIL_JUMP_BUTTON.x0&&pt.x<=RAIL_JUMP_BUTTON.x1&&pt.y>=RAIL_JUMP_BUTTON.y0&&pt.y<=RAIL_JUMP_BUTTON.y1){action('jump');return}
   if(G.state==='play'&&BUILD.uiButton&&pt.x>=BUILD.uiButton.x0&&pt.x<=BUILD.uiButton.x1&&pt.y>=BUILD.uiButton.y0&&pt.y<=BUILD.uiButton.y1){
     action('build');return;
   }
@@ -5145,7 +5197,7 @@ view.addEventListener('pointermove',ev=>{
   }return}
   if(p.kind==='stick'){const pt=canvasPt(ev);stickSet(pt.x,pt.y);return}
   if(p.kind==='ctl')return;
-  if(G.state==='play'){const fov=2*Math.atan(PLANE);G.ang+=(ev.clientX-p.x)/CW*fov*(FINE?2.4:1.8);G.pitch=Math.max(-0.45,Math.min(0.45,G.pitch-(ev.clientY-p.y)/CH*(FINE?1.2:0.9)))}
+  if(G.state==='play'||G.state==='freefall'){const fov=2*Math.atan(PLANE);G.ang+=(ev.clientX-p.x)/CW*fov*(FINE?2.4:1.8);G.pitch=Math.max(-0.45,Math.min(0.45,G.pitch-(ev.clientY-p.y)/CH*(FINE?1.2:0.9)))}
   if(G.state==='book'&&G.choice==='enc'&&ev.pointerType==='mouse'){const pt=canvasPt(ev);eventHover(eventChoiceAtScreen(pt.x,pt.y))}
   p.x=ev.clientX;p.y=ev.clientY;
 });
