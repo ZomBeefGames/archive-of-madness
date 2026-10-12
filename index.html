@@ -2379,8 +2379,8 @@ function nearestFallCommunity(x,y,floor){
   }
   return null;
 }
-function startRailFreefall(){
-  const target=railJumpTarget();
+function startRailFreefall(targetOverride=null){
+  const target=targetOverride||railJumpTarget();
   if(!target)return false;
   const hub=nearestFallCommunity(G.x,G.y,G.floor);
   if(!hub)return false;
@@ -2852,6 +2852,8 @@ function tickPlayerKnockback(dt){
   const nx=G.x+p.dx*d,ny=G.y+p.dy*d;
   if(walkable(nx,ny,.28)){G.x=nx;G.y=ny;G.cell=placeOf(nx,ny);G.inRoom=G.cell.kind==='g'}
   else if(openDropAhead(nx,ny,p.dx,p.dy,G.x,G.y)){
+    // The shove source is different from the victim's facing direction.
+    // Explicitly hand the physically validated drop to the freefall system.
     G.knockback=null;
     startRailFreefall({x:nx+p.dx*.65,y:ny+p.dy*.65,kind:'thrown'});
     return true;
