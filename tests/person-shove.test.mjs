@@ -14,7 +14,7 @@ function sandbox(){
    ents:[actor],knockback:null,inRoom:false,cell:{kind:'a'},swing:0};
  const sent=[],events=[],NET={ready:false,enemies:new Map(),peers:new Map(),
    send:x=>sent.push(x)},ENC={list:[]},flags={limit:20,hasDrop:true,drop:false};
- const context=vm.createContext({G,NET,ENC,Math,FH:2.15,RAILH:.34,PS:1.35/60,
+ const context=vm.createContext({G,ME:{rag:null},NET,ENC,Math,FH:2.15,RAILH:.34,PS:1.35/60,
    VISIBLE_FLOORS:2,
    cast(){return{t:100}},walkable(x){return x<flags.limit},
    airFloor(x){return !flags.hasDrop||x<flags.limit},
