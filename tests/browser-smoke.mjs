@@ -20,7 +20,9 @@ window.__AOM_TEST={
   placeOf,getRoom,walkable,airFloor,levelHasWall,characterRig,
   get ENC(){return ENC},get BG(){return BG},
   get VIEW(){return VIEW},get RAIL_JUMP_BUTTON(){return RAIL_JUMP_BUTTON},
-  railJumpTarget,startRailFreefall,nearestFallCommunity,walkable
+  railJumpTarget,startRailFreefall,nearestFallCommunity,walkable,
+  get TITLE_FLY(){return TITLE_FLY},titleNextScene,titleScenePose,
+  get PERSON_BUTTONS(){return PERSON_BUTTONS},personTarget
 };
 `;
 assert.ok(originalHTML.includes('</script>'));
@@ -96,6 +98,26 @@ async function caseRun(label,contextOptions){
   });
   assert.ok(render.pixels>10,label+' title should paint visible artwork');
   assert.equal(render.buttons,6);
+  await page.waitForFunction(()=>{
+    const a=window.__AOM_TEST;return a?.TITLE_FLY?.frames>0||a?.TITLE_FLY?.failed
+  },null,{timeout:20000});
+  const cinema=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,t=a.TITLE_FLY,g=a.G;
+    return{scenes:t.scenes.length,performers:t.actorsDrawn,failed:t.failed,
+      error:t.error,index:t.index,cameras:[...new Set(t.scenes.map(s=>s.camera))],
+      durations:t.scenes.map(s=>s.duration),player:{x:g.x,y:g.y,floor:g.floor}};
+  });
+  assert.equal(cinema.failed,false,label+' live world flythrough failed: '+cinema.error);
+  assert.equal(cinema.scenes,20);
+  assert.ok(cinema.performers>=6);
+  assert.ok(cinema.cameras.includes('freefall')&&cinema.cameras.includes('air'));
+  assert.ok(cinema.durations.some(d=>d>=28));
+  await page.evaluate(()=>window.__AOM_TEST.titleNextScene());
+  await page.waitForFunction(previous=>window.__AOM_TEST?.TITLE_FLY?.index!==-1&&
+    window.__AOM_TEST.TITLE_FLY.index!==previous,cinema.index,{timeout:20000});
+  assert.deepEqual(await page.evaluate(()=>{
+    const g=window.__AOM_TEST.G;return{x:g.x,y:g.y,floor:g.floor}
+  }),cinema.player,'cinematic scenes never change the playable location');
   await mkdir('browser-artifacts',{recursive:true});
   await page.screenshot({path:'browser-artifacts/title-'+label+'.png'});
   // Real desktop and mobile canvas interactions with the character creator.
@@ -254,6 +276,34 @@ async function caseRun(label,contextOptions){
   await page.waitForTimeout(250);
   await page.screenshot({path:'browser-artifacts/communal-negative-'+label+'.png'});
   assert.deepEqual(errors,[],label+' should render both upper and lower community floors without JS errors');
+  // Hand-to-hand interactions must work via the actual context buttons on
+  // both pointer and touch, with real actor impulse rather than fake HUD art.
+  const prior=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G,c=a.getRoom(0,0);
+    g.state='play';g.journal=false;g.floor=0;g.room=c;g.gal=c.gid;
+    g.x=c.cx+3.15;g.y=c.cy-.3;g.ang=Math.PI/2;
+    g.cell=a.placeOf(g.x,g.y);g.inRoom=true;g.personCd=0;
+    g.ents=[{type:'fig',x:g.x,y:g.y+1.10,pose:'stand',coat:0,
+      f:0,hit:0,walk:0,dead:0}];
+    return{x:g.ents[0].x,y:g.ents[0].y};
+  });
+  await page.waitForFunction(()=>!!window.__AOM_TEST?.PERSON_BUTTONS?.push,null,{timeout:12000});
+  const shovePoint=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,b=a.PERSON_BUTTONS.push,r=a.view.getBoundingClientRect();
+    return{x:r.left+(b.x0+b.x1)/2/a.DW*r.width,
+      y:r.top+(b.y0+b.y1)/2/a.DH*r.height};
+  });
+  if(contextOptions.hasTouch)await page.touchscreen.tap(shovePoint.x,shovePoint.y);
+  else await page.mouse.click(shovePoint.x,shovePoint.y);
+  await page.waitForFunction(y=>window.__AOM_TEST?.G.ents[0]?.y>y+.1,prior.y,{timeout:12000});
+  await page.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G;
+    g.personCd=0;g.ents[0].x=g.x;g.ents[0].y=g.y+1.08;g.ents[0].shove=null;
+  });
+  await page.waitForFunction(()=>!!window.__AOM_TEST?.PERSON_BUTTONS?.throw,null,{timeout:12000});
+  await page.keyboard.press('o');
+  await page.waitForFunction(()=>window.__AOM_TEST?.G.ents[0]?.shove?.mode==='throw'||
+    !!window.__AOM_TEST?.G.ents[0]?.fallState,null,{timeout:12000});
   console.log('BROWSER PASS',label,'event choices, character rig and negative-floor hub/transit screenshots');
   await context.close();
 }
