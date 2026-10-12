@@ -3048,7 +3048,7 @@ function ropeTarget(){
  }
  for(const e of worldDead())if(!e.suspended&&!G.hungIds.has(e.lootId))
    list.push({kind:'local',actor:e});
- if(NET.ready)for(const e of NET.enemies.values())if(e.floor===G.floor&&!e.hanging&&!e.dead)
+ if(NET.ready)for(const e of NET.enemies.values())if(e.floor===G.floor&&!e.hanging)
    list.push({kind:'enemy',actor:e});
  let best=null,distance=2.05;
  const ax=Math.cos(G.ang),ay=Math.sin(G.ang);
@@ -3065,6 +3065,12 @@ function ropeTarget(){
 }
 function ropeCutTarget(){
  let closest=1.85,best=null;
+ if(NET.ready)for(const e of NET.enemies.values()){
+   if(!e.hanging||e.floor!==G.floor)continue;
+   const dx=e.x-G.x,dy=e.y-G.y,d=Math.hypot(dx,dy);
+   if(d<.18||d>=closest||(dx*Math.cos(G.ang)+dy*Math.sin(G.ang))/d<.33)continue;
+   best={remote:true,actor:e};closest=d;
+ }
  for(const e of G.hangings){
    if(e.hangFloor!==G.floor)continue;
    const d=Math.hypot(e.x-G.x,e.y-G.y);
@@ -3103,6 +3109,10 @@ function ropeAction(){
  if(G.state!=='play'||G.journal)return false;
  const tied=ropeCutTarget();
  if(tied){
+   if(tied.remote){
+     NET.send({type:'rope',kind:'enemy',targetId:String(tied.actor.id),mode:'untie'});
+     snd('pickup');sfx('UNTYING ROPE...','mind');return true;
+   }
    releaseRope(tied);G.rope=Math.min(9,G.rope+1);
    snd('pickup');sfx('ROPE UNTIED · +1 ROPE','mind');return true;
  }
@@ -3624,7 +3634,15 @@ function renderScene(MEP){
   if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
     if(Math.abs(e.floor-G.floor)>VISIBLE_FLOORS||Math.hypot(e.x-G.x,e.y-G.y)>35)continue;
     e.lvl=e.floor-G.floor;e.zw=e.lvl*FH;
-    if(e.rag)ragdollLayers(e,POSE);
+    if(e.hanging){
+      if(!e.rag||e.rag.mode!=='hang'){
+        const rag=activateRagdoll(e,'hang',2,1);
+        if(rag){const pinZ=RAILH/PS-25,delta=pinZ-rag.points[2].z;
+          for(const q of rag.points){q.z+=delta;q.oz+=delta}
+          rag.mode='hang';rag.pin={x:0,z:pinZ};rag.ground=false}
+      }
+      if(e.rag){stepRagdoll(e,.016);ragdollLayers(e,POSE)}
+    }else if(e.rag)ragdollLayers(e,POSE);
     else if(e.type==='pur')purLayers(e,POSE);else seekLayers(e,POSE);
   }
   if(typeof NET!=='undefined'&&NET.ready)for(const p of NET.peers.values())
@@ -4103,6 +4121,12 @@ const NET={
       else if(m.type==='resources')this.receiveResources(m.resources,m.tr);
       else if(m.type==='enemies')this.receiveEnemies(m.enemies||[]);
       else if(m.type==='combat'){if(m.action==='kill')sfx('THE LIBRARY REMEMBERS THE FALL','mind')}
+      else if(m.type==='rope'){
+        if(m.by===this.id&&Number.isFinite(m.remaining)){
+          G.rope=Math.max(0,Math.min(9,m.remaining));
+          sfx(m.mode==='tie'?'ROPE SECURED':'ROPE RELEASED','mind');
+        }
+      }
       else if(m.type==='shove'){
         if(m.targetId===this.id&&G.state==='play'){
           const mode=m.mode==='throw'?'throw':'push';
@@ -4221,7 +4245,8 @@ const NET={
     for(const obj of list){
       if(!obj||!['pur','seek'].includes(obj.type)||!Number.isFinite(obj.x)||!Number.isFinite(obj.y))continue;
       const prev=this.enemies.get(obj.id)||{};
-      const e={...prev,...obj,hp:obj.hp,dead:obj.dead?Math.max(.05,prev.dead||.05):0,
+      const e={...prev,...obj,rag:prev.hanging&&!obj.hanging?null:prev.rag,
+        hp:obj.hp,dead:obj.dead?Math.max(.05,prev.dead||.05):0,
         hit:Math.max(0,(prev.hit||0)-.07),seed:Number(obj.id?.length||1),
         zw:0,walk:obj.dead||obj.hanging?0:.7};
       if(obj.hanging){
