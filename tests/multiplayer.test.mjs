@@ -256,3 +256,32 @@ test('server owns enemy shove impulse and advances shared position for all viewe
  assert.ok(e.x>x,'server advances enemy rather than trusting a client-only animation');
  assert.ok(guest.messages.some(m=>m.type==='enemies'&&m.enemies.some(q=>q.id===e.id&&q.x>x)));
 });
+
+
+test('co-op ropes are server-validated and shared: tie, suspend, cut and refund',()=>{
+ const {rooms,room,host,code}=lobby(),guest=mock();
+ post(rooms,guest,{type:'join',room:code,name:'SPECTATOR'});
+ const p=host.player;p.active=true;p.floor=0;p.x=4;p.y=0;p.f=0;
+ const e={id:'npc:test:rope',x:5.75,y:0,f:0,floor:0,type:'pur',hp:6,
+   dead:false,cx:4,cy:0,lastAttack:0};
+ room.world.enemies.push(e);
+ post(rooms,host,{type:'rope',kind:'enemy',targetId:e.id,mode:'tie'});
+ assert.equal(e.hanging,true);
+ assert.equal(e.hangFloor,0);
+ assert.equal(p.rope,1,'one real rope was spent');
+ assert.ok(guest.messages.some(m=>m.type==='rope'&&m.targetId===e.id&&m.mode==='tie'));
+ assert.ok(guest.messages.some(m=>m.type==='enemies'&&m.enemies.some(q=>q.id===e.id&&q.hanging)));
+ // A second rope cannot be attached to the same suspended target.
+ p.lastRope=0;
+ post(rooms,host,{type:'rope',kind:'enemy',targetId:e.id,mode:'tie'});
+ assert.equal(p.rope,1);
+ p.lastRope=0;p.f=Math.PI;
+ post(rooms,host,{type:'rope',kind:'enemy',targetId:e.id,mode:'untie'});
+ assert.equal(e.hanging,true,'turning away prevents untie from afar');
+ p.lastRope=0;p.f=0;
+ post(rooms,host,{type:'rope',kind:'enemy',targetId:e.id,mode:'untie'});
+ assert.equal(e.hanging,false);
+ assert.equal(e.dead,true,'released hanging enemy impacts the gallery floor');
+ assert.equal(p.rope,2);
+ assert.ok(guest.messages.some(m=>m.type==='rope'&&m.targetId===e.id&&m.mode==='untie'));
+});
