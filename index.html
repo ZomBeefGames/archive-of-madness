@@ -3331,7 +3331,7 @@ function renderScene(MEP){
   FLICK=.91+.045*Math.sin(G.time*13)+.038*Math.sin(G.time*31.7);LANR=G.oil>0?3.8+Math.min(G.oil,10)*0.6+(torchLit()?0.8:0):torchLit()?4.7:1.1;
   const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
-  if(G.state!=='freefall')lifeLayers(POSE);
+  if(G.state!=='freefall'&&!TITLE_FLY.previewing)lifeLayers(POSE);
   if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
     if(Math.abs(e.floor-G.floor)>VISIBLE_FLOORS||Math.hypot(e.x-G.x,e.y-G.y)>35)continue;
     e.lvl=e.floor-G.floor;e.zw=e.lvl*FH;
@@ -4302,12 +4302,24 @@ function titleFlyRender(shot,position,elapsed){
     G.startGallery=null;G.floor=shot.floor;
     titleStageScene(shot);
     G.x=position.x;G.y=position.y;G.ang=position.ang;
-    G.pitch=position.pitch;EYE=position.eye;
+    G.floor=position.floor;G.pitch=position.pitch;EYE=position.eye;
     const cell=placeOf(G.x,G.y);
     G.cell=cell;G.room=getRoom(Math.round(G.x/P),Math.round(G.y/P));
     G.gal=G.room.gid;G.inRoom=cell.kind==='g';
-    G.ents=titleSceneActors(shot);G.phantoms=[];G.meal=null;
-    G.fires=shot.id==='inferno'?[{x:shot.i*P-1.9,y:shot.j*P+2.7,fl:shot.floor,t:10}]:[];
+    const local=Math.max(0,Math.min(shot.duration,position.local||0));
+    G.ents=titleSceneAnimate(shot,position,local);
+    G.phantoms=[];G.meal=null;
+    const fires=[];
+    if(['arson','fight','barricade'].includes(shot.action)){
+      const count=shot.action==='arson'?4:1;
+      for(let i=0;i<count;i++){
+        const a=i*2.39;
+        fires.push({x:shot.kind==='gallery'?shot.i*P+2.55*Math.cos(a):(shot.i+.5)*P+Math.sin(a)*.4,
+          y:shot.kind==='gallery'?shot.j*P+2.55*Math.sin(a):(shot.j+.45+i*.13)*P,
+          fl:position.floor,t:9});
+      }
+    }
+    G.fires=fires;
     G.time=elapsed;G.clock=DAYLEN*.78;G.oil=14;G.sanity=94;
     LX=G.x;LY=G.y;THIRD=false;
     renderScene([]);
@@ -4331,15 +4343,15 @@ function titleFlyBackground(g,elapsed){
   }
   titleFlyEnsure();
   const scenes=TITLE_FLY.scenes;
-  const seq=CALM?TITLE_FLY.manual:Math.floor(elapsed/TITLE_SHOT_SECONDS);
-  const index=((seq%scenes.length)+scenes.length)%scenes.length;
-  const local=CALM?TITLE_SHOT_SECONDS*.40:(elapsed%TITLE_SHOT_SECONDS);
-  const shot=scenes[index],u=local/TITLE_SHOT_SECONDS;
+  const timed=titleFlyTime(elapsed);
+  const index=CALM?(TITLE_FLY.manual%scenes.length):timed.index;
+  const shot=scenes[index],
+    local=CALM?shot.duration*.42:timed.local,u=local/shot.duration;
   if(index!==TITLE_FLY.index){TITLE_FLY.index=index;TITLE_FLY.lastRender=-1e9}
-  const interval=(FILM.help||FILM.customizing)?0.23:(FINE?0.055:0.095);
+  const interval=(FILM.help||FILM.customizing)?0.32:(FINE?0.10:0.17); // keep live large casts fast on mobile
   if(elapsed-TITLE_FLY.lastRender>=interval||TITLE_FLY.frames===0){
     try{
-      titleFlyRender(shot,titleScenePose(shot,u),elapsed);
+      titleFlyRender(shot,{...titleScenePose(shot,u),local},elapsed);
       TITLE_FLY.lastRender=elapsed;TITLE_FLY.lastKind=shot.variant;
       TITLE_FLY.drawScene=index;
     }catch(error){
@@ -4358,8 +4370,8 @@ function titleFlyBackground(g,elapsed){
   vignette.addColorStop(1,'rgba(3,4,7,.64)');
   g.fillStyle=vignette;g.fillRect(0,0,DW,DH);
   if(!CALM){
-    const edge=Math.min(local,TITLE_SHOT_SECONDS-local);
-    if(edge<.85){g.fillStyle='rgba(3,4,7,'+(.78*(1-edge/.85))+')';g.fillRect(0,0,DW,DH)}
+    const edge=Math.min(local,shot.duration-local);
+    if(edge<.85){g.fillStyle='rgba(3,4,7,'+(.62*(1-edge/.85))+')';g.fillRect(0,0,DW,DH)}
   }
   g.restore();
 }
