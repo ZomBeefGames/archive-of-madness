@@ -19,7 +19,8 @@ window.__AOM_TEST={
   filmStage,openBookUI,figLayers,get NET(){return NET},get BUILD(){return BUILD},
   placeOf,getRoom,walkable,airFloor,levelHasWall,characterRig,
   get ENC(){return ENC},get BG(){return BG},
-  get VIEW(){return VIEW}
+  get VIEW(){return VIEW},get RAIL_JUMP_BUTTON(){return RAIL_JUMP_BUTTON},
+  railJumpTarget,startRailFreefall,nearestFallCommunity,walkable
 };
 `;
 assert.ok(originalHTML.includes('</script>'));
@@ -138,6 +139,45 @@ async function caseRun(label,contextOptions){
     'new run should inherit selected harder difficulty');
   // Skip the opening using the existing keyboard flow, then use real book UI.
   await page.keyboard.press('Escape');
+  // The actual in-engine railing, mobile canvas target, descending camera,
+  // midnight blackout and nearest real community wake must work end to end.
+  const jumpStart=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G,c=g.room;
+    g.state='play';g.journal=false;g.x=c.cx;g.y=c.cy+2.4;
+    g.cell=c;g.inRoom=true;g.ang=-Math.PI/2;g.pitch=0;g.floor=3;
+    return{available:!!a.railJumpTarget(),floor:g.floor};
+  });
+  assert.equal(jumpStart.available,true,label+' needs a real jumpable shaft railing');
+  await page.waitForFunction(()=>!!window.__AOM_TEST?.RAIL_JUMP_BUTTON,null,{timeout:12000});
+  const railButton=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,r=a.view.getBoundingClientRect(),b=a.RAIL_JUMP_BUTTON;
+    return{x:r.left+(b.x0+b.x1)/2/a.DW*r.width,
+      y:r.top+(b.y0+b.y1)/2/a.DH*r.height};
+  });
+  if(contextOptions.hasTouch)await page.touchscreen.tap(railButton.x,railButton.y);
+  else await page.mouse.click(railButton.x,railButton.y);
+  await page.waitForFunction(()=>window.__AOM_TEST?.G.state==='freefall'&&window.__AOM_TEST.G.fall.depth>0,null,{timeout:12000});
+  await page.waitForTimeout(350);
+  const falling=await page.evaluate(()=>{
+    const g=window.__AOM_TEST.G;
+    return{state:g.state,depth:g.fall?.depth||0,from:g.fall?.fromFloor,floor:g.floor,kind:g.fall?.kind};
+  });
+  assert.equal(falling.state,'freefall');
+  assert.ok(falling.depth>0&&falling.kind==='shaft');
+  await page.screenshot({path:'browser-artifacts/freefall-'+label+'.png'});
+  await page.evaluate(()=>{window.__AOM_TEST.G.clock=479.6});
+  await page.waitForFunction(()=>window.__AOM_TEST?.G.state==='blackout',null,{timeout:12000});
+  await page.waitForFunction(()=>window.__AOM_TEST?.G.state==='wake',null,{timeout:14000});
+  const wake=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G,step=3+g.sentencesFound,
+      ci=Math.round(g.x/16-.5),cj=Math.round(g.y/16-.5);
+    return{floor:g.floor,step,fall:g.fall,atHub:ci%step===0&&cj%step===0,
+      floorHub:g.floor%step===0,clear:a.walkable(g.x,g.y,.28),
+      recovered:g.fallWakeDay===g.day};
+  });
+  assert.ok(wake.atHub&&wake.floorHub&&wake.clear&&wake.recovered,
+    label+' freefall must wake at a navigable community hub');
+  assert.equal(wake.fall,null);
   await openEvent(page);
   const first=await positionFor(page,0);
   if(contextOptions.hasTouch)await page.touchscreen.tap(first.x,first.y);
