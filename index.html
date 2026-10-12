@@ -3005,6 +3005,125 @@ function tickPlayerKnockback(dt){
   return true;
 }
 
+/* Rope is a small physical resource. A player may tie a dead body or a
+   standing character to an actual gallery/catwalk railing; the body hangs
+   from a fixed neck attachment and its limbs remain physically simulated.
+   Press H at the knot to cut the rope and release them. */
+function ropeAnchorNear(e,fl=G.floor){
+  const c=placeOf(e.x,e.y);
+  if(c.kind==='g'){
+    const dx=e.x-c.cx,dy=e.y-c.cy,r=Math.hypot(dx,dy)||1;
+    if(r>=RS-.1&&r<=RS+2.0)
+      return{x:c.cx+dx/r*RS,y:c.cy+dy/r*RS,fl,kind:'shaft'};
+    return null;
+  }
+  const i=Math.round(e.x/P),j=Math.round(e.y/P),lx=e.x-i*P,ly=e.y-j*P,
+    rails=SQV[sqMask(i,j)+(hubFloor(fl)?0:16)].rails;
+  let best=null,dist=2.05;
+  for(const seg of rails){
+    const dx=seg.bx-seg.ax,dy=seg.by-seg.ay,
+      t=Math.max(0,Math.min(1,((lx-seg.ax)*dx+(ly-seg.ay)*dy)/(dx*dx+dy*dy||1))),
+      x=i*P+seg.ax+t*dx,y=j*P+seg.ay+t*dy,d=Math.hypot(x-e.x,y-e.y);
+    if(d<dist){dist=d;best={x,y,fl,kind:'catwalk'}}
+  }
+  return best;
+}
+function ropeTarget(){
+ if(G.state!=='play'||G.journal)return null;
+ const list=[];
+ for(const e of G.ents)if(['fig','pur','seek'].includes(e.type)&&!e.suspended&&!e.fallState&&!e.gone)
+   list.push({kind:'local',actor:e});
+ for(const e of ENC.list){
+   const characters=e.members||[e];
+   for(const a of characters)if(['fig','pur','seek'].includes(a.type)&&!a.suspended&&!a.fallState&&!a.gone)
+     list.push({kind:'local',actor:a});
+ }
+ for(const e of worldDead())if(!e.suspended&&!G.hungIds.has(e.lootId))
+   list.push({kind:'local',actor:e});
+ if(NET.ready)for(const e of NET.enemies.values())if(e.floor===G.floor&&!e.hanging&&!e.dead)
+   list.push({kind:'enemy',actor:e});
+ let best=null,distance=2.05;
+ const ax=Math.cos(G.ang),ay=Math.sin(G.ang);
+ for(const item of list){
+   const e=item.actor,dx=e.x-G.x,dy=e.y-G.y,d=Math.hypot(dx,dy);
+   if(d<.24||d>2.0||d>=distance||(dx*ax+dy*ay)/d<.52)continue;
+   const hit=cast(G.x,G.y,dx/d,dy/d);
+   if(hit&&hit.t<d-.14)continue;
+   const anchor=ropeAnchorNear(e,e.floor??G.floor);
+   if(!anchor)continue;
+   best={...item,anchor};distance=d;
+ }
+ return best;
+}
+function ropeCutTarget(){
+ let closest=1.85,best=null;
+ for(const e of G.hangings){
+   if(e.hangFloor!==G.floor)continue;
+   const d=Math.hypot(e.x-G.x,e.y-G.y);
+   if(d>=closest)continue;
+   const dx=e.x-G.x,dy=e.y-G.y;
+   if(d>.01&&(dx*Math.cos(G.ang)+dy*Math.sin(G.ang))/d<.33)continue;
+   closest=d;best=e;
+ }
+ return best;
+}
+function attachRope(e,anchor){
+ const wasDead=e.dead>0||e.pose==='dead',rag=activateRagdoll(e,'hang',2,1);
+ if(!rag)return false;
+ const pinZ=RAILH/PS-25,delta=pinZ-rag.points[2].z;
+ for(const p of rag.points){p.z+=delta;p.oz+=delta}
+ rag.mode='hang';rag.pin={x:0,z:pinZ};rag.ground=false;rag.age=0;
+ e.x=anchor.x;e.y=anchor.y;e.zw=0;e.lvl=.001;
+ e.ropeAnchor=anchor;e.hangFloor=anchor.fl;e.suspended=true;
+ e.ropeAge=0;e.pose='hang';e.shove=null;e.fallState=null;
+ if(wasDead){e.dead=e.type==='fig'?0:e.dead||.001;e.ropeAge=25}
+ if(e.lootId)G.hungIds.add(e.lootId);
+ if(!G.hangings.includes(e))G.hangings.push(e);
+ return true;
+}
+function releaseRope(e){
+ if(!e||!e.ropeAnchor)return false;
+ e.suspended=false;e.ropeAnchor=null;e.pose='fall';
+ if(e.rag){e.rag.mode='air';e.rag.pin=null;e.rag.ground=false}
+ e.fallState={t:0,vz:0,dx:0,dy:0,fl:e.hangFloor};
+ e.zw=-(20*PS);e.lvl=.001;e.hangFloor=null;
+ G.hangings=G.hangings.filter(x=>x!==e);
+ if(!G.ents.includes(e))G.ents.push(e);
+ return true;
+}
+function ropeAction(){
+ if(G.state!=='play'||G.journal)return false;
+ const tied=ropeCutTarget();
+ if(tied){
+   releaseRope(tied);G.rope=Math.min(9,G.rope+1);
+   snd('pickup');sfx('ROPE UNTIED · +1 ROPE','mind');return true;
+ }
+ if(G.rope<=0){sfx('NO ROPE','mind');return false}
+ const picked=ropeTarget();if(!picked)return false;
+ if(picked.kind==='enemy'){
+   NET.send({type:'rope',kind:'enemy',targetId:String(picked.actor.id),mode:'tie'});
+   sfx('TYING ROPE...','mind');return true;
+ }
+ if(!attachRope(picked.actor,picked.anchor))return false;
+ G.rope--;G.personCd=.7;
+ snd('clack');sfx('TIED TO THE RAIL · -1 ROPE','mind');return true;
+}
+function tickHangings(dt){
+ if(!G.hangings?.length)return;
+ for(const e of G.hangings){
+   e.ropeAge+=dt;
+   const old=e.zw;e.zw=(e.hangFloor-G.floor)*FH;
+   stepRagdoll(e,dt);
+   if(e.ropeAge>16&&!e.dead&&!e.lootId){
+     e.dead=e.type==='fig'?0:.001;e.pose='dead';
+     const f=G.floor;
+     try{G.floor=e.hangFloor;recordCorpse(e.type,e,false)}
+     finally{G.floor=f}
+   }
+   e.zw=old;
+ }
+}
+
 function startle(){
   for(const e of G.ents){if(e.type==='seek'&&!e.dead&&Math.hypot(e.x-G.x,e.y-G.y)<3.6&&e.scared<=0){e.scared=5;sfx('AAAAAH!','mind');G.alerted=true}}
 }
