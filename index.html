@@ -2880,7 +2880,8 @@ function stepRagdoll(e,dt){
      }
    }
  }
- if(rag.mode==='stumble'&&rag.age>1.12&&!e.shove&&!e.fallState)e.rag=null;
+ if((rag.mode==='stumble'||rag.mode==='air'&&!e.fallState&&!e.falling&&
+   !(e===ME&&G.fall))&&rag.age>1.12&&!e.shove)e.rag=null;
 }
 function ragdollLayers(e,out){
  const R=e.rig||(e.type==='pur'?PURIG:e.type==='seek'?SEEKRIG:FIGRIG[e.coat||0]),
@@ -2996,8 +2997,8 @@ function initiatePersonShove(mode='push'){
   return true;
 }
 function tickPlayerKnockback(dt){
-  const p=G.knockback;if(!p)return false;
   if(ME.rag)stepRagdoll(ME,dt);
+  const p=G.knockback;if(!p)return false;
   const prev=p.t;p.t=Math.min(1,p.t+dt/p.duration);
   const easing=v=>v*v*(3-2*v),d=(easing(p.t)-easing(prev))*p.distance;
   const nx=G.x+p.dx*d,ny=G.y+p.dy*d;
@@ -3046,7 +3047,7 @@ function ropeTarget(){
    for(const a of characters)if(['fig','pur','seek'].includes(a.type)&&!a.suspended&&!a.fallState&&!a.gone)
      list.push({kind:'local',actor:a});
  }
- for(const e of worldDead())if(!e.suspended&&!G.hungIds.has(e.lootId))
+ for(const e of worldDead())if((e.lvl===undefined||e.lvl===0)&&!e.suspended&&!G.hungIds.has(e.lootId))
    list.push({kind:'local',actor:e});
  if(NET.ready)for(const e of NET.enemies.values())if(e.floor===G.floor&&!e.hanging)
    list.push({kind:'enemy',actor:e});
@@ -3579,7 +3580,7 @@ function render(){
     try{renderScene([])}finally{G.zoneState=savedZones}
     return;
   }
-  LX=G.x;LY=G.y;THIRD=VIEW.third&&G.state!=='intro'&&G.state!=='start';const MEP=[];if(THIRD)meLayers(MEP);
+  LX=G.x;LY=G.y;THIRD=VIEW.third&&G.state!=='intro'&&G.state!=='start';const MEP=[];if(THIRD){if(ME.rag)ragdollLayers(ME,MEP);else meLayers(MEP)}
   if(!THIRD){renderScene(MEP);return}
   const cs=Math.cos(G.ang),sn=Math.sin(G.ang),ox=-cs*VIEW.d-sn*0.6,oy=-sn*VIEW.d+cs*0.6,ol=Math.hypot(ox,oy),ux=ox/ol,uy=oy/ol;
   const h=cast(G.x,G.y,ux,uy);let d=ol;if(LEG.n>1)d=Math.min(d,LEG.t0[1]-0.3);if(h)d=Math.min(d,h.t-0.3);d=Math.max(0.15,d);
@@ -4125,6 +4126,12 @@ const NET={
         if(m.by===this.id&&Number.isFinite(m.remaining)){
           G.rope=Math.max(0,Math.min(9,m.remaining));
           sfx(m.mode==='tie'?'ROPE SECURED':'ROPE RELEASED','mind');
+        }
+      }
+      else if(m.type==='rope'){
+        if(m.kind==='enemy'&&m.fromId===this.id){
+          G.rope=Math.max(0,G.rope-1);
+          snd('clack');sfx('ROPE TIED · -1 ROPE','mind');
         }
       }
       else if(m.type==='shove'){
