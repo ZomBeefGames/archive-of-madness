@@ -3,7 +3,7 @@ import test from 'node:test';
 import {createServer} from 'node:http';
 import {once} from 'node:events';
 import {WebSocket} from 'ws';
-import {GameRooms,attachMultiplayer,MAX_PARTY,validCode,cleanAppearance} from '../multiplayer.mjs';
+import {GameRooms,attachMultiplayer,MAX_PARTY,validCode,cleanAppearance,validFallRecovery} from '../multiplayer.mjs';
 
 function mock(){
   return {readyState:WebSocket.OPEN,messages:[],
@@ -176,4 +176,39 @@ test('co-op members see each other’s chosen name and appearance in join and po
   assert.ok(seen);
   assert.deepEqual(seen.player.appearance,appearance);
   assert.equal(seen.player.name,'MORGAN THE LATE');
+});
+
+
+test('co-op accepts a legitimate multi-floor fall and nearest-hub dawn recovery, but rejects teleporting',()=>{
+ const {rooms,room,host,code}=lobby();
+ const other=mock();post(rooms,other,{type:'join',room:code,name:'Witness'});
+ const p=host.player;
+ const pose=(x,y,floor,extra={})=>{
+   p.lastPose=0; // deterministic elapsed-time window for the isolated server test
+   return post(rooms,host,{type:'pose',x,y,f:0,floor,pose:'stand',active:false,...extra});
+ };
+ // Ordinary clients cannot invent remote floors, even with correct coordinates.
+ pose(4.2,0,-8,{active:true});
+ assert.equal(p.floor,0);
+ pose(4.3,0,0,{falling:true,fallDay:1});
+ assert.equal(p.falling,true);
+ assert.equal(p.fallStart.floor,0);
+ for(const floor of [-2,-7,-18])pose(4.3,0,floor,{falling:true,fallDay:1});
+ assert.equal(p.floor,-18,'the server follows downward floor crossings');
+ assert.ok(other.messages.some(m=>m.type==='peer'&&m.player.floor===-18));
+ // Only a verified community position, and only on the next day, may recover.
+ pose(8.71,8.71,0,{active:true,respawnHub:true});
+ assert.equal(p.floor,-18,'same-day recovery is blocked');
+ room.world.day=2;room.world.clock=120;
+ pose(230,270,0,{active:true,respawnHub:true});
+ assert.equal(p.floor,-18,'unrelated landing cannot be used as a teleport');
+ const start={x:4,y:0,floor:0,day:1};
+ assert.equal(validFallRecovery(start,{x:8.71,y:8.71,floor:0},room.world),true);
+ pose(8.71,8.71,0,{active:true,respawnHub:true});
+ assert.equal(p.floor,0);
+ assert.equal(p.falling,false);
+ assert.equal(p.active,true);
+ assert.ok(other.messages.some(m=>m.type==='peer'&&m.player.x===8.71));
+ pose(8.71,8.71,180,{active:true});
+ assert.equal(p.floor,0,'ordinary teleport protection remains active');
 });
