@@ -2881,7 +2881,7 @@ function stepRagdoll(e,dt){
    }
  }
  if((rag.mode==='stumble'||rag.mode==='air'&&!e.fallState&&!e.falling&&
-   !(e===ME&&G.fall))&&rag.age>1.12&&!e.shove)e.rag=null;
+   !(typeof ME!=='undefined'&&e===ME&&G.fall))&&rag.age>1.12&&!e.shove)e.rag=null;
 }
 function ragdollLayers(e,out){
  const R=e.rig||(e.type==='pur'?PURIG:e.type==='seek'?SEEKRIG:FIGRIG[e.coat||0]),
@@ -4609,6 +4609,25 @@ function titleSceneAnimate(shot,position,local){
     e.zw=height-position.floor*FH;
     e.lvl=Math.round(e.zw/FH)||.001;
     if(e.type==='seek'&&pose==='fall'){e.scared=2;e.flee=1}
+    // Title crowds are the same articulated puppets as gameplay, not a
+    // separate animation flipbook. Follow the director's positions while
+    // letting their shoulders, knees and hands solve their own momentum.
+    const airborne=pose==='fall',hanged=pose==='hang';
+    if(e._ragSceneTime!==undefined&&t<e._ragSceneTime-.02)e.rag=null;
+    const ragDt=Math.min(.06,Math.max(.016,t-(e._ragSceneTime??(t-.016))));
+    e._ragSceneTime=t;e.falling=airborne;
+    if(airborne){
+      if(!e.rag||e.rag.mode!=='air')activateRagdoll(e,'air',2.8,n%2?-1:1);
+      stepRagdoll(e,ragDt);
+    }else if(hanged){
+      if(!e.rag||e.rag.mode!=='hang'){
+        const rag=activateRagdoll(e,'hang',2.3,n%2?-1:1),
+          pinZ=RAILH/PS-25,shift=pinZ-rag.points[2].z;
+        for(const q of rag.points){q.z+=shift;q.oz+=shift}
+        rag.mode='hang';rag.pin={x:0,z:pinZ};
+      }
+      stepRagdoll(e,ragDt);
+    }else if(e.rag)e.rag=null;
   }
   TITLE_FLY.actorsDrawn=actors.length;
   return actors;
