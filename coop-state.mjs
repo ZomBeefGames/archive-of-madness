@@ -153,22 +153,6 @@ export class SharedWorld {
  /* Server-owned rope: only gallery guardrails, never arbitrary coordinates
     supplied by the client. This keeps tied enemies consistent in co-op. */
  ropeEnemy(p,msg){
-  const w=this.room.world;
-  if(w.ending||!p.active||p.falling||msg.mode!=='tie')return false;
-  const e=w.enemies.find(q=>q.id===msg.targetId&&!q.dead&&!q.hanging);
-  if(!e||e.floor!==p.floor||e.knock)return false;
-  const dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy);
-  if(d<.24||d>2.1||(dx*Math.cos(p.f)+dy*Math.sin(p.f))/d<.52)return false;
-  const ux=e.x-e.cx,uy=e.y-e.cy,r=Math.hypot(ux,uy);
-  if(r<1.45||r>3.8)return false; // nearest actual circular shaft railing
-  e.x=e.cx+ux/r*1.7;e.y=e.cy+uy/r*1.7;
-  e.knock=null;e.hanging={x:e.x,y:e.y,floor:e.floor,at:Date.now()};
-  this.touch();this.emit({type:'enemies',enemies:w.enemies});
-  this.emit({type:'rope',targetId:e.id,fromId:p.id,mode:'tie',kind:'enemy',
-    x:e.x,y:e.y,floor:e.floor});
-  return true;
- }
- ropeEnemy(p,msg){
   const w=this.room.world,mode=msg.mode,now=Date.now();
   if(w.ending||!p.active||p.falling||!['tie','untie'].includes(mode)||
     now-(p.lastRope||0)<600)return false;
