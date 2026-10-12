@@ -135,6 +135,21 @@ export class SharedWorld {
   }
   this.touch();this.emit({type:'enemies',enemies:w.enemies});
  }
+ shoveEnemy(p,msg){
+  const w=this.room.world,mode=msg.mode;
+  if(w.ending||!p.active||p.falling||!['push','throw'].includes(mode))return false;
+  const e=w.enemies.find(q=>q.id===msg.targetId&&!q.dead);
+  if(!e||e.floor!==p.floor||e.knock)return false;
+  const dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy);
+  if(d<.2||d>(mode==='throw'?1.63:2.1))return false;
+  if((dx*Math.cos(p.f)+dy*Math.sin(p.f))/d<(mode==='throw'?.77:.64))return false;
+  const faceX=Math.cos(p.f),faceY=Math.sin(p.f);
+  e.knock={dx:faceX,dy:faceY,remaining:mode==='throw'?3.2:1.3,mode};
+  e.hit=1;this.touch();this.emit({type:'enemies',enemies:w.enemies});
+  this.emit({type:'shove',fromId:p.id,targetId:e.id,kind:'enemy',
+    mode,floor:e.floor,dx:faceX,dy:faceY});
+  return true;
+ }
  combat(p,msg){
   const w=this.room.world;if(w.ending)return;
   const now=Date.now();
@@ -197,6 +212,25 @@ export class SharedWorld {
     let moving=false;
     for(const e of w.enemies){
       if(e.dead)continue;
+      if(e.knock){
+        const k=e.knock,d=Math.min(k.remaining,dt*(k.mode==='throw'?8.0:5.0)),
+          nx=e.x+k.dx*d,ny=e.y+k.dy*d,
+          before=Math.hypot(e.x-e.cx,e.y-e.cy),
+          after=Math.hypot(nx-e.cx,ny-e.cy);
+        // Keep opponents within their server-owned gallery. Its existing
+        // central shaft has a real hole; going inward across that guard means
+        // a visible falling defeat, never a wall-clipping teleport.
+        if(after<1.7&&before>=1.7){
+          e.x=nx;e.y=ny;e.dead=true;e.hp=0;e.knock=null;
+          this.emit({type:'enemy-fall',id:e.id,x:e.x,y:e.y,
+            floor:e.floor,kind:e.type,dx:k.dx,dy:k.dy});
+          this.emit({type:'enemies',enemies:w.enemies});
+          this.touch();moving=true;continue;
+        }
+        if(after>3.8){e.knock=null}
+        else{e.x=nx;e.y=ny;k.remaining-=d;if(k.remaining<=.001)e.knock=null}
+        moving=true;continue;
+      }
       let nearest=null,best=Infinity;
       for(const p of room.members)if(p.active&&p.floor===e.floor){
         const dist=Math.hypot(e.x-p.x,e.y-p.y);
