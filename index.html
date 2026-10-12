@@ -3882,7 +3882,10 @@ function filmStage(){
 function filmHit(x,y,which){
   const st=filmStage(),px=(x-st.x)/st.s,py=(y-st.y)/st.s;
   const rects=which==='skip'?(FILM.skipRect?[FILM.skipRect]:[]):FILM.buttons;
-  const hit=rects.find(r=>px>=r.x&&px<=r.x+r.w&&py>=r.y&&py<=r.y+r.h);
+  const hit=rects.find(r=>px>=r.x&&px<=r.x+r.w&&py>=r.y&&py<=r.y+r.h)||
+    (G.state==='title'&&!FILM.customizing&&!FILM.help&&which!=='skip'&&FILM.flybyRect&&
+      px>=FILM.flybyRect.x&&px<=FILM.flybyRect.x+FILM.flybyRect.w&&
+      py>=FILM.flybyRect.y&&py<=FILM.flybyRect.y+FILM.flybyRect.h?FILM.flybyRect:null);
   if(!hit)return null;
   if(FILM.customizing&&hit.id.startsWith('char:')&&hit.id!=='char:done')
     return hit.id+(px<hit.x+hit.w*.58?':prev':':next');
@@ -4322,7 +4325,7 @@ function filmDrawTitle(){
   filmButton(g,'sound','SOUND  '+(SND.on?'ON':'OFF'),(w-bw)/2,base+5*(bh+gap),bw,bh,FILM.selection===5);
   g.textAlign='center';g.fillStyle='#dbc098';g.font='bold '+(portrait?16:15)+'px "Courier New"';
   g.fillText(diff.tag+' · '+diff.minDay+'+ DAYS · '+diff.sentences+' SENTENCES · '+diff.proofs+' PROOFS',w/2,portrait?885:676,w-50);
-  FILM.buttons.push({id:'flyby',x:w*.72,y:portrait?73:76,w:w*.25,h:portrait?38:32});
+  FILM.flybyRect={id:'flyby',x:w*.72,y:portrait?73:76,w:w*.25,h:portrait?38:32};
   g.fillStyle='rgba(10,11,13,.72)';g.fillRect(w*.72,portrait?73:76,w*.25,portrait?38:32);
   g.strokeStyle='#ad8f64';g.strokeRect(w*.72,portrait?73:76,w*.25,portrait?38:32);
   g.fillStyle='#ecd7ad';g.font='bold '+(portrait?13:14)+'px Georgia';g.fillText('NEXT SCENE  ›',w*.845,portrait?96:97,w*.23);
@@ -4957,6 +4960,7 @@ const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',
 addEventListener('keydown',ev=>{
   const c=ev.code;
   if(G.state==='title'){
+    if(c==='KeyN'){action('flyby');ev.preventDefault();return}
     if(ev.repeat){ev.preventDefault();return}
     if(c==='ArrowUp'||c==='KeyW')action('up');
     else if(c==='ArrowDown'||c==='KeyS')action('down');
