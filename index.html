@@ -2382,7 +2382,7 @@ function startRailFreefall(){
   if(!hub)return false;
   G.fall={fromX:G.x,fromY:G.y,fromFloor:G.floor,hub,
     targetX:target.x,targetY:target.y,
-    depth:0,speed:0,elapsed:0,kind:target.kind,visualZones:new Map()};
+    depth:0,speed:0,elapsed:0,day:G.day,kind:target.kind,visualZones:new Map()};
   // The first half-second physically carries the camera up and OVER the rail.
   // Once beyond it, the player is in true bottomless freefall.
   G.pitch=-.25;G.journal=false;G.ents=[];G.phantoms=[];
@@ -3800,7 +3800,9 @@ const NET={
     if(t-this.lastResources>240){this.lastResources=t;this.sendResourceDeltas()}
     if(t-this.lastPose>110){
       this.lastPose=t;this.send({type:'pose',x:G.x,y:G.y,f:G.ang,floor:G.floor,
-        pose:Math.abs(ME.walk||0)>.13?'run':'stand',active:G.state==='play'});
+        pose:Math.abs(ME.walk||0)>.13?'run':'stand',active:G.state==='play',
+        falling:!!G.fall,fallDay:G.fall?.day??null,
+        respawnHub:!G.fall&&G.fallWakeDay===G.day});
     }
   },
   share(){
