@@ -3136,7 +3136,8 @@ function tickHangings(dt){
    if(e.ropeAge>16&&!e.dead&&!e.lootId){
      e.dead=e.type==='fig'?0:.001;e.pose='dead';
      const f=G.floor;
-     try{G.floor=e.hangFloor;recordCorpse(e.type,e,false)}
+     try{G.floor=e.hangFloor;recordCorpse(e.type,e,false);
+       if(e.lootId)G.hungIds.add(e.lootId)}
      finally{G.floor=f}
    }
    e.zw=old;
@@ -4126,12 +4127,6 @@ const NET={
         if(m.by===this.id&&Number.isFinite(m.remaining)){
           G.rope=Math.max(0,Math.min(9,m.remaining));
           sfx(m.mode==='tie'?'ROPE SECURED':'ROPE RELEASED','mind');
-        }
-      }
-      else if(m.type==='rope'){
-        if(m.kind==='enemy'&&m.fromId===this.id){
-          G.rope=Math.max(0,G.rope-1);
-          snd('clack');sfx('ROPE TIED · -1 ROPE','mind');
         }
       }
       else if(m.type==='shove'){
