@@ -4013,73 +4013,252 @@ const FILMS={
    puppet rigs. The scene generator builds themed arrangements in a *private*
    procedural title-world. No screenshot, video, fake corridor or saved-game
    state is used. Story and co-op start with their original world unchanged. */
-const TITLE_SHOT_SECONDS=12;
+/* A director edits repeatable performances out of the very same physics-world
+   locations and procedural paper-puppet rigs the player can visit. Scripts are
+   declarative: movements and reactions are sampled at camera time, not built
+   from screenshots, timers, server NPCs or irreversible game-world mutations. */
+const TITLE_SHOT_SECONDS=22;
 const TITLE_SCENE_CATALOG=[
-  {id:'stacks',label:'THE ENDLESS STACKS',kind:'gallery',themes:['normal','refuge'],actor:'fig'},
-  {id:'inferno',label:'THE BURNING ARCHIVE',kind:'gallery',themes:['burning'],actor:'pur'},
-  {id:'study',label:'THE FORBIDDEN STUDY',kind:'gallery',themes:['study','observatory','memory','puriflab'],actor:'seek'},
-  {id:'crossing',label:'BRIDGES ABOVE THE VOID',kind:'bridge',themes:['chain','cage','patch','overlook'],actor:'fig'},
-  {id:'trial',label:'THE CHAMBER OF JUDGMENT',kind:'gallery',themes:['confession','chain','judgment','quarantine'],actor:'pur'},
-  {id:'flood',label:'THE FLOODED ARCHIVE',kind:'gallery',themes:['flooded'],actor:'seek'},
-  {id:'wreck',label:'THE LIBRARY THAT FELL',kind:'gallery',themes:['obliterated','collapse','ashvoid','skeleton'],actor:'pur'},
-  {id:'survey',label:'THE WATCHERS ON THE SPAN',kind:'bridge',themes:['research','checkpoint','service','burned'],actor:'seek'},
-  {id:'vault',label:'THE SEALED COLLECTION',kind:'gallery',themes:['vault','mirrorhall','bindery'],actor:'fig'}
+  {id:'stacks',label:'THE LIBRARIANS ARE RUNNING',kind:'gallery',themes:['normal','refuge'],action:'chase',camera:'walk',duration:19},
+  {id:'inferno',label:'FIRE IN THE STACKS',kind:'gallery',themes:['burning'],action:'arson',camera:'orbit',duration:21},
+  {id:'study',label:'THE RESEARCHERS',kind:'gallery',themes:['study','observatory','memory','puriflab'],action:'research',camera:'pan',duration:23},
+  {id:'crossing',label:'THE PROCESSION ON THE BRIDGE',kind:'bridge',themes:['chain','cage','patch','overlook'],action:'procession',camera:'bridge',duration:22},
+  {id:'trial',label:'THE CONVERSION',kind:'gallery',themes:['confession','chain','judgment','quarantine'],action:'convert',camera:'orbit',duration:24},
+  {id:'flood',label:'THE LIBRARY DRIVES THEM MAD',kind:'gallery',themes:['flooded'],action:'madness',camera:'orbit',duration:23},
+  {id:'wreck',label:'FIGHTING IN THE RUINS',kind:'gallery',themes:['obliterated','collapse','ashvoid','skeleton'],action:'fight',camera:'pan',duration:22},
+  {id:'survey',label:'RAISING THE BARRICADES',kind:'bridge',themes:['research','checkpoint','service','burned'],action:'barricade',camera:'bridge',duration:24},
+  {id:'vault',label:'WORSHIPPERS OF THE INDEX',kind:'gallery',themes:['vault','mirrorhall','bindery'],action:'worship',camera:'orbit',duration:25},
+  {id:'gallows',label:'THE HANGING GALLERY',kind:'bridge',themes:['cage','burned','chain'],action:'hanging',camera:'crane',duration:23},
+  {id:'stampede',label:'RUN FOR THE CROSSING',kind:'bridge',themes:['broken','patch','service'],action:'stampede',camera:'bridge',duration:20},
+  {id:'jumpers',label:'THE LINE THAT NEVER ENDS',kind:'gallery',themes:['judgment','normal','ashvoid'],action:'jumpLine',camera:'shaft',duration:28},
+  {id:'rain',label:'A RAIN OF LIBRARIANS',kind:'air',themes:['normal','burned'],action:'fallRain',camera:'freefall',duration:29},
+  {id:'airborne',label:'FLYING OVER THE ABYSS',kind:'air',themes:['refuge','burning','study'],action:'airSwim',camera:'air',duration:26},
+  {id:'purge',label:'THE PURIFIERS BURN THE CROWD',kind:'bridge',themes:['burned','checkpoint'],action:'arson',camera:'crane',duration:24},
+  {id:'ritual',label:'THE CONGREGATION KNEELS',kind:'gallery',themes:['chain','mirrorhall','quarantine'],action:'worship',camera:'pan',duration:23},
+  {id:'riot',label:'A RIOT OVER ONE PAGE',kind:'gallery',themes:['collapsed','study'],action:'fight',camera:'orbit',duration:25},
+  {id:'exodus',label:'THE NIGHT WATCH FLEES',kind:'bridge',themes:['chain','overlook','service'],action:'chase',camera:'bridge',duration:23},
+  {id:'shroud',label:'THE VIGIL ON THE RAIL',kind:'bridge',themes:['cage','burned','research'],action:'hanging',camera:'crane',duration:24},
+  {id:'descent',label:'FALLING THROUGH FIVE FLOORS',kind:'air',themes:['ashvoid','flooded'],action:'fallRain',camera:'freefall',duration:30}
 ];
 const TITLE_FLY={
   scenes:[],zones:new Map(),epoch:0,index:-1,lastRender:-1e9,
   frames:0,previewing:false,failed:false,error:null,manual:0,
-  lastPose:null,lastKind:null,drawScene:0
+  lastPose:null,lastKind:null,drawScene:0,actorsDrawn:0
 };
 function titleSceneGenerator(seed){
   const rnd=prng(seed>>>0);
-  return TITLE_SCENE_CATALOG.map((entry,n)=>({
-    id:entry.id,label:entry.label,kind:entry.kind,
-    variant:entry.themes[Math.floor(rnd()*entry.themes.length)],
-    actor:entry.actor, i:n*4-16+Math.floor(rnd()*3),
-    j:(n%3)*5-6+Math.floor(rnd()*3),floor:(n%5)-2,
-    flip:rnd()<.5?-1:1,seed:hashStr(entry.id+'|'+seed+'|'+n)
+  const stages=TITLE_SCENE_CATALOG.map((entry,n)=>({
+    ...entry,variant:entry.themes[Math.floor(rnd()*entry.themes.length)],
+    i:n*4-32+Math.floor(rnd()*3),j:(n%3)*5-6+Math.floor(rnd()*3),
+    floor:(n%7)-3,flip:rnd()<.5?-1:1,
+    seed:hashStr(entry.id+'|'+seed+'|'+n)
   }));
+  // Rotate the program instead of always starting with the same performance.
+  const rotate=Math.floor(rnd()*stages.length);
+  return stages.slice(rotate).concat(stages.slice(0,rotate));
+}
+function titleCameraHeight(shot,height){
+  const floor=Math.floor(height/FH);
+  return{floor,eye:height-floor*FH};
 }
 function titleScenePose(shot,u){
-  const t=Math.max(0,Math.min(1,u)),bob=Math.sin(t*Math.PI*2),cx=shot.i*P,cy=shot.j*P;
-  if(shot.kind==='bridge'){
-    const x=(shot.i+.5)*P+0.12*bob,y=(shot.j+.14+t*.70)*P;
-    return{x,y,ang:Math.PI/2+.06*Math.sin(t*Math.PI),
-      pitch:-.024+.02*Math.sin(t*Math.PI),eye:.76+.12*Math.sin(t*Math.PI),floor:shot.floor};
+  const t=Math.max(0,Math.min(1,u)),side=shot.flip,
+    cx=shot.i*P,cy=shot.j*P,bx=(shot.i+.5)*P,by=(shot.j+.5)*P,
+    phase=Math.sin(t*Math.PI*2),camera=shot.camera;
+  let x,y,ang,pitch=-.02,h=shot.floor*FH+.7;
+  if(camera==='freefall'){
+    x=bx+2.0+Math.sin(t*6)*.65;
+    y=by+2.15+Math.cos(t*4.3)*.6;
+    h=shot.floor*FH+3.5-t*FH*6.4;
+    ang=-Math.PI*.75+t*.68;
+    pitch=-.26+.22*Math.sin(Math.PI*t*2);
+  }else if(camera==='air'){
+    x=bx+2.5+Math.sin(t*4.3)*2.6;
+    y=by+2.5+(t-.5)*7;
+    h=shot.floor*FH+FH*(1.1+1.65*Math.sin(t*Math.PI));
+    ang=Math.atan2(by-y,bx-x)+.19*Math.sin(t*7);
+    pitch=.13+.18*Math.sin(t*Math.PI);
+  }else if(camera==='crane'){
+    x=bx+side*(2.2+2.8*t);y=by-6.0+12*t;
+    h=shot.floor*FH+FH*(-1.2+3.4*t);
+    ang=Math.atan2(by-y,bx-x);
+    pitch=.12*Math.sin(t*Math.PI);
+  }else if(camera==='bridge'){
+    x=bx+side*.27+side*.18*phase;
+    y=(shot.j+.06+.88*t)*P;
+    h=shot.floor*FH+.81+.17*Math.sin(Math.PI*t);
+    ang=Math.PI/2+.26*Math.sin(t*Math.PI*2);
+    pitch=-.08+.06*Math.sin(t*Math.PI);
+  }else if(camera==='shaft'){
+    x=cx+side*(3.55-.82*t);
+    y=cy-2.8+5.8*t;
+    h=shot.floor*FH+.84;
+    ang=Math.atan2(cy-y,cx-x);
+    pitch=-.19-.17*Math.sin(Math.PI*t);
+  }else if(camera==='orbit'){
+    x=cx+side*(3.2+.42*Math.sin(2*Math.PI*t));
+    y=cy-3.0+6.0*t;
+    ang=Math.atan2(cy-y,cx-x);
+    pitch=.02-.10*Math.sin(Math.PI*t);
+  }else if(camera==='pan'){
+    x=cx+side*(2.4+1.2*t);
+    y=cy-3.1+6.2*t;
+    ang=Math.atan2(cy-y,cx-x);
+    pitch=-.02+.12*t;
+  }else{
+    x=cx+side*(3.45-.95*t);
+    y=cy-2.7+5.4*t;
+    ang=Math.atan2(cy+.32-y,cx-side*1.7-x);
+    pitch=-.015+.03*Math.sin(t*Math.PI);
   }
-  const side=shot.flip;
-  const x=cx+side*(3.35-.9*t),y=cy-1.65+4.05*t;
-  const lookX=cx-side*2.55,lookY=cy+.35+.3*t;
-  return{x,y,ang:Math.atan2(lookY-y,lookX-x),
-    pitch:-.025+.026*Math.sin(Math.PI*t),eye:.66+.16*Math.sin(Math.PI*t),floor:shot.floor};
+  return{x,y,ang,pitch,...titleCameraHeight(shot,h)};
+}
+function titleActorCount(action){
+  return {jumpLine:11,fallRain:14,airSwim:10,worship:9,
+    fight:9,arson:9,barricade:8,convert:9,hanging:7,
+    stampede:10,chase:7,madness:8,research:6,procession:8}[action]||6;
 }
 function titleSceneActors(shot){
   if(shot.actors)return shot.actors;
-  const bridge=shot.kind==='bridge',
-    x=bridge?(shot.i+.5)*P:shot.i*P-shot.flip*2.55,
-    y=bridge?(shot.j+.79)*P:shot.j*P+.40,
-    f=bridge?-Math.PI/2:shot.flip>0?0:Math.PI,seed=shot.seed%1000;
-  const base={x,y,f,seed,hit:0,dead:0,walk:0,pose:'stand'};
-  if(shot.actor==='pur')shot.actors=[{...base,type:'pur',hp:6,burnCd:2,scared:0}];
-  else if(shot.actor==='seek')shot.actors=[{...base,type:'seek',hp:3,scared:0,flee:0,stealCd:0}];
-  else shot.actors=[{...base,type:'fig',coat:seed%3}];
-  return shot.actors;
+  const rnd=prng(shot.seed),actors=[];
+  const total=titleActorCount(shot.action);
+  for(let slot=0;slot<total;slot++){
+    const angle=slot*Math.PI*2/total,
+      bridge=shot.kind!=='gallery',role=shot.action;
+    let type=slot===0&&['fight','arson','convert','worship','procession','barricade'].includes(role)?'pur':
+      role==='fight'&&slot%3===0?'pur':
+      role==='arson'&&slot%4===0?'pur':
+      role==='madness'&&slot%4===0?'seek':
+      role==='research'&&slot===1?'seek':'fig';
+    if(role==='hanging'||role==='jumpLine'||role==='fallRain'||role==='airSwim')type='fig';
+    const rad=2.1+(slot%3)*.37,side=shot.flip;
+    const x=bridge?(shot.i+.5)*P+Math.sin(angle)*2.2:shot.i*P+rad*Math.cos(angle),
+      y=bridge?(shot.j+.5)*P+Math.cos(angle)*3.4:shot.j*P+rad*Math.sin(angle);
+    const e={type,x,y,homeX:x,homeY:y,slot,seed:rnd()*10,
+      f:angle+Math.PI*.5,homeF:angle+Math.PI*.5,
+      hit:0,dead:0,walk:0,pose:'stand',coat:slot%3,
+      gp:0,zw:0,lvl:0,spin:0,scared:0,flee:0,
+      raise:0,head:angle,turnT:3,hp:type==='pur'?6:3,
+      ropeZ:RAILH/PS,burning:false};
+    actors.push(e);
+  }
+  shot.actors=actors;return actors;
+}
+function titleSceneAnimate(shot,position,local){
+  const actors=titleSceneActors(shot),t=local,
+    action=shot.action,bridge=shot.kind!=='gallery',
+    side=shot.flip,cx=shot.i*P,cy=shot.j*P;
+  const viewHeight=position.floor*FH+position.eye;
+  for(const e of actors){
+    const n=e.slot,phase=n*2.13,osc=Math.sin(t*2.8+phase);
+    let x=e.homeX,y=e.homeY,height=shot.floor*FH,pose='stand';
+    e.type=e.slot===0&&['fight','arson','convert','worship','procession','barricade'].includes(action)?'pur':
+      action==='fight'&&n%3===0?'pur':
+      action==='arson'&&n%4===0?'pur':
+      action==='madness'&&n%4===0?'seek':
+      action==='research'&&n===1?'seek':'fig';
+    if(['hanging','jumpLine','fallRain','airSwim'].includes(action))e.type='fig';
+    e.walk=0;e.raise=0;e.hit=0;e.dead=0;e.scared=0;e.flee=0;
+    e.burning=false;e.spin=0;e.f=e.homeF;
+    const speed=(n%3===0?1:1.3);
+    if(action==='chase'||action==='stampede'){
+      const drift=(t*speed+n*2.3)%(bridge?10:5.2);
+      if(bridge){y=(shot.j+.21)*P+drift; x=(shot.i+.5)*P+Math.sin(phase)*.35}
+      else {x=cx+side*(2.7-1.2*Math.sin(t*.65+phase));
+        y=cy-2.6+drift}
+      pose='run';e.walk=.9;e.f=Math.atan2(1,side*.12);
+    }else if(action==='fight'){
+      x=cx+2.2*Math.cos(n*2.4+.3*Math.sin(t*.7));
+      y=cy+2.2*Math.sin(n*2.4)+Math.sin(t*2+n)*.28;
+      e.f=Math.atan2(cy-y,cx-x);
+      if(e.type==='pur'){e.raise=.65+.35*Math.abs(osc);e.lunge=Math.max(0,osc)}
+      else {pose=n%2?'beat':'flail';e.walk=.35}
+      e.hit=n%3===1&&osc>.7?.55:0;
+    }else if(action==='arson'){
+      if(e.type==='pur'){e.raise=.9;e.lunge=.35+.5*Math.abs(osc)}
+      else {pose='flail';e.burning=n%2===1||t>shot.duration*.45;e.spin=osc*20;
+        x+=Math.cos(phase)*Math.sin(t*.9)*.45}
+      e.f=Math.atan2(cy-y,cx-x);
+    }else if(action==='hanging'){
+      pose=n%3===0?'weep':'hang';
+      e.ropeZ=RAILH/PS+5+Math.sin(t*.6+phase)*3;
+      e.f=Math.PI*.5; e.spin=osc*5;
+      if(bridge){x=(shot.i+.5)*P+(n%2?.6:-.6);y=(shot.j+.18+n*.11)*P}
+    }else if(action==='barricade'){
+      pose=n===0?'stand':n%3===0?'beat':'carry';
+      const travel=(t/shot.duration);
+      if(bridge){y=(shot.j+.45)*P+(n%5-2)*.36+travel*(n%2?.6:-.3);
+        x=(shot.i+.5)*P+(n%2?.5:-.5)}
+      e.walk=n%3===1?.6:.1;e.f=-Math.PI/2;
+    }else if(action==='convert'){
+      pose=n===0?'stand':t<shot.duration*.46?'kneel':n%3===0?'flail':'stand';
+      if(n>0&&t>shot.duration*(.53+n*.018)){e.type='pur';e.raise=.5}
+      if(n===0)e.raise=1;
+    }else if(action==='worship'){
+      pose=n===0?'stand':t<shot.duration*.66?'kneel':'stand';
+      e.f=Math.atan2(cy-y,cx-x);
+      if(n===0)e.raise=.5+.5*Math.abs(osc);
+    }else if(action==='madness'){
+      pose=n%3===0?'weep':n%3===1?'laugh':'flail';
+      e.spin=osc*29;
+      x+=Math.sin(t*1.4+phase)*.32;
+      y+=Math.cos(t*1.8+phase)*.32;
+      if(e.type==='seek'){e.scared=2;e.flee=n%2}
+    }else if(action==='research'){
+      pose=n%3===0?'count':n%3===1?'carry':'stand';
+      e.walk=.12;e.f=Math.atan2(cy-y,cx-x);
+    }else if(action==='procession'){
+      pose=n%4===0?'weep':n%4===1?'carry':'run';
+      if(bridge){y=(shot.j+.20)*P+(t*.46+n*1.45)%(P*.58);
+        x=(shot.i+.5)*P+(n%3-1)*.42;e.walk=.60}
+      if(e.type==='pur')e.raise=.6;
+    }else if(action==='jumpLine'){
+      const cycle=((t/5-n*.10)%1+1)%1;
+      const approach=Math.min(1,cycle/.38);
+      const across=(n%3-1)*.30;
+      x=cx+side*(3.0-1.47*approach);
+      y=cy+across;
+      if(cycle<.38){pose='run';e.walk=1}
+      else{
+        const fall=(cycle-.38)/.62;
+        x=cx+side*(1.51-.4*fall);
+        height-=fall*fall*FH*5.4;
+        pose='fall';e.spin=fall*90*(n%2?1:-1);
+      }
+      e.f=Math.atan2(cy-y,cx-x);
+    }else if(action==='fallRain'||action==='airSwim'){
+      x=(shot.i+.5)*P+Math.sin(phase*1.6)*3.25;
+      y=(shot.j+.5)*P+Math.cos(phase*2.1)*3.25;
+      const drop=((t*(action==='airSwim'?1.1:2.7)+n*.77)%(FH*4.6));
+      height=viewHeight+FH*2.25-drop;
+      pose='fall';e.spin=Math.sin(t*2+phase)*75;e.f=phase+Math.sin(t*.9)*.7;
+    }
+    e.x=x;e.y=y;e.pose=pose;
+    e.gp=(t*.95+n*.11)%1;
+    e.zw=height-position.floor*FH;
+    e.lvl=Math.round(e.zw/FH)||.001;
+    if(e.type==='seek'&&pose==='fall'){e.scared=2;e.flee=1}
+  }
+  TITLE_FLY.actorsDrawn=actors.length;
+  return actors;
 }
 function titleStageScene(shot){
-  if(shot.kind==='bridge'){
-    // Span variants and scenery are the same bridgeZone/galleryZone assets
-    // used in gameplay; this private catalogue simply picks their themes.
+  const types=shot.kind==='gallery'?[shot.variant,shot.variant==='burning'?'burned':'normal']:
+    [shot.variant,shot.action==='arson'?'burned':'refuge'];
+  for(let k=-VISIBLE_FLOORS;k<=VISIBLE_FLOORS;k++){
+    const fl=shot.floor+k;
     for(const j of [shot.j-1,shot.j]){
-      bridgeZone('v',shot.i,j,shot.floor).type=shot.variant;
-      galleryZone(shot.i,j,shot.floor).type='normal';
-      galleryZone(shot.i+1,j,shot.floor).type=shot.id==='survey'?'study':'refuge';
+      if(shot.kind!=='gallery')bridgeZone('v',shot.i,j,fl).type=shot.variant;
+      galleryZone(shot.i,j,fl).type=k===0?types[0]:k%2===0?'burned':'study';
+      galleryZone(shot.i+1,j,fl).type=types[1];
     }
-    galleryZone(shot.i,shot.j+1,shot.floor).type='burning';
-  }else{
-    galleryZone(shot.i,shot.j,shot.floor).type=shot.variant;
-    const nx=shot.i+shot.flip;
-    galleryZone(nx,shot.j,shot.floor).type=shot.id==='inferno'?'burned':
-      shot.id==='wreck'?'ashvoid':shot.id==='vault'?'study':'normal';
+    galleryZone(shot.i,shot.j,fl).type=k===0?types[0]:(k>0?'ashvoid':'refuge');
+  }
+  if(shot.action==='barricade'){
+    // Building in a title scene uses the same barricaded gallery model, but
+    // is housed only in the preview's private zone map.
+    const b=galleryZone(shot.i+1,shot.j,shot.floor);
+    b.type='barricaded';b.breached=false;
   }
 }
 function titleFlyEnsure(){
@@ -4088,12 +4267,27 @@ function titleFlyEnsure(){
   TITLE_FLY.scenes=titleSceneGenerator(seed);
   TITLE_FLY.epoch=1000000+(seed%1000000);
 }
+function titleFlyTime(elapsed){
+  const shots=TITLE_FLY.scenes;
+  const total=shots.reduce((sum,s)=>sum+s.duration,0);
+  let remaining=((elapsed%total)+total)%total;
+  for(let i=0;i<shots.length;i++){
+    if(remaining<shots[i].duration)return{index:i,local:remaining,shot:shots[i]};
+    remaining-=shots[i].duration;
+  }
+  return{index:0,local:0,shot:shots[0]};
+}
 function titleNextScene(){
+  titleFlyEnsure();
   if(CALM)TITLE_FLY.manual++;
-  else FILM.clock=(Math.floor(FILM.clock/TITLE_SHOT_SECONDS)+1)*TITLE_SHOT_SECONDS;
+  else{
+    const now=titleFlyTime(FILM.clock);
+    FILM.clock+=now.shot.duration-now.local+.01;
+  }
   TITLE_FLY.lastRender=-1e9;
   TITLE_FLY.index=-1;
 }
+
 function titleFlyRender(shot,position,elapsed){
   const saved={};
   const fields=['x','y','ang','pitch','floor','cell','room','gal','inRoom',
