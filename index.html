@@ -1654,7 +1654,7 @@ function encUpd(dt){
   }
   for(const e of ENC.list){
     if(e.members){sceneUpd(e,dt);continue}
-    if(e.shove||e.fallState){e.t+=dt;continue}
+    if(e.shove||e.fallState||e.rag){e.t+=dt;continue}
     const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=dt;
     if(e.state==='idle'||e.state==='talked'){e.said-=dt;if(e.said<=0&&d<14){e.said=D.every*(0.8+Math.random()*0.5);voice(D.idle,e)}
       if(D.walk){const v=0.35;e.x+=Math.cos(e.out+Math.PI)*v*dt;e.y+=Math.sin(e.out+Math.PI)*v*dt;if(!walkable(e.x,e.y,0.3)){e.out+=Math.PI}}
@@ -1837,10 +1837,10 @@ function sceneUpd(e,dt){const D=ENCS[e.enc],d=Math.hypot(e.x-G.x,e.y-G.y);e.t+=d
   if(e.burn!==undefined){e.burn-=dt;if(e.burn<=0&&!e.burnt){e.burnt=true;const v=e.members.find(m=>m.vic);voice('scream',v,{vol:1.3});G.fires.push({x:v.x,y:v.y,t:7,fl:G.floor});G.sanity=Math.max(0,G.sanity-8);
       e.members=e.members.filter(m=>m!==v);corpseHere('fig',v,true);e.flee=false;e.state='leave';e.t=0}}
   const ax=e.members.ax;
-  if(D.walk&&(e.state!=='leave'||e.keepWalk)){const v=D.walk;let ok=true;for(const m of e.members){if(m.shove||m.fallState)continue;const nx=m.x+ax[0]*v*dt,ny=m.y+ax[1]*v*dt;if(!m.body&&!walkable(nx,ny,0.2))ok=false}
-    if(ok){for(const m of e.members){if(m.shove||m.fallState)continue;m.x+=ax[0]*v*dt;m.y+=ax[1]*v*dt}e.x+=ax[0]*v*dt;e.y+=ax[1]*v*dt}else e.gone=true;if(e.t>16||d>22)e.gone=true}
+  if(D.walk&&(e.state!=='leave'||e.keepWalk)){const v=D.walk;let ok=true;for(const m of e.members){if(m.shove||m.fallState||m.rag)continue;const nx=m.x+ax[0]*v*dt,ny=m.y+ax[1]*v*dt;if(!m.body&&!walkable(nx,ny,0.2))ok=false}
+    if(ok){for(const m of e.members){if(m.shove||m.fallState||m.rag)continue;m.x+=ax[0]*v*dt;m.y+=ax[1]*v*dt}e.x+=ax[0]*v*dt;e.y+=ax[1]*v*dt}else e.gone=true;if(e.t>16||d>22)e.gone=true}
   else if(e.state==='leave'||e.flee&&e.state==='talked'){const fl=e.flee,v=fl?2.4:0.9;
-    for(const m of e.members){if(m.shove||m.fallState||m.dead||m.body&&!D.walk)continue;const a=Math.atan2(m.y-G.y,m.x-G.x),nx=m.x+Math.cos(a)*v*dt,ny=m.y+Math.sin(a)*v*dt;
+    for(const m of e.members){if(m.shove||m.fallState||m.rag||m.dead||m.body&&!D.walk)continue;const a=Math.atan2(m.y-G.y,m.x-G.x),nx=m.x+Math.cos(a)*v*dt,ny=m.y+Math.sin(a)*v*dt;
       if(m.type==='fig'&&m.pose!=='dead')m.pose=fl?'flail':'run';if(m.vic&&m.type==='pur'){m.dead=0}if(walkable(nx,ny,0.2)){m.x=nx;m.y=ny}m.f=a+Math.PI/2}
     if(e.t>6||d>18)e.gone=true}
   if(e.state==='talked'&&e.t>1.2&&!D.walk&&e.burn===undefined){e.state='leave';e.t=0}
@@ -2689,10 +2689,10 @@ function update(dt){
   if(G.meal&&!G.meal.rang&&G.time>=G.meal.ready){G.meal.rang=true;if(G.meal.fl===G.floor&&Math.hypot(G.meal.x-G.x,G.meal.y-G.y)<48){sfx('DING!');snd('bell')}}
   if(G.sanity<=0){G.health-=1.5*dt;G.phantomT-=dt;if(G.phantomT<=0){G.phantomT=2+Math.random()*2;const a=G.ang+(Math.random()-.5)*1.2,r=1.6+Math.random()*1.5;G.phantoms=[{type:'ph',x:G.x+Math.cos(a)*r,y:G.y+Math.sin(a)*r,f:Math.atan2(-Math.sin(a),-Math.cos(a)),frame:0,hgt:1.35,cards:PURPH,life:1.4,dead:0}]}}
   G.phantoms.forEach(p=>{p.life-=dt;p.frame=Math.floor(G.time*6)%4});G.phantoms=G.phantoms.filter(p=>p.life>0);
-  for(const e of G.ents)if(e.shove||e.fallState)tickPersonShove(e,dt);
+  for(const e of G.ents)if(e.shove||e.fallState||e.rag)tickPersonShove(e,dt);
   for(const e of ENC.list){
-    if(e.members){for(const m of e.members)if(m.shove||m.fallState)tickPersonShove(m,dt)}
-    else if(e.shove||e.fallState)tickPersonShove(e,dt);
+    if(e.members){for(const m of e.members)if(m.shove||m.fallState||m.rag)tickPersonShove(m,dt)}
+    else if(e.shove||e.fallState||e.rag)tickPersonShove(e,dt);
   }
   ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,0.5);bgUpd(dt);encUpd(dt);
   if(G.q===2&&G.inRoom&&isNight()){const P=bioPlan(G.phrase);if(G.gal===P.g&&G.floor===P.f){qDone(3);openNote('YOUR HEXAGON','The lamps sink low, and in the dark one wall goes on humming, very quietly, like someone reading under their breath.','It is WALL '+P.wall+'.')}}
@@ -2701,8 +2701,8 @@ function update(dt){
     if(filmBegin('purifier','play'))return;
   }
   for(const e of G.ents){
-    if(e.type==='pur'){if(!e.shove&&!e.fallState)updPur(e,dt);gaitUpd(e,dt,0.58)}
-    else if(e.type==='seek'){if(!e.shove&&!e.fallState)updSeek(e,dt);gaitUpd(e,dt,0.43)}
+    if(e.type==='pur'){if(!e.shove&&!e.fallState&&!e.rag)updPur(e,dt);gaitUpd(e,dt,0.58)}
+    else if(e.type==='seek'){if(!e.shove&&!e.fallState&&!e.rag)updSeek(e,dt);gaitUpd(e,dt,0.43)}
     else if(e.type==='flask'&&!e.dead){e.f+=dt*0.8;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.oil+=3;sfx('+3 OIL')}}
     else if(e.type==='type'&&!e.dead){if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.type+=e.n;snd('pickup');sfx('+'+e.n+' TYPE')}}
     else if(e.type==='incense'&&!e.dead){e.f+=dt*0.6;if(Math.hypot(e.x-G.x,e.y-G.y)<0.6){e.dead=1;G.incense++;sfx('+1 INCENSE')}}
@@ -2927,30 +2927,46 @@ function personFallImpact(e,fl){
 }
 
 function beginPersonFall(e,dx,dy){
-  e.shove=null;e.fallState={t:0,vz:1.6,dx,dy,fl:G.floor};
-  e.pose='fall';e.zw=.28;e.lvl=.001;e.spin=0;e.hit=1;
-  if(e.type==='seek'||e.type==='pur')e.chasing=false;
-  snd('scream');
+ e.shove=null;e.fallState={t:0,vz:1.6,dx,dy,fl:G.floor};
+ e.pose='fall';e.zw=.28;e.lvl=.001;e.spin=0;e.hit=1;
+ activateRagdoll(e,'air',3.8,dx<0?-1:1);
+ if(e.type==='seek'||e.type==='pur')e.chasing=false;
+ snd('scream');
 }
 function tickPersonShove(e,dt){
-  if(e.fallState){
-    const f=e.fallState;f.t+=dt;f.vz=Math.max(-18,f.vz-9.8*dt);
-    e.zw+=f.vz*dt;e.lvl=e.zw/FH;
-    e.x+=f.dx*dt*.38;e.y+=f.dy*dt*.38;e.spin=(e.spin||0)+dt*56;
-    if(e.zw<-(VISIBLE_FLOORS+1)*FH)e.gone=true;
-    return true;
-  }
-  if(!e.shove)return false;
-  const p=e.shove,prev=p.t;p.t=Math.min(1,p.t+dt/p.duration);
-  const eased=v=>v*v*(3-2*v),delta=(eased(p.t)-eased(prev))*p.distance,
-    nx=e.x+p.dx*delta,ny=e.y+p.dy*delta;
-  if(walkable(nx,ny,.20)){e.x=nx;e.y=ny}
-  else if(openDropAhead(nx,ny,p.dx,p.dy,e.x,e.y)){e.x=nx;e.y=ny;beginPersonFall(e,p.dx,p.dy);return true}
-  else {e.shove=null;e.zw=0;e.lvl=0;return false}
-  e.zw=p.mode==='throw'?.33*Math.sin(Math.PI*p.t):.10*Math.sin(Math.PI*p.t);
-  e.lvl=0;e.hit=Math.max(e.hit||0,.34);e.pose='flail';
-  if(p.t>=1){e.shove=null;e.zw=0;e.lvl=0;if(e.enc)e.state='flee'}
-  return true;
+ if(e.rag)stepRagdoll(e,dt);
+ if(e.suspended)return true;
+ if(e.fallState){
+   const f=e.fallState,oldZ=G.floor*FH+(e.zw||0);
+   f.t+=dt;f.vz=Math.max(-18,f.vz-9.8*dt);
+   const newZ=oldZ+f.vz*dt;
+   e.x+=f.dx*dt*.38;e.y+=f.dy*dt*.38;
+   e.zw=newZ-G.floor*FH;e.lvl=e.zw/FH;
+   e.spin=(e.spin||0)+dt*56;
+   if(newZ<oldZ)for(let fl=Math.floor(oldZ/FH);fl>=Math.floor(newZ/FH);fl--){
+     const surface=fl*FH;
+     if(oldZ>=surface&&newZ<=surface&&solidFallLanding(e.x,e.y,fl)){
+       personFallImpact(e,fl);return true;
+     }
+   }
+   if(e.zw<-(VISIBLE_FLOORS+4)*FH)e.gone=true;
+   return true;
+ }
+ if(!e.shove)return !!e.rag;
+ const p=e.shove,prev=p.t;p.t=Math.min(1,p.t+dt/p.duration);
+ const eased=v=>v*v*(3-2*v),delta=(eased(p.t)-eased(prev))*p.distance,
+   nx=e.x+p.dx*delta,ny=e.y+p.dy*delta;
+ if(walkable(nx,ny,.20)){e.x=nx;e.y=ny}
+ else if(openDropAhead(nx,ny,p.dx,p.dy,e.x,e.y)){
+   e.x=nx;e.y=ny;beginPersonFall(e,p.dx,p.dy);return true;
+ }else{
+   activateRagdoll(e,'stumble',2.3,p.dx<0?-1:1);
+   e.shove=null;e.zw=0;e.lvl=0;return true;
+ }
+ e.zw=p.mode==='throw'?.33*Math.sin(Math.PI*p.t):.10*Math.sin(Math.PI*p.t);
+ e.lvl=0;e.hit=Math.max(e.hit||0,.34);e.pose='flail';
+ if(p.t>=1){e.shove=null;e.zw=0;e.lvl=0;if(e.enc)e.state='flee'}
+ return true;
 }
 function initiatePersonShove(mode='push'){
   if(G.state!=='play'||(G.personCd||0)>0)return false;
@@ -2962,7 +2978,8 @@ function initiatePersonShove(mode='push'){
   if(picked.kind==='local'){
     e.shove={mode,dx,dy,distance:mode==='throw'?3.2:1.3,
       duration:mode==='throw'?.46:.30,t:0};
-    e.hit=1;if(e.type==='seek')e.scared=3;
+    e.hit=1;activateRagdoll(e,mode==='throw'?'air':'stumble',mode==='throw'?3.2:1.8,dx<0?-1:1);
+    if(e.type==='seek')e.scared=3;
     if(e.type==='fig')e.pose='flail';
     sfx(mode==='throw'?'THROWN!':'SHOVED!','mind');
   }else if(NET.ready){
@@ -3024,11 +3041,12 @@ function doSwing(){
     if(d<reach&&d<bd&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<cone){e=q;bd=d}}
   if(!e){sfx('WHUFF');return}
   e.hit=1;e.hp-=dmg;
+  activateRagdoll(e,'stumble',rod?1.45:2.4,Math.sin(G.ang-e.f)<0?-1:1);
   if(e.type==='pur'){sfx(e.hp>0?(G.dark?'DARK KRAK!':'KRAK!'):'RRRIP!',G.dark?'mind':'');if(e.hp<=0)killPur(e)}
   else{G.alerted=true;G.sanity=Math.max(0,G.sanity-8);sfx('KRAK!');sfx('-8 SANITY','mind');
-    if(e.hp<=0){e.dead=0.001;keepDead('seek',e);dropType(e.x,e.y,2);G.oil+=2;setTimeout(()=>sfx('+2 OIL'),250);sin('kill')}else e.scared=5}
+    if(e.hp<=0){e.dead=0.001;activateRagdoll(e,'corpse',2,1);e.rag.ground=true;keepDead('seek',e);dropType(e.x,e.y,2);G.oil+=2;setTimeout(()=>sfx('+2 OIL'),250);sin('kill')}else e.scared=5}
 }
-function killPur(e){e.dead=0.001;keepDead('pur',e);dropType(e.x+Math.cos(e.f)*0.3,e.y+Math.sin(e.f)*0.3,3+Math.floor(Math.random()*3));if(Math.random()<0.6)G.ents.push({type:'incense',x:e.x,y:e.y,f:e.f,frame:0,hgt:0.5,cards:[INCC],dead:0})}
+function killPur(e){e.dead=0.001;activateRagdoll(e,'corpse',2,1);e.rag.ground=true;keepDead('pur',e);dropType(e.x+Math.cos(e.f)*0.3,e.y+Math.sin(e.f)*0.3,3+Math.floor(Math.random()*3));if(Math.random()<0.6)G.ents.push({type:'incense',x:e.x,y:e.y,f:e.f,frame:0,hgt:0.5,cards:[INCC],dead:0})}
 function nearFire(x,y){for(const F of G.fires)if(F.fl===G.floor&&F.t>0&&Math.hypot(F.x-x,F.y-y)<0.75)return true;return false}
 function throwOil(){
   if(G.oil<2){sfx('NOT ENOUGH OIL');return}
@@ -3459,7 +3477,12 @@ function renderScene(MEP){
   FLICK=.91+.045*Math.sin(G.time*13)+.038*Math.sin(G.time*31.7);LANR=G.oil>0?3.8+Math.min(G.oil,10)*0.6+(torchLit()?0.8:0):torchLit()?4.7:1.1;
   const fires=G.fires.filter(F=>Math.abs(F.fl-G.floor)<=VISIBLE_FLOORS);
   FIREL=[];for(const F of fires)if(F.fl===G.floor)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
-  const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
+  const POSE=[];for(const e of G.ents)if(!e.suspended){
+   if(e.rag)ragdollLayers(e,POSE);
+   else if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}
+   else if(e.type==='seek')seekLayers(e,POSE);
+   else if(e.type==='fig')figLayers(e,POSE);
+ }
   if(G.state!=='freefall'&&!TITLE_FLY.previewing)lifeLayers(POSE);
   if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
     if(Math.abs(e.floor-G.floor)>VISIBLE_FLOORS||Math.hypot(e.x-G.x,e.y-G.y)>35)continue;
