@@ -63,6 +63,7 @@ test('round central-shaft railing can be vaulted only toward the hole',()=>{
  assert.equal(a.run('railJumpTarget()'),null);
  a.G.ang=-Math.PI/2;
  assert.equal(a.run('startRailFreefall()'),true);
+ a.run('tickRailFreefall(.53)');
  assert.ok(Math.hypot(a.G.x,a.G.y)<RS);
 });
 test('fall keeps descending across levels without landings or inventory losses',()=>{
