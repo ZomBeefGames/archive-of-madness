@@ -150,6 +150,24 @@ export class SharedWorld {
     mode,floor:e.floor,dx:faceX,dy:faceY});
   return true;
  }
+ /* Server-owned rope: only gallery guardrails, never arbitrary coordinates
+    supplied by the client. This keeps tied enemies consistent in co-op. */
+ ropeEnemy(p,msg){
+  const w=this.room.world;
+  if(w.ending||!p.active||p.falling||msg.mode!=='tie')return false;
+  const e=w.enemies.find(q=>q.id===msg.targetId&&!q.dead&&!q.hanging);
+  if(!e||e.floor!==p.floor||e.knock)return false;
+  const dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy);
+  if(d<.24||d>2.1||(dx*Math.cos(p.f)+dy*Math.sin(p.f))/d<.52)return false;
+  const ux=e.x-e.cx,uy=e.y-e.cy,r=Math.hypot(ux,uy);
+  if(r<1.45||r>3.8)return false; // nearest actual circular shaft railing
+  e.x=e.cx+ux/r*1.7;e.y=e.cy+uy/r*1.7;
+  e.knock=null;e.hanging={x:e.x,y:e.y,floor:e.floor,at:Date.now()};
+  this.touch();this.emit({type:'enemies',enemies:w.enemies});
+  this.emit({type:'rope',targetId:e.id,mode:'tie',kind:'enemy',
+    x:e.x,y:e.y,floor:e.floor});
+  return true;
+ }
  combat(p,msg){
   const w=this.room.world;if(w.ending)return;
   const now=Date.now();
@@ -212,6 +230,13 @@ export class SharedWorld {
     let moving=false;
     for(const e of w.enemies){
       if(e.dead)continue;
+      if(e.hanging){
+        if(now-e.hanging.at>16000){
+          e.hp=0;e.dead=true;e.hanging.dead=true;
+          this.touch();this.emit({type:'enemies',enemies:w.enemies});
+        }
+        continue;
+      }
       if(e.knock){
         const k=e.knock,d=Math.min(k.remaining,dt*(k.mode==='throw'?8.0:5.0)),
           nx=e.x+k.dx*d,ny=e.y+k.dy*d,
