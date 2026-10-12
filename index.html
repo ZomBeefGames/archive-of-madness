@@ -2476,7 +2476,7 @@ function reset(){
   let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*20),P.j+Math.round((Math.random()-0.5)*20));f=P.f+Math.round((Math.random()-0.5)*10);d=bioDist(c.gid,f,phrase)}while(d<bounds[0]||d>bounds[1]);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,difficulty,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,fall:null,fallWakeDay:0,personCd:0,knockback:null,rope:2,hangings:[],hungIds:new Set(),zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,fall:null,fallWakeDay:0,personCd:0,knockback:null,rope:2,hangings:[],hungIds:new Set(),keyGuide:false,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
@@ -5582,7 +5582,7 @@ function hitCtl(x,y,dpadOnly){
   return best;
 }
 
-let RAIL_JUMP_BUTTON=null;
+let RAIL_JUMP_BUTTON=null,ROPE_BUTTON=null;
 const PERSON_BUTTONS={push:null,throw:null};
 const HUD=[{key:'vit',tex:TX.vit,ph:0},{key:'face',tex:TX.face,ph:1.3},{key:'stat',tex:TX.stat,ph:2.6}];
 let texT=0,HT=0;const UI={show:false,t:9},jr={hgt:0.4,ph:0.7},bookCard={hgt:0.6},introCard={hgt:0.8},deadCard={hgt:0.58},wonCard={hgt:0.58};
@@ -5718,7 +5718,7 @@ function display(dt){
 /* A small floating multiplayer and salvaged-wood HUD. The buttons are genuine
    canvas click targets and have keyboard equivalents on desktop. */
 function drawCoopHUD(){
-  BUILD.uiButton=null;NET.shareButton=null;RAIL_JUMP_BUTTON=null;
+  BUILD.uiButton=null;NET.shareButton=null;RAIL_JUMP_BUTTON=null;ROPE_BUTTON=null;
   PERSON_BUTTONS.push=null;PERSON_BUTTONS.throw=null;
   if(G.state!=='play')return;
   const g=vctx,u=Math.max(1,Math.min(1.6,Math.min(DW,DH)/630));
@@ -5778,6 +5778,18 @@ function drawCoopHUD(){
       y+=buttonH+8*u;
     }
   }
+  const knot=ropeCutTarget(),someone=G.rope>0?ropeTarget():null;
+  if(knot||someone){
+    const w=174*u,h=49*u,bx=DW-w-18*u,by=DH*.70;
+    g.fillStyle='rgba(24,22,25,.91)';g.fillRect(bx,by,w,h);
+    g.strokeStyle='#c8ad7e';g.lineWidth=2;g.strokeRect(bx+1,by+1,w-2,h-2);
+    g.textAlign='center';g.textBaseline='middle';
+    g.fillStyle='#f0e1c5';g.font='bold '+Math.round(15*u)+'px Georgia';
+    g.fillText(knot?'RELEASE THE ROPE':'HANG WITH ROPE',bx+w/2,by+18*u,w-10*u);
+    g.font=Math.round(12*u)+'px Georgia';g.fillStyle='#ccae7e';
+    g.fillText(FINE?'H  ·  ROPE '+G.rope:'TAP · ROPE '+G.rope,bx+w/2,by+38*u,w-10*u);
+    ROPE_BUTTON={x0:bx,y0:by,x1:bx+w,y1:by+h};
+  }
   const t=portableTarget(),canBuild=BUILD.planks>0||t&&!t.wreck;
   if(!canBuild)return;
   const w=148*u,h=48*u,bx=DW-w-18*u,by=DH*.35;
@@ -5812,7 +5824,8 @@ function action(a){
   if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0;encClosed()}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
-  if(G.state==='play'){if(a==='rope')ropeAction();else if(a==='push'||a==='throw')initiatePersonShove(a);else if(a==='jump')startRailFreefall();else if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
+  if(G.state==='play'){if(a==='keyguide'){G.keyGuide=!G.keyGuide;return}
+    if(a==='rope')ropeAction();else if(a==='push'||a==='throw')initiatePersonShove(a);else if(a==='jump')startRailFreefall();else if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
 }
 let last=performance.now(),needResize=true;
 function frame(now){
@@ -5899,6 +5912,8 @@ view.addEventListener('pointerdown',ev=>{
   ev.preventDefault();try{view.focus({preventScroll:true})}catch(e){}
   try{view.setPointerCapture(ev.pointerId)}catch(e){}
   const pt=canvasPt(ev);
+  if(G.state==='play'&&ROPE_BUTTON&&pt.x>=ROPE_BUTTON.x0&&pt.x<=ROPE_BUTTON.x1&&
+    pt.y>=ROPE_BUTTON.y0&&pt.y<=ROPE_BUTTON.y1){action('rope');return}
   if(G.state==='play')for(const kind of ['push','throw']){
     const b=PERSON_BUTTONS[kind];
     if(b&&pt.x>=b.x0&&pt.x<=b.x1&&pt.y>=b.y0&&pt.y<=b.y1){
