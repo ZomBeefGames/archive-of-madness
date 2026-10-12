@@ -5137,12 +5137,12 @@ function filmDrawTitle(){
   const bw=portrait?w-110:464,bh=portrait?49:34,base=portrait?507:419,gap=portrait?9:7;
   const diff=difficultyRules(FILM.difficulty);
   const party=FILM.partyMode==='solo'?'SINGLE PLAYER':FILM.partyMode==='host'?'CREATE CO-OP ROOM':FILM.partyCode?'JOIN ROOM '+FILM.partyCode:'JOIN CO-OP ROOM';
-  filmButton(g,'begin',FILM.partyMode==='solo'?'BEGIN YOUR STORY':'ENTER THE SHARED LIBRARY',(w-bw)/2,base,bw,bh,FILM.selection===0);
-  filmButton(g,'character','CHARACTER  ◂ '+CHAR.name+' ▸',(w-bw)/2,base+(bh+gap),bw,bh,FILM.selection===1);
-  filmButton(g,'party','PLAY MODE  ◂ '+party+' ▸',(w-bw)/2,base+2*(bh+gap),bw,bh,FILM.selection===2);
-  filmButton(g,'difficulty','DIFFICULTY  ◂ '+diff.name+' ▸',(w-bw)/2,base+3*(bh+gap),bw,bh,FILM.selection===3);
-  filmButton(g,'help','HOW TO PLAY',(w-bw)/2,base+4*(bh+gap),bw,bh,FILM.selection===4);
-  filmButton(g,'sound','SOUND  '+(SND.on?'ON':'OFF'),(w-bw)/2,base+5*(bh+gap),bw,bh,FILM.selection===5);
+  filmButton(g,'begin',FILM.partyMode==='solo'?'1 · BEGIN YOUR STORY':'1 · ENTER THE SHARED LIBRARY',(w-bw)/2,base,bw,bh,FILM.selection===0);
+  filmButton(g,'character','2 · CHARACTER  ◂ '+CHAR.name+' ▸',(w-bw)/2,base+(bh+gap),bw,bh,FILM.selection===1);
+  filmButton(g,'party','3 · PLAY MODE  ◂ '+party+' ▸',(w-bw)/2,base+2*(bh+gap),bw,bh,FILM.selection===2);
+  filmButton(g,'difficulty','4 · DIFFICULTY  ◂ '+diff.name+' ▸',(w-bw)/2,base+3*(bh+gap),bw,bh,FILM.selection===3);
+  filmButton(g,'help','5 · HOW TO PLAY',(w-bw)/2,base+4*(bh+gap),bw,bh,FILM.selection===4);
+  filmButton(g,'sound','6 · SOUND  '+(SND.on?'ON':'OFF'),(w-bw)/2,base+5*(bh+gap),bw,bh,FILM.selection===5);
   g.textAlign='center';g.fillStyle='#dbc098';g.font='bold '+(portrait?16:15)+'px "Courier New"';
   g.fillText(diff.tag+' · '+diff.minDay+'+ DAYS · '+diff.sentences+' SENTENCES · '+diff.proofs+' PROOFS',w/2,portrait?885:676,w-50);
   FILM.flybyRect={id:'flyby',x:w*.72,y:portrait?73:76,w:w*.25,h:portrait?38:32};
@@ -5152,7 +5152,7 @@ function filmDrawTitle(){
   if(typeof NET!=='undefined'&&NET.status){g.fillStyle='#f3cc9b';g.font='bold 14px "Courier New"';
     g.fillText(NET.status,w/2,portrait?910:702,w-45)}
   else{g.fillStyle='#927a5f';g.font='bold '+(portrait?14:13)+'px "Courier New"';
-    g.fillText(FINE?'W/S ROW · A/D MODE · ENTER':'TAP MODE TO SWITCH · SHARE ROOM CODE',w/2,h-29,w-55)}
+    g.fillText(FINE?'1–6 SELECT · N NEXT FLYBY · W/S MOVE · ENTER':'TAP MODE TO SWITCH · SHARE ROOM CODE',w/2,h-29,w-55)}
   ;
   g.restore();
 }
@@ -5852,11 +5852,30 @@ function frame(now){
   if(!['title','cinematic','wake','waking'].includes(G.state))render();
   display(dt);requestAnimationFrame(frame);
 }
+/* Every clickable gameplay control has a direct PC key, including the
+   contextual controls which are only visible near an interactable target. */
+const PC_PLAY_KEYS=Object.freeze({
+  KeyE:'read',Enter:'read',Space:'swing',KeyJ:'journal',Tab:'journal',
+  KeyB:'build',KeyG:'jump',KeyP:'push',KeyO:'throw',KeyH:'rope',
+  KeyK:'keyguide'
+});
+const PC_TITLE_KEYS=Object.freeze({
+  Digit1:'begin',Digit2:'character',Digit3:'party',
+  Digit4:'difficulty',Digit5:'help',Digit6:'sound'
+});
 const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyW:'w',KeyS:'s',KeyA:'a',KeyD:'d',KeyR:'r',KeyF:'f'};
 addEventListener('keydown',ev=>{
   const c=ev.code;
   if(G.state==='title'){
     if(c==='KeyN'){action('flyby');ev.preventDefault();return}
+    if(!ev.repeat&&FILM.customizing&&/^Digit[1-9]$/.test(c)){
+      FILM.charSelection=Math.min(CHARACTER_FIELDS.length-1,Number(c.slice(5))-1);
+      ev.preventDefault();return;
+    }
+    if(!ev.repeat&&!FILM.help&&!FILM.customizing&&PC_TITLE_KEYS[c]){
+      const id=PC_TITLE_KEYS[c];FILM.selection=TITLE_ACTIONS.indexOf(id);
+      filmChoose(id);ev.preventDefault();return;
+    }
     if(ev.repeat){ev.preventDefault();return}
     if(c==='ArrowUp'||c==='KeyW')action('up');
     else if(c==='ArrowDown'||c==='KeyS')action('down');
@@ -5874,6 +5893,7 @@ addEventListener('keydown',ev=>{
     ev.preventDefault();return;
   }
   if(G.state==='book'){
+    if(c==='KeyM'){soundToggle();ev.preventDefault();return}
     if(G.choice==='enc'&&(c==='Digit1'||c==='Numpad1'||c==='Digit2'||c==='Numpad2')){
       if(!ev.repeat)action((c==='Digit1'||c==='Numpad1')?'up':'down');
       ev.preventDefault();return;
@@ -5886,6 +5906,15 @@ addEventListener('keydown',ev=>{
     else if(c==='KeyE'||c==='Escape'||c==='Enter'||c==='Space'){action('close');ev.preventDefault()}
     return;
   }
+  if(G.state==='play'){
+    if(c==='Escape'){
+      if(G.keyGuide)G.keyGuide=false;
+      else if(G.journal)action('journal');else action('journal');
+      ev.preventDefault();return;
+    }
+    const linked=PC_PLAY_KEYS[c];
+    if(linked){if(!ev.repeat)action(linked);ev.preventDefault();return}
+  }
   if(KEYMAP[c]&&G.state==='play'){keys[KEYMAP[c]]=true;ev.preventDefault()}
   if(c==='KeyG'&&G.state==='play'){if(!ev.repeat)action('jump');ev.preventDefault();return}
   if((c==='KeyP'||c==='KeyO')&&G.state==='play'){if(!ev.repeat)action(c==='KeyP'?'push':'throw');ev.preventDefault();return}
@@ -5897,8 +5926,8 @@ addEventListener('keydown',ev=>{
     if(c==='KeyC'&&NET.ready)NET.share();
     if(c==='KeyT'&&NET.ready)NET.say();
     if(c==='KeyQ')cycleWeapon();else if(c==='Digit1')setWeapon('press');else if(c==='Digit2')setWeapon('rod');else if(c==='Digit3')setWeapon('oil');else if(c==='Digit4')setWeapon('torch');else if(c==='KeyI')useIncense()}
-  if(c==='KeyM')soundToggle();
-  if(c==='KeyV')toggleView();
+  if(c==='KeyM'){soundToggle();ev.preventDefault();return}
+  if(c==='KeyV'){toggleView();ev.preventDefault();return}
 });
 addEventListener('keyup',ev=>{if(KEYMAP[ev.code])keys[KEYMAP[ev.code]]=false});
 function releaseAll(){for(const k in keys)keys[k]=false;for(const k in CTLS)CTLS[k].held=0;ptrs.clear();releaseStick()}
