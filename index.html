@@ -896,6 +896,11 @@ const PURIG={
 // Worn hems, a brass clasp and stitched binding make the sect's uniform readable close up.
 stamp(PURIG.chest.g,['Yy...','y....','.....','..n..','..n..'],3,3,{Y:rgb('#d8c396'),y:rgb('#96815c'),n:rgb('#b3b5a5')});
 stamp(PURIG.chest.g,['n.n.n'],5,20,{n:rgb('#b1aaa0')});
+/* Small archival seals, waxed stitching and worn paper tags live on the
+   existing jointed rig. Attachment pivots and collision never change. */
+stamp(PURIG.chest.g,['..n.n..','..k.k..','..Y.Y..','..k.k..','..n.n..'],7,10,{n:rgb('#d7b887'),k:INK,Y:rgb('#a84b31')});
+stamp(PURIG.skirt.g,['n.n.n.n','.....k.','.n.n...','...n.n.'],3,7,{n:rgb('#c4a57a'),k:rgb('#352620')});
+stamp(PURIG.upper.g,['n.','n.','.n'],3,5,{n:rgb('#b7a584')});
 stamp(PURIG.hood.g,['n.....','n.....','.n....'],4,6,{n:rgb('#c2c2af')});
 stamp(PURIG.skirt.g,['n.n.n.n'],3,15,{n:rgb('#928b7b')});
 clothBack(PURIG.chest,RASH,'sect');
@@ -944,6 +949,10 @@ const SEEKRIG={
 stamp(SEEKRIG.chest.g,['kkkk','knnk','knnk','kkkk'],2,6,{k:rgb('#534837'),n:rgb('#bbaa86')});
 stamp(SEEKRIG.chest.g,['..n','n..','..n'],3,7,{n:rgb('#ded1ad')});
 stamp(SEEKRIG.book.g,['....k....','....k....','....k....','....k....'],1,1,{k:rgb('#9b8464')});
+/* Seeker paper shreds and ink marks vary by body part but keep two-sided cards. */
+stamp(SEEKRIG.chest.g,['n.n.n','n.k.n','n.n.n','..n..'],4,8,{n:rgb('#e4cfaa'),k:rgb('#332c26')});
+stamp(SEEKRIG.skirt.g,['n.n...n','..n.n..','.n...n.'],2,7,{n:rgb('#d9c29e')});
+stamp(SEEKRIG.upper.g,['n.','.n','n.'],2,5,{n:rgb('#bdad92')});
 clothBack(SEEKRIG.chest,RDUN,'seeker');clothBack(SEEKRIG.skirt,RDUN,'robe');
 clothBack(SEEKRIG.upper,RDUN,'sleeve');clothBack(SEEKRIG.thigh,RDUN,'trouser');clothBack(SEEKRIG.shin,RSKIN,'trouser');
 clothBack(SEEKRIG.foot,RSKIN,'boot');clothBack(SEEKRIG.book,RWOOD,'book');
@@ -3905,13 +3914,15 @@ function filmTextLines(g,text,x,y,maxWidth,line,limit=5){
 }
 function filmButton(g,id,label,x,y,w,h,selected){
   FILM.buttons.push({id,x,y,w,h});
-  g.fillStyle=selected?'rgba(151,92,47,.80)':'rgba(16,13,19,.86)';
+  g.fillStyle=selected?'rgba(110,60,33,.91)':'rgba(15,17,19,.92)';
   g.fillRect(x,y,w,h);
-  g.strokeStyle=selected?'#edd19b':'#77583c';g.lineWidth=selected?3:1.5;g.strokeRect(x,y,w,h);
+  g.strokeStyle=selected?'#e2b875':'#77624a';g.lineWidth=selected?3:1.5;g.strokeRect(x,y,w,h);
+  g.strokeStyle='rgba(229,195,133,.19)';g.lineWidth=1;g.strokeRect(x+4,y+4,w-8,h-8);
+  g.fillStyle='rgba(0,0,0,.20)';g.fillRect(x+6,y+h-9,w-12,3);
   if(selected){g.fillStyle='#e9bc7b';g.fillRect(x+9,y+9,5,h-18)}
   g.textAlign='center';g.textBaseline='middle';
   g.fillStyle=selected?'#fff2d3':'#d3bd94';
-  g.font='bold '+Math.round(Math.min(25,h*.38))+'px "Courier New",monospace';
+  g.font='bold '+Math.round(Math.min(25,h*.38))+'px Georgia,serif';
   g.fillText(label,x+w/2,y+h/2,w-40);
 }
 function filmHelp(g,w,h,portrait){
@@ -4394,6 +4405,8 @@ function drawFaceTex(){const g=HF.back.g,mx=80,my=74,sn=G.sanity;g.clearRect(0,0
 }
 function drawStat(){const dark=G.oil<=0,g=HST.glass.g;g.clearRect(0,0,260,180);g.drawImage(HANDLAMP[dark?0:1],4,19,71,109);
   const q=HST.front.g;q.clearRect(0,0,260,180);const bg=q.createLinearGradient(78,16,253,165);bg.addColorStop(0,'#353333');bg.addColorStop(1,'#171e25');artRect(q,78,16,178,150,bg,'#b39362',5);
+  q.strokeStyle='rgba(215,166,93,.37)';q.lineWidth=2;q.strokeRect(86,24,163,135);
+  for(let j=0;j<8;j++){q.fillStyle=j%2?'rgba(130,91,57,.09)':'rgba(236,184,117,.045)';q.fillRect(92,31+j*15,147,1)}
   q.strokeStyle='#69583e';q.strokeRect(83,21,168,140);q.fillStyle='#b59c6f';q.fillRect(91,65,151,1);
   hudText(q,dark?'NO OIL':'OIL  '+String(G.oil).padStart(2,'0'),92,28,'bold 29px Georgia',dark?'#e99879':'#f3dfac');
   hudText(q,'DAY '+G.day+'  '+clockText(),92,75,'bold 17px Georgia','#ded0b2');
