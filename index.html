@@ -3331,7 +3331,8 @@ function addFiveFloorDressing(out){
 function renderScene(MEP){
   if(DEP.length!==W*H)DEP=new Float32Array(W*H);
   FLICK=.91+.045*Math.sin(G.time*13)+.038*Math.sin(G.time*31.7);LANR=G.oil>0?3.8+Math.min(G.oil,10)*0.6+(torchLit()?0.8:0):torchLit()?4.7:1.1;
-  const fires=G.fires.filter(F=>F.fl===G.floor);FIREL=[];for(const F of fires)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
+  const fires=G.fires.filter(F=>Math.abs(F.fl-G.floor)<=VISIBLE_FLOORS);
+  FIREL=[];for(const F of fires)if(F.fl===G.floor)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
   if(G.state!=='freefall'&&!TITLE_FLY.previewing)lifeLayers(POSE);
   if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
@@ -3395,7 +3396,9 @@ function renderScene(MEP){
    const mir=LGN.some(n=>n>1),cs=Math.cos(G.ang),sn=Math.sin(G.ang);
    for(const L of LAMPS.list){const dx=L.x-G.x,dy=L.y-G.y,f=dx*cs+dy*sn;
      if((mir||f>0.1&&Math.abs(-dx*sn+dy*cs)<f*PLANE+.6&&f<26)&&floorSpriteVisible(L))list.push(L)}}
-  fires.forEach((F,i)=>list.push({type:'fire',x:F.x,y:F.y,bill:true,hgt:0.6*Math.min(1,F.t/2),cards:FIREC,frame:Math.floor(G.time*10+i)%3,dead:0}));
+  fires.forEach((F,i)=>list.push({type:'fire',x:F.x,y:F.y,
+    z0:(F.fl-G.floor)*FH,bill:true,hgt:0.6*Math.min(1,F.t/2),
+    cards:FIREC,frame:Math.floor(G.time*10+i)%3,dead:0}));
   if(G.meal&&G.meal.fl===G.floor&&G.time>=G.meal.ready)list.push({type:'meal',x:G.meal.x,y:G.meal.y,z0:0.55,hgt:0.24,bill:true,cards:[MEALC],frame:0,dead:0});
   if(!THIRD&&LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
   MCOLS.length=0;for(let x=0;x<W;x++)if(LGN[x]>1)MCOLS.push(x);
@@ -4318,7 +4321,7 @@ function titleFlyRender(shot,position,elapsed){
         const a=i*2.39;
         fires.push({x:shot.kind==='gallery'?shot.i*P+2.55*Math.cos(a):(shot.i+.5)*P+Math.sin(a)*.4,
           y:shot.kind==='gallery'?shot.j*P+2.55*Math.sin(a):(shot.j+.45+i*.13)*P,
-          fl:position.floor,t:9});
+          fl:shot.floor,t:9});
       }
     }
     G.fires=fires;
