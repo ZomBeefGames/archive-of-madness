@@ -24,8 +24,20 @@ export function cleanAppearance(a){
   return p;
 }
 const copyPlayer=p=>({id:p.id,name:p.name,x:p.x,y:p.y,f:p.f,floor:p.floor,coat:p.coat,pose:p.pose,
-  appearance:p.appearance});
+  active:!!p.active,falling:!!p.falling,appearance:p.appearance});
 const packBarrier=b=>({id:b.id,x:b.x,y:b.y,floor:b.floor,level:b.level,hp:b.hp,owner:b.owner});
+/* The co-op server validates every hand-to-hand interaction against its last
+   acknowledged player pose, not untrusted ranges or directions from clients. */
+export function validPersonShove(source,target,mode){
+  if(!source||!target||source.falling||target.falling||
+     !source.active||!target.active||source.floor!==target.floor)return false;
+  if(mode!=='push'&&mode!=='throw')return false;
+  const dx=target.x-source.x,dy=target.y-source.y,
+    dist=Math.hypot(dx,dy),reach=mode==='throw'?1.48:1.95;
+  if(dist<.2||dist>reach+.15)return false;
+  const cos=(dx*Math.cos(source.f)+dy*Math.sin(source.f))/dist;
+  return cos>=(mode==='throw'?.77:.64);
+}
 /* A valid recovery stays on the closest community tier to the point of
    departure. It is NOT permission for arbitrary floor teleports. */
 export function validFallRecovery(origin,next,world){
@@ -142,10 +154,25 @@ export class GameRooms {
       p.falling=false;p.fallStart=null;p.lastWakeDay=p.room.world.day;
     }
     p.x=x;p.y=y;p.f=f;p.floor=msg.floor;
-    p.pose=['stand','run','carry'].includes(msg.pose)?msg.pose:'stand';
+    p.pose=['stand','run','carry','flail','fall'].includes(msg.pose)?msg.pose:'stand';
     p.active=msg.active===true;
     p.lastPose=now;
     this.broadcast(p.room,{type:'peer',player:copyPlayer(p)},p.ws);
+  }
+  shove(p,msg){
+    const now=Date.now(),mode=msg.mode,kind=msg.kind;
+    if(now-(p.lastShove||0)<(mode==='throw'?1050:550)||p.falling)return;
+    if(kind==='enemy'){
+      if(p.room.engine.shoveEnemy(p,msg))p.lastShove=now;
+      return;
+    }
+    if(kind!=='peer')return;
+    const other=[...p.room.members].find(q=>q.id===msg.targetId&&q!==p);
+    if(!validPersonShove(p,other,mode))return;
+    p.lastShove=now;
+    const dx=Math.cos(p.f),dy=Math.sin(p.f);
+    this.broadcast(p.room,{type:'shove',fromId:p.id,targetId:other.id,
+      floor:p.floor,mode,dx,dy});
   }
   action(p,msg){
     const room=p.room,now=Date.now();
@@ -234,6 +261,7 @@ export class GameRooms {
     if(msg.type==='join')return this.join(ws,msg);
     const p=ws.player;if(!p)return send(ws,{type:'error',message:'Join a Library first.'});
     if(msg.type==='pose')return this.pose(p,msg);
+    if(msg.type==='shove')return this.shove(p,msg);
     if(msg.type==='barrier')return this.action(p,msg);
     if(msg.type==='resources')return p.room.engine.resources(p,msg);
     if(msg.type==='claim'){
