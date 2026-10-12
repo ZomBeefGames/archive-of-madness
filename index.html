@@ -4197,7 +4197,7 @@ function titleSceneAnimate(shot,position,local){
       if(n>0&&t>shot.duration*(.53+n*.018)){e.type='pur';e.raise=.5}
       if(n===0)e.raise=1;
     }else if(action==='worship'){
-      pose=n===0?'stand':t<shot.duration*.66?'kneel':'stand';
+      pose=n===0?'stand':n%3!==0||t<shot.duration*.84?'kneel':'stand';
       e.f=Math.atan2(cy-y,cx-x);
       if(n===0)e.raise=.5+.5*Math.abs(osc);
     }else if(action==='madness'){
