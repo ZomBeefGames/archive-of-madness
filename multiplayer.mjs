@@ -178,12 +178,6 @@ export class GameRooms {
     this.broadcast(p.room,{type:'shove',fromId:p.id,targetId:other.id,
       floor:p.floor,mode,dx,dy});
   }
-  rope(p,msg){
-    const now=Date.now();
-    if(now-(p.lastRope||0)<650)return;
-    if(msg.kind!=='enemy'||msg.mode!=='tie')return;
-    if(p.room.engine.ropeEnemy(p,msg))p.lastRope=now;
-  }
   action(p,msg){
     const room=p.room,now=Date.now();
     if(now-p.lastAction<95)return;
