@@ -21,11 +21,12 @@ function director(){
  };
  const context=vm.createContext({
    Math,P:16,FH:2.15,RAILH:.34,PS:1.35/60,VISIBLE_FLOORS:2,
-   G:{phrase:'the lamp forgot'},FILM:{clock:0},CALM:false,
+   G:{phrase:'the lamp forgot',time:0},FILM:{clock:0},CALM:false,
    galleryZone:(i,j,fl)=>zone(rooms,'g',i,j,fl),
    bridgeZone:(axis,i,j,fl)=>zone(bridges,axis,i,j,fl)
  });
- vm.runInContext(helpers+'\n'+art,context);
+ const rag=script.slice(script.indexOf('const RAG_SEED='),script.indexOf('function ragdollLayers('));
+ vm.runInContext(helpers+'\n'+rag+'\n'+art,context);
  const run=s=>vm.runInContext(s,context);
  run('titleFlyEnsure()');
  return {run,rooms,bridges};
