@@ -125,7 +125,9 @@ test('burning galleries draw persistent animated fire, smoke and light sources',
   assert.ok(art.some(p=>p.z0>0));
   s.run('addZoneFireLights()');
   assert.ok(s.fireLights.length>=6&&s.fireLights.length<=12,'nearest two burning galleries only');
-  assert.match(script,/addZoneDressing\(list\)/);
+  assert.match(script,/addFiveFloorDressing\(list\)/);
+  assert.match(script,/for\(let k=-VISIBLE_FLOORS;k<=VISIBLE_FLOORS;k\+\+\)/);
+  assert.match(script,/addZoneDressing\(layers\)/);
   assert.match(script,/addZoneFireLights\(\)/);
   assert.match(script,/zone.type==='burned'\|\|zone.type==='burning'/);
 });
