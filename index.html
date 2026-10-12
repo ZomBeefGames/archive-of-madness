@@ -2381,9 +2381,10 @@ function startRailFreefall(){
   const hub=nearestFallCommunity(G.x,G.y,G.floor);
   if(!hub)return false;
   G.fall={fromX:G.x,fromY:G.y,fromFloor:G.floor,hub,
+    targetX:target.x,targetY:target.y,
     depth:0,speed:0,elapsed:0,kind:target.kind,visualZones:new Map()};
-  G.x=target.x;G.y=target.y;
-  G.cell=placeOf(G.x,G.y);G.inRoom=G.cell.kind==='g';
+  // The first half-second physically carries the camera up and OVER the rail.
+  // Once beyond it, the player is in true bottomless freefall.
   G.pitch=-.25;G.journal=false;G.ents=[];G.phantoms=[];
   G.state='freefall';EYE=.50;releaseAll();
   LAMPS.key=null;WD.key=null;
@@ -2393,13 +2394,17 @@ function startRailFreefall(){
 function tickRailFreefall(dt){
   if(G.state!=='freefall'||!G.fall)return;
   const f=G.fall;
-  f.elapsed+=dt;G.time+=dt;G.playClock+=dt;
-  f.speed=Math.min(14,f.speed+9.8*dt);
-  f.depth+=f.speed*dt;
-  // Continuous fall through the real stacked levels. Floor transitions are
-  // purely visual: platforms never catch the falling player.
+  const before=f.elapsed;f.elapsed+=dt;G.time+=dt;G.playClock+=dt;
+  const vault=Math.max(0,Math.min(1,f.elapsed/.52)),arc=vault*vault*(3-2*vault);
+  G.x=f.fromX+(f.targetX-f.fromX)*arc;
+  G.y=f.fromY+(f.targetY-f.fromY)*arc;
+  G.cell=placeOf(G.x,G.y);G.inRoom=G.cell.kind==='g';
+  const dropDt=Math.max(0,f.elapsed-.42)-Math.max(0,before-.42);
+  if(dropDt>0){f.speed=Math.min(14,f.speed+9.8*dropDt);f.depth+=f.speed*dropDt}
+  // Continuous fall through real stacked levels; crossing a platform does not
+  // stop the player. A rising camera arc makes the vault visibly intentional.
   G.floor=f.fromFloor-Math.floor(f.depth/FH);
-  EYE=.50-(f.depth%FH);
+  EYE=.50+.56*Math.sin(Math.PI*vault)-(f.depth%FH);
   G.ang+=dt*.045*Math.sin(f.elapsed*.75);
   G.pitch=-.23-.075*Math.sin(f.elapsed*1.2);
   if(!(typeof NET!=='undefined'&&NET.ready)){
