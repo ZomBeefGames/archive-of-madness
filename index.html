@@ -3119,7 +3119,7 @@ const LAMPS={key:null,list:[]},MCOLS=[];let TR=1,TG=1,TB=1,FLICK=1,LANR=4,HZ=100
 const LAMPR2=5.4*5.4;
 let FIREL=[],AMB=0.085,LDAY=1;const LAMPI=0.85;
 const JR2=7.5*7.5,JLI=1.0,JR2P=5.6*5.6,JLIP=0.65;
-function lampC(c,px,py){let L=0,w;if(c&&c.kind==='a'){const ci=Math.round(px/P-0.5),cj=Math.round(py/P-0.5),jx=P*(ci+0.5)-px,jy=P*(cj+0.5)-py,cm=isComm(ci,cj);w=1-(jx*jx+jy*jy)/(cm?JR2:JR2P);if(w>0)L+=(cm?JLI:JLIP)*LDAY*w*w*w}
+function lampC(c,px,py,fl=G.floor){let L=0,w;if(c&&c.kind==='a'){const ci=Math.round(px/P-0.5),cj=Math.round(py/P-0.5),jx=P*(ci+0.5)-px,jy=P*(cj+0.5)-py,cm=isComm(ci,cj,fl);w=1-(jx*jx+jy*jy)/(cm?JR2:JR2P);if(w>0)L+=(cm?JLI:JLIP)*LDAY*w*w*w}
   else if(c&&c.kind==='g'){const q=c.lamps;let dx=px-q[0][0],dy=py-q[0][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*LDAY*w*w*w;dx=px-q[1][0];dy=py-q[1][1];w=1-(dx*dx+dy*dy)/LAMPR2;if(w>0)L+=LAMPI*LDAY*w*w*w}
   if(FIREL.length)
   for(let i=0;i<FIREL.length;i+=2){const dx=px-FIREL[i],dy=py-FIREL[i+1];w=1-(dx*dx+dy*dy)/7;if(w>0)L+=0.65*FLICK*w*w*w}return L}
@@ -3246,8 +3246,8 @@ function airPx(i,s,up,r){
       const tb=TV.t1[r],zb=up?EYE+s*tb:EYE-s*tb;PDv=tb;
       if(r===TV.n-1){if(HIT.cell)surfPx(i,zb,tb);else buf[i]=buf[i+1]=buf[i+2]=0;return}
       if(TV.door[r]&&TV.c[r].kind==='a'){const m=Math.floor(zb/FH),zl=zb-m*FH,am=Math.min(AIRLV,m<0?-m:m);
-        if(zl>WALLH){pointAt(tb);put(i,46,32,20,(AMB+lampC(TV.c[r],PX_,PY_))*FOG[am]*2);return}
-        const tf=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;PDv=tf;pointAt(tf);const c=TV.c[r+1],L=(AMB+lampC(c,PX_,PY_))*FOG[am];if(up)ceilPx(i,PX_,PY_,L*0.8);else floorPx(i,PX_,PY_,L,G.floor+m);return}
+        if(zl>WALLH){pointAt(tb);put(i,46,32,20,(AMB+lampC(TV.c[r],PX_,PY_,G.floor+m))*FOG[am]*2);return}
+        const tf=up?(m*FH+WALLH-EYE)/s:(EYE-m*FH)/s;PDv=tf;pointAt(tf);const c=TV.c[r+1],L=(AMB+lampC(c,PX_,PY_,G.floor+m))*FOG[am];if(up)ceilPx(i,PX_,PY_,L*0.8);else floorPx(i,PX_,PY_,L,G.floor+m);return}
       r++}
     if(r>=TV.n){buf[i]=buf[i+1]=buf[i+2]=0;return}
     while(iv<IVN&&IVB[iv]<tk)iv++;
@@ -3260,7 +3260,7 @@ function airPx(i,s,up,r){
       if(landing&&!inWell(PX_,PY_)){
         PDv=tk;
         const dx=PX_-LX,dy=PY_-LY,dz=(up?k:-k)*FH-EYE,
-          L=(AMB+lampC(TV.c[r],PX_,PY_)+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
+          L=(AMB+lampC(TV.c[r],PX_,PY_,G.floor+(up?k:-k))+lanL(Math.sqrt(dx*dx+dy*dy+dz*dz)))*FOG[k];
         if(up)ceilPx(i,PX_,PY_,L*.7);else catPx(i,PX_,PY_,L,G.floor-k);
         return;
       }
