@@ -26,6 +26,21 @@ export function cleanAppearance(a){
 const copyPlayer=p=>({id:p.id,name:p.name,x:p.x,y:p.y,f:p.f,floor:p.floor,coat:p.coat,pose:p.pose,
   appearance:p.appearance});
 const packBarrier=b=>({id:b.id,x:b.x,y:b.y,floor:b.floor,level:b.level,hp:b.hp,owner:b.owner});
+/* A valid recovery stays on the closest community tier to the point of
+   departure. It is NOT permission for arbitrary floor teleports. */
+export function validFallRecovery(origin,next,world){
+  if(!origin||!world||world.day<=origin.day||!validPosition(next))return false;
+  const stride=3+(Array.isArray(world.sentences)?world.sentences.length:0);
+  const expectedFloor=Math.round(origin.floor/stride)*stride;
+  if(next.floor!==expectedFloor)return false;
+  const homeI=Math.round((origin.x/16-.5)/stride)*stride,
+    homeJ=Math.round((origin.y/16-.5)/stride)*stride;
+  const ci=Math.round(next.x/16-.5),cj=Math.round(next.y/16-.5);
+  if(ci%stride||cj%stride)return false;
+  if(Math.max(Math.abs(ci-homeI),Math.abs(cj-homeJ))>stride*4)return false;
+  const cx=(ci+.5)*16,cy=(cj+.5)*16,d=Math.hypot(next.x-cx,next.y-cy);
+  return d>.88&&d<2.9;
+}
 function shortName(name){
   return String(name||'READER').replace(/[^a-zA-Z0-9 _-]/g,'').trim().slice(0,18)||'READER';
 }
@@ -101,9 +116,31 @@ export class GameRooms {
     const x=msg.x,y=msg.y,f=Number(msg.f);
     if(!Number.isFinite(f))return;
     const passed=p.lastPose?(now-p.lastPose)/1000:4;
-    const maxD=12*passed+2;
-    if(Math.hypot(p.x-x,p.y-y)>maxD)return; // suppress obvious teleports
-    if(Math.abs(msg.floor-p.floor)>1&&p.lastPose)return;
+    const maxD=12*passed+2,falling=msg.falling===true;
+    const recovered=p.falling&&!falling&&msg.respawnHub===true&&
+      validFallRecovery(p.fallStart,msg,p.room.world);
+    if(p.falling&&!falling&&!recovered)return;
+    if(!recovered){
+      if(Math.hypot(p.x-x,p.y-y)>maxD)return; // suppress arbitrary teleports
+      if(falling){
+        if(!p.falling){
+          if(msg.active!==false||Math.abs(msg.floor-p.floor)>1)return;
+          let day=p.room.world.day;
+          // If the server reached dawn just before the first fall packet,
+          // the preceding day is still its documented starting day.
+          if(Number.isInteger(msg.fallDay)&&msg.fallDay===day-1&&
+            p.room.world.clock<=480*8/24)day=msg.fallDay;
+          p.fallStart={x:p.x,y:p.y,floor:p.floor,day};
+          p.falling=true;
+        }else{
+          const floorDrop=p.floor-msg.floor;
+          const maxFloorDrop=Math.ceil(14*passed/2.15)+2;
+          if(floorDrop>maxFloorDrop||floorDrop< -1)return;
+        }
+      }else if(Math.abs(msg.floor-p.floor)>1&&p.lastPose)return;
+    }else{
+      p.falling=false;p.fallStart=null;p.lastWakeDay=p.room.world.day;
+    }
     p.x=x;p.y=y;p.f=f;p.floor=msg.floor;
     p.pose=['stand','run','carry'].includes(msg.pose)?msg.pose:'stand';
     p.active=msg.active===true;
