@@ -3713,6 +3713,167 @@ const FILMS={
     {art:'page',duration:3.0,tag:'NOTHING HERE IS FREE',title:'WORDS ARE CURRENCY',text:'Bring it a true sentence. It can tell you where to start looking.'}
   ]
 };
+/* TITLE FLYTHROUGH — real game raycasting, materials, lights, furniture and
+   puppet rigs. The scene generator builds themed arrangements in a *private*
+   procedural title-world. No screenshot, video, fake corridor or saved-game
+   state is used. Story and co-op start with their original world unchanged. */
+const TITLE_SHOT_SECONDS=12;
+const TITLE_SCENE_CATALOG=[
+  {id:'stacks',label:'THE ENDLESS STACKS',kind:'gallery',themes:['normal','refuge'],actor:'fig'},
+  {id:'inferno',label:'THE BURNING ARCHIVE',kind:'gallery',themes:['burning'],actor:'pur'},
+  {id:'study',label:'THE FORBIDDEN STUDY',kind:'gallery',themes:['study','observatory','memory','puriflab'],actor:'seek'},
+  {id:'crossing',label:'BRIDGES ABOVE THE VOID',kind:'bridge',themes:['chain','cage','patch','overlook'],actor:'fig'},
+  {id:'trial',label:'THE CHAMBER OF JUDGMENT',kind:'gallery',themes:['confession','chain','judgment','quarantine'],actor:'pur'},
+  {id:'flood',label:'THE FLOODED ARCHIVE',kind:'gallery',themes:['flooded'],actor:'seek'},
+  {id:'wreck',label:'THE LIBRARY THAT FELL',kind:'gallery',themes:['obliterated','collapse','ashvoid','skeleton'],actor:'pur'},
+  {id:'survey',label:'THE WATCHERS ON THE SPAN',kind:'bridge',themes:['research','checkpoint','service','burned'],actor:'seek'},
+  {id:'vault',label:'THE SEALED COLLECTION',kind:'gallery',themes:['vault','mirrorhall','bindery'],actor:'fig'}
+];
+const TITLE_FLY={
+  scenes:[],zones:new Map(),epoch:0,index:-1,lastRender:-1e9,
+  frames:0,previewing:false,failed:false,error:null,manual:0,
+  lastPose:null,lastKind:null,drawScene:0
+};
+function titleSceneGenerator(seed){
+  const rnd=prng(seed>>>0);
+  return TITLE_SCENE_CATALOG.map((entry,n)=>({
+    id:entry.id,label:entry.label,kind:entry.kind,
+    variant:entry.themes[Math.floor(rnd()*entry.themes.length)],
+    actor:entry.actor, i:n*4-16+Math.floor(rnd()*3),
+    j:(n%3)*5-6+Math.floor(rnd()*3),floor:(n%5)-2,
+    flip:rnd()<.5?-1:1,seed:hashStr(entry.id+'|'+seed+'|'+n)
+  }));
+}
+function titleScenePose(shot,u){
+  const t=Math.max(0,Math.min(1,u)),bob=Math.sin(t*Math.PI*2),cx=shot.i*P,cy=shot.j*P;
+  if(shot.kind==='bridge'){
+    const x=(shot.i+.5)*P+0.12*bob,y=(shot.j+.14+t*.70)*P;
+    return{x,y,ang:Math.PI/2+.06*Math.sin(t*Math.PI),
+      pitch:-.024+.02*Math.sin(t*Math.PI),eye:.76+.12*Math.sin(t*Math.PI),floor:shot.floor};
+  }
+  const side=shot.flip;
+  const x=cx+side*(3.35-.9*t),y=cy-1.65+4.05*t;
+  const lookX=cx-side*2.55,lookY=cy+.35+.3*t;
+  return{x,y,ang:Math.atan2(lookY-y,lookX-x),
+    pitch:-.025+.026*Math.sin(Math.PI*t),eye:.66+.16*Math.sin(Math.PI*t),floor:shot.floor};
+}
+function titleSceneActors(shot){
+  if(shot.actors)return shot.actors;
+  const bridge=shot.kind==='bridge',
+    x=bridge?(shot.i+.5)*P:shot.i*P-shot.flip*2.55,
+    y=bridge?(shot.j+.79)*P:shot.j*P+.40,
+    f=bridge?-Math.PI/2:shot.flip>0?0:Math.PI,seed=shot.seed%1000;
+  const base={x,y,f,seed,hit:0,dead:0,walk:0,pose:'stand'};
+  if(shot.actor==='pur')shot.actors=[{...base,type:'pur',hp:6,burnCd:2,scared:0}];
+  else if(shot.actor==='seek')shot.actors=[{...base,type:'seek',hp:3,scared:0,flee:0,stealCd:0}];
+  else shot.actors=[{...base,type:'fig',coat:seed%3}];
+  return shot.actors;
+}
+function titleStageScene(shot){
+  if(shot.kind==='bridge'){
+    // Span variants and scenery are the same bridgeZone/galleryZone assets
+    // used in gameplay; this private catalogue simply picks their themes.
+    for(const j of [shot.j-1,shot.j]){
+      bridgeZone('v',shot.i,j,shot.floor).type=shot.variant;
+      galleryZone(shot.i,j,shot.floor).type='normal';
+      galleryZone(shot.i+1,j,shot.floor).type=shot.id==='survey'?'study':'refuge';
+    }
+    galleryZone(shot.i,shot.j+1,shot.floor).type='burning';
+  }else{
+    galleryZone(shot.i,shot.j,shot.floor).type=shot.variant;
+    const nx=shot.i+shot.flip;
+    galleryZone(nx,shot.j,shot.floor).type=shot.id==='inferno'?'burned':
+      shot.id==='wreck'?'ashvoid':shot.id==='vault'?'study':'normal';
+  }
+}
+function titleFlyEnsure(){
+  if(TITLE_FLY.scenes.length)return;
+  const seed=hashStr('game-asset-flythrough|'+String(G.phrase||'ARCHIVE'));
+  TITLE_FLY.scenes=titleSceneGenerator(seed);
+  TITLE_FLY.epoch=1000000+(seed%1000000);
+}
+function titleNextScene(){
+  if(CALM)TITLE_FLY.manual++;
+  else FILM.clock=(Math.floor(FILM.clock/TITLE_SHOT_SECONDS)+1)*TITLE_SHOT_SECONDS;
+  TITLE_FLY.lastRender=-1e9;
+  TITLE_FLY.index=-1;
+}
+function titleFlyRender(shot,position,elapsed){
+  const saved={};
+  const fields=['x','y','ang','pitch','floor','cell','room','gal','inRoom',
+    'zoneState','resetEpoch','startGallery','ents','fires','phantoms','meal',
+    'time','clock','oil','sanity'];
+  for(const key of fields)saved[key]=G[key];
+  const prevEye=EYE,prevLX=LX,prevLY=LY,prevThird=THIRD;
+  const prevCam={...BG.cam},prevLampKey=LAMPS.key,prevLamps=LAMPS.list;
+  TITLE_FLY.previewing=true;
+  try{
+    G.zoneState=TITLE_FLY.zones;G.resetEpoch=TITLE_FLY.epoch;
+    G.startGallery=null;G.floor=shot.floor;
+    titleStageScene(shot);
+    G.x=position.x;G.y=position.y;G.ang=position.ang;
+    G.pitch=position.pitch;EYE=position.eye;
+    const cell=placeOf(G.x,G.y);
+    G.cell=cell;G.room=getRoom(Math.round(G.x/P),Math.round(G.y/P));
+    G.gal=G.room.gid;G.inRoom=cell.kind==='g';
+    G.ents=titleSceneActors(shot);G.phantoms=[];G.meal=null;
+    G.fires=shot.id==='inferno'?[{x:shot.i*P-1.9,y:shot.j*P+2.7,fl:shot.floor,t:10}]:[];
+    G.time=elapsed;G.clock=DAYLEN*.78;G.oil=14;G.sanity=94;
+    LX=G.x;LY=G.y;THIRD=false;
+    renderScene([]);
+    TITLE_FLY.frames++;
+    TITLE_FLY.lastPose={x:G.x,y:G.y,ang:G.ang,floor:G.floor,
+      inRoom:G.inRoom,variant:shot.variant};
+  }finally{
+    for(const key of fields)G[key]=saved[key];
+    EYE=prevEye;LX=prevLX;LY=prevLY;THIRD=prevThird;
+    Object.assign(BG.cam,prevCam);
+    LAMPS.key=prevLampKey;LAMPS.list=prevLamps;
+    TITLE_FLY.previewing=false;
+  }
+}
+function titleFlyBackground(g,elapsed){
+  // The isolated cinematic test harness and software-only fallback retain the
+  // original procedural backdrop when the live raycaster is unavailable.
+  if(typeof renderScene!=='function'||typeof scene==='undefined'||
+      typeof getRoom!=='function'||TITLE_FLY.failed){
+    filmBackground(g,elapsed);return;
+  }
+  titleFlyEnsure();
+  const scenes=TITLE_FLY.scenes;
+  const seq=CALM?TITLE_FLY.manual:Math.floor(elapsed/TITLE_SHOT_SECONDS);
+  const index=((seq%scenes.length)+scenes.length)%scenes.length;
+  const local=CALM?TITLE_SHOT_SECONDS*.40:(elapsed%TITLE_SHOT_SECONDS);
+  const shot=scenes[index],u=local/TITLE_SHOT_SECONDS;
+  if(index!==TITLE_FLY.index){TITLE_FLY.index=index;TITLE_FLY.lastRender=-1e9}
+  const interval=FILM.help||FILM.customizing?.23:(FINE?.055:.095);
+  if(elapsed-TITLE_FLY.lastRender>=interval||TITLE_FLY.frames===0){
+    try{
+      titleFlyRender(shot,titleScenePose(shot,u),elapsed);
+      TITLE_FLY.lastRender=elapsed;TITLE_FLY.lastKind=shot.variant;
+      TITLE_FLY.drawScene=index;
+    }catch(error){
+      TITLE_FLY.failed=true;TITLE_FLY.error=String(error&&error.stack||error);
+      console.error('Title flythrough renderer failed:',error);
+    }
+  }
+  if(TITLE_FLY.failed||TITLE_FLY.frames===0){filmBackground(g,elapsed);return}
+  g.save();g.imageSmoothingEnabled=true;
+  g.drawImage(scene,0,0,W,H,0,0,DW,DH);
+  // An inexpensive photographic vignette and dark gradient preserve menu
+  // contrast while leaving the actual 3-D library visible around the title.
+  const vignette=g.createRadialGradient(DW*.50,DH*.47,Math.min(DW,DH)*.12,
+    DW*.5,DH*.49,Math.max(DW,DH)*.77);
+  vignette.addColorStop(0,'rgba(5,7,10,.02)');
+  vignette.addColorStop(1,'rgba(3,4,7,.64)');
+  g.fillStyle=vignette;g.fillRect(0,0,DW,DH);
+  if(!CALM){
+    const edge=Math.min(local,TITLE_SHOT_SECONDS-local);
+    if(edge<.85){g.fillStyle='rgba(3,4,7,'+(.78*(1-edge/.85))+')';g.fillRect(0,0,DW,DH)}
+  }
+  g.restore();
+}
+
 function filmStage(){
   const portrait=DH>DW*1.2,w=portrait?620:1220,h=portrait?960:720,
     s=Math.min(DW/w,DH/h);
