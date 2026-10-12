@@ -159,6 +159,10 @@ export class GameRooms {
     p.lastPose=now;
     this.broadcast(p.room,{type:'peer',player:copyPlayer(p)},p.ws);
   }
+  rope(p,msg){
+    if(msg.kind!=='enemy')return;
+    p.room.engine.ropeEnemy(p,msg);
+  }
   shove(p,msg){
     const now=Date.now(),mode=msg.mode,kind=msg.kind;
     if(now-(p.lastShove||0)<(mode==='throw'?1050:550)||p.falling)return;
@@ -268,6 +272,7 @@ export class GameRooms {
     const p=ws.player;if(!p)return send(ws,{type:'error',message:'Join a Library first.'});
     if(msg.type==='pose')return this.pose(p,msg);
     if(msg.type==='shove')return this.shove(p,msg);
+    if(msg.type==='rope')return this.rope(p,msg);
     if(msg.type==='rope')return this.rope(p,msg);
     if(msg.type==='barrier')return this.action(p,msg);
     if(msg.type==='resources')return p.room.engine.resources(p,msg);
