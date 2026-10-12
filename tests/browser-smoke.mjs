@@ -19,7 +19,7 @@ window.__AOM_TEST={
   filmStage,openBookUI,figLayers,get NET(){return NET},get BUILD(){return BUILD},
   placeOf,getRoom,walkable,airFloor,levelHasWall,characterRig,
   get ENC(){return ENC},get BG(){return BG},
-  get VIEW(){return VIEW}
+  get VIEW(){return VIEW},get TITLE_FLY(){return TITLE_FLY},titleNextScene
 };
 `;
 assert.ok(originalHTML.includes('</script>'));
@@ -94,6 +94,23 @@ async function caseRun(label,contextOptions){
     return {pixels:bright,screen:[view.width,view.height],buttons:app.FILM.buttons.length}
   });
   assert.ok(render.pixels>10,label+' title should paint visible artwork');
+  const flyby=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,preview=a.TITLE_FLY,g=a.G;
+    const before={x:g.x,y:g.y,ang:g.ang,floor:g.floor,room:g.room.gid,oil:g.oil,sanity:g.sanity};
+    const prior=preview.index;
+    a.titleNextScene();
+    return{before,prior};
+  });
+  await page.waitForFunction(()=>window.__AOM_TEST?.TITLE_FLY.index!==-1&&
+    window.__AOM_TEST.TITLE_FLY.index!==window.__AOM_TEST.TITLE_FLY.drawScene-1000,null,{timeout:16000});
+  const flybyAfter=await page.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G,p=a.TITLE_FLY;
+    return{frames:p.frames,failed:p.failed,scenes:p.scenes.length,kind:p.lastKind,index:p.index,
+      after:{x:g.x,y:g.y,ang:g.ang,floor:g.floor,room:g.room.gid,oil:g.oil,sanity:g.sanity}};
+  });
+  assert.equal(flybyAfter.scenes,9,label+' should create nine modular real-library flythrough scenes');
+  assert.ok(flybyAfter.frames>0&&!flybyAfter.failed,label+' flythrough must actually render with game assets');
+  assert.deepEqual(flybyAfter.after,flyby.before,label+' flythrough must not mutate the playable world');
   assert.equal(render.buttons,6);
   await mkdir('browser-artifacts',{recursive:true});
   await page.screenshot({path:'browser-artifacts/title-'+label+'.png'});
