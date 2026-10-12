@@ -2470,7 +2470,7 @@ function reset(){
   let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*20),P.j+Math.round((Math.random()-0.5)*20));f=P.f+Math.round((Math.random()-0.5)*10);d=bioDist(c.gid,f,phrase)}while(d<bounds[0]||d>bounds[1]);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,difficulty,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,fall:null,fallWakeDay:0,personCd:0,knockback:null,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,fall:null,fallWakeDay:0,personCd:0,knockback:null,rope:2,hangings:[],hungIds:new Set(),zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
@@ -3300,6 +3300,7 @@ function searchBody(body){
     else if(roll<0.75){G.incense++;finds.push('SECT INCENSE')}
     else if(roll<0.9){G.frags+=G.tr.key?2:1;rememberSentence('body|'+body.lootId);finds.push('A REAL SENTENCE')}
   }
+  if(r()<.27&&G.rope<9){G.rope++;finds.push('1 ROPE')}
   const result=finds.length?finds.join(' · '):'NOTHING WORTH TAKING';
   G.lastHit={t:Math.hypot(body.x-G.x,body.y-G.y)};
   snd('pickup');sfx(finds.length?'BODY SEARCHED · '+finds.length+' FIND'+(finds.length===1?'':'S'):'POCKETS EMPTY','mind');
@@ -3311,6 +3312,7 @@ function hatchStock(){const r=prng(hashStr('stock|'+G.day)),ks=Object.keys(TRINK
   for(let i=ks.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[ks[i],ks[j]]=[ks[j],ks[i]]}return ks.slice(0,3)}
 function hatchItems(){const fed=G.time-G.fedAt<FULLT,M=G.meal,why=M?'A meal is already on its way'+(M.fl!==G.floor?' to floor '+M.fl:'')+'.':fed?'You are still full. Come back in a while.':null;
   const L=Object.keys(MEALS).map(k=>({kind:'meal',k,name:MEALS[k].name,desc:MEALS[k].desc,cost:MEALS[k].cost,no:why}));
+  L.push({kind:'rope',name:'TWO COILS OF ARCHIVE ROPE',desc:'For tying bodies or living people to a real Library rail; H to tie or release.',cost:5});
   for(const k of hatchStock())L.push({kind:'trinket',k,name:TRINKETS[k].name,desc:TRINKETS[k].desc,cost:TRINKETS[k].cost});
   if(G.q===3){const r=difficultyRules(G.difficulty);
     L.unshift({kind:'mark',name:'A SHELF-MARK SLIP',cost:12+Math.max(0,r.shelfDay-3)*2,desc:'A slip from the kitchen ledger, with a shelf number in a hand very like yours.',no:G.day<r.shelfDay?'This ledger becomes available on day '+r.shelfDay+'.':null})}
@@ -3320,6 +3322,10 @@ function hatchBuy(){const L=hatchItems(),it=L[Math.min(G.hsel,L.length-1)];if(!i
   if(it.no){sfx('NOT NOW');return}if(G.type<it.cost){sfx('NOT ENOUGH TYPE','red');snd('bad');return}
   G.type-=it.cost;
   if(it.kind==='meal'){orderMeal(it.k);return}
+  if(it.kind==='rope'){G.rope=Math.min(9,G.rope+2);
+    snd('pickup');sfx('+2 ROPE','mind');openNote('THE FOOD HATCH',
+      'Two coils of archival cord are lowered to you. Tie bodies or people to a nearby railing with H. Press H again to release the rope.',
+      '+2 ROPE · H TO TIE OR RELEASE');return}
   if(it.kind==='mark'){qDone(4);G.hsel=0;openNote('THE FOOD HATCH','Up comes a slip of ledger paper: SHELF '+bioPlan(G.phrase).shelf+', in your own hand.','','hatch');return}
   let k=it.k;if(it.kind==='parcel'){const ks=Object.keys(TRINKETS).filter(q=>!G.tr[q]);k=ks[Math.floor(Math.random()*ks.length)]}
   G.tr[k]=true;snd('pickup');sfx(TRINKETS[k].name,'mind');G.hsel=0;
@@ -3927,7 +3933,7 @@ function drawJournal(){
   const t=TX.journal,{g,px,py,pw,ph,x2,y2}=spread(t);g.fillStyle='#2a2018';g.textAlign='left';
   g.font='bold 16px "Courier New",monospace';g.fillText('JOURNAL',px+26,py+20);
   g.font='italic 17px Georgia,serif';
-  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()} · ${difficultyRules(G.difficulty).name}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Fragments ${G.frags} · Type ${G.type}`,`Archive proofs ${G.proofs||0}/${difficultyRules(G.difficulty).proofs} · true sentences ${G.sentencesFound}/${difficultyRules(G.difficulty).sentences} · earliest shelf day ${difficultyRules(G.difficulty).minDay}`,`Boards carried ${BUILD.planks} · placed ${BUILD.barriers.size} · co-op room ${NET.ready?NET.code:'solo'}`,`Grid ${hubStride()} rooms / ${hubStride()} floors · ${G.sentencesFound} found`,`Reset day ${G.nextResetDay} · interval ${G.resetInterval} days`,`Zone: ${zoneStatus(standingZone())}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
+  let yy=blockG(g,[`Hexagon ${G.gal} · Floor ${G.floor} · Day ${G.day}, ${clockText()} · ${difficultyRules(G.difficulty).name}`,`Health ${Math.max(0,Math.round(G.health))}% · Sanity ${Math.round(G.sanity)}% · Oil ${G.oil} · Torches ${G.torches}${G.meal?(G.time>=G.meal.ready?' · meal waiting':' · meal coming'):''}`,`Rooms ${G.rooms.size} · Books ${G.books} · Bodies searched ${G.searchedBodies} · Fragments ${G.frags} · Type ${G.type}`,`Archive proofs ${G.proofs||0}/${difficultyRules(G.difficulty).proofs} · true sentences ${G.sentencesFound}/${difficultyRules(G.difficulty).sentences} · earliest shelf day ${difficultyRules(G.difficulty).minDay}`,`Boards carried ${BUILD.planks} · rope ${G.rope} · hung ${G.hangings.length} · co-op room ${NET.ready?NET.code:'solo'}`,`Grid ${hubStride()} rooms / ${hubStride()} floors · ${G.sentencesFound} found`,`Reset day ${G.nextResetDay} · interval ${G.resetInterval} days`,`Zone: ${zoneStatus(standingZone())}`].concat(G.written?[`Sins written ${G.written} · Dark ${G.dark}`]:[]),px+26,py+46,21);
   g.font='bold 14px "Courier New",monospace';g.fillText('BURNED INTO YOUR MIND',px+26,yy+8);
   g.font='italic 22px Georgia,serif';g.fillStyle='#b3261e';g.fillText('"'+fadedPhrase()+'"'+(G.echo?'  fading '+G.echo+'/'+ECHO_MAX:''),px+26,yy+28);
   g.font='bold 14px "Courier New",monospace';g.fillStyle='#2a2018';g.fillText('THE WAY TO YOUR PAGE · '+G.q+'/6',px+26,yy+64);
@@ -5457,7 +5463,7 @@ function drawStat(){const dark=G.oil<=0,g=HST.glass.g;g.clearRect(0,0,260,180);g
   hudText(q,dark?'NO OIL':'OIL  '+String(G.oil).padStart(2,'0'),92,28,'bold 29px Georgia',dark?'#e99879':'#f3dfac');
   hudText(q,'DAY '+G.day+'  '+clockText(),92,75,'bold 17px Georgia','#ded0b2');
   hudText(q,'FLOOR '+G.floor+' · HUB '+hubStride(),92,99,'14px Georgia','#d6c8aa');
-  hudText(q,'TYPE '+G.type+'  INC '+G.incense+'  TOR '+G.torches,92,123,'bold 13px Georgia','#bca780');
+  hudText(q,'TYPE '+G.type+'  INC '+G.incense+'  TOR '+G.torches+'  ROPE '+G.rope,92,123,'bold 12px Georgia','#bca780');
   const cZone=G.inRoom?galleryZone(G.room.i,G.room.j).type:crossingAt(G.x,G.y).stairs?crossingZone(crossingAt(G.x,G.y).ci,crossingAt(G.x,G.y).cj).type:'plain';
   const alerts=[cZone!=='normal'&&cZone!=='plain'?cZone.toUpperCase():'','RESET D'+G.nextResetDay,torchLit()?'TORCH '+Math.ceil(G.torchTime)+'s':'',G.incenseT>0?'INCENSE':'',G.meal&&G.time>=G.meal.ready?'MEAL READY':''].filter(Boolean).join(' · ');
   hudText(q,alerts,92,145,'bold 10px Georgia','#e5b776');
@@ -5795,7 +5801,7 @@ function action(a){
   if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0;encClosed()}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
-  if(G.state==='play'){if(a==='push'||a==='throw')initiatePersonShove(a);else if(a==='jump')startRailFreefall();else if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
+  if(G.state==='play'){if(a==='rope')ropeAction();else if(a==='push'||a==='throw')initiatePersonShove(a);else if(a==='jump')startRailFreefall();else if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
 }
 let last=performance.now(),needResize=true;
 function frame(now){
