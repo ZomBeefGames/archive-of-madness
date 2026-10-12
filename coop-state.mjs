@@ -168,6 +168,35 @@ export class SharedWorld {
     x:e.x,y:e.y,floor:e.floor});
   return true;
  }
+ ropeEnemy(p,msg){
+  const w=this.room.world,mode=msg.mode,now=Date.now();
+  if(w.ending||!p.active||p.falling||!['tie','untie'].includes(mode)||
+    now-(p.lastRope||0)<600)return false;
+  const e=w.enemies.find(q=>q.id===msg.targetId);
+  if(!e||e.floor!==p.floor)return false;
+  const dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy);
+  if(d<.20||d>2.15||(dx*Math.cos(p.f)+dy*Math.sin(p.f))/d<.50)return false;
+  if(mode==='tie'){
+    if(e.hanging||(p.rope??2)<1||e.knock)return false;
+    const rx=e.x-e.cx,ry=e.y-e.cy,r=Math.hypot(rx,ry);
+    // Server-owned enemies inhabit galleries. An existing shaft guard is the
+    // only approved anchor; never let clients hang them in midair or walls.
+    if(r<1.38||r>3.1)return false;
+    e.x=e.cx+rx/r*1.73;e.y=e.cy+ry/r*1.73;
+    e.hanging=true;e.hangT=0;e.knock=null;e.hangFloor=e.floor;
+    p.rope=(p.rope??2)-1;
+  }else{
+    if(!e.hanging)return false;
+    e.hanging=false;e.dead=true;e.hp=0;e.hangT=0;
+    p.rope=Math.min(9,(p.rope??2)+1);
+  }
+  p.lastRope=now;
+  this.touch();
+  this.emit({type:'enemies',enemies:w.enemies});
+  this.emit({type:'rope',by:p.id,targetId:e.id,mode,
+    floor:e.floor,remaining:p.rope});
+  return true;
+ }
  combat(p,msg){
   const w=this.room.world;if(w.ending)return;
   const now=Date.now();
@@ -229,6 +258,11 @@ export class SharedWorld {
     for(const p of room.members)if(p.active)this.addRoomEnemy(p);
     let moving=false;
     for(const e of w.enemies){
+      if(e.hanging){
+        e.hangT=(e.hangT||0)+dt;
+        if(e.hangT>=16&&!e.dead){e.dead=true;e.hp=0;moving=true;this.touch()}
+        continue;
+      }
       if(e.dead)continue;
       if(e.hanging){
         if(now-e.hanging.at>16000){
