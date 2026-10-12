@@ -164,7 +164,7 @@ export class SharedWorld {
   e.x=e.cx+ux/r*1.7;e.y=e.cy+uy/r*1.7;
   e.knock=null;e.hanging={x:e.x,y:e.y,floor:e.floor,at:Date.now()};
   this.touch();this.emit({type:'enemies',enemies:w.enemies});
-  this.emit({type:'rope',targetId:e.id,mode:'tie',kind:'enemy',
+  this.emit({type:'rope',targetId:e.id,fromId:p.id,mode:'tie',kind:'enemy',
     x:e.x,y:e.y,floor:e.floor});
   return true;
  }
