@@ -7,7 +7,7 @@ const start=script.indexOf('function floorSpriteVisible('),end=script.indexOf('f
 assert.ok(start>0&&end>start);
 function stage({x=6,y=0,ang=0,floor=10}={}){
  const G={x:0,y:0,ang,floor},calls=[];
- const ctx=vm.createContext({G,Math,W:320,H:200,HZ:100,PROJ:100,PLANE:.577,
+ const ctx=vm.createContext({G,Math,W:320,H:200,HZ:100,EYE:.5,PROJ:100,PLANE:.577,
    FH:2.15,VISIBLE_FLOORS:2,
    addZoneDressing(out){calls.push(G.floor);out.push({x,y,z0:.1,hgt:.8,floor:G.floor})}
  });
