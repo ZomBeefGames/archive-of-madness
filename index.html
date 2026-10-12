@@ -2997,6 +2997,7 @@ function initiatePersonShove(mode='push'){
 }
 function tickPlayerKnockback(dt){
   const p=G.knockback;if(!p)return false;
+  if(ME.rag)stepRagdoll(ME,dt);
   const prev=p.t;p.t=Math.min(1,p.t+dt/p.duration);
   const easing=v=>v*v*(3-2*v),d=(easing(p.t)-easing(prev))*p.distance;
   const nx=G.x+p.dx*d,ny=G.y+p.dy*d;
@@ -3623,13 +3624,14 @@ function renderScene(MEP){
   if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
     if(Math.abs(e.floor-G.floor)>VISIBLE_FLOORS||Math.hypot(e.x-G.x,e.y-G.y)>35)continue;
     e.lvl=e.floor-G.floor;e.zw=e.lvl*FH;
-    if(e.type==='pur')purLayers(e,POSE);else seekLayers(e,POSE);
+    if(e.rag)ragdollLayers(e,POSE);
+    else if(e.type==='pur')purLayers(e,POSE);else seekLayers(e,POSE);
   }
   if(typeof NET!=='undefined'&&NET.ready)for(const p of NET.peers.values())
     if(Math.abs(p.floor-G.floor)<=VISIBLE_FLOORS&&Math.hypot(p.x-G.x,p.y-G.y)<35){
       if(!p.rig)p.rig=FIGRIG[1+(p.coat%2)];
       p.lvl=p.floor-G.floor;p.zw=p.lvl*FH;
-      figLayers(p,POSE);
+      if(p.rag)ragdollLayers(p,POSE);else figLayers(p,POSE);
     }
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.97-low*0.25;TB=0.9+low*0.2;
@@ -4106,10 +4108,14 @@ const NET={
           const mode=m.mode==='throw'?'throw':'push';
           G.knockback={dx:Number(m.dx)||0,dy:Number(m.dy)||0,
             distance:mode==='throw'?3.2:1.3,duration:mode==='throw'?.46:.30,t:0};
+          activateRagdoll(ME,mode==='throw'?'air':'stumble',3,Number(m.dx)<0?-1:1);
           G.journal=false;sfx(mode==='throw'?'YOU WERE THROWN':'YOU WERE PUSHED','red');
         }else{
           const p=this.peers.get(m.targetId);
-          if(p)p.hitShove=m.mode==='throw'?.5:.32;
+          if(p){
+            p.hitShove=m.mode==='throw'?.5:.32;
+            activateRagdoll(p,m.mode==='throw'?'air':'stumble',2.8,(m.dx||0)<0?-1:1);
+          }
         }
       }
       else if(m.type==='damage'&&m.id===this.id){
@@ -4215,9 +4221,21 @@ const NET={
     for(const obj of list){
       if(!obj||!['pur','seek'].includes(obj.type)||!Number.isFinite(obj.x)||!Number.isFinite(obj.y))continue;
       const prev=this.enemies.get(obj.id)||{};
-      next.set(obj.id,{...prev,...obj,hp:obj.hp,dead:obj.dead?Math.max(.05,prev.dead||.05):0,
+      const e={...prev,...obj,hp:obj.hp,dead:obj.dead?Math.max(.05,prev.dead||.05):0,
         hit:Math.max(0,(prev.hit||0)-.07),seed:Number(obj.id?.length||1),
-        zw:0,walk:obj.dead?0:.7});
+        zw:0,walk:obj.dead||obj.hanging?0:.7};
+      if(obj.hanging){
+        if(!e.rag||e.rag.mode!=='hang'){
+          const rag=activateRagdoll(e,'hang',2,1),pinZ=RAILH/PS-25,
+            shift=pinZ-rag.points[2].z;
+          for(const q of rag.points){q.z+=shift;q.oz+=shift}
+          rag.mode='hang';rag.pin={x:0,z:pinZ};rag.ground=false;
+        }
+        e.ropeAnchor=obj.hanging;e.hangFloor=obj.floor;
+      }else if(e.rag?.mode==='hang')e.rag=null;
+      else if(obj.knock&&!e.rag)activateRagdoll(e,'stumble',2.3,obj.knock.dx<0?-1:1);
+      if(obj.dead&&!e.rag){activateRagdoll(e,'corpse',2.0,1);e.rag.ground=true}
+      next.set(obj.id,e);
     }
     this.enemies=next;
   },
@@ -4284,8 +4302,11 @@ const NET={
       p.x+=dx*rate;p.y+=dy*rate;p.f+=angDiff(p.tf,p.f)*rate;
       const moving=Math.hypot(dx,dy)>.04;
       p.pose=p.falling?'fall':p.hitShove>0?'flail':moving?'run':'stand';
+      if(p.falling&&!p.rag)activateRagdoll(p,'air',2.1,1);
+      if(p.rag)stepRagdoll(p,dt);
       p.hitShove=Math.max(0,(p.hitShove||0)-dt);gaitUpd(p,dt,.5);
     }
+    for(const e of this.enemies.values())if(e.rag)stepRagdoll(e,dt);
     const t=performance.now();
     if(t-this.lastResources>240){this.lastResources=t;this.sendResourceDeltas()}
     if(t-this.lastPose>110){
