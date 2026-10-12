@@ -267,7 +267,6 @@ export class GameRooms {
     if(msg.type==='pose')return this.pose(p,msg);
     if(msg.type==='shove')return this.shove(p,msg);
     if(msg.type==='rope')return this.rope(p,msg);
-    if(msg.type==='rope')return this.rope(p,msg);
     if(msg.type==='barrier')return this.action(p,msg);
     if(msg.type==='resources')return p.room.engine.resources(p,msg);
     if(msg.type==='claim'){
