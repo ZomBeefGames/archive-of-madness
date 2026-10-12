@@ -137,7 +137,7 @@ export class GameRooms {
           const maxFloorDrop=Math.ceil(14*passed/2.15)+2;
           if(floorDrop>maxFloorDrop||floorDrop< -1)return;
         }
-      }else if(Math.abs(msg.floor-p.floor)>1&&p.lastPose)return;
+      }else if(Math.abs(msg.floor-p.floor)>1)return;
     }else{
       p.falling=false;p.fallStart=null;p.lastWakeDay=p.room.world.day;
     }
