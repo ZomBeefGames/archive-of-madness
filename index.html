@@ -2804,6 +2804,128 @@ function openDropAhead(x,y,dx,dy,fromX=G.x,fromY=G.y){
   return airFloor(fromX,fromY,G.floor)&&!airFloor(fx,fy,G.floor)&&
     !galleryBarricadeAt(fx,fy,.12)&&!placedBlockAt(fx,fy,.12);
 }
+/* PHYSICAL PAPER-PUPPET RAGDOLLS. A small 14-point Verlet skeleton connects
+   shoulders, spine, hands and knees. A shove supplies an impulse; while
+   airborne the joints keep moving independently. On impact they settle on
+   the actual landing plane. Rope suspension pins the neck and lets every
+   other joint swing. It uses the existing jointed paper artwork and sprites. */
+const RAG_SEED=[
+ [0,26],[0,39],[.3,45],[.4,51],[-5,39],[-9,29],[-10,18],
+ [5,39],[9,29],[10,18],[-3.2,14],[-4,2],[3.2,14],[4,2]
+];
+const RAG_BONES=[[0,1],[1,2],[2,3],[1,4],[4,5],[5,6],
+ [1,7],[7,8],[8,9],[0,10],[10,11],[0,12],[12,13],[4,7],[10,12]];
+function activateRagdoll(e,mode='stumble',strength=1,dir=1){
+ if(!e||!['fig','pur','seek'].includes(e.type))return null;
+ if(e.rag&&e.rag.mode==='hang')return e.rag;
+ if(!e.rag){
+   const scale=e.type==='seek'?.83:1;
+   const points=RAG_SEED.map(([x,z],i)=>({x:x*scale,z:z*scale,
+     ox:x*scale-(i%2?strength*.7:-strength*.6)*dir,
+     oz:z*scale+Math.abs(strength)*.13}));
+   const bones=RAG_BONES.map(([a,b])=>{
+     const q=points[a],r=points[b];
+     return{a,b,len:Math.hypot(q.x-r.x,q.z-r.z)};
+   });
+   e.rag={points,bones,age:0,mode,scale,ground:mode==='corpse',twist:dir,
+     hanging:false};
+ }else{
+   e.rag.mode=mode;e.rag.age=0;
+   for(const p of e.rag.points){p.ox=p.x-dir*strength*.85;p.oz=p.z+strength*.12}
+ }
+ return e.rag;
+}
+function stepRagdoll(e,dt){
+ const rag=e.rag;if(!rag)return;
+ rag.age+=dt;
+ const steps=Math.max(1,Math.min(4,Math.ceil(dt/.017))),sub=dt/steps;
+ for(let step=0;step<steps;step++){
+   const hang=rag.mode==='hang',ground=rag.ground||rag.mode==='corpse',
+     air=rag.mode==='air',gravity=hang?235:ground?360:air?45:135;
+   for(let i=0;i<rag.points.length;i++){
+     const p=rag.points[i];
+     if(hang&&i===2){
+       const pin=rag.pin||{x:0,z:-10};
+       p.x=pin.x;p.z=pin.z;p.ox=pin.x;p.oz=pin.z;
+       continue;
+     }
+     const vx=(p.x-p.ox)*.964,vz=(p.z-p.oz)*.962;
+     p.ox=p.x;p.oz=p.z;
+     p.x+=vx+(air?Math.sin(G.time*3+i*1.7)*.09:0);
+     p.z+=vz-gravity*sub*sub;
+   }
+   for(let n=0;n<6;n++){
+     for(const link of rag.bones){
+       const a=rag.points[link.a],b=rag.points[link.b],
+         dx=b.x-a.x,dz=b.z-a.z,dist=Math.hypot(dx,dz)||.0001,
+         err=(dist-link.len)/dist*.48,
+         ax=dx*err,az=dz*err;
+       if(!(hang&&link.a===2)){a.x+=ax;a.z+=az}
+       if(!(hang&&link.b===2)){b.x-=ax;b.z-=az}
+     }
+     if(hang){
+       const p=rag.points[2];p.x=rag.pin.x;p.z=rag.pin.z;
+     }
+     if(ground)for(const p of rag.points)if(p.z<1.8){
+       p.z=1.8;
+       p.oz=Math.min(p.z+Math.abs(p.z-p.oz)*.12,p.z+2.2);
+       p.ox=p.x+(p.ox-p.x)*.5;
+     }
+   }
+ }
+ if(rag.mode==='stumble'&&rag.age>1.12&&!e.shove&&!e.fallState)e.rag=null;
+}
+function ragdollLayers(e,out){
+ const R=e.rig||(e.type==='pur'?PURIG:e.type==='seek'?SEEKRIG:FIGRIG[e.coat||0]),
+   q=e.rag?.points;if(!q)return;
+ const put=rigOut(e,out),joint=i=>q[i],
+   ang=(a,b)=>downDeg(joint(b).x-joint(a).x,joint(b).z-joint(a).z),
+   torso=downDeg(joint(0).x-joint(1).x,joint(0).z-joint(1).z);
+ const limb=(piece,a,b,depth)=>{
+   if(piece)put(piece,ang(a,b),joint(a).x,joint(a).z,depth,false);
+ };
+ limb(R.upper,4,5,-.05);limb(R.fore,5,6,-.049);
+ limb(R.thigh,0,10,-.026);limb(R.shin,10,11,-.024);
+ if(R.boot||R.foot)put(R.boot||R.foot,ang(10,11),joint(11).x,joint(11).z,-.021,false);
+ if(R.skirt)put(R.skirt,torso,joint(0).x-.4,joint(0).z,.035,false);
+ put(R.chest,torso,joint(0).x,joint(0).z,0,false);
+ if(R.waist)put(R.waist,torso,joint(0).x,joint(0).z+.8,.001,false);
+ if(R.collar)put(R.collar,torso,joint(1).x,joint(1).z,.018,false);
+ const head=R.hood||R.head;
+ if(head)put(head,torso*.55,joint(2).x,joint(2).z-1,.038,false);
+ if(R.eyes&&!e.dead)put(R.eyes,torso*.55,joint(2).x,joint(2).z-1,.040,true);
+ limb(R.thigh,0,12,.012);limb(R.shin,12,13,.015);
+ if(R.boot||R.foot)put(R.boot||R.foot,ang(12,13),joint(13).x,joint(13).z,.020,false);
+ limb(R.upper,7,8,.055);limb(R.fore,8,9,.058);
+ if(e.rag.mode==='hang'){
+   const pin=e.rag.pin;
+   put(ROPE,0,pin.x,pin.z+24,-.07,false);
+ }
+ if(e.type==='pur'&&!e.dead&&R.torch)
+   put(R.torch,ang(8,9),joint(9).x,joint(9).z,.061,false);
+}
+/* This is a true collision against the deck on a specified floor. The
+   infinite void has no catch-all plane: actors only die if their falling
+   body intersects a gallery floor or a catwalk/landing. */
+function solidFallLanding(x,y,fl){
+ const c=placeOf(x,y);
+ if(c.kind==='g')return!inHoleC(c,x,y);
+ return airFloor(x,y,fl)&&!inWell(x,y);
+}
+function personFallImpact(e,fl){
+ e.fallState=null;e.shove=null;e.floor=fl;
+ e.zw=(fl-G.floor)*FH;e.lvl=fl-G.floor;
+ e.dead=e.type==='fig'?0:.001;e.pose='dead';
+ const rag=activateRagdoll(e,'corpse',2,1);
+ if(rag){rag.mode='corpse';rag.ground=true;rag.age=0;
+   for(const p of rag.points){p.ox=p.x+2;p.oz=p.z+4}}
+ if(!e.lootId){
+   const prev=G.floor;try{G.floor=fl;recordCorpse(e.type,e,false)}
+   finally{G.floor=prev}
+ }
+ snd('thud');sfx('A BODY HITS THE FLOOR','mind');
+}
+
 function beginPersonFall(e,dx,dy){
   e.shove=null;e.fallState={t:0,vz:1.6,dx,dy,fl:G.floor};
   e.pose='fall';e.zw=.28;e.lvl=.001;e.spin=0;e.hit=1;
