@@ -2316,6 +2316,111 @@ function rememberSentence(id){
 function clockText(){const h=hourOf(),hh=Math.floor(h),mm=Math.floor((h-hh)*60);return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')}
 function dayLight(h){if(h<5||h>=21)return 0;if(h<8)return(h-5)/3;if(h<18)return 1;return(21-h)/3}
 function isNight(){const h=hourOf();return h<5||h>=21}
+
+/* RAIL VAULT / THE BOTTOMLESS LIBRARY
+   The rail is a real SQV railing or the existing round shaft guard. No
+   walking collision changes, so a normal step can never accidentally fall. */
+function railJumpTarget(){
+  if(G.state!=='play'||G.journal)return null;
+  const dx=Math.cos(G.ang),dy=Math.sin(G.ang);
+  if(G.inRoom){
+    const room=G.cell,rx=G.x-room.cx,ry=G.y-room.cy;
+    const r=Math.hypot(rx,ry);
+    if(r>RS+.10&&r<RS+1.20&&-(rx*dx+ry*dy)/r>.64)
+      return{x:room.cx+rx/r*(RS-.72),y:room.cy+ry/r*(RS-.72),kind:'shaft'};
+    return null;
+  }
+  // Cast against the same physical catwalk rails that the renderer draws;
+  // the old walkable approximation alone does not identify a railing.
+  const hit=cast(G.x,G.y,dx,dy);
+  let best=1.42;
+  for(let i=0;i<RH.n;i++){
+    const t=RH.t[i];
+    if(RH.kind[i]===1&&t>.15&&t<best&&t<hit.t-.025)best=t;
+  }
+  return best<1.42?{x:G.x+dx*(best+.65),y:G.y+dy*(best+.65),kind:'catwalk'}:null;
+}
+/* Choose a usable community landing near the original jump point, not the
+   impossibly deep visual fall floor. Check the current lattice and barriers;
+   never spawn inside a central stairwell or a community pillar. */
+function nearestFallCommunity(x,y,floor){
+  const step=hubStride(),ci=Math.round((x/P-.5)/step)*step,
+    cj=Math.round((y/P-.5)/step)*step,fl=Math.round(floor/step)*step,
+    hx=(ci+.5)*P,hy=(cj+.5)*P;
+  const spots=[[.71,.71],[-.71,.71],[.71,-.71],[-.71,-.71],
+    [1.55,0],[-1.55,0],[0,1.55],[0,-1.55],
+    [1.9,1.9],[-1.9,-1.9]];
+  spots.sort((a,b)=>
+    (hx+a[0]-x)**2+(hy+a[1]-y)**2-
+    ((hx+b[0]-x)**2+(hy+b[1]-y)**2));
+  const old=G.floor;
+  try{
+    G.floor=fl;
+    for(const [dx,dy] of spots){
+      const sx=hx+dx,sy=hy+dy;
+      if(isComm(ci,cj,fl)&&airFloor(sx,sy,fl)&&walkable(sx,sy,.28))
+        return{x:sx,y:sy,ci,cj,floor:fl};
+    }
+  }finally{G.floor=old}
+  // A rare blockade can occupy a landing. Scan nearby community hubs
+  // instead of waking in an inaccessible or solid object.
+  for(let radius=1;radius<=4;radius++)for(let di=-radius;di<=radius;di++)for(let dj=-radius;dj<=radius;dj++){
+    if(Math.max(Math.abs(di),Math.abs(dj))!==radius)continue;
+    const ni=ci+di*step,nj=cj+dj*step,nx=(ni+.5)*P,ny=(nj+.5)*P;
+    try{
+      G.floor=fl;
+      for(const [dx,dy] of spots)if(isComm(ni,nj,fl)&&airFloor(nx+dx,ny+dy,fl)&&walkable(nx+dx,ny+dy,.28))
+        return{x:nx+dx,y:ny+dy,ci:ni,cj:nj,floor:fl};
+    }finally{G.floor=old}
+  }
+  return null;
+}
+function startRailFreefall(){
+  const target=railJumpTarget();
+  if(!target)return false;
+  const hub=nearestFallCommunity(G.x,G.y,G.floor);
+  if(!hub)return false;
+  G.fall={fromX:G.x,fromY:G.y,fromFloor:G.floor,hub,
+    depth:0,speed:0,elapsed:0,kind:target.kind};
+  G.x=target.x;G.y=target.y;
+  G.cell=placeOf(G.x,G.y);G.inRoom=G.cell.kind==='g';
+  G.pitch=-.25;G.journal=false;G.ents=[];G.phantoms=[];
+  G.state='freefall';EYE=.50;releaseAll();
+  LAMPS.key=null;WD.key=null;
+  snd('scream');sfx('THE LIBRARY HAS NO BOTTOM','mind');
+  return true;
+}
+function tickRailFreefall(dt){
+  if(G.state!=='freefall'||!G.fall)return;
+  const f=G.fall;
+  f.elapsed+=dt;G.time+=dt;G.playClock+=dt;
+  f.speed=Math.min(14,f.speed+9.8*dt);
+  f.depth+=f.speed*dt;
+  // Continuous fall through the real stacked levels. Floor transitions are
+  // purely visual: platforms never catch the falling player.
+  G.floor=f.fromFloor-Math.floor(f.depth/FH);
+  EYE=.50-(f.depth%FH);
+  G.ang+=dt*.045*Math.sin(f.elapsed*.75);
+  G.pitch=-.23-.075*Math.sin(f.elapsed*1.2);
+  if(!(typeof NET!=='undefined'&&NET.ready)){
+    G.clock+=dt;
+    if(G.clock>=DAYLEN){G.clock=DAYLEN-1e-3;blackout()}
+  }
+}
+function recoverRailFreefall(){
+  if(!G.fall)return false;
+  const f=G.fall,hub=nearestFallCommunity(f.fromX,f.fromY,f.fromFloor)||f.hub;
+  G.x=hub.x;G.y=hub.y;G.floor=hub.floor;
+  G.ang=Math.atan2(G.y-(hub.cj+.5)*P,G.x-(hub.ci+.5)*P);
+  G.pitch=0;EYE=.5;
+  G.cell=placeOf(G.x,G.y);G.inRoom=G.cell.kind==='g';
+  G.room=getRoom(Math.round(G.x/P),Math.round(G.y/P));
+  G.gal=G.room.gid;G.rooms.add(G.gal+':'+G.floor);
+  G.fall=null;G.fallWakeDay=G.day;G.ents=[];G.phantoms=[];
+  G.journal=false;LAMPS.key=null;WD.key=null;
+  spawnRoom(false);releaseAll();
+  return true;
+}
 /* fades: into the blackout, then out of it, with the day's number over the dark */
 const smooth=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
 function newDay(){
@@ -2337,7 +2442,7 @@ function newDay(){
   G.echo=G.tr.ribbon?0:Math.max(0,(G.echo||0)-2);
   G.sleepCd=0;G.phantoms=[];G.journal=false;
   G.clock=DAYLEN*6/24;
-  if(G.justReset&&G.room)spawnRoom(false);
+  if(G.justReset&&G.room&&G.state!=='freefall'&&!G.fall)spawnRoom(false);
 }
 function blackout(){G.state='blackout';G.boT=0;G.journal=false;releaseAll();snd('heart')}
 const keys={};
@@ -2350,7 +2455,7 @@ function reset(){
   let c,f,d;do{c=getRoom(P.i+Math.round((Math.random()-0.5)*20),P.j+Math.round((Math.random()-0.5)*20));f=P.f+Math.round((Math.random()-0.5)*10);d=bioDist(c.gid,f,phrase)}while(d<bounds[0]||d>bounds[1]);
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,difficulty,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
-    won:false,winT:0,winG:0,winF:0,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+    won:false,winT:0,winG:0,winF:0,fall:null,fallWakeDay:0,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   spawnRoom(true);
 }
 function enterRoom(c){
@@ -3587,7 +3692,9 @@ const NET={
     // One server-controlled calendar. Each normal client newDay still performs
     // its local wake animation and room reset at the *same* epoch transition.
     if(!initial&&w.day>G.day){
+      const fell=G.state==='freefall'&&!!G.fall;
       for(let k=0;k<Math.min(25,w.day-G.day);k++)newDay();
+      if(fell){recoverRailFreefall();G.state='wake';G.wakeT=0;G.rung=false}
       sfx('DAY '+w.day+' · THE SHARED LIBRARY','mind');
     }
     if(G.resetEpoch!==w.epoch){G.zoneState.clear();G.zoneVisited.clear();WD.key=null;LAMPS.key=null}
@@ -4930,7 +5037,7 @@ function action(a){
   if(G.state==='book'&&G.choice==='stairs'){if(a==='up'||a==='prev')climb(1);else if(a==='down'||a==='next')climb(-1);else if(a==='read'||a==='close'||a==='swing')closeBook();return}
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0;encClosed()}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
-  if(G.state==='play'){if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
+  if(G.state==='play'){if(a==='jump')startRailFreefall();else if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
 }
 let last=performance.now(),needResize=true;
 function frame(now){
@@ -4945,7 +5052,8 @@ function frame(now){
   else if(G.state==='closing'){G.bookAnim+=dt;G.time+=dt;if(G.bookAnim>=0.3){if(G.won){G.state='waking';G.winT=0;G.journal=false}else{G.state='play';if(G.health<=0)die()}}}
   else if(G.state==='waking'){G.winT+=dt;G.time+=dt;EYE=0.5+0.25*Math.min(1,G.winT/1.6);if(G.winT>4.25){G.state='won';drawWon()}}
   else if(G.state==='won'){G.time+=dt}
-  else if(G.state==='blackout'){G.boT+=dt;G.time+=dt;EYE=0.5-0.3*smooth(G.boT/(BLACKOUT*0.8));if(G.boT>=BLACKOUT){newDay();EYE=0.5;G.pitch=0;G.state='wake';G.wakeT=0}}
+  else if(G.state==='blackout'){G.boT+=dt;G.time+=dt;EYE=0.5-0.3*smooth(G.boT/(BLACKOUT*0.8));if(G.boT>=BLACKOUT){newDay();if(G.fall)recoverRailFreefall();EYE=0.5;G.pitch=0;G.state='wake';G.wakeT=0}}
+  else if(G.state==='freefall'){tickRailFreefall(dt)}
   else if(G.state==='wake'){G.wakeT+=dt;G.time+=dt;if(G.wakeT>=0.2&&!G.rung){G.rung=true;snd('bell')}if(G.wakeT>=WAKE){G.state='play';G.rung=false}}
   else if(G.state==='climb'){G.climbT+=dt;G.time+=dt;if(!G.climbed&&G.climbT>=0.6){G.climbed=true;G.floor+=G.climbDir;LAMPS.key=null;WD.key=null;enterRoom(G.room);sfx('FLOOR '+G.floor+(hubFloor()?' · COMMUNAL':' · TRANSIT'),'mind')}if(G.climbT>=1.2)G.state='play'}
   else if(G.state==='sleep'){G.sleepT+=dt;G.time+=dt;if(G.sleepT>=2.2){G.state='play';G.sanity=Math.min(100,G.sanity+15);if(G.oil>0)G.oil--;G.sleepCd=75;sfx('+15 SANITY','mind');setTimeout(()=>sfx('-1 OIL'),300)}}
@@ -4991,6 +5099,7 @@ addEventListener('keydown',ev=>{
     return;
   }
   if(KEYMAP[c]&&G.state==='play'){keys[KEYMAP[c]]=true;ev.preventDefault()}
+  if(c==='KeyG'&&G.state==='play'){if(!ev.repeat)action('jump');ev.preventDefault();return}
   if(c==='Space'){action('swing');ev.preventDefault()}
   if(c==='KeyE'||c==='Enter'){action('read');ev.preventDefault()}
   if(c==='KeyJ'||c==='Tab'){action('journal');ev.preventDefault()}
