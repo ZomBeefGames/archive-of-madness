@@ -27,7 +27,7 @@ function projection(depth=Infinity){
   lightP(){return 1},put(i,r,g,b,L){painted.push({i,r,g,b,L})}
  });
  vm.runInContext(rail,ctx);
- return{ctx,RT,RY0,RY1,NR,painted,draw:()=>vm.runInContext('railCol(0,8,1.5)',ctx)};
+ return{ctx,RT,RY0,RY1,NR,painted,draw:()=>vm.runInContext('railCol(0,8,0)',ctx)};
 }
 
 test('catwalk rail is actually rasterized at all five floor elevations',()=>{
