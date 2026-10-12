@@ -2997,7 +2997,7 @@ function initiatePersonShove(mode='push'){
   return true;
 }
 function tickPlayerKnockback(dt){
-  if(ME.rag)stepRagdoll(ME,dt);
+  if(typeof ME!=='undefined'&&ME.rag)stepRagdoll(ME,dt);
   const p=G.knockback;if(!p)return false;
   const prev=p.t;p.t=Math.min(1,p.t+dt/p.duration);
   const easing=v=>v*v*(3-2*v),d=(easing(p.t)-easing(prev))*p.distance;
