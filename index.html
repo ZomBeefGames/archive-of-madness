@@ -2790,13 +2790,15 @@ function personTarget(mode='push'){
   }
   return best;
 }
-function openDropAhead(x,y,dx,dy){
-  // Only a truly open gallery shaft or a gap beyond the catwalk can produce
-  // a fall. Barricades and ordinary walls always stop the shove instead.
-  const fx=x+dx*.40,fy=y+dy*.40,c=placeOf(fx,fy);
-  if(c.kind==='g')return inHoleC(c,fx,fy);
-  return !airFloor(fx,fy,G.floor)&&!galleryBarricadeAt(fx,fy,.12)&&
-    !placedBlockAt(fx,fy,.12);
+function openDropAhead(x,y,dx,dy,fromX=G.x,fromY=G.y){
+  // Start on the existing floor. An exterior gallery wall is not a railing;
+  // never let a thrown character pass through it into the void.
+  const source=placeOf(fromX,fromY),
+    fx=x+dx*.40,fy=y+dy*.40;
+  if(source.kind==='g')return inHoleC(source,fx,fy)&&
+    !galleryBarricadeAt(fx,fy,.12)&&!placedBlockAt(fx,fy,.12);
+  return airFloor(fromX,fromY,G.floor)&&!airFloor(fx,fy,G.floor)&&
+    !galleryBarricadeAt(fx,fy,.12)&&!placedBlockAt(fx,fy,.12);
 }
 function beginPersonFall(e,dx,dy){
   e.shove=null;e.fallState={t:0,vz:1.6,dx,dy,fl:G.floor};
@@ -2817,7 +2819,7 @@ function tickPersonShove(e,dt){
   const eased=v=>v*v*(3-2*v),delta=(eased(p.t)-eased(prev))*p.distance,
     nx=e.x+p.dx*delta,ny=e.y+p.dy*delta;
   if(walkable(nx,ny,.20)){e.x=nx;e.y=ny}
-  else if(openDropAhead(nx,ny,p.dx,p.dy)){e.x=nx;e.y=ny;beginPersonFall(e,p.dx,p.dy);return true}
+  else if(openDropAhead(nx,ny,p.dx,p.dy,e.x,e.y)){e.x=nx;e.y=ny;beginPersonFall(e,p.dx,p.dy);return true}
   else {e.shove=null;e.zw=0;e.lvl=0;return false}
   e.zw=p.mode==='throw'?.33*Math.sin(Math.PI*p.t):.10*Math.sin(Math.PI*p.t);
   e.lvl=0;e.hit=Math.max(e.hit||0,.34);e.pose='flail';
@@ -2849,7 +2851,7 @@ function tickPlayerKnockback(dt){
   const easing=v=>v*v*(3-2*v),d=(easing(p.t)-easing(prev))*p.distance;
   const nx=G.x+p.dx*d,ny=G.y+p.dy*d;
   if(walkable(nx,ny,.28)){G.x=nx;G.y=ny;G.cell=placeOf(nx,ny);G.inRoom=G.cell.kind==='g'}
-  else if(openDropAhead(nx,ny,p.dx,p.dy)){
+  else if(openDropAhead(nx,ny,p.dx,p.dy,G.x,G.y)){
     G.knockback=null;
     startRailFreefall({x:nx+p.dx*.65,y:ny+p.dy*.65,kind:'thrown'});
     return true;
@@ -3781,6 +3783,17 @@ const NET={
       else if(m.type==='resources')this.receiveResources(m.resources,m.tr);
       else if(m.type==='enemies')this.receiveEnemies(m.enemies||[]);
       else if(m.type==='combat'){if(m.action==='kill')sfx('THE LIBRARY REMEMBERS THE FALL','mind')}
+      else if(m.type==='shove'){
+        if(m.targetId===this.id&&G.state==='play'){
+          const mode=m.mode==='throw'?'throw':'push';
+          G.knockback={dx:Number(m.dx)||0,dy:Number(m.dy)||0,
+            distance:mode==='throw'?3.2:1.3,duration:mode==='throw'?.46:.30,t:0};
+          G.journal=false;sfx(mode==='throw'?'YOU WERE THROWN':'YOU WERE PUSHED','red');
+        }else{
+          const p=this.peers.get(m.targetId);
+          if(p)p.hitShove=m.mode==='throw'?.5:.32;
+        }
+      }
       else if(m.type==='damage'&&m.id===this.id){
         G.health=Math.max(0,G.health-(Number(m.health)||0));
         G.sanity=Math.max(0,G.sanity-(Number(m.sanity)||0));
@@ -3936,11 +3949,12 @@ const NET={
     const profile=normalCharacter(p.appearance);
     if(old){
       old.tx=p.x;old.ty=p.y;old.tf=p.f;old.floor=p.floor;old.pose=p.pose;
+      old.active=p.active;old.falling=!!p.falling;
       old.name=String(p.name||old.name).slice(0,18);
       const key=JSON.stringify(profile);
       if(old.profileKey!==key){old.profileKey=key;old.rig=characterRig(profile)}
     }else this.peers.set(p.id,{type:'fig',x:p.x,y:p.y,tx:p.x,ty:p.y,f:p.f,tf:p.f,
-      floor:p.floor,coat:(Number(p.coat)||0)%3,pose:'stand',seed:Number(p.id)||1,
+      floor:p.floor,coat:(Number(p.coat)||0)%3,pose:p.pose||'stand',active:p.active,falling:!!p.falling,seed:Number(p.id)||1,
       walk:0,name:String(p.name||'READER').slice(0,18),rig:characterRig(profile),
       profileKey:JSON.stringify(profile)});
 
@@ -3951,7 +3965,8 @@ const NET={
       const rate=Math.min(1,dt*11),dx=p.tx-p.x,dy=p.ty-p.y;
       p.x+=dx*rate;p.y+=dy*rate;p.f+=angDiff(p.tf,p.f)*rate;
       const moving=Math.hypot(dx,dy)>.04;
-      p.pose=moving?'run':'stand';gaitUpd(p,dt,.5);
+      p.pose=p.falling?'fall':p.hitShove>0?'flail':moving?'run':'stand';
+      p.hitShove=Math.max(0,(p.hitShove||0)-dt);gaitUpd(p,dt,.5);
     }
     const t=performance.now();
     if(t-this.lastResources>240){this.lastResources=t;this.sendResourceDeltas()}
@@ -5044,6 +5059,7 @@ function hitCtl(x,y,dpadOnly){
 }
 
 let RAIL_JUMP_BUTTON=null;
+const PERSON_BUTTONS={push:null,throw:null};
 const HUD=[{key:'vit',tex:TX.vit,ph:0},{key:'face',tex:TX.face,ph:1.3},{key:'stat',tex:TX.stat,ph:2.6}];
 let texT=0,HT=0;const UI={show:false,t:9},jr={hgt:0.4,ph:0.7},bookCard={hgt:0.6},introCard={hgt:0.8},deadCard={hgt:0.58},wonCard={hgt:0.58};
 function hands(){
@@ -5179,6 +5195,7 @@ function display(dt){
    canvas click targets and have keyboard equivalents on desktop. */
 function drawCoopHUD(){
   BUILD.uiButton=null;NET.shareButton=null;RAIL_JUMP_BUTTON=null;
+  PERSON_BUTTONS.push=null;PERSON_BUTTONS.throw=null;
   if(G.state!=='play')return;
   const g=vctx,u=Math.max(1,Math.min(1.6,Math.min(DW,DH)/630));
   const font=Math.round(16*u),x=18*u,y=18*u;
@@ -5217,6 +5234,25 @@ function drawCoopHUD(){
     g.font=Math.round(12*u)+'px Georgia';g.fillStyle='#cbb28e';
     g.fillText(FINE?'G · JUMP':'TAP TO JUMP',bx+w/2,by+39*u,w-12*u);
     RAIL_JUMP_BUTTON={x0:bx,y0:by,x1:bx+w,y1:by+h};
+  }
+  const throwTarget=personTarget('throw'),pushTarget=personTarget('push');
+  if(pushTarget){
+    const buttonW=164*u,buttonH=48*u,bx=DW-buttonW-18*u;
+    let y=DH*.45;
+    for(const [kind,available] of [['push',pushTarget],['throw',throwTarget]]){
+      if(!available)continue;
+      g.fillStyle='rgba(27,18,22,.91)';g.fillRect(bx,y,buttonW,buttonH);
+      g.strokeStyle=kind==='throw'?'#d78a55':'#bba17a';g.lineWidth=2;
+      g.strokeRect(bx+1,y+1,buttonW-2,buttonH-2);
+      g.textAlign='center';g.textBaseline='middle';g.fillStyle='#f2e0c1';
+      g.font='bold '+Math.round(16*u)+'px Georgia';
+      g.fillText(kind==='throw'?'THROW PERSON':'PUSH PERSON',bx+buttonW/2,y+17*u,buttonW-12*u);
+      g.fillStyle='#ceaf83';g.font=Math.round(12*u)+'px Georgia';
+      g.fillText(FINE?(kind==='throw'?'O · THROW':'P · PUSH'):'TAP TO '+kind.toUpperCase(),
+        bx+buttonW/2,y+37*u,buttonW-12*u);
+      PERSON_BUTTONS[kind]={x0:bx,y0:y,x1:bx+buttonW,y1:y+buttonH};
+      y+=buttonH+8*u;
+    }
   }
   const t=portableTarget(),canBuild=BUILD.planks>0||t&&!t.wreck;
   if(!canBuild)return;
@@ -5339,6 +5375,12 @@ view.addEventListener('pointerdown',ev=>{
   ev.preventDefault();try{view.focus({preventScroll:true})}catch(e){}
   try{view.setPointerCapture(ev.pointerId)}catch(e){}
   const pt=canvasPt(ev);
+  if(G.state==='play')for(const kind of ['push','throw']){
+    const b=PERSON_BUTTONS[kind];
+    if(b&&pt.x>=b.x0&&pt.x<=b.x1&&pt.y>=b.y0&&pt.y<=b.y1){
+      action(kind);return;
+    }
+  }
   if(G.state==='play'&&RAIL_JUMP_BUTTON&&pt.x>=RAIL_JUMP_BUTTON.x0&&pt.x<=RAIL_JUMP_BUTTON.x1&&pt.y>=RAIL_JUMP_BUTTON.y0&&pt.y<=RAIL_JUMP_BUTTON.y1){action('jump');return}
   if(G.state==='play'&&BUILD.uiButton&&pt.x>=BUILD.uiButton.x0&&pt.x<=BUILD.uiButton.x1&&pt.y>=BUILD.uiButton.y0&&pt.y<=BUILD.uiButton.y1){
     action('build');return;
