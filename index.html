@@ -2887,7 +2887,52 @@ function wallPx(i,h,z,lv,L){
   else{put(i,176,138,62,L);return}
   put(i,tex[ti],tex[ti+1],tex[ti+2],L);
 }
-function floorPx(i,px,py,L){const ti=((((py%1)+1)%1*32|0)*32+(((px%1)+1)%1*32|0))*4;put(i,floorTex[ti],floorTex[ti+1],floorTex[ti+2],L*2.2)}
+/* Material accents follow the actual gallery coordinates. This small LRU cache
+   avoids rehashing procedural rooms for each software-rendered floor pixel. */
+const GOTHIC_FLOOR_LOOKUP=new Map();
+function gothicFloorZone(px,py){
+ const gi=Math.round(px/P),gj=Math.round(py/P),key=G.resetEpoch+'|'+G.floor+'|'+gi+','+gj;
+ let item=GOTHIC_FLOOR_LOOKUP.get(key);
+ if(!item){
+   item={zone:galleryZone(gi,gj),cx:gi*P,cy:gj*P};
+   GOTHIC_FLOOR_LOOKUP.set(key,item);
+   if(GOTHIC_FLOOR_LOOKUP.size>80)GOTHIC_FLOOR_LOOKUP.delete(GOTHIC_FLOOR_LOOKUP.keys().next().value);
+ }
+ return item;
+}
+function floorPx(i,px,py,L){
+ const ti=((((py%1)+1)%1*32|0)*32+(((px%1)+1)%1*32|0))*4;
+ let r=floorTex[ti],g=floorTex[ti+1],b=floorTex[ti+2],gain=L*2.2;
+ const m=gothicFloorZone(px,py),z=m.zone,type=z.type;
+ // These decals are lighting-only: collisions, floor planes and shelf addresses
+ // are never changed. A broken gallery must remain navigable.
+ if(type!=='normal'){
+   const x=px-m.cx,y=py-m.cy,d2=x*x+y*y,cell=((px*11|0)*13+(py*7|0)*17+z.seed)&15;
+   if(['burned','burning','obliterated','collapse','ashvoid','skeleton'].includes(type)){
+     const soot=.48+(cell/15)*.19;
+     r*=soot;g*=soot*.98;b*=soot*.99;
+     // Open stone cracks are dark but never change hit testing.
+     if(Math.abs(Math.sin(px*3.4+z.seed*.01)+Math.cos(py*4.2))<.08){r*=.38;g*=.39;b*=.40}
+   }else if(type==='flooded'){
+     // Oil-dark water with narrow, animated lantern-like ripples.
+     r=r*.30+15;g=g*.37+26;b=b*.46+36;
+     const ripple=Math.sin((px+py)*7.5+G.time*.85+z.seed*.001);
+     if(ripple>.87&&d2<13){r+=26;g+=19;b+=11}
+     gain*=.85;
+   }else if(['study','observatory','memory','puriflab','vault'].includes(type)){
+     const seam=Math.abs(((px*2.5)%1+1)%1-.5)<.025;
+     if(seam){r=r*.67+14;g=g*.67+19;b=b*.67+20}
+     if(d2>5.8&&d2<6.2){r+=36;g+=28;b+=13}
+   }else if(['confession','chain','judgment','mirrorhall','quarantine'].includes(type)){
+     const ring=Math.abs(d2-7.4)<.27;
+     if(ring){r=r*.77+52;g=g*.70+25;b=b*.70+17}
+     if(type==='quarantine'&&Math.abs(x+y)<.07){r+=46;g+=23;b+=7}
+   }else if(type==='bindery'||type==='refuge'){
+     if(cell===0){r+=16;g+=11;b+=5}
+   }
+ }
+ put(i,r,g,b,gain);
+}
 function ceilPx(i,px,py,L){const ti=((((py%1)+1)%1*16|0)*16+(((px%1)+1)%1*16|0))*4;put(i,ceilTex[ti],ceilTex[ti+1],ceilTex[ti+2],L*2.2)}
 /* a ray that went into an air shaft: it falls (or rises) past the other floors until it leaves the shaft, then lands on
    whatever is there - the shaft's stone lip, a railing, or the floor, ceiling or shelves of another storey */
