@@ -3179,6 +3179,32 @@ function render(){
   G.x=cx;G.y=cy;G.inRoom=placeOf(cx,cy).kind==='g';EYE=se+0.62*Math.min(1,d/0.8);
   try{renderScene(MEP)}finally{G.x=sx;G.y=sy;G.inRoom=sin_;EYE=se}
 }
+/* The world has complete geometry at more levels already; the surrounding
+   five actual floors now also contribute their native props, objects and
+   lamps. Culling avoids a five-fold mobile draw cost when out of view. */
+function floorSpriteVisible(e){
+  const dx=e.x-G.x,dy=e.y-G.y,
+    forward=dx*Math.cos(G.ang)+dy*Math.sin(G.ang),
+    lateral=-dx*Math.sin(G.ang)+dy*Math.cos(G.ang);
+  if(forward<.13||forward>31||Math.abs(lateral)>forward*PLANE+1.6)return false;
+  const z=e.z0||0,top=HZ-(z+(e.hgt||.5)-EYE)*PROJ/forward,
+    bottom=HZ+(EYE-z)*PROJ/forward;
+  return top<H+12&&bottom>-12;
+}
+function addFiveFloorDressing(out){
+  const origin=G.floor;
+  try{
+    for(let k=-VISIBLE_FLOORS;k<=VISIBLE_FLOORS;k++){
+      G.floor=origin+k;
+      const layers=[];
+      addZoneDressing(layers);
+      for(const e of layers){
+        if(k)e.z0=(e.z0||0)+k*FH;
+        if(floorSpriteVisible(e))out.push(e);
+      }
+    }
+  }finally{G.floor=origin}
+}
 function renderScene(MEP){
   if(DEP.length!==W*H)DEP=new Float32Array(W*H);
   FLICK=.91+.045*Math.sin(G.time*13)+.038*Math.sin(G.time*31.7);LANR=G.oil>0?3.8+Math.min(G.oil,10)*0.6+(torchLit()?0.8:0):torchLit()?4.7:1.1;
@@ -3186,12 +3212,14 @@ function renderScene(MEP){
   const POSE=[];for(const e of G.ents)if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}else if(e.type==='seek')seekLayers(e,POSE);else if(e.type==='fig')figLayers(e,POSE);
   if(G.state!=='freefall')lifeLayers(POSE);
   if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
-    if(e.floor!==G.floor||Math.hypot(e.x-G.x,e.y-G.y)>35)continue;
+    if(Math.abs(e.floor-G.floor)>VISIBLE_FLOORS||Math.hypot(e.x-G.x,e.y-G.y)>35)continue;
+    e.lvl=e.floor-G.floor;e.zw=e.lvl*FH;
     if(e.type==='pur')purLayers(e,POSE);else seekLayers(e,POSE);
   }
   if(typeof NET!=='undefined'&&NET.ready)for(const p of NET.peers.values())
-    if(p.floor===G.floor&&Math.hypot(p.x-G.x,p.y-G.y)<35){
+    if(Math.abs(p.floor-G.floor)<=VISIBLE_FLOORS&&Math.hypot(p.x-G.x,p.y-G.y)<35){
       if(!p.rig)p.rig=FIGRIG[1+(p.coat%2)];
+      p.lvl=p.floor-G.floor;p.zw=p.lvl*FH;
       figLayers(p,POSE);
     }
   const low=G.sanity<25?(25-G.sanity)/25:0;
@@ -3229,13 +3257,21 @@ function renderScene(MEP){
     }
   }
   const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek'&&e.type!=='fig').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
-  addZoneDressing(list);
-  {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),key=i0+','+j0;
+  addFiveFloorDressing(list);
+  {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),
+      key=i0+','+j0+'|'+G.floor+'|'+G.resetEpoch+'|'+hubStride();
    if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];const lamp=(x,y,z)=>LAMPS.list.push({type:'lamp',x,y,z0:z,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
-     for(let i=i0-3;i<=i0+3;i++)for(let j=j0-3;j<=j0+3;j++){for(const q of getRoom(i,j).lamps)lamp(q[0],q[1],LAMPZ);lamp((i+0.5)*P,(j+0.5)*P,isComm(i,j)?JLZ:JLZ+0.2)}}
+     for(let i=i0-2;i<=i0+2;i++)for(let j=j0-2;j<=j0+2;j++){
+       const rm=getRoom(i,j);
+       for(let k=-VISIBLE_FLOORS;k<=VISIBLE_FLOORS;k++){
+         for(const q of rm.lamps)lamp(q[0],q[1],k*FH+LAMPZ);
+         lamp((i+.5)*P,(j+.5)*P,k*FH+(isComm(i,j,G.floor+k)?JLZ:JLZ+.2));
+       }
+     }}
    // with no mirror in view, lamps behind you or far off to the side cannot show
    const mir=LGN.some(n=>n>1),cs=Math.cos(G.ang),sn=Math.sin(G.ang);
-   for(const L of LAMPS.list){const dx=L.x-G.x,dy=L.y-G.y,f=dx*cs+dy*sn;if(mir||(f>0.1&&Math.abs(-dx*sn+dy*cs)<f*PLANE+0.6&&f<26))list.push(L)}}
+   for(const L of LAMPS.list){const dx=L.x-G.x,dy=L.y-G.y,f=dx*cs+dy*sn;
+     if((mir||f>0.1&&Math.abs(-dx*sn+dy*cs)<f*PLANE+.6&&f<26)&&floorSpriteVisible(L))list.push(L)}}
   fires.forEach((F,i)=>list.push({type:'fire',x:F.x,y:F.y,bill:true,hgt:0.6*Math.min(1,F.t/2),cards:FIREC,frame:Math.floor(G.time*10+i)%3,dead:0}));
   if(G.meal&&G.meal.fl===G.floor&&G.time>=G.meal.ready)list.push({type:'meal',x:G.meal.x,y:G.meal.y,z0:0.55,hgt:0.24,bill:true,cards:[MEALC],frame:0,dead:0});
   if(!THIRD&&LGN.some(n=>n>1))list.push({type:'self',x:G.x,y:G.y,f:G.ang,hgt:1.25,cards:[LIBC],frame:0,dead:0,self:true});
