@@ -143,11 +143,20 @@ async function caseRun(label,contextOptions){
   // midnight blackout and nearest real community wake must work end to end.
   const jumpStart=await page.evaluate(()=>{
     const a=window.__AOM_TEST,g=a.G,c=g.room;
-    g.state='play';g.journal=false;g.x=c.cx;g.y=c.cy+2.4;
-    g.cell=c;g.inRoom=true;g.ang=-Math.PI/2;g.pitch=0;g.floor=3;
-    return{available:!!a.railJumpTarget(),floor:g.floor};
+    g.state='play';g.journal=false;g.floor=3;
+    let catwalk=false;
+    for(const [x,y,ang] of [[c.cx+5.7,c.cy,-Math.PI/2],[c.cx+6.2,c.cy,Math.PI/2],
+      [c.cx-5.7,c.cy,Math.PI/2],[c.cx-6.2,c.cy,-Math.PI/2]]){
+      g.x=x;g.y=y;g.cell=a.placeOf(x,y);g.inRoom=false;g.ang=ang;
+      const target=a.railJumpTarget();
+      if(target?.kind==='catwalk')catwalk=true;
+    }
+    g.x=c.cx;g.y=c.cy+2.4;
+    g.cell=c;g.inRoom=true;g.ang=-Math.PI/2;g.pitch=0;
+    return{available:!!a.railJumpTarget(),catwalk,floor:g.floor};
   });
   assert.equal(jumpStart.available,true,label+' needs a real jumpable shaft railing');
+  assert.equal(jumpStart.catwalk,true,label+' must also allow vaulting actual catwalk rails');
   await page.waitForFunction(()=>!!window.__AOM_TEST?.RAIL_JUMP_BUTTON,null,{timeout:12000});
   const railButton=await page.evaluate(()=>{
     const a=window.__AOM_TEST,r=a.view.getBoundingClientRect(),b=a.RAIL_JUMP_BUTTON;
