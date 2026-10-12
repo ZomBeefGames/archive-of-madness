@@ -3,7 +3,7 @@ import test from 'node:test';
 import {createServer} from 'node:http';
 import {once} from 'node:events';
 import {WebSocket} from 'ws';
-import {GameRooms,attachMultiplayer,MAX_PARTY,validCode,cleanAppearance,validFallRecovery} from '../multiplayer.mjs';
+import {GameRooms,attachMultiplayer,MAX_PARTY,validCode,cleanAppearance,validFallRecovery,validPersonShove} from '../multiplayer.mjs';
 
 function mock(){
   return {readyState:WebSocket.OPEN,messages:[],
@@ -211,4 +211,48 @@ test('co-op accepts a legitimate multi-floor fall and nearest-hub dawn recovery,
  assert.ok(other.messages.some(m=>m.type==='peer'&&m.player.x===8.71));
  pose(8.71,8.71,180,{active:true});
  assert.equal(p.floor,0,'ordinary teleport protection remains active');
+});
+
+
+test('server checks range, view direction, floor and cooldown for pushing real co-op peers',()=>{
+ const {rooms,host,code}=lobby(),guest=mock();
+ post(rooms,guest,{type:'join',room:code,name:'ANOTHER READER'});
+ const a=host.player,b=guest.player;
+ a.x=4;a.y=0;a.f=0;a.floor=0;a.active=true;
+ b.x=5.05;b.y=0;b.f=Math.PI;b.floor=0;b.active=true;
+ assert.equal(validPersonShove(a,b,'push'),true);
+ assert.equal(validPersonShove(a,b,'throw'),true);
+ post(rooms,host,{type:'shove',kind:'peer',targetId:b.id,mode:'push'});
+ const first=guest.messages.filter(m=>m.type==='shove');
+ assert.equal(first.length,1);
+ assert.deepEqual({mode:first[0].mode,targetId:first[0].targetId,fromId:first[0].fromId},
+   {mode:'push',targetId:b.id,fromId:a.id});
+ post(rooms,host,{type:'shove',kind:'peer',targetId:b.id,mode:'push'});
+ assert.equal(guest.messages.filter(m=>m.type==='shove').length,1,'cooldown blocks repeated rapid shoves');
+ a.lastShove=0;a.f=Math.PI;
+ post(rooms,host,{type:'shove',kind:'peer',targetId:b.id,mode:'throw'});
+ assert.equal(guest.messages.filter(m=>m.type==='shove').length,1,'turning away invalidates throw');
+ a.lastShove=0;a.f=0;b.floor=-1;
+ assert.equal(validPersonShove(a,b,'push'),false,'players on different floors are not targets');
+ post(rooms,host,{type:'shove',kind:'peer',targetId:b.id,mode:'push'});
+ assert.equal(guest.messages.filter(m=>m.type==='shove').length,1);
+ b.floor=0;b.active=false;
+ assert.equal(validPersonShove(a,b,'push'),false,'inactive readers cannot be shoved');
+});
+test('server owns enemy shove impulse and advances shared position for all viewers',()=>{
+ const {rooms,room,host,code}=lobby(),guest=mock();
+ post(rooms,guest,{type:'join',room:code,name:'WITNESS'});
+ const p=host.player;
+ p.active=true;p.floor=0;p.x=4;p.y=0;p.f=0;
+ const e={id:'npc:test:shove',x:5.15,y:0,f:0,floor:0,type:'pur',hp:6,dead:false,
+   cx:4,cy:0,lastAttack:Date.now()};
+ room.world.enemies.push(e);
+ post(rooms,host,{type:'shove',kind:'enemy',targetId:e.id,mode:'throw'});
+ assert.equal(e.knock.mode,'throw');
+ assert.ok(guest.messages.some(m=>m.type==='shove'&&m.targetId===e.id&&m.kind==='enemy'));
+ const x=e.x,now=Date.now();
+ room.engine.lastTick=now-95;
+ room.engine.tick(now);
+ assert.ok(e.x>x,'server advances enemy rather than trusting a client-only animation');
+ assert.ok(guest.messages.some(m=>m.type==='enemies'&&m.enemies.some(q=>q.id===e.id&&q.x>x)));
 });
