@@ -2425,7 +2425,12 @@ function tickRailFreefall(dt){
   G.pitch=-.23-.075*Math.sin(f.elapsed*1.2);
   if(!(typeof NET!=='undefined'&&NET.ready)){
     G.clock+=dt;
-    if(G.clock>=DAYLEN){G.clock=DAYLEN-1e-3;blackout()}
+    if(G.clock>=DAYLEN){
+      if(MODE.type!=='story'){
+        G.day++;G.clock=DAYLEN*6/24;
+        recoverRailFreefall();G.state='play';
+      }else{G.clock=DAYLEN-1e-3;blackout()}
+    }
   }
 }
 function recoverRailFreefall(){
@@ -4576,6 +4581,11 @@ const NET={
     }
     // One server-controlled calendar. Each normal client newDay still performs
     // its local wake animation and room reset at the *same* epoch transition.
+    if(MODE.type!=='story'&&!initial&&w.day>G.day&&G.fall){
+      G.day=w.day;
+      recoverRailFreefall();G.state='play';
+      sfx('THE LIBRARY CARRIES YOU BACK TO A LANDING','mind');
+    }
     if(MODE.type==='story'&&!initial&&w.day>G.day){
       const fell=G.state==='freefall'&&!!G.fall;
       for(let k=0;k<Math.min(25,w.day-G.day);k++)newDay();
