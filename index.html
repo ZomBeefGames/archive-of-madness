@@ -138,6 +138,8 @@ function walkable(x,y,rad){
     if(m&&(Math.abs(x-m.i*P)>(m.radius+.43)*P-rad||
       Math.abs(y-m.j*P)>(m.radius+.43)*P-rad))return false;
   }
+  if(typeof MODE!=='undefined'&&MODE.type==='horde'&&
+    !hordeWingAccess(x,y,MODE.siege?.doors,rad))return false;
   if(galleryBarricadeAt(x,y,rad)||(typeof placedBlockAt==='function'&&placedBlockAt(x,y,rad)))return false;
    if(typeof bridgeFooting==='function'&&!bridgeFooting(x,y,rad))return false;
   const i=Math.round(x/P),j=Math.round(y/P),lx=x-i*P,ly=y-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
@@ -576,7 +578,24 @@ function cast(ox,oy,dx,dy){
     else{const RL=VQ.rails;for(let ri=0;ri<RL.length;ri++){const s=RL[ri],ex=s.bx-s.ax,ey=s.by-s.ay,den=dx*ey-dy*ex;if(den>-1e-12&&den<1e-12)continue;const wx=s.ax-lx,wy=s.ay-ly,t=(wx*ey-wy*ex)/den;if(t<=1e-5||t>=lim)continue;const q=(wx*dy-wy*dx)/den;if(q<0||q>1)continue;rh(t0+t,q*s.len*0.33,0,0,1)}
       const WL=VQ.wells;for(let wi=0;wi<WL.length;wi++)circ(lx,ly,dx,dy,WL[wi][0],WL[wi][1],RSW,lim,t0,1)}
     if(TV.n<200){TV.c[TV.n]=inR?getRoom(si,sj):getAir(si,sj);TV.t1[TV.n]=t0+lim;TV.door[TV.n++]=bs&&bs.type==='door'&&best<=tp?1:0}
-    if(tp<best){t0+=tp;px+=dx*tp;py+=dy*tp;if(ax)sj+=dy>0?1:-1;else si+=dx>0?1:-1;if(t0>140)break;continue}
+    if(tp<best){
+      t0+=tp;px+=dx*tp;py+=dy*tp;
+      if(ax)sj+=dy>0?1:-1;else si+=dx>0?1:-1;
+      // Visually close off both special-map districts with real masonry
+      // at their actual physical boundary, not an invisible gameplay fence.
+      if(typeof MODE!=='undefined'&&MODE.type!=='story'&&
+        !(typeof TITLE_FLY!=='undefined'&&TITLE_FLY.previewing)){
+        const m=MODE_MAPS[MODE.type];
+        if(m&&(Math.abs(si-m.i)>m.radius||Math.abs(sj-m.j)>m.radius)){
+          LEG.t0[LEG.n]=t0;
+          HIT.t=t0;HIT.seg={wall:ax?0:1,len:P};
+          HIT.cell=TV.c[TV.n-1]||getAir(si,sj);
+          HIT.type='ext';HIT.u=((ax?px:py)%P+P)%P/P;
+          HIT.x=px;HIT.y=py;res=HIT;break;
+        }
+      }
+      if(t0>140)break;continue;
+    }
     if(!bs)break;
     t0+=best;const hx=px+dx*best,hy=py+dy*best,u=bs.u0+(bs.u1-bs.u0)*bk;
     if(bs.type==='door'){inR=!inR;px=hx;py=hy;continue}
@@ -4144,6 +4163,52 @@ const MODE_MAPS={
    zones:['refuge','burned','puriflab','obliterated','skeleton','bindery','ashvoid','burning','red'],
    bridges:['patch','service','broken','burned','checkpoint']}
 };
+/* The Dead Letter Depot is a sealed seven-gallery-square arena with an
+   interior siege room, purchasable wings and genuine zombie window lanes.
+   The original index.html is still fully playable offline; this duplicate
+   mirrors the small shared authoritative horde-siege.mjs catalogue. */
+const DEPOT_X=MODE_MAPS.horde.i*P,DEPOT_Y=MODE_MAPS.horde.j*P;
+const HORDE_DOORS=[
+ {id:'east',name:'EAST RESERVE',x:DEPOT_X+6.92,y:DEPOT_Y,cost:450,requires:null},
+ {id:'west',name:'WESTERN INKWORKS',x:DEPOT_X-6.92,y:DEPOT_Y,cost:650,requires:null},
+ {id:'north',name:'NORTHERN SANCTUM',x:DEPOT_X+8,y:DEPOT_Y-6.92,cost:950,requires:'east'},
+ {id:'south',name:'SOUTHERN FURNACE',x:DEPOT_X+8,y:DEPOT_Y+6.92,cost:1150,requires:'east'}
+];
+const HORDE_WINDOWS=[
+ ['central-east','EASTERN WINDOW',0,0,1,null],
+ ['central-west','WESTERN WINDOW',0,0,-1,null],
+ ['east','EAST RESERVE WINDOW',1,0,1,'east'],
+ ['west','INKWORKS WINDOW',-1,0,-1,'west'],
+ ['north','SANCTUM WINDOW',0,-1,1,'north'],
+ ['south','FURNACE WINDOW',0,1,1,'south'],
+ ['northeast','UPPER STUDY WINDOW',1,-1,1,'north'],
+ ['southeast','LOWER STUDY WINDOW',1,1,1,'south']
+].map(([id,name,i,j,side,requires])=>({
+ id,name,x:(MODE_MAPS.horde.i+i)*P+side*5*Math.cos(Math.PI/6),
+ y:(MODE_MAPS.horde.j+j)*P,side,i:MODE_MAPS.horde.i+i,
+ j:MODE_MAPS.horde.j+j,requires,maxHp:6
+}));
+const HORDE_REPAIR_REWARD=25,HORDE_REPAIR_LIMIT=5,HORDE_REPAIR_COOLDOWN=.65;
+function hordeSiegeStart(){
+ return{doors:Object.fromEntries(HORDE_DOORS.map(d=>[d.id,false])),
+  windows:Object.fromEntries(HORDE_WINDOWS.map(w=>[w.id,{id:w.id,
+   hp:w.maxHp,maxHp:w.maxHp,repairs:0}]))};
+}
+function hordeWingAccess(x,y,doors,rad=0){
+ if(!doors)return false;
+ return!(x>DEPOT_X+6.92-rad&&!doors.east||
+  x<DEPOT_X-6.92+rad&&!doors.west||
+  y<DEPOT_Y-6.92+rad&&!doors.north||
+  y>DEPOT_Y+6.92-rad&&!doors.south);
+}
+function modeSiegeDoorArt(){
+ return buildCard(['..kkkkkkkkkkkk..','.kGGGGGGGGGGGGk.',
+  'kGGGGGYYYYGGGGGk','kGGGGYkkkkYGGGGk','kGGGYkttttkYGGGk',
+  'kGGGYkttttkYGGGk','kGGGYkttttkYGGGk','kGGGGYkkkkYGGGGk',
+  'kGGGGGYYYYGGGGGk','kGGGGGGGGGGGGGGk','kkkkkkkkkkkkkkkk']);
+}
+const HORDE_DOOR_CARD=modeSiegeDoorArt();
+
 const MODE_STATION_OFFSETS=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1]];
 const WORD_BOOKS=[
  {id:'primer',name:'POCKET PRIMER',rarity:'WORN',price:0,damage:2,cadence:330,mag:18,reserve:90,range:13,reload:1450,pierce:1,colour:'#e9d3a3',words:['NO','STOP','HUSH','TURN','AWAY']},
