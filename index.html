@@ -3178,11 +3178,19 @@ function doSwing(){
   const rod=G.weapon==='rod',torch=torchLit(),reach=rod?2.1:torch?1.65:1.35,cone=rod?0.3:0.65,dmg=(rod?1:2)+Math.min(2,G.dark)+(G.tr.thimble?1:0);
   G.swingCd=rod?0.35:torch?0.47:0.6;G.swing=1;snd(torch?'fire':rod?'poke':'swing');
   let e=null,bd=1e9;
-  for(const q of G.ents){if(q.dead||(q.type!=='pur'&&q.type!=='seek'))continue;const dx=q.x-G.x,dy=q.y-G.y,d=Math.hypot(dx,dy);
+  for(const q of G.ents){if(q.dead||(q.type!=='pur'&&q.type!=='seek'&&q.type!=='zombie'))continue;const dx=q.x-G.x,dy=q.y-G.y,d=Math.hypot(dx,dy);
     if(d<reach&&d<bd&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<cone){e=q;bd=d}}
   if(!e){sfx('WHUFF');return}
   e.hit=1;e.hp-=dmg;
   activateRagdoll(e,'stumble',rod?1.45:2.4,Math.sin(G.ang-e.f)<0?-1:1);
+  if(e.type==='zombie'){
+    if(e.hp<=0){
+      e.dead=.001;e.pose='dead';activateRagdoll(e,'corpse',2,1);
+      if(e.rag)e.rag.ground=true;
+      MODE.localKill();sfx('THE DEAD GO STILL','mind');
+    }else sfx('ZOMBIE STRUCK','red');
+    return;
+  }
   if(e.type==='pur'){sfx(e.hp>0?(G.dark?'DARK KRAK!':'KRAK!'):'RRRIP!',G.dark?'mind':'');if(e.hp<=0)killPur(e)}
   else{G.alerted=true;G.sanity=Math.max(0,G.sanity-8);sfx('KRAK!');sfx('-8 SANITY','mind');
     if(e.hp<=0){e.dead=0.001;activateRagdoll(e,'corpse',2,1);e.rag.ground=true;keepDead('seek',e);dropType(e.x,e.y,2);G.oil+=2;setTimeout(()=>sfx('+2 OIL'),250);sin('kill')}else e.scared=5}
@@ -3624,7 +3632,15 @@ function renderScene(MEP){
   FLICK=.91+.045*Math.sin(G.time*13)+.038*Math.sin(G.time*31.7);LANR=G.oil>0?3.8+Math.min(G.oil,10)*0.6+(torchLit()?0.8:0):torchLit()?4.7:1.1;
   const fires=G.fires.filter(F=>Math.abs(F.fl-G.floor)<=VISIBLE_FLOORS);
   FIREL=[];for(const F of fires)if(F.fl===G.floor)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
-  const POSE=[];for(const e of G.hangings)if(Math.abs(e.hangFloor-G.floor)<=VISIBLE_FLOORS){
+  const POSE=[];
+  if(MODE.type==='impostor')for(const b of MODE.state?.bodies||[]){
+    if(Math.abs(b.floor-G.floor)>VISIBLE_FLOORS)continue;
+    const body={type:'fig',x:b.x,y:b.y,f:0,rig:FIGRIG[2],
+      pose:'dead',coat:2,seed:b.id.length,dead:0,
+      zw:(b.floor-G.floor)*FH,lvl:b.floor-G.floor};
+    figLayers(body,POSE);
+  }
+  for(const e of G.hangings)if(Math.abs(e.hangFloor-G.floor)<=VISIBLE_FLOORS){
    e.zw=(e.hangFloor-G.floor)*FH;e.lvl=e.hangFloor-G.floor;
    ragdollLayers(e,POSE);
  }
@@ -3632,7 +3648,7 @@ function renderScene(MEP){
    if(e.rag)ragdollLayers(e,POSE);
    else if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}
    else if(e.type==='seek')seekLayers(e,POSE);
-   else if(e.type==='fig')figLayers(e,POSE);
+   else if(e.type==='fig'||e.type==='zombie')figLayers(e,POSE);
  }
   if(G.state!=='freefall'&&!TITLE_FLY.previewing)lifeLayers(POSE);
   if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
@@ -3647,7 +3663,9 @@ function renderScene(MEP){
       }
       if(e.rag){stepRagdoll(e,.016);ragdollLayers(e,POSE)}
     }else if(e.rag)ragdollLayers(e,POSE);
-    else if(e.type==='pur')purLayers(e,POSE);else seekLayers(e,POSE);
+    else if(e.type==='pur')purLayers(e,POSE);
+    else if(e.type==='zombie')figLayers(e,POSE);
+    else seekLayers(e,POSE);
   }
   if(typeof NET!=='undefined'&&NET.ready)for(const p of NET.peers.values())
     if(Math.abs(p.floor-G.floor)<=VISIBLE_FLOORS&&Math.hypot(p.x-G.x,p.y-G.y)<35){
@@ -3658,6 +3676,9 @@ function renderScene(MEP){
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.97-low*0.25;TB=0.9+low*0.2;
   {const d=dayLight(hourOf());LDAY=.62+.44*d;AMB=.12+.07*d;TR*=.90+.10*d;TG*=.91+.09*d;TB*=1.09-.09*d}
+  if(MODE.type==='impostor'&&MODE.state?.sabotage?.kind==='lights'){
+    LDAY*=.20;AMB*=.26;LANR*=.52;
+  }
   HZ=H/2+G.pitch*H-(THIRD?0.15*H:0);BG.cam.x=G.x;BG.cam.y=G.y;BG.cam.eye=EYE;BG.cam.ang=G.ang;BG.cam.hz=HZ;const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
   for(let x=0;x<W;x++){
     const cam=2*x/W-1;let rdx=dirX+plX*cam,rdy=dirY+plY*cam;
@@ -3691,6 +3712,16 @@ function renderScene(MEP){
   }
   const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek'&&e.type!=='fig').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
   addFiveFloorDressing(list);
+  if(MODE.type==='impostor'&&MODE.state?.phase==='playing'){
+    for(const st of MODE.state.stations||[]){
+      if(Math.abs(st.floor-G.floor)>VISIBLE_FLOORS)continue;
+      const active=MODE.role==='crew'&&MODE.tasks.includes(st.id)&&!MODE.done.includes(st.id);
+      if(!active)continue;
+      const item={type:'task',x:st.x,y:st.y,z0:(st.floor-G.floor)*FH+.42,
+        bill:true,hgt:.50,cards:[INDEXC],frame:0,dead:0};
+      if(floorSpriteVisible(item))list.push(item);
+    }
+  }
   {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),
       key=i0+','+j0+'|'+G.floor+'|'+G.resetEpoch+'|'+hubStride();
    if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];const lamp=(x,y,z)=>LAMPS.list.push({type:'lamp',x,y,z0:z,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
@@ -6131,6 +6162,7 @@ function display(dt){
   if(st==='climb'){vctx.fillStyle='rgba(0,0,0,'+(0.96*Math.sin(Math.PI*Math.min(1,G.climbT/1.2)))+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='sleep'){vctx.fillStyle='rgba(4,3,8,'+(0.97*Math.sin(Math.PI*Math.min(1,G.sleepT/2.2)))+')';vctx.fillRect(0,0,DW,DH)}
   drawCoopHUD();
+  drawModeHUD();
   if(G.keyGuide&&FINE&&G.state==='play')drawDesktopKeyGuide();
 }
 /* A small floating multiplayer and salvaged-wood HUD. The buttons are genuine
