@@ -21,7 +21,7 @@ export const BOOK_SITE_OFFSETS=Object.freeze([
 ]);
 export function modeSpawn(mode){
  const m=MODE_MAPS[mode];if(!m)return null;
- return{x:m.i*CELL+2.65,y:m.j*CELL+.5,floor:m.floor};
+ return{x:m.i*CELL-2.65,y:m.j*CELL+.5,floor:m.floor};
 }
 export function modeSite(mode,index,offsets=STATION_OFFSETS){
  const m=MODE_MAPS[mode];if(!m)return null;
