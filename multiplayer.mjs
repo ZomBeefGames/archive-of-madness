@@ -191,6 +191,8 @@ export class GameRooms {
     if(now-p.lastAction<95)return;
     p.lastAction=now;
     const action=msg.action;
+    if(room.world.gameMode==='impostor')
+      return send(p.ws,{type:'error',message:'Barricades are disabled during hidden-traitor rounds.'});
     const inv=()=>{
       const w=room.world;room.engine.touch();
       this.broadcast(room,{type:'inventory',planks:w.resources.boards});
