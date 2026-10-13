@@ -22,7 +22,9 @@ window.__AOM_TEST={
   get VIEW(){return VIEW},get RAIL_JUMP_BUTTON(){return RAIL_JUMP_BUTTON},
   railJumpTarget,startRailFreefall,nearestFallCommunity,walkable,
   get TITLE_FLY(){return TITLE_FLY},titleNextScene,titleScenePose,
-  get PERSON_BUTTONS(){return PERSON_BUTTONS},personTarget
+  get PERSON_BUTTONS(){return PERSON_BUTTONS},personTarget,
+  get MODE(){return MODE},get GAME_TYPES(){return GAME_TYPES},
+  modeLabel,cycleGameMode
 };
 `;
 assert.ok(originalHTML.includes('</script>'));
@@ -120,6 +122,19 @@ async function caseRun(label,contextOptions){
   }),cinema.player,'cinematic scenes never change the playable location');
   await mkdir('browser-artifacts',{recursive:true});
   await page.screenshot({path:'browser-artifacts/title-'+label+'.png'});
+  // Cycle the real game-mode menu with both mouse and touch. Competitive mode
+  // automatically requests an invite-code lobby, never a fake solo traitor.
+  await clickTitle(page,'gameMode',!!contextOptions.hasTouch);
+  await page.waitForFunction(()=>window.__AOM_TEST?.FILM.gameMode==='impostor');
+  assert.equal(await page.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'host');
+  await clickTitle(page,'gameMode',!!contextOptions.hasTouch);
+  await page.waitForFunction(()=>window.__AOM_TEST?.FILM.gameMode==='horde');
+  await clickTitle(page,'gameMode',!!contextOptions.hasTouch);
+  await page.waitForFunction(()=>window.__AOM_TEST?.FILM.gameMode==='story');
+  await clickTitle(page,'party',!!contextOptions.hasTouch);
+  await clickTitle(page,'party',!!contextOptions.hasTouch);
+  // Back on a normal solo run, the original story remains unchanged.
+  assert.equal(await page.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'solo');
   // Real desktop and mobile canvas interactions with the character creator.
   await clickTitle(page,'character',!!contextOptions.hasTouch);
   await page.waitForFunction(()=>window.__AOM_TEST?.FILM.customizing&&window.__AOM_TEST.FILM.buttons.length===9);
@@ -305,6 +320,32 @@ async function caseRun(label,contextOptions){
   await page.waitForFunction(()=>window.__AOM_TEST?.G.ents[0]?.shove?.mode==='throw'||
     !!window.__AOM_TEST?.G.ents[0]?.fallState,null,{timeout:12000});
   console.log('BROWSER PASS',label,'event choices, character rig and negative-floor hub/transit screenshots');
+  // A second fresh page verifies the new game really launches into the
+  // zombie renderer and starts an actual countdown/wave on the same engine.
+  const modePage=await context.newPage(),modeErrors=[];
+  modePage.on('pageerror',e=>modeErrors.push(e.message));
+  await modePage.goto('http://127.0.0.1:'+PORT+'/',{waitUntil:'domcontentloaded'});
+  await modePage.waitForFunction(()=>window.__AOM_TEST?.FILM.buttons.length===7);
+  await clickTitle(modePage,'gameMode',!!contextOptions.hasTouch);
+  await clickTitle(modePage,'gameMode',!!contextOptions.hasTouch);
+  assert.equal(await modePage.evaluate(()=>window.__AOM_TEST.FILM.gameMode),'horde');
+  await clickTitle(modePage,'begin',!!contextOptions.hasTouch);
+  await modePage.waitForFunction(()=>window.__AOM_TEST?.G.state==='play'&&
+    window.__AOM_TEST.MODE.type==='horde',null,{timeout:12000});
+  await modePage.keyboard.press('y');
+  await modePage.waitForFunction(()=>window.__AOM_TEST?.MODE.local.phase==='preparing',null,{timeout:12000});
+  await modePage.evaluate(()=>{window.__AOM_TEST.MODE.local.prep=.07});
+  await modePage.waitForFunction(()=>window.__AOM_TEST?.MODE.local.phase==='wave',null,{timeout:12000});
+  const wave=await modePage.evaluate(()=>{
+    const a=window.__AOM_TEST,z=a.G.ents.filter(e=>e.type==='zombie'&&!e.dead);
+    const parts=[];if(z[0])a.figLayers(z[0],parts);
+    return{wave:a.MODE.state.wave,zombies:z.length,parts:parts.length,mode:a.MODE.type};
+  });
+  assert.ok(wave.zombies>=7&&wave.parts>=15,label+' solo zombie wave must render real game models');
+  assert.equal(wave.wave,1);
+  await modePage.screenshot({path:'browser-artifacts/horde-'+label+'.png'});
+  assert.deepEqual(modeErrors,[],label+' horde game should have no JS exceptions');
+  await modePage.close();
   await context.close();
 }
 
