@@ -4256,6 +4256,7 @@ const MODE={
  type:'story',state:null,role:null,alive:true,tasks:[],done:[],hp:100,
  buttons:[],lastSabKind:'catalogue',local:{phase:'lobby',wave:0,prep:0,kills:0},
  book:modeBookInventory(),shots:[],bookHeld:false,lastWordAt:0,mapStaged:0,
+ siege:hordeSiegeStart(),lastHordeRepair:0,
  initialize(type){
    this.type=GAME_TYPES.some(t=>t.id===type)?type:'story';
    this.state={type:this.type,phase:'lobby',players:[],bodies:[],
@@ -4265,6 +4266,7 @@ const MODE={
    this.alive=true;this.tasks=[];this.done=[];this.hp=100;this.buttons=[];
    this.local={phase:'lobby',wave:0,prep:0,kills:0};
    this.book=modeBookInventory();this.shots=[];this.bookHeld=false;this.lastWordAt=0;this.mapStaged=0;
+   this.siege=hordeSiegeStart();this.lastHordeRepair=0;
  },
  stageMap(){
    if(this.type==='story')return;
@@ -4311,11 +4313,32 @@ const MODE={
        p.x+.32,p.y+.32,.36,{z0:.7});
      if(book&&k>=3)zoneSprite(out,ZSPR.wax,p.x-.30,p.y-.16,.34,{glow:true});
    }
+   if(this.type==='horde'){
+     for(const def of HORDE_WINDOWS){
+       if(def.requires&&!this.siege.doors[def.requires]||
+         Math.hypot(def.x-G.x,def.y-G.y)>23)continue;
+       const w=this.siege.windows[def.id];
+       if(!w)continue;
+       zoneSprite(out,w.hp?BARRICADE_CARDS[w.hp<=2?0:w.hp<=4?1:2]:SPLINTER_CARD,
+         def.x,def.y,w.hp?1.43:.46,{sh:true,z0:w.hp?.12:0});
+       zoneSprite(out,GOTHIC_PROPS.talisman,
+         def.x-def.side*.20,def.y+.42,.42,{z0:.67});
+     }
+     for(const door of HORDE_DOORS){
+       if(Math.hypot(door.x-G.x,door.y-G.y)>25)continue;
+       const open=this.siege.doors[door.id];
+       zoneSprite(out,open?ZSPR.lookout:HORDE_DOOR_CARD,
+         door.x,door.y,open?.52:1.58,{sh:true});
+       if(!open)zoneSprite(out,GOTHIC_PROPS.talisman,
+         door.x+.25,door.y-.2,.44,{z0:1.03});
+     }
+   }
  },
  onState(data){
    if(!data||data.type!==this.type)return;
    const old=this.state?.phase;
    this.state=data;
+   if(this.type==='horde'&&data.siege)this.siege=data.siege;
    if(old!==data.phase){
      if(data.phase==='over')sfx(data.winner==='survivors'||data.winner==='crew'?'THE LIBRARY IS YOURS':'THE LIBRARY CLAIMS THEM','mind');
      else if(data.phase==='meeting')sfx('EMERGENCY ASSEMBLY','red');
