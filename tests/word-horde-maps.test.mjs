@@ -122,6 +122,10 @@ test('separate arena boundaries reject teleporting clients, not ordinary local m
  const {rooms,host,p}=lobby('horde'),start={x:p.x,y:p.y,floor:p.floor};
  post(rooms,host,{type:'pose',x:0,y:0,floor:0,f:0,pose:'run',active:true});
  assert.deepEqual({x:p.x,y:p.y,floor:p.floor},start);
- post(rooms,host,{type:'pose',x:p.x+.25,y:p.y,floor:0,f:0,pose:'run',active:true});
- assert.ok(p.x>start.x);
+ const next={type:'pose',x:start.x+.25,y:start.y,floor:start.floor,f:0,pose:'run',active:true};
+ assert.equal(modeInside('horde',next),true);
+ p.lastPose=0;
+ post(rooms,host,next);
+ assert.ok(p.x>start.x,JSON.stringify({before:start,after:{x:p.x,y:p.y,floor:p.floor,
+   lastPose:p.lastPose,falling:p.falling},next,mode:p.room.world.gameMode}));
 });
