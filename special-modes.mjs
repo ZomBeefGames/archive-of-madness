@@ -2,6 +2,9 @@
 // public world snapshot. Sessions restart in a waiting state after a server
 // reboot; persisted rooms remain joinable without leaking past secret roles.
 import {randomBytes} from 'node:crypto';
+import {MODE_MAPS,modeSite,BOOK_SITE_OFFSETS} from './mode-maps.mjs';
+import {WORD_BOOKS,WORD_BOOK_BY_ID,WORD_UPGRADE_PRICE,newBookInventory,
+ allowedWordHit,ammoPackCost} from './word-books.mjs';
 
 export const GAME_MODES=['story','impostor','horde'];
 export const HORDE_FINAL_WAVE=10;
@@ -12,14 +15,19 @@ const TASK_NAMES=['RESTORE THE CATALOGUE','REPLACE THE LAMP WICK',
   'BALANCE THE ARCHIVE SCALES','RECONNECT THE OBSERVATORY'];
 const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
 export function modeStations(world){
- const cx=Math.round(world.x/16)*16,cy=Math.round(world.y/16)*16,
-   fl=world.floor;
+ if(world?.gameMode==='impostor')return TASK_NAMES.map((label,i)=>
+   ({id:'station-'+i,label,...modeSite('impostor',i)}));
+ const cx=Math.round(world.x/16)*16,cy=Math.round(world.y/16)*16,fl=world.floor;
  return TASK_NAMES.map((label,i)=>{
    const a=(i/6)*Math.PI*2+.21;
    return{id:'station-'+i,label,x:cx+Math.cos(a)*2.9,
      y:cy+Math.sin(a)*2.9,floor:fl};
  });
 }
+export const hordeBookStations=()=>WORD_BOOKS.map((book,i)=>({
+ id:'book-'+book.id,book:book.id,name:book.name,
+ ...modeSite('horde',i,BOOK_SITE_OFFSETS),price:book.price,rarity:book.rarity
+}));
 export function validModeVictim(p,v,maxDistance=1.5){
  if(!p||!v||p===v||!p.active||!v.active||p.falling||v.falling||
     p.floor!==v.floor||dist(p,v)>maxDistance||dist(p,v)<.17)return false;
@@ -37,6 +45,7 @@ export class SpecialModes{
   this.lastSabotage=0;this.sabotage=null;this.sabotageUntil=0;
   this.wave=0;this.prepUntil=0;this.lastWave=0;this.health=new Map();
   this.lastReport=0;this.lastClock=nowMs();
+  this.bookSites=hordeBookStations();this.bookStates=new Map();
  }
  get type(){return this.room.world.gameMode||'story'}
  members(){return[...this.room.members]}
@@ -61,6 +70,7 @@ export class SpecialModes{
      meetingResult:this.meetingResult});
   }else{
    Object.assign(result,{wave:this.wave,maxWaves:HORDE_FINAL_WAVE,
+     mapName:MODE_MAPS.horde.name,books:this.bookSites,
      zombies:this.room.world.enemies.filter(e=>e.type==='zombie'&&!e.dead).length,
      prep:this.phase==='preparing'?Math.max(0,Math.ceil((this.prepUntil-nowMs())/1000)):0});
   }
@@ -76,7 +86,8 @@ export class SpecialModes{
     alive:this.alive.get(player.id)!==false,
     tasks:this.tasks.get(player.id)||[],
     done:[...(this.completed.get(player.id)||[])],
-    health:this.health.get(player.id)??100};
+    health:this.health.get(player.id)??100,
+    books:this.type==='horde'?this.bookStates.get(player.id)||null:null};
   if(player.ws?.readyState===1)player.ws.send(JSON.stringify(msg));
  }
  privateAll(){for(const p of this.members())this.private(p)}
@@ -89,7 +100,7 @@ export class SpecialModes{
   this.completed.clear();this.bodies=[];this.votes.clear();
   this.sabotage=null;this.meetingResult=null;this.lastSabotage=0;
   this.meetingUntil=0;this.wave=0;this.prepUntil=0;
-  this.health.clear();this.room.world.enemies=[];
+  this.health.clear();this.bookStates.clear();this.room.world.enemies=[];
  }
  start(player,now=nowMs()){
   if(this.type==='story'||this.room.hostId!==player.id)return false;
@@ -115,6 +126,7 @@ export class SpecialModes{
    participants.forEach(p=>{
      this.roles.set(p.id,'survivor');this.alive.set(p.id,true);
      this.health.set(p.id,100);p.modeHealth=100;
+     this.bookStates.set(p.id,newBookInventory());
    });
    this.room.world.resources.boards=Math.max(8,this.room.world.resources.boards);
    this.room.world.resources.oil=Math.max(12,this.room.world.resources.oil);
@@ -130,6 +142,7 @@ export class SpecialModes{
   else if(this.type==='horde'&&this.phase!=='over'){
    this.roles.set(player.id,'survivor');this.alive.set(player.id,true);
    this.health.set(player.id,100);player.modeHealth=100;
+   this.bookStates.set(player.id,newBookInventory());
   }else{this.roles.set(player.id,'spectator');this.alive.set(player.id,false)}
   this.private(player);this.emit();
  }
@@ -137,6 +150,7 @@ export class SpecialModes{
   this.roles.delete(player.id);this.alive.delete(player.id);
   this.tasks.delete(player.id);this.completed.delete(player.id);
   this.votes.delete(player.id);this.health.delete(player.id);
+  this.bookStates.delete(player.id);
   if(this.type==='impostor'&&this.phase==='playing')this.checkWin();
   if(this.type==='horde'&&this.phase!=='lobby')this.checkSurvivors();
   this.emit();
