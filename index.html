@@ -4167,7 +4167,7 @@ const MODE_MAPS={
    interior siege room, purchasable wings and genuine zombie window lanes.
    The original index.html is still fully playable offline; this duplicate
    mirrors the small shared authoritative horde-siege.mjs catalogue. */
-const DEPOT_X=MODE_MAPS.horde.i*P,DEPOT_Y=MODE_MAPS.horde.j*P;
+const DEPOT_X=MODE_MAPS.horde.i*16,DEPOT_Y=MODE_MAPS.horde.j*16;
 const HORDE_DOORS=[
  {id:'east',name:'EAST RESERVE',x:DEPOT_X+6.92,y:DEPOT_Y,cost:450,requires:null},
  {id:'west',name:'WESTERN INKWORKS',x:DEPOT_X-6.92,y:DEPOT_Y,cost:650,requires:null},
@@ -4184,8 +4184,8 @@ const HORDE_WINDOWS=[
  ['northeast','UPPER STUDY WINDOW',1,-1,1,'north'],
  ['southeast','LOWER STUDY WINDOW',1,1,1,'south']
 ].map(([id,name,i,j,side,requires])=>({
- id,name,x:(MODE_MAPS.horde.i+i)*P+side*5*Math.cos(Math.PI/6),
- y:(MODE_MAPS.horde.j+j)*P,side,i:MODE_MAPS.horde.i+i,
+ id,name,x:(MODE_MAPS.horde.i+i)*16+side*5*Math.cos(Math.PI/6),
+ y:(MODE_MAPS.horde.j+j)*16,side,i:MODE_MAPS.horde.i+i,
  j:MODE_MAPS.horde.j+j,requires,maxHp:6
 }));
 const HORDE_REPAIR_REWARD=25,HORDE_REPAIR_LIMIT=5,HORDE_REPAIR_COOLDOWN=.65;
@@ -4207,7 +4207,7 @@ function modeSiegeDoorArt(){
   'kGGGYkttttkYGGGk','kGGGYkttttkYGGGk','kGGGGYkkkkYGGGGk',
   'kGGGGGYYYYGGGGGk','kGGGGGGGGGGGGGGk','kkkkkkkkkkkkkkkk']);
 }
-const HORDE_DOOR_CARD=modeSiegeDoorArt();
+let HORDE_DOOR_CARD=null; // lazy: the standalone title test does not initialize buildCard()
 
 const MODE_STATION_OFFSETS=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1]];
 const WORD_BOOKS=[
@@ -4314,6 +4314,7 @@ const MODE={
      if(book&&k>=3)zoneSprite(out,ZSPR.wax,p.x-.30,p.y-.16,.34,{glow:true});
    }
    if(this.type==='horde'){
+     if(!HORDE_DOOR_CARD)HORDE_DOOR_CARD=modeSiegeDoorArt();
      for(const def of HORDE_WINDOWS){
        if(def.requires&&!this.siege.doors[def.requires]||
          Math.hypot(def.x-G.x,def.y-G.y)>23)continue;
