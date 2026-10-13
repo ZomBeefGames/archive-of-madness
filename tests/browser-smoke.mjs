@@ -131,9 +131,8 @@ async function caseRun(label,contextOptions){
   await page.waitForFunction(()=>window.__AOM_TEST?.FILM.gameMode==='horde');
   await clickTitle(page,'gameMode',!!contextOptions.hasTouch);
   await page.waitForFunction(()=>window.__AOM_TEST?.FILM.gameMode==='story');
-  await clickTitle(page,'party',!!contextOptions.hasTouch);
-  await clickTitle(page,'party',!!contextOptions.hasTouch);
-  // Back on a normal solo run, the original story remains unchanged.
+  // Auto-hosting is only for social deduction. Returning to Story mode
+  // restores solo unless the player explicitly selected another party mode.
   assert.equal(await page.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'solo');
   // Real desktop and mobile canvas interactions with the character creator.
   await clickTitle(page,'character',!!contextOptions.hasTouch);
