@@ -2425,7 +2425,12 @@ function tickRailFreefall(dt){
   G.pitch=-.23-.075*Math.sin(f.elapsed*1.2);
   if(!(typeof NET!=='undefined'&&NET.ready)){
     G.clock+=dt;
-    if(G.clock>=DAYLEN){G.clock=DAYLEN-1e-3;blackout()}
+    if(G.clock>=DAYLEN){
+      if(MODE.type!=='story'){
+        G.day++;G.clock=DAYLEN*6/24;
+        recoverRailFreefall();G.state='play';
+      }else{G.clock=DAYLEN-1e-3;blackout()}
+    }
   }
 }
 function recoverRailFreefall(){
@@ -2477,10 +2482,12 @@ function reset(){
   Object.assign(G,{x:c.cx,y:c.cy+2.6,ang:-Math.PI/2+0.35,cell:c,room:c,inRoom:true,gal:c.gid,floor:f,uf:0,health:100,sanity:100,oil:8,oilTimer:0,time:0,books:0,rooms:new Set([c.gid+':'+f]),
     phrase,difficulty,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,fall:null,fallWakeDay:0,personCd:0,knockback:null,rope:2,hangings:[],hungIds:new Set(),keyGuide:false,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
+  MODE.initialize(FILM.gameMode);
   spawnRoom(true);
 }
 function enterRoom(c){
-  G.room=c;G.gal=c.gid;G.rooms.add(G.gal+':'+G.floor);spawnRoom(false);
+  G.room=c;G.gal=c.gid;G.rooms.add(G.gal+':'+G.floor);
+  if(MODE.type==='story')spawnRoom(false);
   const zone=galleryZone(c.i,c.j);
   if(zone.type!=='normal'&&!G.zoneVisited.has(zone.key)){
     G.zoneVisited.add(zone.key);
@@ -2680,6 +2687,19 @@ function update(dt){
     if(!walkable(nx,ny,0.3)){if(walkable(nx,G.y,0.3))ny=G.y;else if(walkable(G.x,ny,0.3))nx=G.x;else{nx=G.x;ny=G.y}}
     G.x=nx;G.y=ny;G.cell=placeOf(G.x,G.y);G.inRoom=G.cell.kind==='g'}
   if(G.inRoom&&G.cell!==G.room){enterRoom(G.cell);sfx('HEXAGON '+G.gal,'mind')}
+  if(MODE.type!=='story'){
+    G.swing=Math.max(0,G.swing-dt*4);
+    G.swingCd=Math.max(0,G.swingCd-dt);
+    G.flash=Math.max(0,G.flash-dt*2);
+    G.hurtCd=Math.max(0,G.hurtCd-dt);
+    if(MODE.type==='horde'&&!NET.ready)MODE.localTick(dt);
+    if(!NET.ready){
+      G.clock+=dt;
+      if(G.clock>=DAYLEN){G.clock=DAYLEN*6/24;G.day++}
+    }
+    ME.x=G.x;ME.y=G.y;ME.f=G.ang;gaitUpd(ME,dt,.5);
+    return;
+  }
   if(keys.swing){keys.swing=false;doSwing()}
   if(keys.read){keys.read=false;doRead()}
   zoneHazards(dt);
@@ -2771,7 +2791,7 @@ function updSeek(e,dt){
 const PEOPLE_REACH={push:1.95,throw:1.48};
 function personCandidates(){
   const candidates=[];
-  for(const e of G.ents)if(['pur','seek','fig'].includes(e.type)&&!e.dead&&!e.gone&&!e.fallState&&!e.suspended)
+  for(const e of G.ents)if(['pur','seek','fig','zombie'].includes(e.type)&&!e.dead&&!e.gone&&!e.fallState&&!e.suspended)
     candidates.push({kind:'local',actor:e});
   for(const e of ENC.list){
     if(e.members){
@@ -2823,7 +2843,7 @@ const RAG_SEED=[
 const RAG_BONES=[[0,1],[1,2],[2,3],[1,4],[4,5],[5,6],
  [1,7],[7,8],[8,9],[0,10],[10,11],[0,12],[12,13],[4,7],[10,12]];
 function activateRagdoll(e,mode='stumble',strength=1,dir=1){
- if(!e||!['fig','pur','seek'].includes(e.type))return null;
+ if(!e||!['fig','pur','seek','zombie'].includes(e.type))return null;
  if(e.rag&&e.rag.mode==='hang')return e.rag;
  if(!e.rag){
    const scale=e.type==='seek'?.83:1;
@@ -3040,7 +3060,7 @@ function ropeAnchorNear(e,fl=G.floor){
 function ropeTarget(){
  if(G.state!=='play'||G.journal)return null;
  const list=[];
- for(const e of G.ents)if(['fig','pur','seek'].includes(e.type)&&!e.suspended&&!e.fallState&&!e.gone)
+ for(const e of G.ents)if(['fig','pur','seek','zombie'].includes(e.type)&&!e.suspended&&!e.fallState&&!e.gone)
    list.push({kind:'local',actor:e});
  for(const e of ENC.list){
    const characters=e.members||[e];
@@ -3176,11 +3196,19 @@ function doSwing(){
   const rod=G.weapon==='rod',torch=torchLit(),reach=rod?2.1:torch?1.65:1.35,cone=rod?0.3:0.65,dmg=(rod?1:2)+Math.min(2,G.dark)+(G.tr.thimble?1:0);
   G.swingCd=rod?0.35:torch?0.47:0.6;G.swing=1;snd(torch?'fire':rod?'poke':'swing');
   let e=null,bd=1e9;
-  for(const q of G.ents){if(q.dead||(q.type!=='pur'&&q.type!=='seek'))continue;const dx=q.x-G.x,dy=q.y-G.y,d=Math.hypot(dx,dy);
+  for(const q of G.ents){if(q.dead||(q.type!=='pur'&&q.type!=='seek'&&q.type!=='zombie'))continue;const dx=q.x-G.x,dy=q.y-G.y,d=Math.hypot(dx,dy);
     if(d<reach&&d<bd&&Math.abs(angDiff(Math.atan2(dy,dx),G.ang))<cone){e=q;bd=d}}
   if(!e){sfx('WHUFF');return}
   e.hit=1;e.hp-=dmg;
   activateRagdoll(e,'stumble',rod?1.45:2.4,Math.sin(G.ang-e.f)<0?-1:1);
+  if(e.type==='zombie'){
+    if(e.hp<=0){
+      e.dead=.001;e.pose='dead';activateRagdoll(e,'corpse',2,1);
+      if(e.rag)e.rag.ground=true;
+      MODE.localKill();sfx('THE DEAD GO STILL','mind');
+    }else sfx('ZOMBIE STRUCK','red');
+    return;
+  }
   if(e.type==='pur'){sfx(e.hp>0?(G.dark?'DARK KRAK!':'KRAK!'):'RRRIP!',G.dark?'mind':'');if(e.hp<=0)killPur(e)}
   else{G.alerted=true;G.sanity=Math.max(0,G.sanity-8);sfx('KRAK!');sfx('-8 SANITY','mind');
     if(e.hp<=0){e.dead=0.001;activateRagdoll(e,'corpse',2,1);e.rag.ground=true;keepDead('seek',e);dropType(e.x,e.y,2);G.oil+=2;setTimeout(()=>sfx('+2 OIL'),250);sin('kill')}else e.scared=5}
@@ -3622,7 +3650,15 @@ function renderScene(MEP){
   FLICK=.91+.045*Math.sin(G.time*13)+.038*Math.sin(G.time*31.7);LANR=G.oil>0?3.8+Math.min(G.oil,10)*0.6+(torchLit()?0.8:0):torchLit()?4.7:1.1;
   const fires=G.fires.filter(F=>Math.abs(F.fl-G.floor)<=VISIBLE_FLOORS);
   FIREL=[];for(const F of fires)if(F.fl===G.floor)FIREL.push(F.x,F.y);addZoneFireLights();if(torchLit())FIREL.push(LX,LY);
-  const POSE=[];for(const e of G.hangings)if(Math.abs(e.hangFloor-G.floor)<=VISIBLE_FLOORS){
+  const POSE=[];
+  if(MODE.type==='impostor')for(const b of MODE.state?.bodies||[]){
+    if(Math.abs(b.floor-G.floor)>VISIBLE_FLOORS)continue;
+    const body={type:'fig',x:b.x,y:b.y,f:0,rig:FIGRIG[2],
+      pose:'dead',coat:2,seed:b.id.length,dead:0,
+      zw:(b.floor-G.floor)*FH,lvl:b.floor-G.floor};
+    figLayers(body,POSE);
+  }
+  for(const e of G.hangings)if(Math.abs(e.hangFloor-G.floor)<=VISIBLE_FLOORS){
    e.zw=(e.hangFloor-G.floor)*FH;e.lvl=e.hangFloor-G.floor;
    ragdollLayers(e,POSE);
  }
@@ -3630,7 +3666,7 @@ function renderScene(MEP){
    if(e.rag)ragdollLayers(e,POSE);
    else if(e.type==='pur'){purLayers(e,POSE);if(e._tx!==undefined)FIREL.push(e._tx,e._ty)}
    else if(e.type==='seek')seekLayers(e,POSE);
-   else if(e.type==='fig')figLayers(e,POSE);
+   else if(e.type==='fig'||e.type==='zombie')figLayers(e,POSE);
  }
   if(G.state!=='freefall'&&!TITLE_FLY.previewing)lifeLayers(POSE);
   if(typeof NET!=='undefined'&&NET.ready)for(const e of NET.enemies.values()){
@@ -3645,7 +3681,9 @@ function renderScene(MEP){
       }
       if(e.rag){stepRagdoll(e,.016);ragdollLayers(e,POSE)}
     }else if(e.rag)ragdollLayers(e,POSE);
-    else if(e.type==='pur')purLayers(e,POSE);else seekLayers(e,POSE);
+    else if(e.type==='pur')purLayers(e,POSE);
+    else if(e.type==='zombie')figLayers(e,POSE);
+    else seekLayers(e,POSE);
   }
   if(typeof NET!=='undefined'&&NET.ready)for(const p of NET.peers.values())
     if(Math.abs(p.floor-G.floor)<=VISIBLE_FLOORS&&Math.hypot(p.x-G.x,p.y-G.y)<35){
@@ -3656,6 +3694,9 @@ function renderScene(MEP){
   const low=G.sanity<25?(25-G.sanity)/25:0;
   TR=1-low*0.15;TG=0.97-low*0.25;TB=0.9+low*0.2;
   {const d=dayLight(hourOf());LDAY=.62+.44*d;AMB=.12+.07*d;TR*=.90+.10*d;TG*=.91+.09*d;TB*=1.09-.09*d}
+  if(MODE.type==='impostor'&&MODE.state?.sabotage?.kind==='lights'){
+    LDAY*=.20;AMB*=.26;LANR*=.52;
+  }
   HZ=H/2+G.pitch*H-(THIRD?0.15*H:0);BG.cam.x=G.x;BG.cam.y=G.y;BG.cam.eye=EYE;BG.cam.ang=G.ang;BG.cam.hz=HZ;const dirX=Math.cos(G.ang),dirY=Math.sin(G.ang),plX=-dirY*PLANE,plY=dirX*PLANE,H2=HZ;
   for(let x=0;x<W;x++){
     const cam=2*x/W-1;let rdx=dirX+plX*cam,rdy=dirY+plY*cam;
@@ -3687,8 +3728,18 @@ function renderScene(MEP){
       if(mi<0||(ri>=0&&RH.t[ri]>MH.t[mi])){railCol(x,RH.t[ri],RH.a[ri]);ri--}else{frameCol(x,MH.t[mi],mi===0);mi--}
     }
   }
-  const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek'&&e.type!=='fig').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
+  const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek'&&e.type!=='fig'&&e.type!=='zombie').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
   addFiveFloorDressing(list);
+  if(MODE.type==='impostor'&&MODE.state?.phase==='playing'){
+    for(const st of MODE.state.stations||[]){
+      if(Math.abs(st.floor-G.floor)>VISIBLE_FLOORS)continue;
+      const active=MODE.role==='crew'&&MODE.tasks.includes(st.id)&&!MODE.done.includes(st.id);
+      if(!active)continue;
+      const item={type:'task',x:st.x,y:st.y,z0:(st.floor-G.floor)*FH+.42,
+        bill:true,hgt:.50,cards:[INDEXC],frame:0,dead:0};
+      if(floorSpriteVisible(item))list.push(item);
+    }
+  }
   {const i0=Math.round(G.x/P),j0=Math.round(G.y/P),
       key=i0+','+j0+'|'+G.floor+'|'+G.resetEpoch+'|'+hubStride();
    if(LAMPS.key!==key){LAMPS.key=key;LAMPS.list=[];const lamp=(x,y,z)=>LAMPS.list.push({type:'lamp',x,y,z0:z,hgt:0.3,bill:true,cards:[LAMPC],frame:0,dead:0});
@@ -4065,9 +4116,293 @@ const MOT={ang:0,x:0,y:0};
    All artwork is procedural Canvas, preserving the game's brass, ink, paper and
    jointed shadow-puppet language. The world simulation pauses during scenes. ---- */
 const FILM={
-  id:null,shot:0,t:0,clock:0,after:null,selection:0,help:false,customizing:false,charSelection:0,difficulty:'archivist',partyMode:'solo',partyCode:'',
+  id:null,shot:0,t:0,clock:0,after:null,selection:0,help:false,customizing:false,charSelection:0,difficulty:'archivist',partyMode:'solo',partyCode:'',gameMode:'story',autoHost:false,
   buttons:[],skipRect:null,backdrop:null,backW:0,backH:0
 };
+/* Alternate games use the real raycaster, existing models and controls. The
+   server owns competitive roles, actions and zombie waves. The solo horde
+   runs equivalent small-wave local AI when there is no socket. */
+const GAME_TYPES=[
+ {id:'story',label:'THE ORIGINAL STORY',desc:'Find your own page; the Library remembers.'},
+ {id:'impostor',label:'THE FALSE SCRIBE',desc:'Hidden traitor · tasks · sabotage · vote (3–8 players)'},
+ {id:'horde',label:'THE LAST SHELF',desc:'Zombie siege · ten waves · build · survive'}
+];
+const MODE={
+ type:'story',state:null,role:null,alive:true,tasks:[],done:[],hp:100,
+ buttons:[],lastSabKind:'catalogue',local:{phase:'lobby',wave:0,prep:0,kills:0},
+ initialize(type){
+   this.type=GAME_TYPES.some(t=>t.id===type)?type:'story';
+   this.state={type:this.type,phase:'lobby',players:[],bodies:[],
+     stations:[],done:0,required:0,canStart:this.type!=='impostor',
+     wave:0,maxWaves:10,zombies:0};
+   this.role=this.type==='horde'?'survivor':null;
+   this.alive=true;this.tasks=[];this.done=[];this.hp=100;this.buttons=[];
+   this.local={phase:'lobby',wave:0,prep:0,kills:0};
+ },
+ onState(data){
+   if(!data||data.type!==this.type)return;
+   const old=this.state?.phase;
+   this.state=data;
+   if(old!==data.phase){
+     if(data.phase==='over')sfx(data.winner==='survivors'||data.winner==='crew'?'THE LIBRARY IS YOURS':'THE LIBRARY CLAIMS THEM','mind');
+     else if(data.phase==='meeting')sfx('EMERGENCY ASSEMBLY','red');
+     else if(data.phase==='wave')sfx('THE DEAD ARE COMING','red');
+     else if(data.phase==='preparing')sfx('REPAIR THE BARRICADES','mind');
+   }
+   if(NET.id){const p=data.players?.find(x=>x.id===NET.id);if(p){
+     this.alive=p.alive!==false;
+     if(typeof p.health==='number')this.hp=p.health;
+   }}
+ },
+ onPrivate(msg){
+   if(msg.gameMode!==this.type)return;
+   this.role=msg.role;this.tasks=msg.tasks||[];this.done=msg.done||[];
+   this.alive=msg.alive!==false;
+   if(typeof msg.health==='number')this.hp=msg.health;
+   if(this.type==='horde')G.health=this.hp;
+ },
+ startWorld(){
+   if(this.type==='story')return;
+   G.ents=[];G.phantoms=[];ENC.list=[];BG.acts=[];
+   G.cutSeen={opening:true,purifier:true,index:true};
+   G.state='play';G.journal=false;G.health=100;G.sanity=100;
+   G.clock=DAYLEN*9/24;G.oil=12;G.pitch=0;
+   EYE=.5;releaseAll();
+ },
+ send(action,data={}){
+   if(this.type==='story')return;
+   if(NET.ready)NET.send({type:'mode-action',action,...data});
+ },
+ nearestStation(){
+   const stations=this.state?.stations||[];
+   let best=null,dist=1.75;
+   for(const st of stations){
+     const d=Math.hypot(st.x-G.x,st.y-G.y);
+     if(st.floor===G.floor&&d<dist){dist=d;best=st}
+   }
+   return best;
+ },
+ nearestBody(){
+   let best=null,dist=2.2;
+   for(const b of this.state?.bodies||[]){
+     const d=Math.hypot(b.x-G.x,b.y-G.y);
+     if(b.floor===G.floor&&d<dist){dist=d;best=b}
+   }
+   return best;
+ },
+ nearestPeer(range=1.55,dead=false){
+   let best=null,distance=range;
+   for(const p of NET.peers.values()){
+     const info=this.state?.players?.find(q=>q.id===p.id);
+     if(p.floor!==G.floor||(info?.alive===false)!==dead)continue;
+     const dx=p.x-G.x,dy=p.y-G.y,d=Math.hypot(dx,dy);
+     if(d<.2||d>distance||(dx*Math.cos(G.ang)+dy*Math.sin(G.ang))/d<.38)continue;
+     distance=d;best=p;
+   }
+   return best;
+ },
+ act(action,param=null){
+   if(this.type==='story')return false;
+   if(action==='exit'){
+     if(NET.ready)NET.leave();
+     this.initialize('story');reset();G.state='title';FILM.selection=0;
+     return true;
+   }
+   if(action==='start'){
+     if(NET.ready)this.send('start');
+     else if(this.type==='horde')this.startLocal();
+     return true;
+   }
+   if(!this.alive&&action!=='vote')return false;
+   if(this.type==='impostor'){
+     if(action==='vote'){this.send('vote',{targetId:param});return true}
+     if(this.state?.phase!=='playing')return false;
+     const st=this.nearestStation();
+     if(action==='interact'){
+       const body=this.nearestBody();
+       if(body){this.send('report');return true}
+       if(this.state.sabotage&&this.role==='crew'&&st&&['station-1','station-3'].includes(st.id)){
+         this.send('repair');return true;
+       }
+       if(st&&this.role==='crew'&&this.tasks.includes(st.id)&&!this.done.includes(st.id)){
+         this.send('task',{stationId:st.id});return true;
+       }
+       return false;
+     }
+     if(action==='kill'&&this.role==='traitor'){
+       const p=this.nearestPeer();
+       if(p){this.send('kill',{targetId:p.id});return true}
+     }
+     if(action==='sabotage'&&this.role==='traitor'){
+       this.lastSabKind=this.lastSabKind==='lights'?'catalogue':'lights';
+       this.send('sabotage',{kind:this.lastSabKind});return true;
+     }
+     if(action==='meeting'){this.send('meeting');return true}
+   }else if(this.type==='horde'){
+     if(action==='revive'){
+       const p=this.nearestPeer(2.2,true);
+       if(p){this.send('revive',{targetId:p.id});return true}
+     }
+   }
+   return false;
+ },
+ startLocal(){
+   this.local={phase:'preparing',wave:0,prep:7,kills:0};
+   this.state.phase='preparing';this.role='survivor';this.alive=true;
+   this.hp=100;G.health=100;BUILD.planks=Math.max(8,BUILD.planks);
+   G.oil=Math.max(12,G.oil);G.ents=[];
+   sfx('SEAL THE LIBRARY · THE DEAD ARE COMING','red');
+ },
+ localWave(){
+   const a=this.local;
+   a.wave++;a.phase='wave';this.state.phase='wave';
+   this.state.wave=a.wave;this.state.maxWaves=10;
+   const c=G.room||getRoom(Math.round(G.x/P),Math.round(G.y/P)),
+     count=5+a.wave*2;
+   G.ents=G.ents.filter(e=>e.type!=='zombie');
+   for(let n=0;n<count;n++){
+     const angle=(n/count)*Math.PI*2+n*.37,rad=3.1+(n%2)*.23;
+     G.ents.push({type:'zombie',x:c.cx+Math.cos(angle)*rad,
+       y:c.cy+Math.sin(angle)*rad,f:angle+Math.PI,coat:3,
+       rig:FIGRIG[3],pose:'run',walk:1,dead:0,hp:3+Math.floor((a.wave-1)/2),
+       hit:0,seed:angle,attackCd:0});
+   }
+   this.state.zombies=count;
+   sfx('HORDE '+a.wave+' · '+count+' DEAD READERS','red');
+ },
+ localTick(dt){
+   if(this.type!=='horde'||NET.ready)return;
+   const a=this.local;
+   if(a.phase==='lobby'||a.phase==='over')return;
+   if(a.phase==='preparing'){
+     a.prep-=dt;
+     this.state.prep=Math.ceil(Math.max(0,a.prep));
+     if(a.prep<=0)this.localWave();
+     return;
+   }
+   let alive=0;
+   for(const e of G.ents){
+     if(e.type!=='zombie'||e.dead||e.gone)continue;
+     alive++;e.attackCd=Math.max(0,(e.attackCd||0)-dt);
+     if(e.shove||e.fallState){tickPersonShove(e,dt);continue}
+     const d=Math.hypot(G.x-e.x,G.y-e.y);
+     if(d>.68&&d<17){
+       const dir=Math.atan2(G.y-e.y,G.x-e.x),
+         speed=.66+a.wave*.08,dx=Math.cos(dir)*speed*dt,dy=Math.sin(dir)*speed*dt,
+         nx=e.x+dx,ny=e.y+dy;
+       if(walkable(nx,ny,.22)){
+         e.x=nx;e.y=ny;e.f=dir;
+       }else if(!e.rag)activateRagdoll(e,'stumble',.45,dx<0?-1:1);
+       e.walk=.8;
+     }
+     if(d<1.15&&e.attackCd<=0){
+       e.attackCd=1.35;G.health=Math.max(0,G.health-(5+a.wave));
+       this.hp=G.health;sfx('THE DEAD GRAB AT YOU','red');snd('hit');
+     }
+     if(e.rag)stepRagdoll(e,dt);
+     gaitUpd(e,dt,.5);
+   }
+   this.state.zombies=alive;
+   if(G.health<=0){
+     a.phase='over';this.state.phase='over';this.state.winner='horde';
+     this.alive=false;return;
+   }
+   if(alive===0){
+     if(a.wave>=10){a.phase='over';this.state.phase='over';
+       this.state.winner='survivors';sfx('TEN WAVES SURVIVED','mind');return}
+     a.phase='preparing';a.prep=Math.max(5,12-a.wave);
+     this.state.phase='preparing';this.state.prep=Math.ceil(a.prep);
+     G.health=Math.min(100,G.health+20);this.hp=G.health;
+     BUILD.planks=Math.min(60,BUILD.planks+2+Math.floor(a.wave/2));
+     G.oil+=3;sfx('WAVE CLEARED · SUPPLIES RESTOCKED','mind');
+   }
+ },
+ localKill(){
+   this.local.kills++;
+ },
+};
+function modeLabel(type){
+ return GAME_TYPES.find(t=>t.id===type)?.label||'THE ORIGINAL STORY';
+}
+function cycleGameMode(step=1){
+ const list=GAME_TYPES.map(x=>x.id),n=list.indexOf(FILM.gameMode),
+   old=FILM.gameMode;
+ FILM.gameMode=list[(n+step+list.length)%list.length];
+ if(FILM.gameMode==='impostor'&&FILM.partyMode==='solo'){
+   FILM.partyMode='host';FILM.autoHost=true;
+ }else if(old==='impostor'&&FILM.autoHost){
+   FILM.partyMode='solo';FILM.autoHost=false;
+ }
+ snd('page');
+}
+/* Mode controls share a real canvas hit target and a matching PC command.
+   The vote overlay intentionally shows names rather than leaking hidden roles. */
+function drawModeHUD(){
+ MODE.buttons.length=0;
+ if(MODE.type==='story'||G.state!=='play')return;
+ const g=vctx,s=MODE.state||{},u=Math.max(.78,Math.min(1.30,Math.min(DW,DH)/665)),
+   cx=DW/2,screenW=Math.min(DW-24*u,650*u);
+ g.save();g.textAlign='center';g.textBaseline='middle';
+ const panel=(x,y,w,h)=>{g.fillStyle='rgba(12,12,19,.91)';g.fillRect(x,y,w,h);
+   g.strokeStyle='#b39b6d';g.lineWidth=1.7*u;g.strokeRect(x+1,y+1,w-2,h-2)};
+ const label=(txt,x,y,size=15,color='#f0d9b4')=>{
+   g.fillStyle=color;g.font='bold '+Math.round(size*u)+'px Georgia';
+   g.fillText(txt,x,y,screenW-18*u)};
+ const click=(text,id,x,y,w,h,value=null)=>{
+   panel(x,y,w,h);label(text,x+w/2,y+h/2,13);
+   MODE.buttons.push({id,value,x0:x,y0:y,x1:x+w,y1:y+h});
+ };
+ const top=Math.max(12*u,DH*.018);
+ panel(cx-screenW/2,top,screenW,72*u);
+ label(modeLabel(MODE.type),cx,top+16*u,17,'#efc37e');
+ if(MODE.type==='impostor'){
+   const phase=s.phase||'lobby';
+   if(phase==='lobby')label('Waiting for 3–8 players · host presses Y to start',cx,top+44*u,13);
+   else if(phase==='meeting')label('EMERGENCY MEETING · '+(s.meeting?.seconds||0)+' SECONDS · VOTE BELOW',cx,top+44*u,13,'#eaa596');
+   else if(phase==='over')label('ROUND OVER · '+(s.winner==='crew'?'READERS WIN':'FALSE SCRIBE WINS'),cx,top+44*u,14);
+   else label((MODE.role==='traitor'?'YOU ARE THE FALSE SCRIBE':MODE.role==='crew'?'READER · COMPLETE YOUR TASKS':'GHOST · OBSERVE')+
+     '  ·  TASKS '+(s.done||0)+'/'+(s.required||0),cx,top+44*u,12);
+ }else label('WAVE '+(s.wave||0)+'/10 · '+(s.zombies||0)+' ZOMBIES · HP '+Math.round(MODE.hp)+
+   (s.phase==='preparing'?' · NEXT IN '+(s.prep||0)+'s':s.phase==='lobby'?' · PRESS Y TO BEGIN':''),cx,top+44*u,13);
+ let acts=[];
+ if(s.phase==='lobby')acts=[['Y · START','start']];
+ else if(s.phase==='over')acts=[['ESC · EXIT TO TITLE','exit']];
+ else if(MODE.type==='impostor'){
+   if(s.phase==='playing'&&MODE.alive){
+     if(MODE.role==='traitor')acts=[['X · ELIMINATE','kill'],['U · SABOTAGE','sabotage'],['M · MEETING','meeting']];
+     else acts=[['E · TASK / REPORT','interact'],['M · MEETING','meeting']];
+   }else if(s.phase==='meeting'&&MODE.alive){
+     const eligible=(s.players||[]).filter(p=>p.alive);
+     const width=Math.min(195*u,(screenW-15*u)/2),height=42*u,
+       x0=cx-Math.min(screenW,eligible.length>1?2*width+7*u:width)/2,
+       y0=DH*.24;
+     eligible.forEach((p,i)=>{
+       const xx=x0+(i%2)*(width+7*u),yy=y0+Math.floor(i/2)*(height+6*u);
+       click((i+1)+' · '+p.name,'vote',xx,yy,width,height,p.id);
+     });
+     const skipY=y0+Math.ceil(eligible.length/2)*(height+6*u)+10*u;
+     click('0 · SKIP VOTE','vote',cx-width/2,skipY,width,height,null);
+   }
+ }else if(MODE.alive){
+   const revive=MODE.nearestPeer(2.2,true);
+   if(revive)acts=[['U · REVIVE ALLY','revive']];
+ }
+ const bw=acts.length>2?Math.min(175*u,(screenW-8*u*(acts.length-1))/acts.length):
+   Math.min(235*u,(screenW-8*u*(acts.length-1))/Math.max(1,acts.length));
+ const rowWidth=acts.length*bw+Math.max(0,acts.length-1)*8*u;
+ const y=Math.min(DH-135*u,DH*.70);
+ acts.forEach(([text,id],i)=>click(text,id,cx-rowWidth/2+i*(bw+8*u),y,bw,45*u));
+ if(s.phase==='playing'&&MODE.type==='impostor'){
+   const station=MODE.nearestStation(),body=MODE.nearestBody();
+   if(station||body){
+     label(body?'BODY FOUND · E TO REPORT':station.label+' · E TO USE',cx,DH*.62,15);
+   }
+   if(s.sabotage)label('SABOTAGE · '+s.sabotage.kind.toUpperCase()+' · '+s.sabotage.remaining+'s',cx,DH*.58,13,'#ee997b');
+ }
+ if(s.phase==='over')click('EXIT · RETURN TO THE LIBRARY MENU','exit',cx-175*u,DH*.79,350*u,50*u);
+ g.restore();
+}
+
 /* Cooperative rooms use a real Railway WebSocket, not a simulation.
    Shared: player movement, solid constructions, their damage/salvage, and chat.
    Personal: NPC AI, reading decisions and each player's ending/clock. */
@@ -4097,6 +4432,7 @@ const NET={
     ws.onopen=()=>{
       const start={x:G.x,y:G.y,floor:G.floor};
       this.send({type:'join',mode,room:roomCode,start,difficulty:G.difficulty,phrase:G.phrase,
+        gameMode:FILM.gameMode,
         name:CHAR.name,appearance:normalCharacter(CHAR)});
     };
     ws.onmessage=evt=>{
@@ -4110,6 +4446,11 @@ const NET={
         for(const key of m.salvaged)this.zones.set(key,{...(this.zones.get(key)||{}),salvaged:true});
         this.peers.clear();for(const p of m.players)if(p.id!==m.id)this.peer(p);
         this.host=m.host;
+        if(m.world?.gameMode&&m.world.gameMode!==MODE.type){
+          FILM.gameMode=m.world.gameMode;
+          MODE.initialize(m.world.gameMode);
+        }
+        MODE.onState(m.game);
         G.ents=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek');
         if(mode==='join')this.applyWorld(m.world);
         this.receiveWorld(m.world,true,m.records);
@@ -4118,9 +4459,21 @@ const NET={
         // The invite is shareable as a normal HTTPS game link.
         try{const url=new URL(location.href);url.searchParams.set('room',this.code);history.replaceState(null,'',url)}catch{}
         this.status='ROOM '+this.code+' · '+m.players.length+'/'+8+' READERS';
-        filmBeginStoryNow();
+        if(MODE.type==='story')filmBeginStoryNow();else MODE.startWorld();
       }else if(m.type==='world'||m.type==='dawn')this.receiveWorld(m.world);
       else if(m.type==='resources')this.receiveResources(m.resources,m.tr);
+      else if(m.type==='mode-state')MODE.onState(m.mode);
+      else if(m.type==='mode-private')MODE.onPrivate(m);
+      else if(m.type==='mode-damage'&&m.id===this.id){
+        MODE.hp=Math.max(0,Number(m.health)||0);
+        G.health=MODE.hp;sfx('THE DEAD CLAW AT YOU','red');
+      }
+      else if(m.type==='mode-impact'){
+        if(m.kind==='elimination'){
+          if(m.id===this.id){MODE.alive=false;sfx('YOU HAVE BEEN SILENCED · GHOST VIEW','red')}
+          else sfx('A READER HAS BEEN SILENCED','mind');
+        }else if(m.kind==='meeting-result')sfx(m.exiled?'A READER WAS EXILED':'NO READER EXILED','mind');
+      }
       else if(m.type==='enemies')this.receiveEnemies(m.enemies||[]);
       else if(m.type==='combat'){if(m.action==='kill')sfx('THE LIBRARY REMEMBERS THE FALL','mind')}
       else if(m.type==='rope'){
@@ -4185,6 +4538,7 @@ const NET={
   },
   applyWorld(world){
     FILM.difficulty=world.difficulty;
+    if(world.gameMode)FILM.gameMode=world.gameMode;
     G.phrase=world.phrase;G.difficulty=world.difficulty;
     G.x=world.x;G.y=world.y;G.floor=world.floor;G.ang=-Math.PI/2+.35;
     const room=getRoom(Math.round(G.x/P),Math.round(G.y/P));
@@ -4220,13 +4574,19 @@ const NET={
   receiveWorld(w,initial=false,records=null){
     if(!w)return;
     this.world=w;
+    if(w.gameMode)FILM.gameMode=w.gameMode;
     if(initial&&records){
       G.proofKeys=new Set(records.proofs||[]);
       G.seenSentences=new Set(records.sentences||[]);
     }
     // One server-controlled calendar. Each normal client newDay still performs
     // its local wake animation and room reset at the *same* epoch transition.
-    if(!initial&&w.day>G.day){
+    if(MODE.type!=='story'&&!initial&&w.day>G.day&&G.fall){
+      G.day=w.day;
+      recoverRailFreefall();G.state='play';
+      sfx('THE LIBRARY CARRIES YOU BACK TO A LANDING','mind');
+    }
+    if(MODE.type==='story'&&!initial&&w.day>G.day){
       const fell=G.state==='freefall'&&!!G.fall;
       for(let k=0;k<Math.min(25,w.day-G.day);k++)newDay();
       if(fell){recoverRailFreefall();G.state='wake';G.wakeT=0;G.rung=false}
@@ -4245,12 +4605,16 @@ const NET={
   receiveEnemies(list){
     const next=new Map();
     for(const obj of list){
-      if(!obj||!['pur','seek'].includes(obj.type)||!Number.isFinite(obj.x)||!Number.isFinite(obj.y))continue;
+      if(!obj||!['pur','seek','zombie'].includes(obj.type)||!Number.isFinite(obj.x)||!Number.isFinite(obj.y))continue;
       const prev=this.enemies.get(obj.id)||{};
       const e={...prev,...obj,rag:prev.hanging&&!obj.hanging?null:prev.rag,
         hp:obj.hp,dead:obj.dead?Math.max(.05,prev.dead||.05):0,
         hit:Math.max(0,(prev.hit||0)-.07),seed:Number(obj.id?.length||1),
         zw:0,walk:obj.dead||obj.hanging?0:.7};
+      if(obj.type==='zombie'){
+        e.rig=FIGRIG[3];e.coat=3;e.burnt=true;
+        e.pose=obj.dead?'dead':'run';e.walk=obj.dead?0:1;
+      }
       if(obj.hanging){
         if(!e.rag||e.rag.mode!=='hang'){
           const rag=activateRagdoll(e,'hang',2,1),pinZ=RAILH/PS-25,
@@ -4809,13 +5173,21 @@ function filmBeginStoryNow(){
 function filmBeginStory(){
   FILM.help=false;
   if(typeof NET!=='undefined'&&NET.ws)return;
+  // Secret roles require an authoritative online room: never enter local
+  // Story/cinematic flow when an unsupported solo traitor is selected.
+  if(FILM.gameMode==='impostor'&&FILM.partyMode==='solo')FILM.partyMode='host';
   reset(); // new run, difficulty is retained until this game ends
-  if(FILM.partyMode==='solo'){if(typeof NET!=='undefined')NET.leave();filmBeginStoryNow()}
+  if(FILM.partyMode==='solo'){
+    if(typeof NET!=='undefined')NET.leave();
+    if(FILM.gameMode==='horde')MODE.startWorld();
+    else filmBeginStoryNow();
+  }
   else if(typeof NET!=='undefined'){
     G.state='title';NET.connect(FILM.partyMode,FILM.partyCode);
   }else filmBeginStoryNow();
 }
 function cycleParty(step=1){
+  FILM.autoHost=false;
   const modes=['solo','host','join'];
   FILM.partyMode=modes[(modes.indexOf(FILM.partyMode)+step+modes.length)%modes.length];
   if(FILM.partyMode!=='join')FILM.partyCode='';
@@ -4832,15 +5204,16 @@ function filmChoose(id){
   if(id==='begin')filmBeginStory();
   else if(id==='character'){FILM.customizing=true;FILM.charSelection=0}
   else if(id==='difficulty')cycleDifficulty(1);
+  else if(id==='gameMode')cycleGameMode(1);
   else if(id==='party')cycleParty(1);
   else if(id==='help')FILM.help=true;
   else if(id==='sound')soundToggle();
 }
-const TITLE_ACTIONS=['begin','character','party','difficulty','help','sound'];
+const TITLE_ACTIONS=['begin','gameMode','character','party','difficulty','help','sound'];
 function filmTitleAction(a){
   if(FILM.customizing){
     if(a==='close'||a==='back'||a==='char:done'){
-      FILM.customizing=false;applyCharacter(CHAR,true);FILM.selection=1;snd('page');return;
+      FILM.customizing=false;applyCharacter(CHAR,true);FILM.selection=2;snd('page');return;
     }
     if(typeof a==='string'&&a.startsWith('char:')){
       const [,field,which]=a.split(':');
@@ -4860,8 +5233,9 @@ function filmTitleAction(a){
   if(a==='up'){FILM.selection=(FILM.selection+TITLE_ACTIONS.length-1)%TITLE_ACTIONS.length;snd('page')}
   else if(a==='down'){FILM.selection=(FILM.selection+1)%TITLE_ACTIONS.length;snd('page')}
   else if(a==='prev'||a==='next'){
-    if(FILM.selection===2)cycleParty(a==='prev'?-1:1);
-    else if(FILM.selection===3)cycleDifficulty(a==='prev'?-1:1);
+    if(FILM.selection===1)cycleGameMode(a==='prev'?-1:1);
+    else if(FILM.selection===3)cycleParty(a==='prev'?-1:1);
+    else if(FILM.selection===4)cycleDifficulty(a==='prev'?-1:1);
     else{FILM.selection=(FILM.selection+(a==='prev'?-1:1)+TITLE_ACTIONS.length)%TITLE_ACTIONS.length;snd('page')}
   }
   else if(a==='read'||a==='swing')filmChoose(TITLE_ACTIONS[FILM.selection]);
@@ -5067,7 +5441,7 @@ function filmHelp(g,w,h,portrait){
     ['SOUND / KEY GUIDE','M SOUND · K SHORTCUTS'],
     ['CO-OP CHAT / INVITE','T CHAT · C INVITE'],
     ['EVENT CHOICES / STAIRS','1/2 OPTIONS · W/S STAIRS'],
-    ['TITLE OPTIONS / FLYBY','1–6 MAIN MENU · N NEXT SCENE']
+    ['TITLE OPTIONS / FLYBY','1–7 MAIN MENU · N NEXT SCENE']
   ];
   g.textAlign='left';
   const y0=portrait?196:213,step=portrait?40:50,cols=portrait?1:2,bw=(w-110)/cols;
@@ -5199,17 +5573,23 @@ function filmDrawTitle(){
   g.fillStyle='#e0bd81';g.fillRect(w*.25,yy+(portrait?146:145),w*.5,2);
   g.font='italic '+(portrait?21:25)+'px Georgia';g.fillStyle='#e2d4b4';
   g.fillText('THE LIBRARY HAS A COPY OF YOU',w/2,yy+(portrait?187:181),w-62);
-  const bw=portrait?w-110:464,bh=portrait?49:34,base=portrait?507:419,gap=portrait?9:7;
+  const bw=portrait?w-110:464,bh=portrait?45:32,
+    base=portrait?493:400,gap=portrait?8:6;
   const diff=difficultyRules(FILM.difficulty);
   const party=FILM.partyMode==='solo'?'SINGLE PLAYER':FILM.partyMode==='host'?'CREATE CO-OP ROOM':FILM.partyCode?'JOIN ROOM '+FILM.partyCode:'JOIN CO-OP ROOM';
-  filmButton(g,'begin',FILM.partyMode==='solo'?'1 · BEGIN YOUR STORY':'1 · ENTER THE SHARED LIBRARY',(w-bw)/2,base,bw,bh,FILM.selection===0);
-  filmButton(g,'character','2 · CHARACTER  ◂ '+CHAR.name+' ▸',(w-bw)/2,base+(bh+gap),bw,bh,FILM.selection===1);
-  filmButton(g,'party','3 · PLAY MODE  ◂ '+party+' ▸',(w-bw)/2,base+2*(bh+gap),bw,bh,FILM.selection===2);
-  filmButton(g,'difficulty','4 · DIFFICULTY  ◂ '+diff.name+' ▸',(w-bw)/2,base+3*(bh+gap),bw,bh,FILM.selection===3);
-  filmButton(g,'help','5 · HOW TO PLAY',(w-bw)/2,base+4*(bh+gap),bw,bh,FILM.selection===4);
-  filmButton(g,'sound','6 · SOUND  '+(SND.on?'ON':'OFF'),(w-bw)/2,base+5*(bh+gap),bw,bh,FILM.selection===5);
-  g.textAlign='center';g.fillStyle='#dbc098';g.font='bold '+(portrait?16:15)+'px "Courier New"';
-  g.fillText(diff.tag+' · '+diff.minDay+'+ DAYS · '+diff.sentences+' SENTENCES · '+diff.proofs+' PROOFS',w/2,portrait?885:676,w-50);
+  const selected=FILM.gameMode,game=GAME_TYPES.find(t=>t.id===selected)||GAME_TYPES[0],
+    at=n=>base+n*(bh+gap),bx=(w-bw)/2;
+  filmButton(g,'begin',FILM.partyMode==='solo'?'1 · BEGIN YOUR GAME':'1 · ENTER SHARED LIBRARY',bx,at(0),bw,bh,FILM.selection===0);
+  filmButton(g,'gameMode','2 · GAME  ◂ '+game.label+' ▸',bx,at(1),bw,bh,FILM.selection===1);
+  filmButton(g,'character','3 · CHARACTER  ◂ '+CHAR.name+' ▸',bx,at(2),bw,bh,FILM.selection===2);
+  filmButton(g,'party','4 · PLAYERS  ◂ '+party+' ▸',bx,at(3),bw,bh,FILM.selection===3);
+  filmButton(g,'difficulty','5 · DIFFICULTY  ◂ '+diff.name+' ▸',bx,at(4),bw,bh,FILM.selection===4);
+  filmButton(g,'help','6 · HOW TO PLAY',bx,at(5),bw,bh,FILM.selection===5);
+  filmButton(g,'sound','7 · SOUND  '+(SND.on?'ON':'OFF'),bx,at(6),bw,bh,FILM.selection===6);
+  g.textAlign='center';g.fillStyle='#dbc098';g.font='bold '+(portrait?15:14)+'px "Courier New"';
+  g.fillText(selected==='story'
+    ?diff.tag+' · '+diff.minDay+'+ DAYS · '+diff.sentences+' SENTENCES · '+diff.proofs+' PROOFS'
+    :game.desc,w/2,portrait?884:682,w-60);
   FILM.flybyRect={id:'flyby',x:w*.72,y:portrait?73:76,w:w*.25,h:portrait?38:32};
   g.fillStyle='rgba(10,11,13,.72)';g.fillRect(w*.72,portrait?73:76,w*.25,portrait?38:32);
   g.strokeStyle='#ad8f64';g.strokeRect(w*.72,portrait?73:76,w*.25,portrait?38:32);
@@ -5217,7 +5597,7 @@ function filmDrawTitle(){
   if(typeof NET!=='undefined'&&NET.status){g.fillStyle='#f3cc9b';g.font='bold 14px "Courier New"';
     g.fillText(NET.status,w/2,portrait?910:702,w-45)}
   else{g.fillStyle='#927a5f';g.font='bold '+(portrait?14:13)+'px "Courier New"';
-    g.fillText(FINE?'1–6 SELECT · N NEXT FLYBY · W/S MOVE · ENTER':'TAP MODE TO SWITCH · SHARE ROOM CODE',w/2,h-29,w-55)}
+    g.fillText(FINE?'1–7 SELECT · N NEXT FLYBY · W/S MOVE · ENTER':'TAP MODE TO SWITCH · SHARE ROOM CODE',w/2,h-29,w-55)}
   ;
   g.restore();
 }
@@ -5814,6 +6194,7 @@ function display(dt){
   if(st==='climb'){vctx.fillStyle='rgba(0,0,0,'+(0.96*Math.sin(Math.PI*Math.min(1,G.climbT/1.2)))+')';vctx.fillRect(0,0,DW,DH)}
   if(st==='sleep'){vctx.fillStyle='rgba(4,3,8,'+(0.97*Math.sin(Math.PI*Math.min(1,G.sleepT/2.2)))+')';vctx.fillRect(0,0,DW,DH)}
   drawCoopHUD();
+  drawModeHUD();
   if(G.keyGuide&&FINE&&G.state==='play')drawDesktopKeyGuide();
 }
 /* A small floating multiplayer and salvaged-wood HUD. The buttons are genuine
@@ -5926,6 +6307,14 @@ function action(a){
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0;encClosed()}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
   if(G.state==='play'){if(a==='keyguide'){G.keyGuide=!G.keyGuide;return}
+    if(MODE.type!=='story'){
+      if(a==='read'&&MODE.type==='impostor'){MODE.act('interact');return}
+      if(!MODE.alive&&a!=='journal')return;
+      if(MODE.type==='impostor'&&(a==='swing'||a==='rope'||a==='throw'||a==='push'))return;
+      if(MODE.state?.phase==='over'&&a!=='journal')return;
+      if(MODE.state?.phase==='meeting'&&a!=='journal')return;
+      if(MODE.state?.phase==='lobby'&&a!=='journal')return;
+    }
     if(a==='rope')ropeAction();else if(a==='push'||a==='throw')initiatePersonShove(a);else if(a==='jump')startRailFreefall();else if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
 }
 let last=performance.now(),needResize=true;
@@ -5961,8 +6350,8 @@ const PC_PLAY_KEYS=Object.freeze({
   KeyK:'keyguide'
 });
 const PC_TITLE_KEYS=Object.freeze({
-  Digit1:'begin',Digit2:'character',Digit3:'party',
-  Digit4:'difficulty',Digit5:'help',Digit6:'sound'
+  Digit1:'begin',Digit2:'gameMode',Digit3:'character',Digit4:'party',
+  Digit5:'difficulty',Digit6:'help',Digit7:'sound'
 });
 const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyW:'w',KeyS:'s',KeyA:'a',KeyD:'d',KeyR:'r',KeyF:'f'};
 addEventListener('keydown',ev=>{
@@ -6008,6 +6397,28 @@ addEventListener('keydown',ev=>{
     return;
   }
   if(G.state==='play'){
+    if(MODE.type!=='story'){
+      if(c==='Escape'&&MODE.state?.phase==='over'){
+        MODE.act('exit');ev.preventDefault();return;
+      }
+      if(!ev.repeat&&c==='KeyY'){MODE.act('start');ev.preventDefault();return}
+      if(!ev.repeat&&c==='KeyX'){MODE.act('kill');ev.preventDefault();return}
+      if(!ev.repeat&&c==='KeyU'){
+        MODE.act(MODE.type==='impostor'?'sabotage':'revive');
+        ev.preventDefault();return;
+      }
+      if(!ev.repeat&&c==='KeyM'&&MODE.type==='impostor'){
+        MODE.act('meeting');ev.preventDefault();return;
+      }
+      if(MODE.state?.phase==='meeting'&&!ev.repeat&&
+          (/^Digit[0-8]$/.test(c)||/^Numpad[0-8]$/.test(c))){
+        const n=Number(c.slice(-1));
+        const peers=(MODE.state.players||[]).filter(p=>p.alive);
+        if(n===0)MODE.act('vote',null);
+        else if(peers[n-1])MODE.act('vote',peers[n-1].id);
+        ev.preventDefault();return;
+      }
+    }
     if(c==='Escape'){
       if(G.keyGuide)G.keyGuide=false;
       else if(G.journal)action('journal');else action('journal');
@@ -6042,6 +6453,11 @@ view.addEventListener('pointerdown',ev=>{
   ev.preventDefault();try{view.focus({preventScroll:true})}catch(e){}
   try{view.setPointerCapture(ev.pointerId)}catch(e){}
   const pt=canvasPt(ev);
+  if(G.state==='play'&&MODE.type!=='story')for(const b of MODE.buttons){
+    if(pt.x>=b.x0&&pt.x<=b.x1&&pt.y>=b.y0&&pt.y<=b.y1){
+      MODE.act(b.id,b.value);return;
+    }
+  }
   if(G.state==='play'&&ROPE_BUTTON&&pt.x>=ROPE_BUTTON.x0&&pt.x<=ROPE_BUTTON.x1&&
     pt.y>=ROPE_BUTTON.y0&&pt.y<=ROPE_BUTTON.y1){action('rope');return}
   if(G.state==='play')for(const kind of ['push','throw']){
