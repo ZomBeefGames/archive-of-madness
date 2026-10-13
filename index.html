@@ -5173,6 +5173,9 @@ function filmBeginStoryNow(){
 function filmBeginStory(){
   FILM.help=false;
   if(typeof NET!=='undefined'&&NET.ws)return;
+  // Secret roles require an authoritative online room: never enter local
+  // Story/cinematic flow when an unsupported solo traitor is selected.
+  if(FILM.gameMode==='impostor'&&FILM.partyMode==='solo')FILM.partyMode='host';
   reset(); // new run, difficulty is retained until this game ends
   if(FILM.partyMode==='solo'){
     if(typeof NET!=='undefined')NET.leave();
