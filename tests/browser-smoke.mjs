@@ -362,6 +362,54 @@ async function caseRun(label,contextOptions){
   });
   assert.ok(wave.zombies>=7&&wave.parts>=15,label+' solo zombie wave must render real game models');
   assert.equal(wave.wave,1);
+  const bookMap=await modePage.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G,m=a.MODE;
+    return{map:{x:g.x,y:g.y,floor:g.floor},weapon:m.book.equipped,
+      owned:m.book.owned,rarity:m.book.points,fire:m.buttons.some(x=>x.id==='fire'),
+      reload:m.buttons.some(x=>x.id==='reload')};
+  });
+  assert.ok(bookMap.map.x< -1100&&bookMap.map.y>1100,
+    label+' zombie mode must use the separate Dead Letter Depot map');
+  assert.equal(bookMap.weapon,'primer');
+  assert.deepEqual(bookMap.owned,['primer']);
+  await modePage.waitForFunction(()=>window.__AOM_TEST?.MODE.buttons.some(x=>x.id==='fire'),null,{timeout:12000});
+  const roundsBefore=await modePage.evaluate(()=>window.__AOM_TEST.MODE.book.clips.primer);
+  if(contextOptions.hasTouch){
+    const fire=await modePage.evaluate(()=>{
+      const a=window.__AOM_TEST,b=a.MODE.buttons.find(q=>q.id==='fire'),
+        r=a.view.getBoundingClientRect();
+      return{x:r.left+(b.x0+b.x1)/(2*a.DW)*r.width,
+        y:r.top+(b.y0+b.y1)/(2*a.DH)*r.height};
+    });
+    await modePage.touchscreen.tap(fire.x,fire.y);
+  }else await modePage.keyboard.press('Space');
+  await modePage.waitForFunction(n=>window.__AOM_TEST?.MODE.book.clips.primer<n,
+    roundsBefore,{timeout:12000});
+  const shot=await modePage.evaluate(()=>{
+    const a=window.__AOM_TEST,m=a.MODE,g=a.G,b=m.book;
+    const z=g.ents.find(e=>e.type==='zombie'&&!e.dead);
+    if(!z)throw Error('No zombie to receive a real word');
+    const center=a.getRoom(Math.round(g.x/16),Math.round(g.y/16));
+    g.x=center.cx-3.1;g.y=center.cy;g.ang=Math.PI/2;
+    g.cell=a.placeOf(g.x,g.y);g.room=center;g.inRoom=true;
+    z.x=g.x;z.y=g.y+1.13;z.hp=2;
+    m.lastWordAt=0;m.bookShoot();
+    return{word:m.shots.at(-1)?.word,hits:b.hits,kills:b.kills,
+      fired:b.shots,earned:b.points,dead:!!z.dead};
+  });
+  assert.ok(shot.word&&shot.hits>=1&&shot.earned>250&&shot.dead,
+    label+' a fired word must actually damage a zombie and award verse points');
+  const shop=await modePage.evaluate(()=>{
+    const a=window.__AOM_TEST,m=a.MODE,g=a.G;
+    g.x=(-72+1)*16+2.65;g.y=72*16+.5;g.floor=0;
+    g.cell=a.placeOf(g.x,g.y);g.room=a.getRoom(-71,72);g.inRoom=true;
+    m.book.points=4000;m.bookBuy();
+    return{owned:[...m.book.owned],equipped:m.book.equipped,
+      nearest:m.nearestBook()?.book.id,points:m.book.points};
+  });
+  assert.equal(shop.nearest,'index');
+  assert.ok(shop.owned.includes('index'));
+  assert.equal(shop.equipped,'index');
   await modePage.screenshot({path:'browser-artifacts/horde-'+label+'.png'});
   assert.deepEqual(modeErrors,[],label+' horde game should have no JS exceptions');
   await modePage.close();
