@@ -60,11 +60,11 @@ test('game and cinematic engine JavaScript parse',()=>{
   assert.doesNotThrow(()=>new vm.Script(script));
   assert.doesNotThrow(()=>new vm.Script(theatre));
 });
-test('title renders six readable choices on desktop and phone',()=>{
+test('title renders seven readable choices on desktop and phone',()=>{
   for(const [w,h] of [[1280,720],[750,1450]]){
     const t=studio(w,h);
     assert.doesNotThrow(()=>t.run('filmDrawTitle()'));
-    assert.equal(t.run('FILM.buttons.length'),6);
+    assert.equal(t.run('FILM.buttons.length'),7);
     assert.equal(t.run('filmStage().portrait'),h>w*1.2);
     const values=t.run('({s:filmStage(),buttons:FILM.buttons.map(b=>({...b}))})');
     for(const b of values.buttons){
@@ -76,8 +76,8 @@ test('title renders six readable choices on desktop and phone',()=>{
 });
 test('title navigation, help and sound toggles are reversible',()=>{
   const t=studio();
-  t.run("filmTitleAction('down')");
-  assert.equal(t.run('FILM.selection'),1);
+  t.run("filmTitleAction('down');filmTitleAction('down')");
+  assert.equal(t.run('FILM.selection'),2);
   t.run("filmTitleAction('read')");assert.equal(t.run('FILM.customizing'),true);
   t.run("filmTitleAction('back')");assert.equal(t.run('FILM.customizing'),false);
   t.run("filmTitleAction('down');filmTitleAction('read')");assert.equal(t.run('FILM.partyMode'),'host');
