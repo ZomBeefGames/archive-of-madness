@@ -38,6 +38,7 @@ function setup(){
   let spawns=0;
   const context=vm.createContext({
     G,LAMPS,WD,BG,ENC,texCache,burned,FIREC:fireCards,FIREL:fireLights,LX:0,LY:0,
+    MODE:{type:'impostor'},FILM:{gameMode:'impostor'},TITLE_FLY:{previewing:false},
     buildCard(rows){return{w:Math.max(...rows.map(r=>r.length)),h:rows.length}},
     snd(k){sounds.push(k)},sfx(s){sounds.push(s)},
     openNote:(...args)=>notes.push(args),
@@ -53,7 +54,7 @@ test('entire game script and extracted environmental mechanics parse',()=>{
   assert.doesNotThrow(()=>new vm.Script(script));
   assert.doesNotThrow(()=>new vm.Script(production));
 });
-test('library/gallery variants are deterministic with stable identities during the reset epoch',()=>{
+test('alternative-mode gallery variants are deterministic with stable identities during the reset epoch',()=>{
   const s=setup();
   const z=s.run('galleryZone(0,0)');
   assert.strictEqual(s.run('galleryZone(0,0)'),z);
