@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {WebSocket} from 'ws';
+import {readFileSync} from 'node:fs';
 import {GameRooms} from '../multiplayer.mjs';
 import {MODE_MAPS,modeSpawn} from '../mode-maps.mjs';
 import {
@@ -140,7 +141,7 @@ test('repairs and door purchases are server-authoritative and synchronized',()=>
  assert.equal(inv.points,current,'purchase cannot happen at a distance');
 });
 test('client renders map-closing walls, windows and gates with dedicated shooter controls',()=>{
- const html=(await import('node:fs')).readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(html,/modeSiegeDoorArt/);
  assert.match(html,/HIT\.type='ext';HIT\.u=/);
  assert.match(html,/hordeWingAccess\(x,y,MODE\.siege\?\.doors,rad\)/);
