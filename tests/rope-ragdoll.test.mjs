@@ -79,8 +79,8 @@ test('PC keys and title shortcuts cover visible gameplay buttons and modal actio
  assert.match(script,/KeyK:'keyguide'/);
  for(const key of ['KeyG','KeyP','KeyO','KeyB','KeyJ','Tab','Space','KeyE','Enter'])
    assert.match(script,new RegExp('\\b'+key+":'"));
- assert.match(script,/Digit1:'begin',Digit2:'character',Digit3:'party'/);
- assert.match(script,/Digit4:'difficulty',Digit5:'help',Digit6:'sound'/);
+ assert.match(script,/Digit1:'begin',Digit2:'gameMode',Digit3:'character',Digit4:'party'/);
+ assert.match(script,/Digit5:'difficulty',Digit6:'help',Digit7:'sound'/);
  assert.match(script,/function drawDesktopKeyGuide\(\)/);
  assert.match(script,/if\(G.keyGuide&&FINE&&G.state==='play'\)drawDesktopKeyGuide\(\)/);
 });
