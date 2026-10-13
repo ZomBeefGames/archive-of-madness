@@ -4657,6 +4657,8 @@ const MODE={
  startLocal(){
    this.local={phase:'preparing',wave:0,prep:7,kills:0};
    this.book=modeBookInventory();this.shots=[];this.lastWordAt=0;
+   this.siege=hordeSiegeStart();this.lastHordeRepair=-1e5;
+   this.state.siege=this.siege;
    this.state.phase='preparing';this.role='survivor';this.alive=true;
    this.hp=100;G.health=100;BUILD.planks=Math.max(8,BUILD.planks);
    G.oil=Math.max(12,G.oil);G.ents=[];
@@ -4665,17 +4667,21 @@ const MODE={
  localWave(){
    const a=this.local;
    a.wave++;a.phase='wave';this.state.phase='wave';
+   for(const entry of Object.values(this.siege.windows))entry.repairs=0;
    this.state.wave=a.wave;this.state.maxWaves=10;
-   const c=G.room||getRoom(Math.round(G.x/P),Math.round(G.y/P)),
-     count=5+a.wave*2;
+   const count=5+a.wave*2,
+     windows=HORDE_WINDOWS.filter(w=>!w.requires||this.siege.doors[w.requires]);
    G.ents=G.ents.filter(e=>e.type!=='zombie');
    for(let n=0;n<count;n++){
-     const angle=(n/count)*Math.PI*2+n*.37,rad=3.1+(n%2)*.23;
-     G.ents.push({type:'zombie',x:c.cx+Math.cos(angle)*rad,
-       y:c.cy+Math.sin(angle)*rad,f:angle+Math.PI,coat:3,
+     const w=windows[(n+a.wave*2)%windows.length],
+       outside=1.4+(n%4)*.24;
+     G.ents.push({type:'zombie',x:w.x+w.side*outside,
+       y:w.y+((n%5)-2)*.12,f:w.side===1?Math.PI:0,coat:3,
+       windowId:w.id,outside:true,cx:w.i*P,cy:w.j*P,
        mutant:n%11===0?'binder':n%7===0?'brute':n%4===0?'runner':'shambler',
-       rig:FIGRIG[3],pose:'run',walk:1,dead:0,hp:3+Math.floor((a.wave-1)/2),
-       hit:0,seed:angle,attackCd:0});
+       rig:FIGRIG[3],pose:'run',walk:1,dead:0,
+       hp:3+Math.floor((a.wave-1)/2)+(n%7===0?3:0),
+       hit:0,seed:n*1.371,attackCd:0});
    }
    this.state.zombies=count;
    sfx('HORDE '+a.wave+' · '+count+' DEAD READERS','red');
@@ -4695,13 +4701,45 @@ const MODE={
      if(e.type!=='zombie'||e.dead||e.gone)continue;
      alive++;e.attackCd=Math.max(0,(e.attackCd||0)-dt);
      if(e.shove||e.fallState){tickPersonShove(e,dt);continue}
+     if(e.outside){
+       const w=HORDE_WINDOWS.find(q=>q.id===e.windowId),
+         barrier=this.siege.windows[e.windowId];
+       if(!w||!barrier){e.dead=.001;continue}
+       if(barrier.hp<=0){
+         e.outside=false;e.x=w.x-w.side*.55;e.y=w.y;
+         e.cx=w.i*P;e.cy=w.j*P;
+         sfx('ZOMBIES ARE INSIDE · '+w.name,'red');
+         continue;
+       }
+       const tx=w.x+w.side*.73,ty=w.y,
+         distance=Math.hypot(tx-e.x,ty-e.y),
+         speed=(.52+a.wave*.065)*(e.mutant==='runner'?1.4:e.mutant==='brute'?.68:1);
+       if(distance>.23){
+         e.x+=(tx-e.x)/distance*Math.min(distance,dt*speed);
+         e.y+=(ty-e.y)/distance*Math.min(distance,dt*speed);
+         e.f=Math.atan2(ty-e.y,tx-e.x);
+       }else if(e.attackCd<=0){
+         e.attackCd=.84;
+         barrier.hp=Math.max(0,barrier.hp-(e.mutant==='brute'?2:1));
+         if(!barrier.hp)sfx('WINDOW BREACHED · '+w.name,'red');
+         else snd('hit');
+       }
+       e.walk=.7;gaitUpd(e,dt,.50);
+       continue;
+     }
      const d=Math.hypot(G.x-e.x,G.y-e.y);
      if(d>11){
        e.lostTime=(e.lostTime||0)+dt;
-       if(e.lostTime>3.5+(e.seed%3)){
-         const c=getRoom(Math.round(G.x/P),Math.round(G.y/P)),
-           a=Math.atan2(G.y-c.cy,G.x-c.cx)+Math.PI+e.seed*.3;
-         e.x=c.cx+Math.cos(a)*3.3;e.y=c.cy+Math.sin(a)*3.3;
+       if(e.lostTime>4.2+(e.seed%3)){
+         const next=HORDE_WINDOWS.filter(w=>
+           (!w.requires||this.siege.doors[w.requires])&&
+           Math.hypot(w.x-G.x,w.y-G.y)<16)
+           .sort((u,v)=>Math.hypot(u.x-G.x,u.y-G.y)-Math.hypot(v.x-G.x,v.y-G.y))[0];
+         if(next){
+           e.windowId=next.id;e.outside=true;
+           e.cx=next.i*P;e.cy=next.j*P;
+           e.x=next.x+next.side*2.1;e.y=next.y;
+         }
          e.lostTime=0;
        }
        continue;
