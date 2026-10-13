@@ -322,7 +322,7 @@ async function caseRun(label,contextOptions){
   // A second fresh page verifies the new game really launches into the
   // zombie renderer and starts an actual countdown/wave on the same engine.
   const modePage=await context.newPage(),modeErrors=[];
-  modePage.on('pageerror',e=>modeErrors.push(e.message));
+  modePage.on('pageerror',e=>modeErrors.push(e.stack||e.message));
   await modePage.goto('http://127.0.0.1:'+PORT+'/',{waitUntil:'domcontentloaded'});
   await modePage.waitForFunction(()=>window.__AOM_TEST?.FILM.buttons.length===7);
   await clickTitle(modePage,'gameMode',!!contextOptions.hasTouch);
