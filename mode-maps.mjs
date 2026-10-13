@@ -6,12 +6,12 @@ export const CELL=16;
 export const MODE_MAPS=Object.freeze({
  impostor:{id:'impostor',name:'THE REDACTED ANNEX',i:72,j:72,floor:0,radius:2,
    subtitle:'A sealed council of six witnesses · find the false scribe',
-   zones:['judgment','study','quarantine','mirrorhall','vault','observatory','chain','memory','bindery'],
-   bridges:['checkpoint','cage','chain','service']},
+   zones:['judgment','study','quarantine','mirrorhall','vault','observatory','chain','memory','bindery','confession'],
+   bridges:['checkpoint','cage','chain','service','research','overlook','fork']},
  horde:{id:'horde',name:'THE DEAD LETTER DEPOT',i:-72,j:72,floor:0,radius:3,
    subtitle:'The last stand · keep the books speaking',
-   zones:['refuge','burned','puriflab','obliterated','skeleton','bindery','ashvoid','burning','red'],
-   bridges:['patch','service','broken','burned','checkpoint']}
+   zones:['refuge','burned','puriflab','obliterated','skeleton','bindery','ashvoid','burning','red','collapse','flooded'],
+   bridges:['patch','service','broken','burned','checkpoint','beam','collapsed']}
 });
 export const STATION_OFFSETS=Object.freeze([
  [0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1]
