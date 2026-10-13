@@ -4254,7 +4254,7 @@ const MODE={
    G.cutSeen={opening:true,purifier:true,index:true};
    G.state='play';G.journal=false;G.health=100;G.sanity=100;
    G.clock=DAYLEN*9/24;G.oil=12;G.pitch=0;
-   EYE=.5;releaseAll();
+   EYE=.5;if(this.type==='horde')VIEW.third=false;releaseAll();
  },
  nearestBook(){
    let best=null,d=2.2;
@@ -6588,6 +6588,10 @@ function action(a){
   if(G.state==='book'&&G.page&&(a==='up'||a==='down')){const sh=G.book.shelf+(a==='up'?-1:1);if(sh>=1&&sh<=5){G.book={g:G.book.g,f:G.book.f,wall:G.book.wall,k:G.book.k,shelf:sh,book:G.book.book,page:1};G.flipDir=a==='up'?-1:1;G.flip=0.3;showPage(true)}return}
   if(G.state==='book'){if(a==='read'||a==='close'||a==='swing'){G.state='closing';G.bookAnim=0;encClosed()}else if(a==='next'&&G.page&&G.book.page<410)flip(1);else if(a==='prev'&&G.page&&G.book.page>1)flip(-1);return}
   if(G.state==='play'){if(a==='keyguide'){G.keyGuide=!G.keyGuide;return}
+    if(MODE.type==='horde'){
+      if(a==='swing')return MODE.bookShoot();
+      if(a==='read')return MODE.bookBuy();
+    }
     if(MODE.type!=='story'){
       if(a==='read'&&MODE.type==='impostor'){MODE.act('interact');return}
       if(!MODE.alive&&a!=='journal')return;
@@ -6678,6 +6682,21 @@ addEventListener('keydown',ev=>{
     return;
   }
   if(G.state==='play'){
+    if(MODE.type==='horde'){
+      if(c==='Space'){MODE.bookHeld=true;if(!ev.repeat)MODE.bookShoot();ev.preventDefault();return}
+      if(!ev.repeat&&c==='KeyR'){MODE.bookReload();ev.preventDefault();return}
+      if(!ev.repeat&&c==='KeyE'){MODE.bookBuy();ev.preventDefault();return}
+      if(!ev.repeat&&c==='KeyK'){MODE.bookUpgrade();ev.preventDefault();return}
+      if(!ev.repeat&&c==='KeyQ'){
+        const owned=MODE.book.owned;
+        MODE.bookEquip(owned[(owned.indexOf(MODE.book.equipped)+1)%owned.length]);
+        ev.preventDefault();return;
+      }
+      if(!ev.repeat&&/^(Digit|Numpad)[1-6]$/.test(c)){
+        MODE.bookEquip(WORD_BOOKS[Number(c.slice(-1))-1].id);
+        ev.preventDefault();return;
+      }
+    }
     if(MODE.type!=='story'){
       if(c==='Escape'&&MODE.state?.phase==='over'){
         MODE.act('exit');ev.preventDefault();return;
@@ -6722,8 +6741,10 @@ addEventListener('keydown',ev=>{
   if(c==='KeyM'){soundToggle();ev.preventDefault();return}
   if(c==='KeyV'){toggleView();ev.preventDefault();return}
 });
-addEventListener('keyup',ev=>{if(KEYMAP[ev.code])keys[KEYMAP[ev.code]]=false});
-function releaseAll(){for(const k in keys)keys[k]=false;for(const k in CTLS)CTLS[k].held=0;ptrs.clear();releaseStick()}
+addEventListener('keyup',ev=>{if(KEYMAP[ev.code])keys[KEYMAP[ev.code]]=false;
+  if(ev.code==='Space'&&MODE.type==='horde')MODE.bookHeld=false});
+function releaseAll(){for(const k in keys)keys[k]=false;for(const k in CTLS)CTLS[k].held=0;
+  MODE.bookHeld=false;ptrs.clear();releaseStick()}
 addEventListener('blur',releaseAll);document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseAll()});
 /* touch and mouse: buttons are hit-tested where they float this frame; anywhere else drags to look */
 const ptrs=new Map();
