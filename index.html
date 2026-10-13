@@ -4111,7 +4111,7 @@ const MOT={ang:0,x:0,y:0};
    All artwork is procedural Canvas, preserving the game's brass, ink, paper and
    jointed shadow-puppet language. The world simulation pauses during scenes. ---- */
 const FILM={
-  id:null,shot:0,t:0,clock:0,after:null,selection:0,help:false,customizing:false,charSelection:0,difficulty:'archivist',partyMode:'solo',partyCode:'',gameMode:'story',
+  id:null,shot:0,t:0,clock:0,after:null,selection:0,help:false,customizing:false,charSelection:0,difficulty:'archivist',partyMode:'solo',partyCode:'',gameMode:'story',autoHost:false,
   buttons:[],skipRect:null,backdrop:null,backW:0,backH:0
 };
 /* Alternate games use the real raycaster, existing models and controls. The
@@ -4216,7 +4216,7 @@ const MODE={
      if(action==='interact'){
        const body=this.nearestBody();
        if(body){this.send('report');return true}
-       if(this.state.sabotage&&this.role==='crew'&&st){
+       if(this.state.sabotage&&this.role==='crew'&&st&&['station-1','station-3'].includes(st.id)){
          this.send('repair');return true;
        }
        if(st&&this.role==='crew'&&this.tasks.includes(st.id)&&!this.done.includes(st.id)){
@@ -4320,9 +4320,14 @@ function modeLabel(type){
  return GAME_TYPES.find(t=>t.id===type)?.label||'THE ORIGINAL STORY';
 }
 function cycleGameMode(step=1){
- const list=GAME_TYPES.map(x=>x.id),n=list.indexOf(FILM.gameMode);
+ const list=GAME_TYPES.map(x=>x.id),n=list.indexOf(FILM.gameMode),
+   old=FILM.gameMode;
  FILM.gameMode=list[(n+step+list.length)%list.length];
- if(FILM.gameMode==='impostor'&&FILM.partyMode==='solo')FILM.partyMode='host';
+ if(FILM.gameMode==='impostor'&&FILM.partyMode==='solo'){
+   FILM.partyMode='host';FILM.autoHost=true;
+ }else if(old==='impostor'&&FILM.autoHost){
+   FILM.partyMode='solo';FILM.autoHost=false;
+ }
  snd('page');
 }
 /* Mode controls share a real canvas hit target and a matching PC command.
@@ -5169,6 +5174,7 @@ function filmBeginStory(){
   }else filmBeginStoryNow();
 }
 function cycleParty(step=1){
+  FILM.autoHost=false;
   const modes=['solo','host','join'];
   FILM.partyMode=modes[(modes.indexOf(FILM.partyMode)+step+modes.length)%modes.length];
   if(FILM.partyMode!=='join')FILM.partyCode='';
