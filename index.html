@@ -4566,6 +4566,51 @@ function cycleGameMode(step=1){
 }
 /* Mode controls share a real canvas hit target and a matching PC command.
    The vote overlay intentionally shows names rather than leaking hidden roles. */
+/* All zombie firearms are manuscripts. The overlay stays legible while the
+   same book and fired word animate in the 3D viewport. */
+function drawWordBookHUD(g,u,screenW,panel,click){
+ const inv=MODE.book,b=WORD_BOOK_BY_ID[inv.equipped]||WORD_BOOKS[0],
+   x=Math.max(8*u,DW/2-screenW/2),y=DH-Math.max(158*u,DH*.21),
+   w=Math.min(335*u,screenW*.61),ammo=inv.clips[b.id]||0,
+   reserve=inv.reserves[b.id]||0,reload=Math.max(0,inv.reloadUntil-Date.now());
+ panel(x,y,w,137*u);
+ g.textAlign='left';g.textBaseline='middle';
+ const label=(t,yy,sz,color)=>{g.fillStyle=color;g.font='bold '+Math.round(sz*u)+'px Georgia';
+   g.fillText(t,x+13*u,yy,w-24*u)};
+ label(b.name,y+19*u,16,b.colour);
+ label(b.rarity+(inv.upgrade?' · REWRITTEN +50%':''),y+41*u,12,'#cab391');
+ label((reload?'RELOADING '+(reload/1000).toFixed(1)+'s':ammo+' / '+reserve+' WORDS')+
+   '  ·  '+inv.points+' VERSE P',y+67*u,13,'#efd9ba');
+ label('1–6 BOOKS   Q CYCLE   E BUY   K UPGRADE',y+90*u,10,'#c7b08b');
+ label(inv.owned.map(id=>WORD_BOOK_BY_ID[id]?.name||id).join(' / '),
+   y+112*u,10,'#bdac96');
+ g.textAlign='center';
+ const right=DW/2+screenW/2-Math.min(190*u,screenW*.32),
+   bw=Math.min(190*u,screenW*.32);
+ if(MODE.alive&&MODE.state?.phase==='wave')
+   click('SPACE · FIRE WORD','fire',right,y,bw,56*u);
+ click('R · RELOAD PAGE','reload',right,y+61*u,bw,48*u);
+ const shop=MODE.nearestBook();
+ if(shop){
+   const own=inv.owned.includes(shop.book.id),
+     cost=own?Math.max(120,Math.round(shop.book.price*.20)||120):shop.book.price;
+   const w2=Math.min(screenW*.85,380*u);
+   click('E · '+(own?'REFILL':'BUY '+shop.book.name)+' · '+cost+' P',
+     'buy',DW/2-w2/2,DH*.59,w2,46*u);
+   if(shop.book.id==='primer'&&!inv.upgrade)
+     click('K · REWRITE ALL BOOKS · '+WORD_UPGRADE_PRICE+' P',
+       'upgrade',DW/2-w2/2,DH*.66,w2,43*u);
+ }
+ // The reticle is aligned with the real central ray, not with touch controls.
+ g.strokeStyle=b.colour;g.lineWidth=2*u;
+ const cy=DH*.45,r=6*u;
+ g.beginPath();g.moveTo(DW/2-r*2,cy);g.lineTo(DW/2-r*.7,cy);
+ g.moveTo(DW/2+r*.7,cy);g.lineTo(DW/2+r*2,cy);
+ g.moveTo(DW/2,cy-r*2);g.lineTo(DW/2,cy-r*.7);
+ g.moveTo(DW/2,cy+r*.7);g.lineTo(DW/2,cy+r*2);
+ g.stroke();
+ MODE.drawWords(g);
+}
 function drawModeHUD(){
  MODE.buttons.length=0;
  if(MODE.type==='story'||G.state!=='play')return;
@@ -4591,7 +4636,7 @@ function drawModeHUD(){
    else if(phase==='over')label('ROUND OVER · '+(s.winner==='crew'?'READERS WIN':'FALSE SCRIBE WINS'),cx,top+44*u,14);
    else label((MODE.role==='traitor'?'YOU ARE THE FALSE SCRIBE':MODE.role==='crew'?'READER · COMPLETE YOUR TASKS':'GHOST · OBSERVE')+
      '  ·  TASKS '+(s.done||0)+'/'+(s.required||0),cx,top+44*u,12);
- }else label('WAVE '+(s.wave||0)+'/10 · '+(s.zombies||0)+' ZOMBIES · HP '+Math.round(MODE.hp)+
+ }else label('DEAD LETTER DEPOT · WAVE '+(s.wave||0)+'/10 · '+(s.zombies||0)+' DEAD · HP '+Math.round(MODE.hp)+
    (s.phase==='preparing'?' · NEXT IN '+(s.prep||0)+'s':s.phase==='lobby'?' · PRESS Y TO BEGIN':''),cx,top+44*u,13);
  let acts=[];
  if(s.phase==='lobby')acts=[['Y · START','start']];
@@ -4628,6 +4673,7 @@ function drawModeHUD(){
    }
    if(s.sabotage)label('SABOTAGE · '+s.sabotage.kind.toUpperCase()+' · '+s.sabotage.remaining+'s',cx,DH*.58,13,'#ee997b');
  }
+ if(MODE.type==='horde'&&s.phase!=='lobby'&&s.phase!=='over')drawWordBookHUD(g,u,screenW,panel,click);
  if(s.phase==='over')click('EXIT · RETURN TO THE LIBRARY MENU','exit',cx-175*u,DH*.79,350*u,50*u);
  g.restore();
 }
