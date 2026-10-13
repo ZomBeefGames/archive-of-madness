@@ -4151,16 +4151,19 @@ const WORD_BOOKS=[
 ];
 const WORD_BOOK_BY_ID=Object.fromEntries(WORD_BOOKS.map(b=>[b.id,b]));
 // Illustrated book-rarity altars share the game's depth-tested paper cards.
-const MODE_BOOK_ART=WORD_BOOKS.map((book,i)=>{
+const MODE_BOOK_ART=Array.from({length:6},()=>null);
+function modeBookCard(i){
+ if(MODE_BOOK_ART[i])return MODE_BOOK_ART[i];
+ const book=WORD_BOOKS[i];
  const ink=['n','o','r','f','b','Y'][i],glow=['y','o','r','f','b','Y'][i];
- return buildCard([
+ return MODE_BOOK_ART[i]=buildCard([
  '.....kkkkkk.....','...kkttttttkk...','..ktttttttttk..',
  '..kt'+ink.repeat(6)+'ttk..','..kttt'+ink.repeat(2)+'ttttk..',
  '..kt'+ink+'k'+glow.repeat(2)+'k'+ink+'ttk..','..kt'+ink+'k'+glow.repeat(2)+'k'+ink+'ttk..',
  '..kttt'+ink.repeat(2)+'ttttk..','..kt'+ink.repeat(6)+'ttk..',
  '..ktttttttttk..','...ktttttttk...','....kkkkkkkk...'
  ]);
-});
+}
 
 const WORD_UPGRADE_PRICE=900;
 function modeBookInventory(){
@@ -4233,7 +4236,7 @@ const MODE={
      const p=modeSite(this.type,k);
      if(Math.hypot(p.x-G.x,p.y-G.y)>19)continue;
      const book=this.type==='horde'?WORD_BOOKS[k]:null;
-     zoneSprite(out,book?MODE_BOOK_ART[k]:GOTHIC_PROPS.lectern,
+     zoneSprite(out,book?modeBookCard(k):GOTHIC_PROPS.lectern,
        p.x,p.y,book?.id==='last'?1.45:1.03,{sh:true});
      zoneSprite(out,book?.id==='last'?ZSPR.shrine:GOTHIC_PROPS.talisman,
        p.x+.32,p.y+.32,.36,{z0:.7});
