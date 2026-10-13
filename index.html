@@ -4119,17 +4119,49 @@ const FILM={
   id:null,shot:0,t:0,clock:0,after:null,selection:0,help:false,customizing:false,charSelection:0,difficulty:'archivist',partyMode:'solo',partyCode:'',gameMode:'story',autoHost:false,
   buttons:[],skipRect:null,backdrop:null,backW:0,backH:0
 };
+/* Dedicated multiplayer districts, remote from the story Library and from
+   one another. These coordinates and gun statistics mirror the authoritative
+   mode-maps.mjs / word-books.mjs server catalogue. */
+const MODE_MAPS={
+ impostor:{name:'THE REDACTED ANNEX',i:72,j:72,floor:0,radius:2,
+   zones:['judgment','study','quarantine','mirrorhall','vault','observatory','chain','memory','bindery'],
+   bridges:['checkpoint','cage','chain','service']},
+ horde:{name:'THE DEAD LETTER DEPOT',i:-72,j:72,floor:0,radius:3,
+   zones:['refuge','burned','puriflab','obliterated','skeleton','bindery','ashvoid','burning','red'],
+   bridges:['patch','service','broken','burned','checkpoint']}
+};
+const MODE_STATION_OFFSETS=[[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1]];
+const WORD_BOOKS=[
+ {id:'primer',name:'POCKET PRIMER',rarity:'WORN',price:0,damage:2,cadence:330,mag:18,reserve:90,range:13,reload:1450,pierce:1,colour:'#e9d3a3',words:['NO','STOP','HUSH','TURN','AWAY']},
+ {id:'index',name:'INDEX OF ASH',rarity:'UNCOMMON',price:420,damage:3,cadence:205,mag:26,reserve:120,range:16,reload:1700,pierce:1,colour:'#f6a356',words:['ASH','CINDER','BURN','EMBER','SMOKE']},
+ {id:'redact',name:'THE REDACTION CODEX',rarity:'RARE',price:780,damage:5,cadence:350,mag:15,reserve:100,range:18,reload:1900,pierce:2,colour:'#d86f70',words:['ERASE','VOID','STRIKE','SILENCE','DENY']},
+ {id:'choir',name:'CHOIR OF CINDERS',rarity:'RARE',price:1060,damage:4,cadence:145,mag:38,reserve:190,range:16,reload:2350,pierce:1,colour:'#ffbd6f',words:['SING','SCREAM','WAKE','BLAZE','CHOIR']},
+ {id:'atlas',name:'ATLAS OF SPLINTERS',rarity:'EPIC',price:1560,damage:9,cadence:610,mag:9,reserve:68,range:21,reload:2200,pierce:3,colour:'#b9c9ff',words:['BREAK','SPLINTER','FRACTURE','SHATTER']},
+ {id:'last',name:'THE BOOK OF LAST WORDS',rarity:'LEGENDARY',price:2450,damage:15,cadence:880,mag:6,reserve:42,range:23,reload:2550,pierce:4,colour:'#fff2bf',words:['REMEMBER','ETERNITY','OBLIVION','THE END']}
+];
+const WORD_BOOK_BY_ID=Object.fromEntries(WORD_BOOKS.map(b=>[b.id,b]));
+const WORD_UPGRADE_PRICE=900;
+function modeBookInventory(){
+ return{owned:['primer'],equipped:'primer',clips:{primer:18},reserves:{primer:90},
+   points:250,kills:0,hits:0,shots:0,reloadUntil:0,lastShot:0,upgrade:0};
+}
+function modeSite(type,n){
+ const m=MODE_MAPS[type];if(!m)return null;
+ const [di,dj]=MODE_STATION_OFFSETS[n%MODE_STATION_OFFSETS.length];
+ return{x:(m.i+di)*P+2.65,y:(m.j+dj)*P+.5,floor:m.floor,i:m.i+di,j:m.j+dj};
+}
 /* Alternate games use the real raycaster, existing models and controls. The
    server owns competitive roles, actions and zombie waves. The solo horde
    runs equivalent small-wave local AI when there is no socket. */
 const GAME_TYPES=[
  {id:'story',label:'THE ORIGINAL STORY',desc:'Find your own page; the Library remembers.'},
  {id:'impostor',label:'THE FALSE SCRIBE',desc:'Hidden traitor · tasks · sabotage · vote (3–8 players)'},
- {id:'horde',label:'THE LAST SHELF',desc:'Zombie siege · ten waves · build · survive'}
+ {id:'horde',label:'THE LAST SHELF',desc:'Dead-letter depot · 6 spellbooks · word bullets · 10 waves'}
 ];
 const MODE={
  type:'story',state:null,role:null,alive:true,tasks:[],done:[],hp:100,
  buttons:[],lastSabKind:'catalogue',local:{phase:'lobby',wave:0,prep:0,kills:0},
+ book:modeBookInventory(),shots:[],bookHeld:false,lastWordAt:0,mapStaged:0,
  initialize(type){
    this.type=GAME_TYPES.some(t=>t.id===type)?type:'story';
    this.state={type:this.type,phase:'lobby',players:[],bodies:[],
@@ -4138,6 +4170,7 @@ const MODE={
    this.role=this.type==='horde'?'survivor':null;
    this.alive=true;this.tasks=[];this.done=[];this.hp=100;this.buttons=[];
    this.local={phase:'lobby',wave:0,prep:0,kills:0};
+   this.book=modeBookInventory();this.shots=[];this.bookHeld=false;this.lastWordAt=0;this.mapStaged=0;
  },
  onState(data){
    if(!data||data.type!==this.type)return;
@@ -4159,7 +4192,8 @@ const MODE={
    this.role=msg.role;this.tasks=msg.tasks||[];this.done=msg.done||[];
    this.alive=msg.alive!==false;
    if(typeof msg.health==='number')this.hp=msg.health;
-   if(this.type==='horde')G.health=this.hp;
+   if(this.type==='horde'){G.health=this.hp;
+     if(msg.books&&Array.isArray(msg.books.owned))this.book=msg.books;}
  },
  startWorld(){
    if(this.type==='story')return;
