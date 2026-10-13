@@ -5,6 +5,7 @@ import {randomBytes} from 'node:crypto';
 import {WebSocketServer,WebSocket} from 'ws';
 import {SharedWorld,initShared,worldPublic} from './coop-state.mjs';
 import {RoomStore} from './coop-persistence.mjs';
+import {SpecialModes,GAME_MODES} from './special-modes.mjs';
 
 const ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const MAX_PARTY=8;
@@ -77,8 +78,12 @@ export class GameRooms {
     for(const room of this.rooms.values())this.attachWorld(room);
   }
   changed(){this.store.schedule(this.rooms)}
-  attachWorld(room){room.engine=new SharedWorld(room,(r,m)=>this.broadcast(r,m),()=>this.changed());return room.engine}
-  tick(now=Date.now()){for(const r of this.rooms.values())r.engine.tick(now)}
+  attachWorld(room){
+    room.engine=new SharedWorld(room,(r,m)=>this.broadcast(r,m),()=>this.changed());
+    room.modes=new SpecialModes(room,(r,m)=>this.broadcast(r,m),()=>this.changed());
+    return room.engine;
+  }
+  tick(now=Date.now()){for(const r of this.rooms.values()){r.modes.tick(now);r.engine.tick(now)}}
   close(){this.store.close()}
   broadcast(room,msg,except=null){
     for(const member of room.members)if(member.ws!==except)send(member.ws,msg);
@@ -88,7 +93,8 @@ export class GameRooms {
     barriers:[...room.barriers.values()].map(packBarrier),
     wrecks:[...room.wrecks.values()],broken:[...room.broken],salvaged:[...room.salvaged],
     world:worldPublic(room.world),enemies:room.world.enemies,stories:room.world.stories,
-    records:{proofs:room.world.proofs,sentences:room.world.sentences},host:room.hostId||null
+    records:{proofs:room.world.proofs,sentences:room.world.sentences},host:room.hostId||null,
+    game:room.modes.public()
   }}
   join(ws,msg){
     if(ws.player)return send(ws,{type:'error',message:'Already joined a Library.'});
@@ -102,7 +108,8 @@ export class GameRooms {
         return send(ws,{type:'error',message:'Invalid Library starting state.'});
       room={code,members:new Set(),barriers:new Map(),wrecks:new Map(),broken:new Set(),
         salvaged:new Set(),nextBarrier:1,created:Date.now(),emptyAt:0,lastSeen:Date.now(),
-        world:{phrase:msg.phrase,difficulty:msg.difficulty,
+        world:{gameMode:GAME_MODES.includes(msg.gameMode)?msg.gameMode:'story',
+          phrase:msg.phrase,difficulty:msg.difficulty,
           x:start.x,y:start.y,floor:start.floor,day:1,epoch:1,clock:480*7/24,quest:0}};
       this.rooms.set(code,room);this.attachWorld(room);this.changed();
     }else{
@@ -121,6 +128,7 @@ export class GameRooms {
     send(ws,{type:'welcome',id:p.id,inventory:room.world.resources.boards,...this.publicRoom(room)});
     this.changed();
     this.broadcast(room,{type:'peer-join',player:copyPlayer(p)},ws);
+    room.modes.join(p);
   }
   pose(p,msg){
     const now=Date.now();
@@ -268,6 +276,7 @@ export class GameRooms {
     if(msg.type==='shove')return this.shove(p,msg);
     if(msg.type==='rope')return this.rope(p,msg);
     if(msg.type==='barrier')return this.action(p,msg);
+    if(msg.type==='mode-action')return p.room.modes.action(p,msg);
     if(msg.type==='resources')return p.room.engine.resources(p,msg);
     if(msg.type==='claim'){
       if(!p.room.engine.claim(p,msg))send(ws,{type:'world',world:worldPublic(p.room.world)});
@@ -286,6 +295,7 @@ export class GameRooms {
   leave(ws){
     const p=ws.player;if(!p)return;
     const r=p.room;r.members.delete(p);ws.player=null;
+    r.modes.leave(p);
     this.broadcast(r,{type:'peer-leave',id:p.id});
     if(!r.members.size)r.emptyAt=Date.now();
     if(r.hostId===p.id){r.hostId=[...r.members][0]?.id||null;this.broadcast(r,{type:'host',id:r.hostId})}
