@@ -4642,6 +4642,9 @@ const MODE={
      }
      if(action==='meeting'){this.send('meeting');return true}
    }else if(this.type==='horde'){
+     if(action==='repair')return this.siegeRepair();
+     if(action==='unlock')return this.siegeBuyDoor();
+     if(action==='interact')return this.siegeRead();
      if(action==='fire')return this.bookShoot();
      if(action==='reload')return this.bookReload();
      if(action==='buy')return this.bookBuy();
@@ -4823,16 +4826,35 @@ function drawWordBookHUD(g,u,screenW,panel,click){
  if(MODE.alive&&MODE.state?.phase==='wave')
    click('SPACE · FIRE WORD','fire',right,y,bw,56*u);
  click('R · RELOAD PAGE','reload',right,y+61*u,bw,48*u);
+ let offerY=DH*.455,stepY=43*u;
+ const actionW=Math.min(screenW*.91,405*u),actionX=DW/2-actionW/2;
+ const door=MODE.nearestHordeDoor();
+ if(door){
+   const opened=door.requires&&!MODE.siege.doors[door.requires],
+     line=opened?'FIRST UNLOCK '+door.requires.toUpperCase():
+       'E / L · UNLOCK '+door.name+' · '+door.cost+' P';
+   click(line,'unlock',actionX,offerY,actionW,39*u);
+   offerY+=stepY;
+ }
+ const window=MODE.nearestHordeWindow(true);
+ if(window){
+   const exhausted=window.repairs>=HORDE_REPAIR_LIMIT;
+   click(exhausted?'REPAIR POINTS USED THIS WAVE':
+     'E / B · REPAIR '+window.name+' '+window.hp+'/'+window.maxHp+
+       '  +'+HORDE_REPAIR_REWARD+' P',
+     'repair',actionX,offerY,actionW,39*u);
+   offerY+=stepY;
+ }
  const shop=MODE.nearestBook();
  if(shop){
    const own=inv.owned.includes(shop.book.id),
      cost=own?Math.max(120,Math.round(shop.book.price*.20)||120):shop.book.price;
-   const w2=Math.min(screenW*.85,380*u);
    click('E · '+(own?'REFILL':'BUY '+shop.book.name)+' · '+cost+' P',
-     'buy',DW/2-w2/2,DH*.59,w2,46*u);
+      'buy',actionX,offerY,actionW,39*u);
+   offerY+=stepY;
    if(shop.book.id==='primer'&&!inv.upgrade)
      click('K · REWRITE ALL BOOKS · '+WORD_UPGRADE_PRICE+' P',
-       'upgrade',DW/2-w2/2,DH*.66,w2,43*u);
+       'upgrade',actionX,offerY,actionW,39*u);
  }
  // The reticle is aligned with the real central ray, not with touch controls.
  g.strokeStyle=b.colour;g.lineWidth=2*u;
@@ -4869,8 +4891,13 @@ function drawModeHUD(){
    else if(phase==='over')label('ROUND OVER · '+(s.winner==='crew'?'READERS WIN':'FALSE SCRIBE WINS'),cx,top+44*u,14);
    else label((MODE.role==='traitor'?'YOU ARE THE FALSE SCRIBE':MODE.role==='crew'?'READER · COMPLETE YOUR TASKS':'GHOST · OBSERVE')+
      '  ·  TASKS '+(s.done||0)+'/'+(s.required||0),cx,top+44*u,12);
- }else label('DEAD LETTER DEPOT · WAVE '+(s.wave||0)+'/10 · '+(s.zombies||0)+' DEAD · HP '+Math.round(MODE.hp)+
-   (s.phase==='preparing'?' · NEXT IN '+(s.prep||0)+'s':s.phase==='lobby'?' · PRESS Y TO BEGIN':''),cx,top+44*u,13);
+ }else{
+   const safe=Object.values(MODE.siege?.windows||{}).filter(w=>w.hp>0).length,
+     secured=Object.values(MODE.siege?.doors||{}).filter(Boolean).length;
+   label('WAVE '+(s.wave||0)+'/10 · '+(s.zombies||0)+' ZOMBIES · HP '+Math.round(MODE.hp)+
+     ' · GATES '+secured+'/4 · WINDOWS '+safe+'/8'+
+     (s.phase==='preparing'?' · NEXT '+(s.prep||0)+'s':s.phase==='lobby'?' · PRESS Y':''),cx,top+44*u,12);
+ }
  let acts=[];
  if(s.phase==='lobby')acts=[['Y · START','start']];
  else if(s.phase==='over')acts=[['ESC · EXIT TO TITLE','exit']];
@@ -6867,7 +6894,7 @@ function action(a){
   if(G.state==='play'){if(a==='keyguide'){G.keyGuide=!G.keyGuide;return}
     if(MODE.type==='horde'){
       if(a==='swing')return MODE.bookShoot();
-      if(a==='read')return MODE.bookBuy();
+      if(a==='read')return MODE.siegeRead();
     }
     if(MODE.type!=='story'){
       if(a==='read'&&MODE.type==='impostor'){MODE.act('interact');return}
@@ -6962,7 +6989,9 @@ addEventListener('keydown',ev=>{
     if(MODE.type==='horde'){
       if(c==='Space'){MODE.bookHeld=true;if(!ev.repeat)MODE.bookShoot();ev.preventDefault();return}
       if(!ev.repeat&&c==='KeyR'){MODE.bookReload();ev.preventDefault();return}
-      if(!ev.repeat&&c==='KeyE'){MODE.bookBuy();ev.preventDefault();return}
+      if(!ev.repeat&&c==='KeyE'){MODE.siegeRead();ev.preventDefault();return}
+      if(!ev.repeat&&c==='KeyB'){MODE.siegeRepair();ev.preventDefault();return}
+      if(!ev.repeat&&c==='KeyL'){MODE.siegeBuyDoor();ev.preventDefault();return}
       if(!ev.repeat&&c==='KeyK'){MODE.bookUpgrade();ev.preventDefault();return}
       if(!ev.repeat&&c==='KeyQ'){
         const owned=MODE.book.owned;
