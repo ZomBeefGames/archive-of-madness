@@ -3728,7 +3728,7 @@ function renderScene(MEP){
       if(mi<0||(ri>=0&&RH.t[ri]>MH.t[mi])){railCol(x,RH.t[ri],RH.a[ri]);ri--}else{frameCol(x,MH.t[mi],mi===0);mi--}
     }
   }
-  const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek'&&e.type!=='fig').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
+  const list=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek'&&e.type!=='fig'&&e.type!=='zombie').concat(POSE,MEP,(G.sanity<=0&&Math.floor(G.time*10)%3!==0)?G.phantoms:[]);
   addFiveFloorDressing(list);
   if(MODE.type==='impostor'&&MODE.state?.phase==='playing'){
     for(const st of MODE.state.stations||[]){
