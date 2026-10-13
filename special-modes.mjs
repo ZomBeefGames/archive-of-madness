@@ -118,6 +118,8 @@ export class SpecialModes{
    });
    this.room.world.resources.boards=Math.max(8,this.room.world.resources.boards);
    this.room.world.resources.oil=Math.max(12,this.room.world.resources.oil);
+   this.broadcast(this.room,{type:'resources',resources:{...this.room.world.resources},
+     tr:{...this.room.world.tr}});
   }
   this.privateAll();this.emit();this.changed?.();
   return true;
