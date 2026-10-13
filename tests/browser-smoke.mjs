@@ -330,8 +330,19 @@ async function caseRun(label,contextOptions){
   await clickTitle(modePage,'gameMode',!!contextOptions.hasTouch);
   assert.equal(await modePage.evaluate(()=>window.__AOM_TEST.FILM.gameMode),'horde');
   await clickTitle(modePage,'begin',!!contextOptions.hasTouch);
-  await modePage.waitForFunction(()=>window.__AOM_TEST?.G.state==='play'&&
-    window.__AOM_TEST.MODE.type==='horde',null,{timeout:12000});
+  try{
+    await modePage.waitForFunction(()=>window.__AOM_TEST?.G.state==='play'&&
+      window.__AOM_TEST.MODE.type==='horde',null,{timeout:12000});
+  }catch(error){
+    const diag=await modePage.evaluate(()=>{
+      const a=window.__AOM_TEST;
+      return{state:a?.G?.state,mode:a?.MODE?.type,phase:a?.MODE?.state?.phase,
+        gameMode:a?.FILM?.gameMode,party:a?.FILM?.partyMode,
+        selection:a?.FILM?.selection,cut:a?.FILM?.id,buttons:a?.FILM?.buttons?.map(x=>x.id)};
+    }).catch(e=>({error:String(e)}));
+    console.error('HORDE START DIAGNOSTICS',JSON.stringify({label,diag,modeErrors}));
+    throw error;
+  }
   await modePage.keyboard.press('y');
   await modePage.waitForFunction(()=>window.__AOM_TEST?.MODE.local.phase==='preparing',null,{timeout:12000});
   await modePage.evaluate(()=>{window.__AOM_TEST.MODE.local.prep=.07});
