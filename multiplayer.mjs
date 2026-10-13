@@ -168,10 +168,11 @@ export class GameRooms {
     this.broadcast(p.room,{type:'peer',player:copyPlayer(p)},p.ws);
   }
   rope(p,msg){
-    if(msg.kind!=='enemy')return;
+    if(p.room.world.gameMode==='impostor'||msg.kind!=='enemy')return;
     p.room.engine.ropeEnemy(p,msg);
   }
   shove(p,msg){
+    if(p.room.world.gameMode==='impostor')return;
     const now=Date.now(),mode=msg.mode,kind=msg.kind;
     if(now-(p.lastShove||0)<(mode==='throw'?1050:550)||p.falling)return;
     if(kind==='enemy'){
