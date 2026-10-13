@@ -404,6 +404,15 @@ export class SpecialModes{
    res.oil=Math.min(500,res.oil+3);
    for(const p of this.members())if(this.alive.get(p.id)!==false){
     this.health.set(p.id,Math.min(100,(this.health.get(p.id)||50)+20));
+    const inv=this.bookStates.get(p.id);
+    if(inv){
+      inv.points=Math.min(99999,inv.points+160+55*this.wave);
+      for(const id of inv.owned){
+        const b=WORD_BOOK_BY_ID[id];
+        if(b)inv.reserves[id]=Math.min(b.reserve*2,
+          (inv.reserves[id]||0)+Math.ceil(b.mag*.75));
+      }
+    }
     this.private(p);
    }
    this.broadcast(this.room,{type:'resources',resources:{...res},tr:{...this.room.world.tr}});
