@@ -22,7 +22,7 @@ function harness({room=false}={}){
  const RH={n:1,t:[.70],kind:[1]};
  const NET={ready:false},LAMPS={key:'cached'},WD={key:'cached'};
  const bounds={air:true,block:false};
- const context=vm.createContext({G,RH,NET,LAMPS,WD,P,FH,RS,DAYLEN,
+ const context=vm.createContext({G,RH,NET,LAMPS,WD,MODE:{type:'story'},P,FH,RS,DAYLEN,
    EYE:.5,Math,
    isComm(ci,cj,fl){return ci%3===0&&cj%3===0&&fl%3===0},
    hubStride(){return 3},
