@@ -182,6 +182,19 @@ const GALLERY_WEIGHTS=[
   ['ashvoid',2],['flooded',2],['skeleton',2],['quarantine',1],
   ['bindery',1],['mirrorhall',1],['vault',1]
 ];
+// Keep the campaign's pre-art-update room conditions and their original ratios.
+// Later research, punishment, ruin and bridge interiors belong exclusively to
+// The False Scribe and The Last Shelf, including their selected title previews.
+const STORY_GALLERY_WEIGHTS=[
+  ['normal',54],['burned',16],['burning',9],['barricaded',14],['refuge',7]
+];
+const STORY_GALLERY_TYPES=new Set(STORY_GALLERY_WEIGHTS.map(([id])=>id));
+function expandedEnvironment(){
+  const preview=typeof TITLE_FLY!=='undefined'&&TITLE_FLY.previewing;
+  const mode=preview&&typeof FILM!=='undefined'?FILM.gameMode:
+    typeof MODE!=='undefined'?MODE.type:'story';
+  return mode==='impostor'||mode==='horde';
+}
 const GALLERY_CACHES=new Set(GALLERY_WEIGHTS.map(([id])=>id).filter(id=>id!=='normal'&&id!=='burning'));
 const ROOM_DISCOVERIES={
   confession:['The restraint chair is empty. Its last occupant scratched a confession into the underside of the lamp: I remember the people I was ordered to forget.','+1 INCENSE · +1 ARCHIVE TYPE','incense',1],
@@ -250,6 +263,7 @@ function weightedType(roll,table){
  for(const [name,weight] of table){v-=weight;if(v<0)return name}
  return table[table.length-1][0];
 }
+function storyGalleryType(seed){return weightedType(prng(seed)(),STORY_GALLERY_WEIGHTS)}
 const CROSS_NAMES={
   plain:'THE LANDING',barricaded:'THE BARRICADED HUB',
   scorched:'THE SCORCHED HUB',vigil:'THE VIGIL HUB',
@@ -257,22 +271,33 @@ const CROSS_NAMES={
   collapsed:'THE BROKEN LANDING',shrine:'THE PAGE SHRINE'
 };
 function galleryZone(i,j,fl=G.floor){
-  const key=G.resetEpoch+'|g|'+i+','+j+'|'+fl;
-  let z=G.zoneState.get(key);if(z)return z;
+  const key=G.resetEpoch+'|g|'+i+','+j+'|'+fl,expanded=expandedEnvironment();
+  let z=G.zoneState.get(key);
+  if(z){
+    // Older saves or title previews may still hold expanded rooms in the
+    // shared zone map. Never let those types leak back into Story.
+    if(!expanded&&!STORY_GALLERY_TYPES.has(z.type))
+      z.type=G.startGallery===i+','+j+':'+fl?'normal':storyGalleryType(z.seed);
+    return z;
+  }
   const seed=hashStr('condition|'+key),r=prng(seed),roll=r();
-  let type=weightedType(roll,GALLERY_WEIGHTS);
+  let type=weightedType(roll,expanded?GALLERY_WEIGHTS:STORY_GALLERY_WEIGHTS);
   if(G.startGallery===i+','+j+':'+fl)type='normal'; // do not spawn the player inside a fire or a locked doorway
   z={key,type,seed,side:r()<.5?-1:1,opened:false,breached:false,salvaged:false};
   if(typeof NET!=='undefined'&&NET.zones.has(key))Object.assign(z,NET.zones.get(key));
+  if(!expanded&&!STORY_GALLERY_TYPES.has(z.type))
+    z.type=G.startGallery===i+','+j+':'+fl?'normal':storyGalleryType(seed);
   G.zoneState.set(key,z);return z;
 }
 /* Bridge identity follows a WHOLE span, not the camera. Every named span
    has a persistent inspection state; center crossings and gallery doors stay open. */
 function bridgeZone(axis,i,j,fl=G.floor){
  const key=G.resetEpoch+'|bridge|'+axis+'|'+i+','+j+'|'+fl;
- let z=G.zoneState.get(key);if(z)return z;
+ let z=G.zoneState.get(key);
+ if(z){if(!expandedEnvironment())z.type='plain';return z}
  const seed=hashStr('architecture|'+key),rnd=prng(seed);
- z={key,type:weightedType(rnd(),BRIDGE_WEIGHTS),seed,bridge:true,axis,i,j,floor:fl,opened:false};
+ z={key,type:expandedEnvironment()?weightedType(rnd(),BRIDGE_WEIGHTS):'plain',
+   seed,bridge:true,axis,i,j,floor:fl,opened:false};
  G.zoneState.set(key,z);return z;
 }
 function bridgeSegment(x,y,fl=G.floor){
@@ -3497,7 +3522,8 @@ function wallPx(i,h,z,lv,L){
    avoids rehashing procedural rooms for each software-rendered floor pixel. */
 const GOTHIC_FLOOR_LOOKUP=new Map();
 function gothicFloorZone(px,py,fl=G.floor){
- const gi=Math.round(px/P),gj=Math.round(py/P),key=G.resetEpoch+'|'+fl+'|'+gi+','+gj;
+ const gi=Math.round(px/P),gj=Math.round(py/P),
+   key=G.resetEpoch+'|'+(expandedEnvironment()?'special':'story')+'|'+fl+'|'+gi+','+gj;
  let item=GOTHIC_FLOOR_LOOKUP.get(key);
  if(!item){
    item={zone:galleryZone(gi,gj,fl),cx:gi*P,cy:gj*P};
@@ -4157,11 +4183,11 @@ const FILM={
    mode-maps.mjs / word-books.mjs server catalogue. */
 const MODE_MAPS={
  impostor:{name:'THE REDACTED ANNEX',i:72,j:72,floor:0,radius:2,
-   zones:['judgment','study','quarantine','mirrorhall','vault','observatory','chain','memory','bindery'],
-   bridges:['checkpoint','cage','chain','service']},
+   zones:['judgment','study','quarantine','mirrorhall','vault','observatory','chain','memory','bindery','confession'],
+   bridges:['checkpoint','cage','chain','service','research','overlook','fork']},
  horde:{name:'THE DEAD LETTER DEPOT',i:-72,j:72,floor:0,radius:3,
-   zones:['refuge','burned','puriflab','obliterated','skeleton','bindery','ashvoid','burning','red'],
-   bridges:['patch','service','broken','burned','checkpoint']}
+   zones:['refuge','burned','puriflab','obliterated','skeleton','bindery','ashvoid','burning','red','collapse','flooded'],
+   bridges:['patch','service','broken','burned','checkpoint','beam','collapsed']}
 };
 /* The Dead Letter Depot is a sealed seven-gallery-square arena with an
    interior siege room, purchasable wings and genuine zombie window lanes.
@@ -5534,16 +5560,21 @@ function titleSceneAnimate(shot,position,local){
   return actors;
 }
 function titleStageScene(shot){
-  const types=shot.kind==='gallery'?[shot.variant,shot.variant==='burning'?'burned':'normal']:
-    [shot.variant,shot.action==='arson'?'burned':'refuge'];
+  // The title flythrough respects the selected mode while keeping its crowds.
+  const expanded=expandedEnvironment();
+  const variant=expanded?shot.variant:shot.action==='arson'?'burning':
+    shot.action==='barricade'?'barricaded':
+    shot.action==='fight'?'burned':shot.action==='research'?'refuge':'normal';
+  const types=shot.kind==='gallery'?[variant,variant==='burning'?'burned':'normal']:
+    [variant,shot.action==='arson'?'burned':'refuge'];
   for(let k=-VISIBLE_FLOORS;k<=VISIBLE_FLOORS;k++){
     const fl=shot.floor+k;
     for(const j of [shot.j-1,shot.j]){
-      if(shot.kind!=='gallery')bridgeZone('v',shot.i,j,fl).type=shot.variant;
-      galleryZone(shot.i,j,fl).type=k===0?types[0]:k%2===0?'burned':'study';
+      if(shot.kind!=='gallery')bridgeZone('v',shot.i,j,fl).type=expanded?shot.variant:'plain';
+      galleryZone(shot.i,j,fl).type=k===0?types[0]:k%2===0?'burned':expanded?'study':'normal';
       galleryZone(shot.i+1,j,fl).type=types[1];
     }
-    galleryZone(shot.i,shot.j,fl).type=k===0?types[0]:(k>0?'ashvoid':'refuge');
+    galleryZone(shot.i,shot.j,fl).type=k===0?types[0]:(k>0?(expanded?'ashvoid':'burned'):'refuge');
   }
   if(shot.action==='barricade'){
     // Building in a title scene uses the same barricaded gallery model, but
