@@ -229,7 +229,13 @@ export class SharedWorld {
   if(!room.members?.size){this.lastTick=now;return}
   const dt=bound((now-this.lastTick)/1000,0,1);this.lastTick=now;
   if(!w.ending&&dt>0){
-    if(w.gameMode==='story')w.clock+=dt;
+    w.clock+=dt;
+    // Alternate modes keep their rounds across midnight. Only the shared
+    // wall clock advances, so fall recoveries still have a real dawn.
+    if(w.gameMode!=='story'&&w.clock>=WORLD_DAY_SECONDS){
+      w.day++;w.clock=WORLD_DAY_SECONDS*6/24;
+      this.touch();this.emit({type:'dawn',world:worldPublic(w)});
+    }
     if(w.gameMode==='story'&&w.clock>=WORLD_DAY_SECONDS){
       w.day++;w.clock=WORLD_DAY_SECONDS*6/24;
       if(w.day>=w.nextResetDay){
