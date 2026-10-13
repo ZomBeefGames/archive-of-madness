@@ -201,8 +201,10 @@ export class SpecialModes{
    this.lastSabotage=now;this.sabotage=sabotage;this.sabotageUntil=now+22000;
    this.emit();
   }else if(kind==='repair'&&role==='crew'&&this.sabotage){
-   const station=this.station.find(s=>s.id==='station-1'||s.id==='station-3');
-   if(!station||player.floor!==station.floor||dist(player,station)>1.8)return;
+   const nearConsole=this.station.some(s=>
+     (s.id==='station-1'||s.id==='station-3')&&
+     player.floor===s.floor&&dist(player,s)<=1.8);
+   if(!nearConsole)return;
    this.sabotage=null;this.sabotageUntil=0;this.emit();
   }else if(kind==='report'||kind==='meeting'){
    if(now-this.lastMeeting<16000)return;
