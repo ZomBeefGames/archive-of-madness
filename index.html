@@ -6757,7 +6757,11 @@ view.addEventListener('pointerdown',ev=>{
   const pt=canvasPt(ev);
   if(G.state==='play'&&MODE.type!=='story')for(const b of MODE.buttons){
     if(pt.x>=b.x0&&pt.x<=b.x1&&pt.y>=b.y0&&pt.y<=b.y1){
-      MODE.act(b.id,b.value);return;
+      if(MODE.type==='horde'&&b.id==='fire'){
+        MODE.bookHeld=true;MODE.bookShoot();
+        ptrs.set(ev.pointerId,{kind:'bookfire',x:ev.clientX,y:ev.clientY});
+      }else MODE.act(b.id,b.value);
+      return;
     }
   }
   if(G.state==='play'&&ROPE_BUTTON&&pt.x>=ROPE_BUTTON.x0&&pt.x<=ROPE_BUTTON.x1&&
@@ -6779,6 +6783,11 @@ view.addEventListener('pointerdown',ev=>{
     // tap your weapon hand to switch weapons, tap your face in the mirror to burn incense
     const hc=LAY.hands.c;if(pt.x>=LAY.hands.pressX-hc&&pt.x<=LAY.hands.pressX+11*hc&&pt.y>=DH-10*hc){cycleWeapon();return}
     const fr=HUD[1].rect;if(fr&&pt.x>=fr.x0&&pt.x<=fr.x1&&pt.y>=fr.y0&&pt.y<=fr.y1){useIncense();return}}
+  if(G.state==='play'&&MODE.type==='horde'&&ev.pointerType==='mouse'&&ev.button===0){
+    MODE.bookHeld=true;MODE.bookShoot();
+    ptrs.set(ev.pointerId,{kind:'bookfire',x:ev.clientX,y:ev.clientY});
+    return;
+  }
   const startChoice=G.state==='book'&&G.choice==='enc'?eventChoiceAtScreen(pt.x,pt.y):-1;
   ptrs.set(ev.pointerId,{kind:'look',x:ev.clientX,y:ev.clientY,sx:ev.clientX,sy:ev.clientY,t:performance.now(),startChoice});
 });
@@ -6797,6 +6806,7 @@ view.addEventListener('pointermove',ev=>{
 });
 function endPtr(ev,cancel){
   const p=ptrs.get(ev.pointerId);if(!p)return;ptrs.delete(ev.pointerId);
+  if(p.kind==='bookfire'){MODE.bookHeld=false;return}
   if(p.kind==='ctl'){letGo(p.key);return}
   if(p.kind==='stick'){releaseStick();return}
   if(cancel||Math.hypot(ev.clientX-p.sx,ev.clientY-p.sy)>10||performance.now()-p.t>500)return;
