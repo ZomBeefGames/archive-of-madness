@@ -4328,8 +4328,6 @@ const MODE={
    let endX=G.x+dx*limit,endY=G.y+dy*limit,hit=null;
    if(!NET.ready){
      let count=0;
-     const zombies=G.ents.filter(e=>e.type==='zombie'&&!e.dead&&!e.gone&&
-       e.floor===undefined||false);
      // Solo puppets have no explicit floor: all current-wave enemies belong
      // to the depot's ground floor.
      const valid=G.ents.filter(e=>e.type==='zombie'&&!e.dead&&!e.gone)
@@ -4460,6 +4458,11 @@ const MODE={
      }
      if(action==='meeting'){this.send('meeting');return true}
    }else if(this.type==='horde'){
+     if(action==='fire')return this.bookShoot();
+     if(action==='reload')return this.bookReload();
+     if(action==='buy')return this.bookBuy();
+     if(action==='upgrade')return this.bookUpgrade();
+     if(action==='equip')return this.bookEquip(String(param));
      if(action==='revive'){
        const p=this.nearestPeer(2.2,true);
        if(p){this.send('revive',{targetId:p.id});return true}
@@ -4469,6 +4472,7 @@ const MODE={
  },
  startLocal(){
    this.local={phase:'preparing',wave:0,prep:7,kills:0};
+   this.book=modeBookInventory();this.shots=[];this.lastWordAt=0;
    this.state.phase='preparing';this.role='survivor';this.alive=true;
    this.hp=100;G.health=100;BUILD.planks=Math.max(8,BUILD.planks);
    G.oil=Math.max(12,G.oil);G.ents=[];
@@ -4485,6 +4489,7 @@ const MODE={
      const angle=(n/count)*Math.PI*2+n*.37,rad=3.1+(n%2)*.23;
      G.ents.push({type:'zombie',x:c.cx+Math.cos(angle)*rad,
        y:c.cy+Math.sin(angle)*rad,f:angle+Math.PI,coat:3,
+       mutant:n%11===0?'binder':n%7===0?'brute':n%4===0?'runner':'shambler',
        rig:FIGRIG[3],pose:'run',walk:1,dead:0,hp:3+Math.floor((a.wave-1)/2),
        hit:0,seed:angle,attackCd:0});
    }
@@ -4535,7 +4540,10 @@ const MODE={
      this.state.phase='preparing';this.state.prep=Math.ceil(a.prep);
      G.health=Math.min(100,G.health+20);this.hp=G.health;
      BUILD.planks=Math.min(60,BUILD.planks+2+Math.floor(a.wave/2));
-     G.oil+=3;sfx('WAVE CLEARED · SUPPLIES RESTOCKED','mind');
+     G.oil+=3;this.book.points+=160+55*a.wave;
+     for(const id of this.book.owned){const book=WORD_BOOK_BY_ID[id];
+       this.book.reserves[id]=Math.min(book.reserve*2,(this.book.reserves[id]||0)+Math.floor(book.mag*.75))}
+     sfx('WAVE CLEARED · VERSE POINTS AND AMMO AWARDED','mind');
    }
  },
  localKill(){
