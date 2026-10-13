@@ -4172,6 +4172,51 @@ const MODE={
    this.local={phase:'lobby',wave:0,prep:0,kills:0};
    this.book=modeBookInventory();this.shots=[];this.bookHeld=false;this.lastWordAt=0;this.mapStaged=0;
  },
+ stageMap(){
+   if(this.type==='story')return;
+   const m=MODE_MAPS[this.type],fl=m.floor;
+   for(let i=m.i-m.radius-1;i<=m.i+m.radius+1;i++)
+     for(let j=m.j-m.radius-1;j<=m.j+m.radius+1;j++){
+       const dx=i-m.i,dy=j-m.j,r=Math.max(Math.abs(dx),Math.abs(dy)),
+         seed=Math.abs(dx)*13+Math.abs(dy)*7+Math.abs(dx*dy)*5+
+           (dx>0?3:0)+(dy>0?11:0);
+       galleryZone(i,j,fl).type=r>m.radius?'ashvoid':m.zones[seed%m.zones.length];
+       for(const axis of ['h','v'])
+         bridgeZone(axis,i,j,fl).type=r>m.radius?'collapsed':
+           m.bridges[(Math.abs(i*3+j*7)+(axis==='h'?2:0))%m.bridges.length];
+     }
+   const themes=this.type==='impostor'?
+     ['judgment','study','quarantine','mirrorhall','observatory','vault']:
+     ['refuge','puriflab','burned','skeleton','bindery','vault'];
+   for(let k=0;k<MODE_STATION_OFFSETS.length;k++){
+     const p=modeSite(this.type,k);
+     galleryZone(p.i,p.j,fl).type=themes[k];
+   }
+   LAMPS.key=null;WD.key=null;
+   this.mapStaged=G.resetEpoch;
+ },
+ enterMap(){
+   if(this.type==='story')return;
+   const m=MODE_MAPS[this.type],c=getRoom(m.i,m.j);
+   G.x=c.cx-2.65;G.y=c.cy+.5;G.ang=-.32;G.floor=m.floor;
+   G.room=c;G.gal=c.gid;G.cell=placeOf(G.x,G.y);G.inRoom=true;
+   G.startGallery=c.gid+':'+m.floor;
+   G.rooms=new Set([c.gid+':'+m.floor]);
+   G.phantoms=[];G.ents=[];G.fires=[];
+   this.stageMap();
+ },
+ addMapProps(out){
+   if(this.type==='story'||TITLE_FLY.previewing||G.floor!==MODE_MAPS[this.type].floor)return;
+   for(let k=0;k<MODE_STATION_OFFSETS.length;k++){
+     const p=modeSite(this.type,k);
+     if(Math.hypot(p.x-G.x,p.y-G.y)>19)continue;
+     const book=this.type==='horde'?WORD_BOOKS[k]:null;
+     zoneSprite(out,book?GOTHIC_PROPS.ledger:GOTHIC_PROPS.lectern,
+       p.x,p.y,book?.id==='last'?1.2:.92,{sh:true});
+     zoneSprite(out,book?.id==='last'?ZSPR.shrine:GOTHIC_PROPS.talisman,
+       p.x+.32,p.y+.32,.36,{z0:.7});
+   }
+ },
  onState(data){
    if(!data||data.type!==this.type)return;
    const old=this.state?.phase;
