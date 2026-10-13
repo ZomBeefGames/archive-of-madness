@@ -7,6 +7,7 @@ import {SharedWorld,initShared,worldPublic} from './coop-state.mjs';
 import {RoomStore} from './coop-persistence.mjs';
 import {SpecialModes,GAME_MODES} from './special-modes.mjs';
 import {modeSpawn,modeInside} from './mode-maps.mjs';
+import {hordeAccessible} from './horde-siege.mjs';
 
 const ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const MAX_PARTY=8;
@@ -139,6 +140,8 @@ export class GameRooms {
     const now=Date.now();
     if(now-p.lastPose<65||!validPosition(msg))return;
     if(p.room.world.gameMode!=='story'&&!modeInside(p.room.world.gameMode,msg))return;
+    if(p.room.world.gameMode==='horde'&&
+       !hordeAccessible(msg.x,msg.y,p.room.modes.siege.doors))return;
     const x=msg.x,y=msg.y,f=Number(msg.f);
     if(!Number.isFinite(f))return;
     const passed=p.lastPose?(now-p.lastPose)/1000:4;
