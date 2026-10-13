@@ -6,6 +6,7 @@ import {WebSocketServer,WebSocket} from 'ws';
 import {SharedWorld,initShared,worldPublic} from './coop-state.mjs';
 import {RoomStore} from './coop-persistence.mjs';
 import {SpecialModes,GAME_MODES} from './special-modes.mjs';
+import {modeSpawn,modeInside} from './mode-maps.mjs';
 
 const ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const MAX_PARTY=8;
@@ -106,11 +107,13 @@ export class GameRooms {
       if(!validPosition(start)||typeof msg.phrase!=='string'||msg.phrase.length>120||
         !['reader','archivist','lost','condemned'].includes(msg.difficulty))
         return send(ws,{type:'error',message:'Invalid Library starting state.'});
+      const modeType=GAME_MODES.includes(msg.gameMode)?msg.gameMode:'story';
+      const startAt=modeSpawn(modeType)||start;
       room={code,members:new Set(),barriers:new Map(),wrecks:new Map(),broken:new Set(),
         salvaged:new Set(),nextBarrier:1,created:Date.now(),emptyAt:0,lastSeen:Date.now(),
-        world:{gameMode:GAME_MODES.includes(msg.gameMode)?msg.gameMode:'story',
+        world:{gameMode:modeType,
           phrase:msg.phrase,difficulty:msg.difficulty,
-          x:start.x,y:start.y,floor:start.floor,day:1,epoch:1,clock:480*7/24,quest:0}};
+          x:startAt.x,y:startAt.y,floor:startAt.floor,day:1,epoch:1,clock:480*7/24,quest:0}};
       this.rooms.set(code,room);this.attachWorld(room);this.changed();
     }else{
       const code=String(msg.room||'').toUpperCase();
@@ -133,6 +136,7 @@ export class GameRooms {
   pose(p,msg){
     const now=Date.now();
     if(now-p.lastPose<65||!validPosition(msg))return;
+    if(p.room.world.gameMode!=='story'&&!modeInside(p.room.world.gameMode,msg))return;
     const x=msg.x,y=msg.y,f=Number(msg.f);
     if(!Number.isFinite(f))return;
     const passed=p.lastPose?(now-p.lastPose)/1000:4;
