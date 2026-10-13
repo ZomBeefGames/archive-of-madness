@@ -449,6 +449,10 @@ async function caseRun(label,contextOptions){
     m.siege.windows['central-west'].hp=3;
     m.siege.windows['central-west'].repairs=0;
     m.lastHordeRepair=-1e5;
+    // Freeze the wave briefly so a zombie cannot remove the newly repaired
+    // HP between the real click and the assertion.
+    m.local.phase='preparing';m.local.prep=60;
+    m.state.phase='preparing';m.state.prep=60;
   });
   await modePage.waitForFunction(()=>window.__AOM_TEST?.MODE.buttons.some(b=>b.id==='repair'),null,{timeout:12000});
   const pointsBefore=await modePage.evaluate(()=>window.__AOM_TEST.MODE.book.points);
