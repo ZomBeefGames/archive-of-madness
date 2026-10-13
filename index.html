@@ -665,7 +665,7 @@ function gothicCaseStyle(type,seed){
 }
 function makeCaseTex(g,f,wall,burnt){
   const w=texCanvas(128,128),rnd=prng(hashStr('case|'+g+'.'+f+'|'+wall));
-   const q=galInfo(g),z=galleryZone(q.i,q.j,f),style=gothicCaseStyle(z.type,z.seed),cols=burnt?BURNC:(GOTHIC_CASES[style]||BOOKC);
+   const q=galInfo(g),z=galleryZone(q.i,q.j,f),style=expandedEnvironment()?gothicCaseStyle(z.type,z.seed):'classic',cols=burnt?BURNC:(GOTHIC_CASES[style]||BOOKC);
   w.fillStyle=burnt?'#151210':'#211b19';w.fillRect(0,0,128,128);
   for(let sh=0;sh<5;sh++){const top=8+sh*24;
     for(let b=0;b<32;b++){const bh=13+Math.floor(rnd()*7),col=cols[Math.floor(rnd()*cols.length)],x=b*4,y=top+19-bh;
@@ -3535,6 +3535,7 @@ function gothicFloorZone(px,py,fl=G.floor){
 function floorPx(i,px,py,L,fl=G.floor){
  const ti=((((py%1)+1)%1*32|0)*32+(((px%1)+1)%1*32|0))*4;
  let r=floorTex[ti],g=floorTex[ti+1],b=floorTex[ti+2],gain=L*2.2;
+ if(!expandedEnvironment()){put(i,r,g,b,gain);return}
  const m=gothicFloorZone(px,py,fl),z=m.zone,type=z.type;
  // These decals are lighting-only: collisions, floor planes and shelf addresses
  // are never changed. A broken gallery must remain navigable.
