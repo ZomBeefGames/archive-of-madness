@@ -80,7 +80,7 @@ async function caseRun(label,contextOptions){
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+PORT+'/',{waitUntil:'domcontentloaded'});
   try{
-    await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===6&&a.view.width>0},null,{timeout:12000});
+    await page.waitForFunction(()=>{const a=window.__AOM_TEST;return !!a&&a.G.state==='title'&&a.FILM.buttons.length===7&&a.view.width>0},null,{timeout:12000});
   }catch(e){
     const probe=await page.evaluate(()=>({
       ready:document.readyState,bridge:!!window.__AOM_TEST,
@@ -97,7 +97,7 @@ async function caseRun(label,contextOptions){
     return {pixels:bright,screen:[view.width,view.height],buttons:app.FILM.buttons.length}
   });
   assert.ok(render.pixels>10,label+' title should paint visible artwork');
-  assert.equal(render.buttons,6);
+  assert.equal(render.buttons,7);
   await page.waitForFunction(()=>{
     const a=window.__AOM_TEST;return a?.TITLE_FLY?.frames>0||a?.TITLE_FLY?.failed
   },null,{timeout:20000});
@@ -137,7 +137,7 @@ async function caseRun(label,contextOptions){
       liveRig:a.ME.rig?.head?.g?.w>0,stored:!!localStorage.getItem('aom.character.v1')}
   }),{name:'MORGAN '+label.toUpperCase(),gender:1,outfit:1,coat:1,skin:3,hair:2,liveRig:true,stored:true});
   await clickTitle(page,'char:done',!!contextOptions.hasTouch);
-  await page.waitForFunction(()=>!window.__AOM_TEST?.FILM.customizing&&window.__AOM_TEST.FILM.buttons.length===6);
+  await page.waitForFunction(()=>!window.__AOM_TEST?.FILM.customizing&&window.__AOM_TEST.FILM.buttons.length===7);
   // Tap the real illustrated difficulty button in each responsive layout.
   // Its selection must survive the fresh run created by BEGIN YOUR STORY.
   const difficultyButton=await page.evaluate(()=>{
@@ -328,7 +328,7 @@ async function coopSmoke(){
   guest.on('pageerror',e=>errors.push('guest: '+e.message));
   try{
     await host.goto('http://127.0.0.1:'+PORT+'/');
-    await host.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===6);
+    await host.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===7);
     await clickTitle(host,'character');
     // Rendering the workshop can take several frames on low-powered runners.
     // Do not tap an unrendered button while the title animation is changing.
@@ -349,7 +349,7 @@ async function coopSmoke(){
     assert.match(code,/^[A-HJ-NP-Z2-9]{6}$/);
     assert.match(host.url(),new RegExp('room='+code));
     await guest.goto('http://127.0.0.1:'+PORT+'/?room='+code);
-    await guest.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===6);
+    await guest.waitForFunction(()=>window.__AOM_TEST?.G.state==='title'&&window.__AOM_TEST?.FILM.buttons.length===7);
     assert.equal(await guest.evaluate(()=>window.__AOM_TEST.FILM.partyMode),'join');
     await clickTitle(guest,'begin',true);
     await guest.waitForFunction(()=>window.__AOM_TEST?.NET.ready,null,{timeout:12000});
