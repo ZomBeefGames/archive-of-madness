@@ -5,6 +5,8 @@ import {randomBytes} from 'node:crypto';
 import {MODE_MAPS,modeSite,BOOK_SITE_OFFSETS} from './mode-maps.mjs';
 import {WORD_BOOKS,WORD_BOOK_BY_ID,WORD_UPGRADE_PRICE,newBookInventory,
  allowedWordHit,ammoPackCost} from './word-books.mjs';
+import {newHordeSiege,availableHordeWindows,hordeBuyDoor,hordeRepairWindow,
+ hordeDamageWindow,hordeResetWindowRepairs} from './horde-siege.mjs';
 
 export const GAME_MODES=['story','impostor','horde'];
 export const HORDE_FINAL_WAVE=10;
@@ -46,6 +48,7 @@ export class SpecialModes{
   this.wave=0;this.prepUntil=0;this.lastWave=0;this.health=new Map();
   this.lastReport=0;this.lastClock=nowMs();
   this.bookSites=hordeBookStations();this.bookStates=new Map();
+  this.siege=newHordeSiege();
  }
  get type(){return this.room.world.gameMode||'story'}
  members(){return[...this.room.members]}
@@ -72,7 +75,8 @@ export class SpecialModes{
    Object.assign(result,{wave:this.wave,maxWaves:HORDE_FINAL_WAVE,
      mapName:MODE_MAPS.horde.name,books:this.bookSites,
      zombies:this.room.world.enemies.filter(e=>e.type==='zombie'&&!e.dead).length,
-     prep:this.phase==='preparing'?Math.max(0,Math.ceil((this.prepUntil-nowMs())/1000)):0});
+     prep:this.phase==='preparing'?Math.max(0,Math.ceil((this.prepUntil-nowMs())/1000)):0,
+      siege:this.siege});
   }
   return result;
  }
@@ -101,6 +105,7 @@ export class SpecialModes{
   this.sabotage=null;this.meetingResult=null;this.lastSabotage=0;
   this.meetingUntil=0;this.wave=0;this.prepUntil=0;
   this.health.clear();this.bookStates.clear();this.room.world.enemies=[];
+  this.siege=newHordeSiege();
  }
  start(player,now=nowMs()){
   if(this.type==='story'||this.room.hostId!==player.id)return false;
@@ -309,6 +314,20 @@ export class SpecialModes{
   if(this.type!=='horde'||this.phase==='over'||this.phase==='lobby')return;
   const kind=msg.action,inv=this.bookInventory(player);
   if(kind==='shoot'){this.wordShot(player,msg,now);return}
+  if(kind==='buy-door'){
+   if(this.alive.get(player.id)!==false&&
+      hordeBuyDoor(this.siege,player,inv,String(msg.door||''))){
+     this.private(player);this.emit();this.changed?.();
+   }
+   return;
+  }
+  if(kind==='repair-window'){
+   if(this.alive.get(player.id)!==false&&
+      hordeRepairWindow(this.siege,player,inv,String(msg.window||''),now)){
+     this.private(player);this.emit();this.changed?.();
+   }
+   return;
+  }
   if(kind==='equip-book'){
     const id=String(msg.book||'');
     if(inv.owned.includes(id)&&WORD_BOOK_BY_ID[id]){
@@ -361,23 +380,30 @@ export class SpecialModes{
       tr:{...this.room.world.tr}});this.emit();
   }
  }
+ hordeWindowHit(id,amount=1){
+  if(this.type!=='horde'||this.phase!=='wave')return false;
+  if(!hordeDamageWindow(this.siege,id,amount))return false;
+  this.emit();this.changed?.();return true;
+ }
  spawnWave(now=nowMs()){
   const world=this.room.world;
+  hordeResetWindowRepairs(this.siege);
   this.wave++;this.phase='wave';this.lastWave=now;
   const fighters=this.members().filter(p=>this.alive.get(p.id)!==false);
   const limit=Math.min(90,5+this.wave*3+Math.max(0,fighters.length-1)*3);
   world.enemies=world.enemies.filter(e=>e.type!=='zombie');
+  const windows=availableHordeWindows(this.siege);
   for(let n=0;n<limit;n++){
-   const p=fighters[n%fighters.length];
-   if(!p)break;
-   const cx=Math.round(p.x/16)*16,cy=Math.round(p.y/16)*16,
-     a=((n/limit)*Math.PI*2+n*.61)%(Math.PI*2),r=3.15+(n%3)*.15,
-     x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;
-   // Different spawn angles place the swarm all around the gallery.
-   world.enemies.push({id:'zombie:'+this.wave+':'+n,x,y,f:a+Math.PI,
-     floor:p.floor,type:'zombie',hp:3+Math.floor((this.wave-1)/2)+(n%7===0?3:0),
+   if(!fighters.length||!windows.length)break;
+   const w=windows[(n+this.wave*2)%windows.length],
+     outside=1.4+(n%4)*.24;
+   world.enemies.push({id:'zombie:'+this.wave+':'+n,
+     x:w.x+w.side*outside,y:w.y+((n%5)-2)*.12,
+     f:w.side===1?Math.PI:0,floor:0,type:'zombie',
+     hp:3+Math.floor((this.wave-1)/2)+(n%7===0?3:0),
      mutant:n%11===0?'binder':n%7===0?'brute':n%4===0?'runner':'shambler',
-     dead:false,region:'horde',cx,cy,lastAttack:0,wave:this.wave});
+     dead:false,region:'horde',cx:w.i*16,cy:w.j*16,
+     windowId:w.id,outside:true,lastAttack:0,wave:this.wave});
   }
   this.broadcast(this.room,{type:'enemies',enemies:world.enemies});
   this.emit();this.changed?.();
