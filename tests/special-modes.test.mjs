@@ -109,7 +109,7 @@ test('horde spawns increasing waves, server damage can down survivors, and reviv
  room.modes.tick(room.modes.prepUntil+1);
  assert.equal(room.modes.phase,'wave');
  assert.equal(room.modes.wave,1);
- assert.equal(room.world.enemies.filter(e=>e.type==='zombie').length,8);
+ assert.equal(room.world.enemies.filter(e=>e.type==='zombie').length,11);
  const hp=room.modes.hordeDamage(players[1],1000);
  assert.equal(hp,0);
  assert.equal(room.modes.alive.get(players[1].id),false);
@@ -127,7 +127,7 @@ test('horde spawns increasing waves, server damage can down survivors, and reviv
  const next=room.modes.prepUntil+1;
  room.modes.tick(next);
  assert.equal(room.modes.wave,2);
- assert.ok(room.world.enemies.filter(e=>e.type==='zombie'&&!e.dead).length>8);
+ assert.ok(room.world.enemies.filter(e=>e.type==='zombie'&&!e.dead).length>11);
 });
 test('horde completes on wave 10 with survivors win, not an infinite phantom wave',()=>{
  const {rooms,room,ws}=lobby('horde',1);
