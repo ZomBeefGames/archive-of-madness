@@ -2699,7 +2699,7 @@ function update(dt){
     G.swingCd=Math.max(0,G.swingCd-dt);
     G.flash=Math.max(0,G.flash-dt*2);
     G.hurtCd=Math.max(0,G.hurtCd-dt);
-    if(MODE.type==='horde'&&!NET.ready)MODE.localTick(dt);
+    if(MODE.type==='horde'){MODE.bookTick(dt);if(!NET.ready)MODE.localTick(dt)}
     if(!NET.ready){
       G.clock+=dt;
       if(G.clock>=DAYLEN){G.clock=DAYLEN*6/24;G.day++}
@@ -4740,6 +4740,9 @@ const NET={
       else if(m.type==='resources')this.receiveResources(m.resources,m.tr);
       else if(m.type==='mode-state')MODE.onState(m.mode);
       else if(m.type==='mode-private')MODE.onPrivate(m);
+      else if(m.type==='word-shot'){
+        if(m.fromId!==this.id&&MODE.type==='horde')MODE.visualWord(m);
+      }
       else if(m.type==='mode-damage'&&m.id===this.id){
         MODE.hp=Math.max(0,Number(m.health)||0);
         G.health=MODE.hp;sfx('THE DEAD CLAW AT YOU','red');
@@ -4820,7 +4823,8 @@ const NET={
     const room=getRoom(Math.round(G.x/P),Math.round(G.y/P));
     G.cell=placeOf(G.x,G.y);G.room=room;G.inRoom=G.cell.kind==='g';G.gal=room.gid;
     G.startGallery=G.gal+':'+G.floor;G.rooms=new Set([G.startGallery]);
-    G.zoneState.clear();G.zoneVisited.clear();G.ents=[];spawnRoom(true);
+    G.zoneState.clear();G.zoneVisited.clear();G.ents=[];
+    if(MODE.type==='story')spawnRoom(true);else MODE.stageMap();
   },
   receiveResources(resources,tr){
     if(!resources||typeof resources!=='object')return;
@@ -4868,8 +4872,9 @@ const NET={
       if(fell){recoverRailFreefall();G.state='wake';G.wakeT=0;G.rung=false}
       sfx('DAY '+w.day+' · THE SHARED LIBRARY','mind');
     }
-    if(G.resetEpoch!==w.epoch){G.zoneState.clear();G.zoneVisited.clear();WD.key=null;LAMPS.key=null}
+    if(G.resetEpoch!==w.epoch){G.zoneState.clear();G.zoneVisited.clear();WD.key=null;LAMPS.key=null;MODE.mapStaged=0}
     G.day=w.day;G.clock=w.clock;G.resetEpoch=w.epoch;
+    if(MODE.type!=='story'&&MODE.mapStaged!==G.resetEpoch)MODE.stageMap();
     G.resetCount=w.resetCount;G.resetInterval=w.resetInterval;G.nextResetDay=w.nextResetDay;
     G.q=w.quest;G.proofs=w.proofs;G.sentencesFound=w.sentences;
     if(!w.ending)this.endingRequested=false;
