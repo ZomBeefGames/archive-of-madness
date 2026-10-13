@@ -5342,6 +5342,7 @@ const TITLE_SCENE_CATALOG=[
 const TITLE_FLY={
   scenes:[],zones:new Map(),epoch:0,index:-1,lastRender:-1e9,
   frames:0,previewing:false,failed:false,error:null,manual:0,
+  stageKey:'',vignette:null,
   lastPose:null,lastKind:null,drawScene:0,actorsDrawn:0
 };
 function titleSceneGenerator(seed){
@@ -5623,7 +5624,11 @@ function titleFlyRender(shot,position,elapsed){
   try{
     G.zoneState=TITLE_FLY.zones;G.resetEpoch=TITLE_FLY.epoch;
     G.startGallery=null;G.floor=shot.floor;
-    titleStageScene(shot);
+    const stageKey=shot.id+'|'+shot.seed+'|'+FILM.gameMode;
+    if(TITLE_FLY.stageKey!==stageKey){
+      TITLE_FLY.zones.clear();titleStageScene(shot);
+      TITLE_FLY.stageKey=stageKey;
+    }
     G.x=position.x;G.y=position.y;G.ang=position.ang;
     G.floor=position.floor;G.pitch=position.pitch;EYE=position.eye;
     const cell=placeOf(G.x,G.y);
@@ -5671,7 +5676,7 @@ function titleFlyBackground(g,elapsed){
   const shot=scenes[index],
     local=CALM?shot.duration*.42:timed.local,u=local/shot.duration;
   if(index!==TITLE_FLY.index){TITLE_FLY.index=index;TITLE_FLY.lastRender=-1e9}
-  const interval=(FILM.help||FILM.customizing)?0.32:(FINE?0.10:0.17); // keep live large casts fast on mobile
+  const interval=(FILM.help||FILM.customizing)?0.22:(FINE?0.065:0.082); // keep live large casts fast on mobile
   if(elapsed-TITLE_FLY.lastRender>=interval||TITLE_FLY.frames===0){
     try{
       titleFlyRender(shot,{...titleScenePose(shot,u),local},elapsed);
@@ -5687,10 +5692,11 @@ function titleFlyBackground(g,elapsed){
   g.drawImage(scene,0,0,W,H,0,0,DW,DH);
   // An inexpensive photographic vignette and dark gradient preserve menu
   // contrast while leaving the actual 3-D library visible around the title.
-  const vignette=g.createRadialGradient(DW*.50,DH*.47,Math.min(DW,DH)*.12,
+  const vignette=TITLE_FLY.vignette||g.createRadialGradient(DW*.50,DH*.47,Math.min(DW,DH)*.12,
     DW*.5,DH*.49,Math.max(DW,DH)*.77);
-  vignette.addColorStop(0,'rgba(5,7,10,.02)');
-  vignette.addColorStop(1,'rgba(3,4,7,.64)');
+  if(!TITLE_FLY.vignette)vignette.addColorStop(0,'rgba(5,7,10,.02)');
+  if(!TITLE_FLY.vignette)vignette.addColorStop(1,'rgba(3,4,7,.64)');
+   TITLE_FLY.vignette=vignette;
   g.fillStyle=vignette;g.fillRect(0,0,DW,DH);
   if(!CALM){
     const edge=Math.min(local,shot.duration-local);
@@ -6939,8 +6945,9 @@ function action(a){
     }
     if(a==='rope')ropeAction();else if(a==='push'||a==='throw')initiatePersonShove(a);else if(a==='jump')startRailFreefall();else if(a==='build')buildPlaceOrReinforce();else if(a==='read'){G.journal=false;doRead()}else if(a==='swing')doSwing();else if(a==='journal'){G.journal=!G.journal;if(G.journal)drawJournal();jr.da=0;jr.dd=0}}
 }
-let last=performance.now(),needResize=true;
+let last=performance.now(),needResize=true,titleResolution=false;
 function frame(now){
+  if(titleResolution!==(G.state==='title'))needResize=true;
   if(needResize){needResize=false;resize()}
   const dt=Math.min(0.05,Math.max(0,(now-last)/1000));last=now;
   if(G.state==='title'){FILM.clock+=dt}
@@ -7176,7 +7183,9 @@ room.addEventListener('contextmenu',ev=>ev.preventDefault());
 /* size everything to the screen: scene pixels, field of view, canvas, cards and the floating layout */
 function resize(){
   const r=room.getBoundingClientRect();CW=Math.max(1,r.width);CH=Math.max(1,r.height);ASPECT=CW/CH;
-  H=Math.max(120,Math.round(Math.sqrt((FINE?192000:112000)/ASPECT)/2)*2);W=Math.max(80,Math.round(H*ASPECT/2)*2);
+  titleResolution=G.state==='title';
+  const pixels=titleResolution?(FINE?56000:39000):(FINE?192000:112000);
+  H=Math.max(100,Math.round(Math.sqrt(pixels/ASPECT)/2)*2);W=Math.max(80,Math.round(H*ASPECT/2)*2);
   PLANE=Math.min(Math.tan(37.5*Math.PI/180),Math.max(Math.tan(27*Math.PI/180),0.3608*ASPECT));PROJ=(W/2)/PLANE;
   scene.width=W;scene.height=H;img=sctx.createImageData(W,H);buf=img.data;allocCols();for(let i=3;i<buf.length;i+=4)buf[i]=255;
   let s=Math.min(2,window.devicePixelRatio||1);const lg=Math.max(CW,CH)*s;if(lg>2400)s*=2400/lg;
@@ -7186,7 +7195,7 @@ function resize(){
   const cs=getComputedStyle(safeEl);INS={t:parseFloat(cs.paddingTop)||0,r:parseFloat(cs.paddingRight)||0,b:parseFloat(cs.paddingBottom)||0,l:parseFloat(cs.paddingLeft)||0};
   const port=ASPECT<1;if(port!==PORT||!TX.book){PORT=port;cardTex();drawIntro();drawDead();drawWon();drawJournal();drawBook()}
   LAY=layout();
-  FILM.backdrop=null; // re-render the paper theatre at the new screen size
+  FILM.backdrop=null;TITLE_FLY.vignette=null;TITLE_FLY.lastRender=-1e9; // reset cached theatre
 }
 if(window.ResizeObserver)new ResizeObserver(()=>{needResize=true}).observe(room);
 addEventListener('resize',()=>{needResize=true});
