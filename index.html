@@ -2342,6 +2342,9 @@ function isNight(){const h=hourOf();return h<5||h>=21}
    The rail is a real SQV railing or the existing round shaft guard. No
    walking collision changes, so a normal step can never accidentally fall. */
 function railJumpTarget(){
+  // Story alone has a midnight hub-recovery lattice. Arena games must stay
+  // on their dedicated ground floor instead of falling into an invalid map.
+  if(typeof MODE!=='undefined'&&MODE.type!=='story')return null;
   if(G.state!=='play'||G.journal)return null;
   const dx=Math.cos(G.ang),dy=Math.sin(G.ang);
   if(G.inRoom){
@@ -2830,6 +2833,7 @@ function personTarget(mode='push'){
   return best;
 }
 function openDropAhead(x,y,dx,dy,fromX=G.x,fromY=G.y){
+  if(typeof MODE!=='undefined'&&MODE.type!=='story')return false;
   // Start on the existing floor. An exterior gallery wall is not a railing;
   // never let a thrown character pass through it into the void.
   const source=placeOf(fromX,fromY),
