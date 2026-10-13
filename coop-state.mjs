@@ -27,6 +27,7 @@ const hash=s=>{let n=2166136261;for(let i=0;i<s.length;i++)n=Math.imul(n^s.charC
 const seeded=(s,i)=>((hash(s+'|'+i)%10000)/10000);
 export function initShared(room){
  const w=room.world;
+ w.gameMode=['story','impostor','horde'].includes(w.gameMode)?w.gameMode:'story';
  w.day=Number.isInteger(w.day)?Math.max(1,w.day):1;
  w.clock=finite(w.clock)?bound(w.clock,0,WORLD_DAY_SECONDS):WORLD_DAY_SECONDS*7/24;
  w.epoch=Number.isInteger(w.epoch)?Math.max(1,w.epoch):1;
@@ -40,7 +41,7 @@ export function initShared(room){
  w.tr=(w.tr&&typeof w.tr==='object'&&!Array.isArray(w.tr))?w.tr:{};
  w.ending=!!w.ending;
  w.enemies=Array.isArray(w.enemies)?w.enemies.filter(e=>e&&typeof e.id==='string'&&validPosition(e)&&
-   ['pur','seek'].includes(e.type)).slice(0,MAX_ENEMIES):[];
+   ['pur','seek','zombie'].includes(e.type)).slice(0,MAX_ENEMIES):[];
  w.spawned=Array.isArray(w.spawned)?w.spawned.filter(x=>typeof x==='string').slice(-2500):[];
  w.stories=Array.isArray(w.stories)?w.stories.filter(e=>e&&typeof e.id==='string'&&STORY_TYPES.has(e.kind)&&validPosition(e)).slice(-MAX_STORIES):[];
  w.eventsNext=Number.isInteger(w.eventsNext)?Math.max(1,w.eventsNext):1;
@@ -48,7 +49,7 @@ export function initShared(room){
  return w;
 }
 export function worldPublic(w){
- return{day:w.day,clock:w.clock,epoch:w.epoch,resetCount:w.resetCount,resetInterval:w.resetInterval,
+ return{gameMode:w.gameMode,day:w.day,clock:w.clock,epoch:w.epoch,resetCount:w.resetCount,resetInterval:w.resetInterval,
  nextResetDay:w.nextResetDay,quest:w.quest,proofs:w.proofs.length,sentences:w.sentences.length,
  resources:{...w.resources},tr:{...w.tr},ending:w.ending,version:w.version,
  phrase:w.phrase,difficulty:w.difficulty,x:w.x,y:w.y,floor:w.floor};
@@ -79,7 +80,7 @@ export class SharedWorld {
  initial(){return {world:worldPublic(this.room.world),enemies:this.room.world.enemies,stories:this.room.world.stories}}
  claim(player,msg){
   const w=this.room.world,id=String(msg.key||''),kind=msg.kind;
-  if(!VALID_KEY.test(id)||w.ending)return false;
+  if(w.gameMode!=='story'||!VALID_KEY.test(id)||w.ending)return false;
   if(kind==='sentence'||kind==='proof'){
     const arr=kind==='sentence'?w.sentences:w.proofs;
     if(arr.includes(id)||arr.length>=4096)return false;
@@ -117,7 +118,7 @@ export class SharedWorld {
   if(valid){this.touch();this.emit({type:'resources',resources:{...w.resources},tr:{...w.tr},version:w.version})}
  }
  addRoomEnemy(player){
-  const w=this.room.world;if(!validPosition(player)||w.enemies.length>=MAX_ENEMIES)return;
+  const w=this.room.world;if(w.gameMode!=='story'||!validPosition(player)||w.enemies.length>=MAX_ENEMIES)return;
   const key=coordKey(player.x,player.y,player.floor)+'|'+w.epoch;
   if(w.spawned.includes(key))return;
   if(w.spawned.length>=2500)return;
@@ -182,11 +183,12 @@ export class SharedWorld {
   return true;
  }
  combat(p,msg){
-  const w=this.room.world;if(w.ending)return;
+  const w=this.room.world;if(w.ending||w.gameMode==='impostor')return;
   const now=Date.now();
   if(now-(p.lastCombat||0)<300)return;
   const e=w.enemies.find(q=>q.id===msg.id&&!q.dead);
   if(!e||e.floor!==p.floor)return;
+  if(w.gameMode==='horde'&&e.type!=='zombie')return;
   const tool=String(msg.weapon||'press');
   if(!['press','rod','torch','oil'].includes(tool))return;
   if(tool==='oil'&&w.resources.oil<1)return;
@@ -199,6 +201,7 @@ export class SharedWorld {
   if(e.hp<=0){
     e.hp=0;e.dead=true;
     if(e.type==='pur')w.resources.type=bound(w.resources.type+3,0,LIMITS.type);
+    else if(e.type==='zombie')w.resources.type=bound(w.resources.type+1,0,LIMITS.type);
     else w.resources.oil=bound(w.resources.oil+2,0,LIMITS.oil);
     this.emit({type:'resources',resources:{...w.resources},tr:{...w.tr}});
   }
@@ -227,7 +230,13 @@ export class SharedWorld {
   const dt=bound((now-this.lastTick)/1000,0,1);this.lastTick=now;
   if(!w.ending&&dt>0){
     w.clock+=dt;
-    if(w.clock>=WORLD_DAY_SECONDS){
+    // Alternate modes keep their rounds across midnight. Only the shared
+    // wall clock advances, so fall recoveries still have a real dawn.
+    if(w.gameMode!=='story'&&w.clock>=WORLD_DAY_SECONDS){
+      w.day++;w.clock=WORLD_DAY_SECONDS*6/24;
+      this.touch();this.emit({type:'dawn',world:worldPublic(w)});
+    }
+    if(w.gameMode==='story'&&w.clock>=WORLD_DAY_SECONDS){
       w.day++;w.clock=WORLD_DAY_SECONDS*6/24;
       if(w.day>=w.nextResetDay){
         w.resetCount++;w.epoch++;w.resetInterval=2+Math.floor(w.resetCount/2);
@@ -239,7 +248,7 @@ export class SharedWorld {
       }
       this.touch();advanceQuest(room);this.emit({type:'dawn',world:worldPublic(w)});
     }
-    for(const p of room.members)if(p.active)this.addRoomEnemy(p);
+    if(w.gameMode==='story')for(const p of room.members)if(p.active)this.addRoomEnemy(p);
     let moving=false;
     for(const e of w.enemies){
       if(e.hanging){
@@ -268,22 +277,31 @@ export class SharedWorld {
         moving=true;continue;
       }
       let nearest=null,best=Infinity;
-      for(const p of room.members)if(p.active&&p.floor===e.floor){
+      for(const p of room.members)if(p.active&&p.floor===e.floor&&
+        (w.gameMode!=='horde'||room.modes?.alive.get(p.id)!==false)){
         const dist=Math.hypot(e.x-p.x,e.y-p.y);
         if(dist<best){nearest=p;best=dist}
       }
       if(!nearest||best>8)continue;
       if(best>1.15&&dt){
         const a=Math.atan2(nearest.y-e.y,nearest.x-e.x);
-        const nx=e.x+Math.cos(a)*dt*(e.type==='seek'?.88:.63),
-              ny=e.y+Math.sin(a)*dt*(e.type==='seek'?.88:.63);
-        if(Math.hypot(nx-e.cx,ny-e.cy)<3.85){
+        const speed=e.type==='zombie'?.60+Math.min(.95,(e.wave||1)*.09):e.type==='seek'?.88:.63;
+        const nx=e.x+Math.cos(a)*dt*speed,
+              ny=e.y+Math.sin(a)*dt*speed;
+        const r=Math.hypot(nx-e.cx,ny-e.cy);
+        if(r<3.85&&(e.type!=='zombie'||r>1.82)){
           e.x=nx;e.y=ny;e.f=a;moving=true;
         }
       }
-      if(best<1.2&&now-(e.lastAttack||0)>2000){
-        e.lastAttack=now;this.emit({type:'damage',id:nearest.id,by:e.id,
-          health:e.type==='pur'?5:2,sanity:e.type==='seek'?5:1});moving=true;
+      if(best<1.2&&now-(e.lastAttack||0)>(e.type==='zombie'?1200:2000)){
+        e.lastAttack=now;
+        if(e.type==='zombie'){
+          const remaining=room.modes?.hordeDamage(nearest,6+Math.floor((e.wave||1)/2));
+          if(remaining!==null)this.emit({type:'mode-damage',id:nearest.id,
+            by:e.id,health:remaining});
+        }else this.emit({type:'damage',id:nearest.id,by:e.id,
+          health:e.type==='pur'?5:2,sanity:e.type==='seek'?5:1});
+        moving=true;
       }
     }
     if(moving&&now-this.lastReport>=250)this.emit({type:'enemies',enemies:w.enemies});
