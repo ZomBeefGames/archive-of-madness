@@ -1,3 +1,4 @@
+import {HORDE_WINDOWS,HORDE_SIEGE_ATTACK_INTERVAL_MS} from './horde-siege.mjs';
 // Authoritative cooperative Library world. The browser renders the paper
 // puppets, but the server decides enemy health, shared supplies, quest gates,
 // story outcomes, clock/dawns, and victory. Serializable across restarts.
@@ -276,6 +277,33 @@ export class SharedWorld {
         else{e.x=nx;e.y=ny;k.remaining-=d;if(k.remaining<=.001)e.knock=null}
         moving=true;continue;
       }
+      // Real boarded windows are the only entrance for new zombie waves.
+      // They spawn OUTSIDE the defended galleries and tear down the boards;
+      // intact windows prevent them from entering. All HP changes happen
+      // here on the server and are broadcast to every co-op survivor.
+      if(w.gameMode==='horde'&&e.type==='zombie'&&e.outside){
+        const win=HORDE_WINDOWS.find(q=>q.id===e.windowId),
+          barrier=room.modes?.siege.windows[e.windowId];
+        if(!win||!barrier){e.dead=true;moving=true;continue}
+        if(barrier.hp===0){
+          e.outside=false;e.x=win.x-win.side*.55;
+          e.y=win.y;e.cx=win.i*16;e.cy=win.j*16;
+          moving=true;continue;
+        }
+        const tx=win.x+win.side*.73,ty=win.y,
+          distance=Math.hypot(tx-e.x,ty-e.y),
+          speed=(.52+Math.min(.7,e.wave*.065))*(e.mutant==='runner'?1.4:e.mutant==='brute'?.68:1);
+        if(distance>.23){
+          e.x+=(tx-e.x)/distance*Math.min(distance,dt*speed);
+          e.y+=(ty-e.y)/distance*Math.min(distance,dt*speed);
+          e.f=Math.atan2(ty-e.y,tx-e.x);moving=true;
+        }else if(now-(e.lastAttack||0)>=HORDE_SIEGE_ATTACK_INTERVAL_MS){
+          e.lastAttack=now;
+          room.modes.hordeWindowHit(win.id,e.mutant==='brute'?2:1);
+          moving=true;
+        }
+        continue;
+      }
       let nearest=null,best=Infinity;
       for(const p of room.members)if(p.active&&p.floor===e.floor&&
         (w.gameMode!=='horde'||room.modes?.alive.get(p.id)!==false)){
@@ -291,9 +319,19 @@ export class SharedWorld {
           const cx=Math.round(nearest.x/16)*16,cy=Math.round(nearest.y/16)*16,
             a=Math.atan2(nearest.y-cy,nearest.x-cx)+Math.PI+
               (e.wave+e.x*.1)*.22,r=3.3;
-          e.cx=cx;e.cy=cy;e.x=cx+Math.cos(a)*r;
-          e.y=cy+Math.sin(a)*r;e.f=a+Math.PI;
-          e.lostTime=0;moving=true;
+          // Do not cheat past locked windows or teleport directly inside.
+          // Reinforcements always arrive at a real, authorized breach lane.
+          const eligible=HORDE_WINDOWS.filter(q=>!q.requires||room.modes.siege.doors[q.requires]);
+          const target=eligible.filter(q=>Math.hypot(q.x-nearest.x,q.y-nearest.y)<16)
+            .sort((u,v)=>Math.hypot(u.x-nearest.x,u.y-nearest.y)-
+              Math.hypot(v.x-nearest.x,v.y-nearest.y))[0];
+          if(target){
+            e.windowId=target.id;e.outside=true;
+            e.cx=target.i*16;e.cy=target.j*16;
+            e.x=target.x+target.side*2.1;e.y=target.y;
+            e.f=target.side===1?Math.PI:0;moving=true;
+          }
+          e.lostTime=0;
         }
         continue;
       }
