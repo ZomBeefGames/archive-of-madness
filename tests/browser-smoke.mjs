@@ -410,7 +410,67 @@ async function caseRun(label,contextOptions){
   assert.equal(shop.nearest,'index');
   assert.ok(shop.owned.includes('index'));
   assert.equal(shop.equipped,'index');
-  await modePage.screenshot({path:'browser-artifacts/horde-'+label+'.png'});
+  // The finite depot must actually support a purchase, repair reward and
+  // outside siege encounter through its real desktop/touch HUD.
+  const locked=await modePage.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G,m=a.MODE;
+    g.x=-72*16+5.45;g.y=72*16;g.floor=0;
+    g.cell=a.placeOf(g.x,g.y);g.room=a.getRoom(-72,72);g.inRoom=false;
+    m.book.points=4000;
+    return{closed:m.siege.doors.east===false,near:m.nearestHordeDoor()?.id,
+      blocked:!a.walkable(-72*16+8,72*16,.22)};
+  });
+  assert.ok(locked.closed&&locked.blocked&&locked.near==='east',
+    label+' closed depot must have an accessible locked wing');
+  await modePage.waitForFunction(()=>window.__AOM_TEST?.MODE.buttons.some(b=>b.id==='unlock'),null,{timeout:12000});
+  if(contextOptions.hasTouch){
+    const pos=await modePage.evaluate(()=>{
+      const a=window.__AOM_TEST,b=a.MODE.buttons.find(x=>x.id==='unlock'),
+        r=a.view.getBoundingClientRect();
+      return{x:r.left+(b.x0+b.x1)/(2*a.DW)*r.width,
+        y:r.top+(b.y0+b.y1)/(2*a.DH)*r.height};
+    });
+    await modePage.touchscreen.tap(pos.x,pos.y);
+  }else await modePage.keyboard.press('l');
+  await modePage.waitForFunction(()=>window.__AOM_TEST?.MODE.siege.doors.east===true,null,{timeout:12000});
+  const unlocked=await modePage.evaluate(()=>{
+    const a=window.__AOM_TEST;
+    return{open:a.MODE.siege.doors.east,
+      walk:a.walkable(-72*16+8,72*16,.22),
+      points:a.MODE.book.points};
+  });
+  assert.ok(unlocked.open&&unlocked.walk&&unlocked.points<=3550,
+    label+' verse points should open a real new wing');
+  await modePage.evaluate(()=>{
+    const a=window.__AOM_TEST,g=a.G,m=a.MODE,
+      x=-72*16-5*Math.cos(Math.PI/6)+.68,y=72*16;
+    g.x=x;g.y=y;g.ang=Math.PI;g.room=a.getRoom(-72,72);
+    g.cell=a.placeOf(x,y);g.inRoom=true;g.floor=0;
+    m.siege.windows['central-west'].hp=3;
+    m.siege.windows['central-west'].repairs=0;
+    m.lastHordeRepair=-1e5;
+  });
+  await modePage.waitForFunction(()=>window.__AOM_TEST?.MODE.buttons.some(b=>b.id==='repair'),null,{timeout:12000});
+  const pointsBefore=await modePage.evaluate(()=>window.__AOM_TEST.MODE.book.points);
+  if(contextOptions.hasTouch){
+    const pos=await modePage.evaluate(()=>{
+      const a=window.__AOM_TEST,b=a.MODE.buttons.find(x=>x.id==='repair'),
+        r=a.view.getBoundingClientRect();
+      return{x:r.left+(b.x0+b.x1)/(2*a.DW)*r.width,
+        y:r.top+(b.y0+b.y1)/(2*a.DH)*r.height};
+    });
+    await modePage.touchscreen.tap(pos.x,pos.y);
+  }else await modePage.keyboard.press('b');
+  await modePage.waitForFunction(n=>window.__AOM_TEST.MODE.book.points>=n+25,
+    pointsBefore,{timeout:12000});
+  const repaired=await modePage.evaluate(()=>{
+    const a=window.__AOM_TEST,m=a.MODE;
+    return{hp:m.siege.windows['central-west'].hp,
+      earned:m.book.points,repairs:m.siege.windows['central-west'].repairs};
+  });
+  assert.ok(repaired.hp===4&&repaired.repairs===1&&repaired.earned>=pointsBefore+25,
+    label+' repairing the window must restore HP and earn verse points');
+    await modePage.screenshot({path:'browser-artifacts/horde-'+label+'.png'});
   assert.deepEqual(modeErrors,[],label+' horde game should have no JS exceptions');
   await modePage.close();
   await context.close();
