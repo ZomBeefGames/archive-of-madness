@@ -4512,9 +4512,20 @@ const MODE={
      alive++;e.attackCd=Math.max(0,(e.attackCd||0)-dt);
      if(e.shove||e.fallState){tickPersonShove(e,dt);continue}
      const d=Math.hypot(G.x-e.x,G.y-e.y);
+     if(d>11){
+       e.lostTime=(e.lostTime||0)+dt;
+       if(e.lostTime>3.5+(e.seed%3)){
+         const c=getRoom(Math.round(G.x/P),Math.round(G.y/P)),
+           a=Math.atan2(G.y-c.cy,G.x-c.cx)+Math.PI+e.seed*.3;
+         e.x=c.cx+Math.cos(a)*3.3;e.y=c.cy+Math.sin(a)*3.3;
+         e.lostTime=0;
+       }
+       continue;
+     }
+     e.lostTime=0;
      if(d>.68&&d<17){
        const dir=Math.atan2(G.y-e.y,G.x-e.x),
-         speed=.66+a.wave*.08,dx=Math.cos(dir)*speed*dt,dy=Math.sin(dir)*speed*dt,
+         speed=(.66+a.wave*.08)*(e.mutant==='runner'?1.47:e.mutant==='brute'?.71:1),dx=Math.cos(dir)*speed*dt,dy=Math.sin(dir)*speed*dt,
          nx=e.x+dx,ny=e.y+dy;
        if(walkable(nx,ny,.22)){
          e.x=nx;e.y=ny;e.f=dir;
