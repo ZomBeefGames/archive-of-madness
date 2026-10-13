@@ -4367,6 +4367,79 @@ const MODE={
    G.clock=DAYLEN*9/24;G.oil=12;G.pitch=0;
    EYE=.5;if(this.type==='horde')VIEW.third=false;releaseAll();
  },
+ nearestHordeDoor(){
+   if(this.type!=='horde')return null;
+   let best=null,range=3.25;
+   for(const door of HORDE_DOORS){
+     if(this.siege.doors[door.id])continue;
+     const dist=Math.hypot(door.x-G.x,door.y-G.y);
+     if(dist<range&&G.floor===0){best=door;range=dist}
+   }
+   return best;
+ },
+ nearestHordeWindow(damagedOnly=false){
+   if(this.type!=='horde')return null;
+   let best=null,range=2.75;
+   for(const def of HORDE_WINDOWS){
+     if(def.requires&&!this.siege.doors[def.requires])continue;
+     const state=this.siege.windows[def.id];
+     if(!state||damagedOnly&&state.hp>=state.maxHp)continue;
+     const d=Math.hypot(def.x-G.x,def.y-G.y);
+     if(d<range&&G.floor===0){best={...def,...state};range=d}
+   }
+   return best;
+ },
+ siegeCanStep(x,y,rad=0){
+   return this.type!=='horde'||hordeWingAccess(x,y,this.siege.doors,rad);
+ },
+ siegeBuyDoor(){
+   if(this.type!=='horde'||!this.alive||
+     ['lobby','over'].includes(this.state.phase))return false;
+   const door=this.nearestHordeDoor();if(!door)return false;
+   if(door.requires&&!this.siege.doors[door.requires]){
+     sfx('OPEN '+door.requires.toUpperCase()+' RESERVE FIRST','red');return false;
+   }
+   if(this.book.points<door.cost){
+     sfx('NEED '+door.cost+' VERSE POINTS','red');return false;
+   }
+   if(NET.ready){
+     this.send('buy-door',{door:door.id});
+     return true;
+   }
+   this.book.points-=door.cost;
+   this.siege.doors[door.id]=true;
+   sfx(door.name+' UNLOCKED · -'+door.cost+' VERSE','mind');
+   return true;
+ },
+ siegeRepair(){
+   if(this.type!=='horde'||!this.alive||
+     ['lobby','over'].includes(this.state.phase))return false;
+   const window=this.nearestHordeWindow(true);
+   if(!window)return false;
+   if(window.repairs>=HORDE_REPAIR_LIMIT){
+     sfx('NO MORE REPAIR POINTS ON THIS WINDOW UNTIL NEXT WAVE','red');
+     return false;
+   }
+   if(NET.ready){
+     this.send('repair-window',{window:window.id});
+     return true;
+   }
+   if(G.time-this.lastHordeRepair<HORDE_REPAIR_COOLDOWN)return false;
+   const state=this.siege.windows[window.id];
+   state.hp=Math.min(state.maxHp,state.hp+1);
+   state.repairs++;
+   this.lastHordeRepair=G.time;
+   this.book.points+=HORDE_REPAIR_REWARD;
+   snd('clack');sfx('BARRICADE REPAIRED · +'+HORDE_REPAIR_REWARD+' VERSE','mind');
+   return true;
+ },
+ siegeRead(){
+   // Repair first if aiming at a damaged window; otherwise unlock the
+   // closest purchasable wing, then fall back to the word-book armory.
+   if(this.nearestHordeWindow(true))return this.siegeRepair();
+   if(this.nearestHordeDoor())return this.siegeBuyDoor();
+   return this.bookBuy();
+ },
  nearestBook(){
    let best=null,d=2.2;
    for(let i=0;i<WORD_BOOKS.length;i++){
