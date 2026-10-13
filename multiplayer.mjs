@@ -121,7 +121,9 @@ export class GameRooms {
         return send(ws,{type:'error',message:'That Library code does not exist. Create a new one.'});
       if(room.members.size>=MAX_PARTY)return send(ws,{type:'error',message:'The Library room is full (8 readers).'});
     }
-    const start=isHost?msg.start:room.world;
+    // Hosts and joining readers must both start at the server-approved map,
+    // not at an arbitrary client-supplied campaign coordinate.
+    const start=room.world;
     const p={ws,id:String(this.nextId++),name:shortName(msg.name),
       x:start.x,y:start.y,f:0,floor:start.floor,coat:this.nextId%3,pose:'stand',
       appearance:cleanAppearance(msg.appearance),
