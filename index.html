@@ -6351,6 +6351,50 @@ function hands(){
   const lx=lantX-bobX*.35,ly=DH-9.8*c+bobY*.6;
   vctx.save();vctx.imageSmoothingEnabled=true;vctx.drawImage(HANDLAMP[G.oil>0?1:0],lx,ly,5.8*c,8.9*c);vctx.drawImage(HANDGLOVE,lx-.4*c,ly+7.4*c,6.2*c,3.9*c);vctx.restore();
 }
+/* The player fires by reading. A physical-looking open manuscript replaces
+   melee tools in first person; page runes, handwritten ink, gloves and shot
+   recoil use the game's native 2-D canvas rather than an external 3-D engine. */
+function heldWordBook(){
+ const g=vctx,inv=MODE.book,book=WORD_BOOK_BY_ID[inv.equipped]||WORD_BOOKS[0],
+   u=Math.max(.70,Math.min(1.45,Math.min(DW,DH)/660)),
+   width=Math.min(230*u,DW*.38),h=width*.60,tw=width*.5,
+   bob=Math.sin(G.walkT)*2*u,recoil=Math.min(1,G.swing)*11*u,
+   x=DW*.50,y=DH-h*.52+bob+recoil;
+ g.save();g.translate(x,y);g.rotate(Math.sin(G.time*1.1)*.012+G.swing*.04);
+ g.shadowColor='rgba(0,0,0,.78)';g.shadowBlur=22*u;
+ g.fillStyle='#1b1112';g.beginPath();
+ g.moveTo(-tw-12*u,4*u);g.lineTo(-tw-8*u,-h);
+ g.quadraticCurveTo(-tw*.35,-h-15*u,0,-h+5*u);
+ g.quadraticCurveTo(tw*.3,-h-15*u,tw+8*u,-h);
+ g.lineTo(tw+12*u,4*u);g.lineTo(0,-6*u);g.closePath();g.fill();
+ g.shadowBlur=0;
+ for(const side of [-1,1]){
+   g.beginPath();
+   g.moveTo(0,-h+10*u);
+   g.quadraticCurveTo(side*tw*.72,-h-6*u,side*(tw+5*u),-h+3*u);
+   g.lineTo(side*(tw+7*u),-1*u);
+   g.quadraticCurveTo(side*tw*.52,-h*.12,0,7*u);g.closePath();
+   g.fillStyle=side===-1?'#dbc9a3':'#f0dfb9';g.fill();
+   g.strokeStyle='#8f6b48';g.lineWidth=2*u;g.stroke();
+   g.strokeStyle='rgba(55,39,28,.36)';g.lineWidth=.85*u;
+   for(let line=0;line<7;line++){
+     const ly=-h*.80+line*h*.115;
+     g.beginPath();g.moveTo(side*13*u,ly);g.lineTo(side*(tw-9*u),ly+side*1.1*u);g.stroke();
+   }
+ }
+ g.fillStyle='#3d2618';g.fillRect(-2*u,-h,4*u,h+8*u);
+ g.font='bold '+Math.round(10*u)+'px Georgia';g.textAlign='center';
+ g.fillStyle=book.colour;g.shadowColor=book.colour;g.shadowBlur=7*u;
+ g.fillText(book.words[inv.shots%book.words.length],tw*.52,-h*.66,tw*.82);
+ g.shadowBlur=0;
+ g.font='italic '+Math.round(8*u)+'px Georgia';g.fillStyle='#69513e';
+ g.fillText(book.rarity,-tw*.53,-h*.68,tw*.73);
+ g.fillStyle='#ba8a50';g.fillRect(-tw-4*u,1*u,width+8*u,4*u);
+ g.drawImage(HANDGLOVE,-tw*.96,-h*.08,tw*.42,h*.38);
+ g.save();g.translate(tw*.98,-h*.08);g.scale(-1,1);
+ g.drawImage(HANDGLOVE,-tw*.02,0,tw*.42,h*.38);g.restore();
+ g.restore();
+}
 /* Diegetic freefall: the same environment remains visible at every passing
    floor, with inexpensive streaks and a readable midnight recovery reminder. */
 function drawRailFreefallHUD(){
@@ -6468,7 +6512,7 @@ function display(dt){
   const back=st==='wake'&&G.wakeT>WAKE-1.6,live=st==='play'||st==='dying'||st==='climb'||st==='sleep'||st==='blackout'||back;if(live)HT+=dt;else HT=0;
   if(live)HUD.forEach((h,i)=>{const ap=CALM?1:backOut((HT-0.05-i*0.09)/0.4);if(ap<=0.01){h.rect=null;return}const a=L.hud[h.key];
     h.alpha=Math.min(1,ap*1.6);hudModel(h,{cx:a.cx,cy:a.cy,h:a.h*(0.55+0.45*ap)},L.dH,(1-Math.min(1,ap))*1.35*(i?1:-1)+(CALM?0:0.14*Math.sin(G.time*0.6+i*2.1)))});
-  if(live&&!THIRD)hands();
+  if(live&&!THIRD){if(MODE.type==='horde')heldWordBook();else hands();}
   lag(jr,dA,dF,dt,[-0.08,0.08],0.05,5);
   if(st==='play'&&G.journal&&TX.journal){jr.tex=TX.journal;const a=L.jr,hp=Math.min(a.h*0.94,a.w*0.96*TX.journal.h/TX.journal.w);place(jr,{cx:a.cx,cy:a.cy,h:hp},1.05,0.02,0.3);drawFloat(jr)}
   if(st==='book'||st==='closing'){
