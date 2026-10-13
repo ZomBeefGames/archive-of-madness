@@ -155,3 +155,16 @@ test('untrusted client game mode selection cannot override an existing lobby',()
  assert.equal(room.world.gameMode,'horde');
  assert.equal(guest.messages[0].world.gameMode,'horde');
 });
+
+test('traitor players cannot bypass meetings with ordinary physical attacks',()=>{
+ const {rooms,room,players,ws}=lobby('impostor',3);
+ play(rooms,ws[0],'start');
+ const a=ws[0].player,b=ws[1].player;
+ forceAt(a,{x:4,y:0,floor:0},0);
+ forceAt(b,{x:5,y:0,floor:0},Math.PI);
+ const before=messages(ws[1],'shove').length;
+ post(rooms,ws[0],{type:'shove',kind:'peer',targetId:b.id,mode:'throw'});
+ assert.equal(messages(ws[1],'shove').length,before);
+ post(rooms,ws[0],{type:'rope',kind:'enemy',targetId:'none',mode:'tie'});
+ assert.equal(room.modes.phase,'playing');
+});
