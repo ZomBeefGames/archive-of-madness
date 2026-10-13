@@ -17,9 +17,19 @@ python3 -m http.server 8000
 
 ## Title screen & cinematic scenes
 
-The illustrated **ZomBeef Games** title screen uses pixel-paper, ink, brass and lantern motifs, with a responsive **Begin Your Story / Character / Play Mode / Difficulty / How to Play / Sound** menu. The Character row opens an illustrated character creator with a live 3D-style paper-puppet preview. Play Mode cycles through **Single Player**, **Create Co-op Room**, and **Join Co-op Room**. W/S selects a row; A/D or Left/Right cycles modes or settings; Enter confirms. On phones, tap each setting directly before starting the story.
+The illustrated **ZomBeef Games** title screen uses pixel-paper, ink, brass and lantern motifs, with a responsive **Begin / Game Type / Character / Players / Difficulty / How to Play / Sound** menu. The Character row opens an illustrated character creator with a live 3D-style paper-puppet preview. Players cycles through **Single Player**, **Create Co-op Room**, and **Join Co-op Room**. Game Type cycles through the original campaign, **The False Scribe**, and **The Last Shelf**. W/S selects a row; A/D or Left/Right cycles modes or settings; Enter confirms. On phones, tap each setting directly before starting the story.
 
 Beginning a new run now plays a four-shot opening sequence before the familiar "burned into your mind" introduction. The first nearby Purifier triggers a two-shot warning; your first interaction with the Index triggers another two-shot reveal. Daybreak and finding your page have animated book-and-parchment interludes. All story scenes pause active combat and game time, then return to the original action. **E / Enter / Space or tap to advance; Escape, X or the top-right SKIP label to skip**. Scene reveals occur once per run, and the animation respects reduced-motion preferences.
+
+## Two alternative game modes
+
+The title screen now has three distinct **game types**, all using the same five-floor renderer, character designs, real galleries, bridges, weapons, and barricades. The original story is the default and retains its existing endings and difficulty requirements.
+
+**The False Scribe (hidden-traitor, 3–8 online players)** — One secret traitor is chosen on the server. Everyone else receives three privately assigned maintenance tasks at actual catalogue, lamp, folio, and observatory stations. The traitor can secretly eliminate nearby readers and sabotage the lights or catalogue. Crew members repair sabotage, report bodies, call an emergency assembly near the catalogue, and vote to exile a suspect. Crew wins by completing all assigned tasks or ejecting the traitor; the traitor wins when the surviving crew no longer outnumbers them. Eliminated players become non-interacting observers. The server checks distance, floor, role, task ownership, and voting eligibility; secret assignments are delivered only to their owners. Choose **Game Type: The False Scribe**, host a room, invite at least two friends, and press **Y / START**. Friends joining an ongoing round spectate until the next round.
+
+**The Last Shelf (zombie horde, solo or 1–8 online players)** — Defend the Library through **ten increasingly large and resilient waves** of zombie librarians. The dead rush survivors through the actual gallery. Between waves, you get a brief repair interval plus extra wood, lantern oil, and healing. Reinforce barricades, move through the world, and use existing weapons, shoves, and rope tactics. Co-op enemy health, kills, supplies, damage, and revives are server controlled; revive a nearby fallen player with **U** (costs 2 planks). Survive the tenth wave to win; if every player falls, the horde wins. Solo runs use in-browser zombie AI and require no multiplayer connection. Select the game type and press **Y / START** after entering the Library.
+
+Both alternative modes use a dedicated on-screen status panel with context-sensitive mouse/touch buttons. Title cinematics and the campaign's Index quest remain separate. Server restarts preserve the selected room type and normal co-op construction, but active hidden-role rounds restart in a fresh lobby to avoid exposing secret assignments.
 
 ## Character creation
 
@@ -84,7 +94,13 @@ Both solo games and co-op sessions use the same interactions. An indestructible 
 | Throw someone farther, possibly over a rail | **O** | Tap **THROW PERSON** when within reach |
 | Tie a nearby person or body to a railing; untie a hanging body | **H** | Tap **HANG WITH ROPE** / **RELEASE THE ROPE** |
 | Open / close full keyboard map | **K** (Escape closes) | All buttons remain touch accessible |
-| Select the six title-screen buttons directly | **1–6** (in menu order) | Tap a title button |
+| Select the seven title-screen buttons directly | **1–7** (in menu order) | Tap a title button |
+| Start your new game mode (host / solo) | **Y** | Tap **START** on the mode panel |
+| The False Scribe: use task / report body / repair | **E** | Tap **TASK / REPORT** when nearby |
+| The False Scribe: eliminate / sabotage / call meeting | **X** / **U** / **M** | Contextual mode controls |
+| Emergency meeting: vote for a reader or skip | **1–8** for names, **0** to skip | Tap an eligible reader or **SKIP VOTE** |
+| The Last Shelf: revive nearby fallen friend (2 boards) | **U** | Tap **REVIVE ALLY** |
+| Leave a finished special-mode round | **Escape** | Tap **EXIT TO TITLE** |
 | Preview the next live title-screen scene | **N** | Tap **NEXT SCENE** on the title screen |
 | Place or reinforce portable barricade (3 reinforcements = indestructible) | B | BUILD / REINFORCE button |
 | Share multiplayer invite | C | Tap the CO-OP room panel |
