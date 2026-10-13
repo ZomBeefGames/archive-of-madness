@@ -4068,6 +4068,285 @@ const FILM={
   id:null,shot:0,t:0,clock:0,after:null,selection:0,help:false,customizing:false,charSelection:0,difficulty:'archivist',partyMode:'solo',partyCode:'',
   buttons:[],skipRect:null,backdrop:null,backW:0,backH:0
 };
+/* Alternate games use the real raycaster, existing models and controls. The
+   server owns competitive roles, actions and zombie waves. The solo horde
+   runs equivalent small-wave local AI when there is no socket. */
+const GAME_TYPES=[
+ {id:'story',label:'THE ORIGINAL STORY',desc:'Find your own page; the Library remembers.'},
+ {id:'impostor',label:'THE FALSE SCRIBE',desc:'Hidden traitor · tasks · sabotage · vote (3–8 players)'},
+ {id:'horde',label:'THE LAST SHELF',desc:'Zombie siege · ten waves · build · survive'}
+];
+const MODE={
+ type:'story',state:null,role:null,alive:true,tasks:[],done:[],hp:100,
+ buttons:[],lastSabKind:'catalogue',local:{phase:'lobby',wave:0,prep:0,kills:0},
+ initialize(type){
+   this.type=GAME_TYPES.some(t=>t.id===type)?type:'story';
+   this.state={type:this.type,phase:'lobby',players:[],bodies:[],
+     stations:[],done:0,required:0,canStart:this.type!=='impostor',
+     wave:0,maxWaves:10,zombies:0};
+   this.role=this.type==='horde'?'survivor':null;
+   this.alive=true;this.tasks=[];this.done=[];this.hp=100;this.buttons=[];
+   this.local={phase:'lobby',wave:0,prep:0,kills:0};
+ },
+ onState(data){
+   if(!data||data.type!==this.type)return;
+   const old=this.state?.phase;
+   this.state=data;
+   if(old!==data.phase){
+     if(data.phase==='over')sfx(data.winner==='survivors'||data.winner==='crew'?'THE LIBRARY IS YOURS':'THE LIBRARY CLAIMS THEM','mind');
+     else if(data.phase==='meeting')sfx('EMERGENCY ASSEMBLY','red');
+     else if(data.phase==='wave')sfx('THE DEAD ARE COMING','red');
+     else if(data.phase==='preparing')sfx('REPAIR THE BARRICADES','mind');
+   }
+   if(NET.id){const p=data.players?.find(x=>x.id===NET.id);if(p){
+     this.alive=p.alive!==false;
+     if(typeof p.health==='number')this.hp=p.health;
+   }}
+ },
+ onPrivate(msg){
+   if(msg.gameMode!==this.type)return;
+   this.role=msg.role;this.tasks=msg.tasks||[];this.done=msg.done||[];
+   this.alive=msg.alive!==false;
+   if(typeof msg.health==='number')this.hp=msg.health;
+   if(this.type==='horde')G.health=this.hp;
+ },
+ startWorld(){
+   if(this.type==='story')return;
+   G.ents=[];G.phantoms=[];ENC.list=[];BG.acts=[];
+   G.cutSeen={opening:true,purifier:true,index:true};
+   G.state='play';G.journal=false;G.health=100;G.sanity=100;
+   G.clock=DAYLEN*9/24;G.oil=12;G.pitch=0;
+   EYE=.5;releaseAll();
+ },
+ send(action,data={}){
+   if(this.type==='story')return;
+   if(NET.ready)NET.send({type:'mode-action',action,...data});
+ },
+ nearestStation(){
+   const stations=this.state?.stations||[];
+   let best=null,dist=1.75;
+   for(const st of stations){
+     const d=Math.hypot(st.x-G.x,st.y-G.y);
+     if(st.floor===G.floor&&d<dist){dist=d;best=st}
+   }
+   return best;
+ },
+ nearestBody(){
+   let best=null,dist=2.2;
+   for(const b of this.state?.bodies||[]){
+     const d=Math.hypot(b.x-G.x,b.y-G.y);
+     if(b.floor===G.floor&&d<dist){dist=d;best=b}
+   }
+   return best;
+ },
+ nearestPeer(range=1.55,dead=false){
+   let best=null,distance=range;
+   for(const p of NET.peers.values()){
+     const info=this.state?.players?.find(q=>q.id===p.id);
+     if(p.floor!==G.floor||(info?.alive===false)!==dead)continue;
+     const dx=p.x-G.x,dy=p.y-G.y,d=Math.hypot(dx,dy);
+     if(d<.2||d>distance||(dx*Math.cos(G.ang)+dy*Math.sin(G.ang))/d<.38)continue;
+     distance=d;best=p;
+   }
+   return best;
+ },
+ act(action,param=null){
+   if(this.type==='story')return false;
+   if(action==='exit'){
+     if(NET.ready)NET.leave();
+     this.initialize('story');reset();G.state='title';FILM.selection=0;
+     return true;
+   }
+   if(action==='start'){
+     if(NET.ready)this.send('start');
+     else if(this.type==='horde')this.startLocal();
+     return true;
+   }
+   if(!this.alive&&action!=='vote')return false;
+   if(this.type==='impostor'){
+     if(action==='vote'){this.send('vote',{targetId:param});return true}
+     if(this.state?.phase!=='playing')return false;
+     const st=this.nearestStation();
+     if(action==='interact'){
+       const body=this.nearestBody();
+       if(body){this.send('report');return true}
+       if(this.state.sabotage&&this.role==='crew'&&st){
+         this.send('repair');return true;
+       }
+       if(st&&this.role==='crew'&&this.tasks.includes(st.id)&&!this.done.includes(st.id)){
+         this.send('task',{stationId:st.id});return true;
+       }
+       return false;
+     }
+     if(action==='kill'&&this.role==='traitor'){
+       const p=this.nearestPeer();
+       if(p){this.send('kill',{targetId:p.id});return true}
+     }
+     if(action==='sabotage'&&this.role==='traitor'){
+       this.lastSabKind=this.lastSabKind==='lights'?'catalogue':'lights';
+       this.send('sabotage',{kind:this.lastSabKind});return true;
+     }
+     if(action==='meeting'){this.send('meeting');return true}
+   }else if(this.type==='horde'){
+     if(action==='revive'){
+       const p=this.nearestPeer(2.2,true);
+       if(p){this.send('revive',{targetId:p.id});return true}
+     }
+   }
+   return false;
+ },
+ startLocal(){
+   this.local={phase:'preparing',wave:0,prep:7,kills:0};
+   this.state.phase='preparing';this.role='survivor';this.alive=true;
+   this.hp=100;G.health=100;BUILD.planks=Math.max(8,BUILD.planks);
+   G.oil=Math.max(12,G.oil);G.ents=[];
+   sfx('SEAL THE LIBRARY · THE DEAD ARE COMING','red');
+ },
+ localWave(){
+   const a=this.local;
+   a.wave++;a.phase='wave';this.state.phase='wave';
+   this.state.wave=a.wave;this.state.maxWaves=10;
+   const c=G.room||getRoom(Math.round(G.x/P),Math.round(G.y/P)),
+     count=5+a.wave*2;
+   G.ents=G.ents.filter(e=>e.type!=='zombie');
+   for(let n=0;n<count;n++){
+     const angle=(n/count)*Math.PI*2+n*.37,rad=3.1+(n%2)*.23;
+     G.ents.push({type:'zombie',x:c.cx+Math.cos(angle)*rad,
+       y:c.cy+Math.sin(angle)*rad,f:angle+Math.PI,coat:3,
+       rig:FIGRIG[3],pose:'run',walk:1,dead:0,hp:3+Math.floor((a.wave-1)/2),
+       hit:0,seed:angle,attackCd:0});
+   }
+   this.state.zombies=count;
+   sfx('HORDE '+a.wave+' · '+count+' DEAD READERS','red');
+ },
+ localTick(dt){
+   if(this.type!=='horde'||NET.ready)return;
+   const a=this.local;
+   if(a.phase==='lobby'||a.phase==='over')return;
+   if(a.phase==='preparing'){
+     a.prep-=dt;
+     this.state.prep=Math.ceil(Math.max(0,a.prep));
+     if(a.prep<=0)this.localWave();
+     return;
+   }
+   let alive=0;
+   for(const e of G.ents){
+     if(e.type!=='zombie'||e.dead||e.gone)continue;
+     alive++;e.attackCd=Math.max(0,(e.attackCd||0)-dt);
+     if(e.shove||e.fallState){tickPersonShove(e,dt);continue}
+     const d=Math.hypot(G.x-e.x,G.y-e.y);
+     if(d>.68&&d<17){
+       const dir=Math.atan2(G.y-e.y,G.x-e.x),
+         speed=.66+a.wave*.08,dx=Math.cos(dir)*speed*dt,dy=Math.sin(dir)*speed*dt,
+         nx=e.x+dx,ny=e.y+dy;
+       if(walkable(nx,ny,.22)){
+         e.x=nx;e.y=ny;e.f=dir;
+       }else if(!e.rag)activateRagdoll(e,'stumble',.45,dx<0?-1:1);
+       e.walk=.8;
+     }
+     if(d<1.15&&e.attackCd<=0){
+       e.attackCd=1.35;G.health=Math.max(0,G.health-(5+a.wave));
+       this.hp=G.health;sfx('THE DEAD GRAB AT YOU','red');snd('hit');
+     }
+     if(e.rag)stepRagdoll(e,dt);
+     gaitUpd(e,dt,.5);
+   }
+   this.state.zombies=alive;
+   if(G.health<=0){
+     a.phase='over';this.state.phase='over';this.state.winner='horde';
+     this.alive=false;return;
+   }
+   if(alive===0){
+     if(a.wave>=10){a.phase='over';this.state.phase='over';
+       this.state.winner='survivors';sfx('TEN WAVES SURVIVED','mind');return}
+     a.phase='preparing';a.prep=Math.max(5,12-a.wave);
+     this.state.phase='preparing';this.state.prep=Math.ceil(a.prep);
+     G.health=Math.min(100,G.health+20);this.hp=G.health;
+     BUILD.planks=Math.min(60,BUILD.planks+2+Math.floor(a.wave/2));
+     G.oil+=3;sfx('WAVE CLEARED · SUPPLIES RESTOCKED','mind');
+   }
+ },
+ localKill(){
+   this.local.kills++;
+ },
+};
+function modeLabel(type){
+ return GAME_TYPES.find(t=>t.id===type)?.label||'THE ORIGINAL STORY';
+}
+function cycleGameMode(step=1){
+ const list=GAME_TYPES.map(x=>x.id),n=list.indexOf(FILM.gameMode);
+ FILM.gameMode=list[(n+step+list.length)%list.length];
+ if(FILM.gameMode==='impostor'&&FILM.partyMode==='solo')FILM.partyMode='host';
+ snd('page');
+}
+/* Mode controls share a real canvas hit target and a matching PC command.
+   The vote overlay intentionally shows names rather than leaking hidden roles. */
+function drawModeHUD(){
+ MODE.buttons.length=0;
+ if(MODE.type==='story'||G.state!=='play')return;
+ const g=vctx,s=MODE.state||{},u=Math.max(.78,Math.min(1.30,Math.min(DW,DH)/665)),
+   cx=DW/2,screenW=Math.min(DW-24*u,650*u);
+ g.save();g.textAlign='center';g.textBaseline='middle';
+ const panel=(x,y,w,h)=>{g.fillStyle='rgba(12,12,19,.91)';g.fillRect(x,y,w,h);
+   g.strokeStyle='#b39b6d';g.lineWidth=1.7*u;g.strokeRect(x+1,y+1,w-2,h-2)};
+ const label=(txt,x,y,size=15,color='#f0d9b4')=>{
+   g.fillStyle=color;g.font='bold '+Math.round(size*u)+'px Georgia';
+   g.fillText(txt,x,y,screenW-18*u)};
+ const click=(text,id,x,y,w,h,value=null)=>{
+   panel(x,y,w,h);label(text,x+w/2,y+h/2,13);
+   MODE.buttons.push({id,value,x0:x,y0:y,x1:x+w,y1:y+h});
+ };
+ const top=Math.max(12*u,DH*.018);
+ panel(cx-screenW/2,top,screenW,72*u);
+ label(modeLabel(MODE.type),cx,top+16*u,17,'#efc37e');
+ if(MODE.type==='impostor'){
+   const phase=s.phase||'lobby';
+   if(phase==='lobby')label('Waiting for 3–8 players · host presses Y to start',cx,top+44*u,13);
+   else if(phase==='meeting')label('EMERGENCY MEETING · '+(s.meeting?.seconds||0)+' SECONDS · VOTE BELOW',cx,top+44*u,13,'#eaa596');
+   else if(phase==='over')label('ROUND OVER · '+(s.winner==='crew'?'READERS WIN':'FALSE SCRIBE WINS'),cx,top+44*u,14);
+   else label((MODE.role==='traitor'?'YOU ARE THE FALSE SCRIBE':MODE.role==='crew'?'READER · COMPLETE YOUR TASKS':'GHOST · OBSERVE')+
+     '  ·  TASKS '+(s.done||0)+'/'+(s.required||0),cx,top+44*u,12);
+ }else label('WAVE '+(s.wave||0)+'/10 · '+(s.zombies||0)+' ZOMBIES · HP '+Math.round(MODE.hp)+
+   (s.phase==='preparing'?' · NEXT IN '+(s.prep||0)+'s':s.phase==='lobby'?' · PRESS Y TO BEGIN':''),cx,top+44*u,13);
+ let acts=[];
+ if(s.phase==='lobby')acts=[['Y · START','start']];
+ else if(s.phase==='over')acts=[['ESC · EXIT TO TITLE','exit']];
+ else if(MODE.type==='impostor'){
+   if(s.phase==='playing'&&MODE.alive){
+     if(MODE.role==='traitor')acts=[['X · ELIMINATE','kill'],['U · SABOTAGE','sabotage'],['M · MEETING','meeting']];
+     else acts=[['E · TASK / REPORT','interact'],['M · MEETING','meeting']];
+   }else if(s.phase==='meeting'&&MODE.alive){
+     const eligible=(s.players||[]).filter(p=>p.alive);
+     const width=Math.min(195*u,(screenW-15*u)/2),height=42*u,
+       x0=cx-Math.min(screenW,eligible.length>1?2*width+7*u:width)/2,
+       y0=DH*.24;
+     eligible.forEach((p,i)=>{
+       const xx=x0+(i%2)*(width+7*u),yy=y0+Math.floor(i/2)*(height+6*u);
+       click((i+1)+' · '+p.name,'vote',xx,yy,width,height,p.id);
+     });
+     const skipY=y0+Math.ceil(eligible.length/2)*(height+6*u)+10*u;
+     click('0 · SKIP VOTE','vote',cx-width/2,skipY,width,height,null);
+   }
+ }else if(MODE.alive){
+   const revive=MODE.nearestPeer(2.2,true);
+   if(revive)acts=[['U · REVIVE ALLY','revive']];
+ }
+ const bw=acts.length>2?Math.min(175*u,(screenW-8*u*(acts.length-1))/acts.length):
+   Math.min(235*u,(screenW-8*u*(acts.length-1))/Math.max(1,acts.length));
+ const rowWidth=acts.length*bw+Math.max(0,acts.length-1)*8*u;
+ const y=Math.min(DH-135*u,DH*.70);
+ acts.forEach(([text,id],i)=>click(text,id,cx-rowWidth/2+i*(bw+8*u),y,bw,45*u));
+ if(s.phase==='playing'&&MODE.type==='impostor'){
+   const station=MODE.nearestStation(),body=MODE.nearestBody();
+   if(station||body){
+     label(body?'BODY FOUND · E TO REPORT':station.label+' · E TO USE',cx,DH*.62,15);
+   }
+   if(s.sabotage)label('SABOTAGE · '+s.sabotage.kind.toUpperCase()+' · '+s.sabotage.remaining+'s',cx,DH*.58,13,'#ee997b');
+ }
+ if(s.phase==='over')click('EXIT · RETURN TO THE LIBRARY MENU','exit',cx-175*u,DH*.79,350*u,50*u);
+ g.restore();
+}
+
 /* Cooperative rooms use a real Railway WebSocket, not a simulation.
    Shared: player movement, solid constructions, their damage/salvage, and chat.
    Personal: NPC AI, reading decisions and each player's ending/clock. */
