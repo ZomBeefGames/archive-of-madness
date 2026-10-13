@@ -4378,6 +4378,7 @@ const NET={
     ws.onopen=()=>{
       const start={x:G.x,y:G.y,floor:G.floor};
       this.send({type:'join',mode,room:roomCode,start,difficulty:G.difficulty,phrase:G.phrase,
+        gameMode:FILM.gameMode,
         name:CHAR.name,appearance:normalCharacter(CHAR)});
     };
     ws.onmessage=evt=>{
@@ -4391,6 +4392,11 @@ const NET={
         for(const key of m.salvaged)this.zones.set(key,{...(this.zones.get(key)||{}),salvaged:true});
         this.peers.clear();for(const p of m.players)if(p.id!==m.id)this.peer(p);
         this.host=m.host;
+        if(m.world?.gameMode&&m.world.gameMode!==MODE.type){
+          FILM.gameMode=m.world.gameMode;
+          MODE.initialize(m.world.gameMode);
+        }
+        MODE.onState(m.game);
         G.ents=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek');
         if(mode==='join')this.applyWorld(m.world);
         this.receiveWorld(m.world,true,m.records);
@@ -4399,9 +4405,21 @@ const NET={
         // The invite is shareable as a normal HTTPS game link.
         try{const url=new URL(location.href);url.searchParams.set('room',this.code);history.replaceState(null,'',url)}catch{}
         this.status='ROOM '+this.code+' · '+m.players.length+'/'+8+' READERS';
-        filmBeginStoryNow();
+        if(MODE.type==='story')filmBeginStoryNow();else MODE.startWorld();
       }else if(m.type==='world'||m.type==='dawn')this.receiveWorld(m.world);
       else if(m.type==='resources')this.receiveResources(m.resources,m.tr);
+      else if(m.type==='mode-state')MODE.onState(m.mode);
+      else if(m.type==='mode-private')MODE.onPrivate(m);
+      else if(m.type==='mode-damage'&&m.id===this.id){
+        MODE.hp=Math.max(0,Number(m.health)||0);
+        G.health=MODE.hp;sfx('THE DEAD CLAW AT YOU','red');
+      }
+      else if(m.type==='mode-impact'){
+        if(m.kind==='elimination'){
+          if(m.id===this.id){MODE.alive=false;sfx('YOU HAVE BEEN SILENCED · GHOST VIEW','red')}
+          else sfx('A READER HAS BEEN SILENCED','mind');
+        }else if(m.kind==='meeting-result')sfx(m.exiled?'A READER WAS EXILED':'NO READER EXILED','mind');
+      }
       else if(m.type==='enemies')this.receiveEnemies(m.enemies||[]);
       else if(m.type==='combat'){if(m.action==='kill')sfx('THE LIBRARY REMEMBERS THE FALL','mind')}
       else if(m.type==='rope'){
@@ -4466,6 +4484,7 @@ const NET={
   },
   applyWorld(world){
     FILM.difficulty=world.difficulty;
+    if(world.gameMode)FILM.gameMode=world.gameMode;
     G.phrase=world.phrase;G.difficulty=world.difficulty;
     G.x=world.x;G.y=world.y;G.floor=world.floor;G.ang=-Math.PI/2+.35;
     const room=getRoom(Math.round(G.x/P),Math.round(G.y/P));
@@ -4501,13 +4520,14 @@ const NET={
   receiveWorld(w,initial=false,records=null){
     if(!w)return;
     this.world=w;
+    if(w.gameMode)FILM.gameMode=w.gameMode;
     if(initial&&records){
       G.proofKeys=new Set(records.proofs||[]);
       G.seenSentences=new Set(records.sentences||[]);
     }
     // One server-controlled calendar. Each normal client newDay still performs
     // its local wake animation and room reset at the *same* epoch transition.
-    if(!initial&&w.day>G.day){
+    if(MODE.type==='story'&&!initial&&w.day>G.day){
       const fell=G.state==='freefall'&&!!G.fall;
       for(let k=0;k<Math.min(25,w.day-G.day);k++)newDay();
       if(fell){recoverRailFreefall();G.state='wake';G.wakeT=0;G.rung=false}
@@ -4526,12 +4546,16 @@ const NET={
   receiveEnemies(list){
     const next=new Map();
     for(const obj of list){
-      if(!obj||!['pur','seek'].includes(obj.type)||!Number.isFinite(obj.x)||!Number.isFinite(obj.y))continue;
+      if(!obj||!['pur','seek','zombie'].includes(obj.type)||!Number.isFinite(obj.x)||!Number.isFinite(obj.y))continue;
       const prev=this.enemies.get(obj.id)||{};
       const e={...prev,...obj,rag:prev.hanging&&!obj.hanging?null:prev.rag,
         hp:obj.hp,dead:obj.dead?Math.max(.05,prev.dead||.05):0,
         hit:Math.max(0,(prev.hit||0)-.07),seed:Number(obj.id?.length||1),
         zw:0,walk:obj.dead||obj.hanging?0:.7};
+      if(obj.type==='zombie'){
+        e.rig=FIGRIG[3];e.coat=3;e.burnt=true;
+        e.pose=obj.dead?'dead':'run';e.walk=obj.dead?0:1;
+      }
       if(obj.hanging){
         if(!e.rag||e.rag.mode!=='hang'){
           const rag=activateRagdoll(e,'hang',2,1),pinZ=RAILH/PS-25,
