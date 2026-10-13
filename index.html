@@ -2791,7 +2791,7 @@ function updSeek(e,dt){
 const PEOPLE_REACH={push:1.95,throw:1.48};
 function personCandidates(){
   const candidates=[];
-  for(const e of G.ents)if(['pur','seek','fig'].includes(e.type)&&!e.dead&&!e.gone&&!e.fallState&&!e.suspended)
+  for(const e of G.ents)if(['pur','seek','fig','zombie'].includes(e.type)&&!e.dead&&!e.gone&&!e.fallState&&!e.suspended)
     candidates.push({kind:'local',actor:e});
   for(const e of ENC.list){
     if(e.members){
@@ -2843,7 +2843,7 @@ const RAG_SEED=[
 const RAG_BONES=[[0,1],[1,2],[2,3],[1,4],[4,5],[5,6],
  [1,7],[7,8],[8,9],[0,10],[10,11],[0,12],[12,13],[4,7],[10,12]];
 function activateRagdoll(e,mode='stumble',strength=1,dir=1){
- if(!e||!['fig','pur','seek'].includes(e.type))return null;
+ if(!e||!['fig','pur','seek','zombie'].includes(e.type))return null;
  if(e.rag&&e.rag.mode==='hang')return e.rag;
  if(!e.rag){
    const scale=e.type==='seek'?.83:1;
@@ -3060,7 +3060,7 @@ function ropeAnchorNear(e,fl=G.floor){
 function ropeTarget(){
  if(G.state!=='play'||G.journal)return null;
  const list=[];
- for(const e of G.ents)if(['fig','pur','seek'].includes(e.type)&&!e.suspended&&!e.fallState&&!e.gone)
+ for(const e of G.ents)if(['fig','pur','seek','zombie'].includes(e.type)&&!e.suspended&&!e.fallState&&!e.gone)
    list.push({kind:'local',actor:e});
  for(const e of ENC.list){
    const characters=e.members||[e];
