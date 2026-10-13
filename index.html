@@ -4256,6 +4256,140 @@ const MODE={
    G.clock=DAYLEN*9/24;G.oil=12;G.pitch=0;
    EYE=.5;releaseAll();
  },
+ nearestBook(){
+   let best=null,d=2.2;
+   for(let i=0;i<WORD_BOOKS.length;i++){
+     const st=modeSite('horde',i),dist=Math.hypot(G.x-st.x,G.y-st.y);
+     if(st.floor===G.floor&&dist<d){best={...st,book:WORD_BOOKS[i]};d=dist}
+   }
+   return best;
+ },
+ visualWord(info){
+   const b=WORD_BOOK_BY_ID[info.book]||WORD_BOOKS[0];
+   this.shots.push({x:info.x,y:info.y,tx:info.tx,ty:info.ty,word:info.word,
+     floor:info.floor,colour:b.colour,age:0,ttl:.38});
+   if(this.shots.length>30)this.shots.splice(0,this.shots.length-30);
+ },
+ bookEquip(id){
+   if(this.type!=='horde'||!this.book.owned.includes(id))return false;
+   this.book.equipped=id;this.book.reloadUntil=0;
+   if(NET.ready)this.send('equip-book',{book:id});
+   snd('page');sfx(WORD_BOOK_BY_ID[id].name,'mind');return true;
+ },
+ bookReload(){
+   if(this.type!=='horde'||!this.alive)return false;
+   const inv=this.book,book=WORD_BOOK_BY_ID[inv.equipped],
+     now=Date.now();
+   if(!book||inv.reloadUntil||inv.clips[book.id]>=book.mag||!inv.reserves[book.id])return false;
+   inv.reloadUntil=now+book.reload;
+   if(NET.ready)this.send('reload-book');
+   snd('page');sfx('RELOADING THE PAGE','mind');return true;
+ },
+ bookBuy(){
+   if(this.type!=='horde'||!this.alive)return false;
+   const st=this.nearestBook(),inv=this.book;
+   if(!st)return false;
+   const b=st.book,owned=inv.owned.includes(b.id),
+     cost=owned?Math.max(120,Math.round(b.price*.20)||120):b.price;
+   if(inv.points<cost){sfx('NOT ENOUGH VERSE POINTS','red');return false}
+   if(NET.ready){this.send('buy-book',{book:b.id});return true}
+   inv.points-=cost;
+   if(owned)inv.reserves[b.id]=Math.min(b.reserve*2,(inv.reserves[b.id]||0)+b.reserve);
+   else{
+     inv.owned.push(b.id);inv.equipped=b.id;
+     inv.clips[b.id]=b.mag;inv.reserves[b.id]=b.reserve;
+   }
+   snd('page');sfx(owned?'AMMUNITION REFILLED':'NEW BOOK · '+b.name,'mind');
+   return true;
+ },
+ bookUpgrade(){
+   if(this.type!=='horde'||!this.alive)return false;
+   const st=modeSite('horde',0);
+   if(G.floor!==st.floor||Math.hypot(st.x-G.x,st.y-G.y)>2.25)return false;
+   const inv=this.book;
+   if(inv.upgrade||inv.points<WORD_UPGRADE_PRICE)return false;
+   if(NET.ready)this.send('upgrade-book');
+   else{inv.points-=WORD_UPGRADE_PRICE;inv.upgrade=1}
+   sfx('YOUR BOOKS ARE REWRITTEN · DAMAGE +50%','mind');return true;
+ },
+ bookShoot(){
+   if(this.type!=='horde'||G.state!=='play'||!this.alive||
+     this.state?.phase!=='wave')return false;
+   const inv=this.book,b=WORD_BOOK_BY_ID[inv.equipped],now=Date.now();
+   if(!b||inv.reloadUntil)return false;
+   if(now-this.lastWordAt<b.cadence)return false;
+   if((inv.clips[b.id]||0)<=0){this.bookReload();return false}
+   this.lastWordAt=now;
+   inv.clips[b.id]--;
+   inv.shots++;
+   const word=b.words[(inv.shots-1)%b.words.length];
+   const aim=G.ang,dx=Math.cos(aim),dy=Math.sin(aim);
+   const wall=cast(G.x,G.y,dx,dy),limit=Math.min(b.range,wall?wall.t-.18:b.range);
+   let endX=G.x+dx*limit,endY=G.y+dy*limit,hit=null;
+   if(!NET.ready){
+     let count=0;
+     const zombies=G.ents.filter(e=>e.type==='zombie'&&!e.dead&&!e.gone&&
+       e.floor===undefined||false);
+     // Solo puppets have no explicit floor: all current-wave enemies belong
+     // to the depot's ground floor.
+     const valid=G.ents.filter(e=>e.type==='zombie'&&!e.dead&&!e.gone)
+       .map(e=>({e,d:Math.hypot(e.x-G.x,e.y-G.y)}))
+       .filter(q=>q.d<limit&&q.d>.33&&
+         Math.abs(angDiff(Math.atan2(q.e.y-G.y,q.e.x-G.x),aim))<
+           .06+Math.atan2(.35,q.d))
+       .sort((a,b)=>a.d-b.d);
+     for(const item of valid.slice(0,b.pierce)){
+       const e=item.e;
+       e.hp-=b.damage*(inv.upgrade?1.5:1);
+       e.hit=1;inv.hits++;inv.points+=12;count++;
+       if(!hit)hit=e;
+       if(e.hp<=0){
+         e.dead=.001;e.pose='dead';activateRagdoll(e,'corpse',2,1);
+         if(e.rag)e.rag.ground=true;
+         this.localKill();inv.kills++;inv.points+=80;
+       }else activateRagdoll(e,'stumble',1.65,dx<0?-1:1);
+     }
+     if(hit){endX=hit.x;endY=hit.y}
+     if(count)sfx('WORDS STRIKE THE DEAD','mind');
+   }else this.send('shoot');
+   this.visualWord({x:G.x,y:G.y,tx:endX,ty:endY,
+     floor:G.floor,book:b.id,word});
+   G.swing=.54;G.flash=Math.max(G.flash,.10);
+   snd('page');
+   return true;
+ },
+ bookTick(dt){
+   if(this.type!=='horde')return;
+   for(const s of this.shots)s.age+=dt;
+   this.shots=this.shots.filter(s=>s.age<s.ttl);
+   const inv=this.book,now=Date.now(),b=WORD_BOOK_BY_ID[inv.equipped];
+   if(!NET.ready&&b&&inv.reloadUntil&&now>=inv.reloadUntil){
+     const n=Math.min(b.mag-(inv.clips[b.id]||0),inv.reserves[b.id]||0);
+     inv.clips[b.id]+=n;inv.reserves[b.id]-=n;
+     inv.reloadUntil=0;sfx('PAGE RELOADED','mind');
+   }
+   if(this.bookHeld)this.bookShoot();
+ },
+ drawWords(g){
+   if(this.type!=='horde'||!this.shots.length)return;
+   g.save();g.textAlign='center';g.textBaseline='middle';
+   for(const s of this.shots){
+     if(s.floor!==G.floor)continue;
+     const t=Math.min(1,s.age/s.ttl),v=1-Math.pow(1-t,2),
+       x=s.x+(s.tx-s.x)*v,y=s.y+(s.ty-s.y)*v,
+       dx=x-G.x,dy=y-G.y,cs=Math.cos(G.ang),sn=Math.sin(G.ang),
+       forward=dx*cs+dy*sn,lateral=-dx*sn+dy*cs;
+     if(forward<.20||Math.abs(lateral)>forward*PLANE+2)continue;
+     const px=DW/2+(lateral/forward)*DW/(2*PLANE),
+       py=DH/2+G.pitch*DH+(EYE-.53)*DH/(Math.max(.5,forward)*2.0),
+       fs=Math.max(15,Math.min(64,105/(forward+.3)));
+     g.globalAlpha=Math.max(0,.99-t*.9);
+     g.font='bold '+Math.round(fs)+'px Georgia';
+     g.shadowColor=s.colour;g.shadowBlur=12;
+     g.fillStyle=s.colour;g.fillText(s.word,px,py,Math.min(DW*.58,fs*9));
+   }
+   g.restore();
+ },
  send(action,data={}){
    if(this.type==='story')return;
    if(NET.ready)NET.send({type:'mode-action',action,...data});
