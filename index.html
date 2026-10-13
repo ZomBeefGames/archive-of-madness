@@ -133,6 +133,11 @@ function airFloor(px,py,fl=G.floor){const i=Math.round(px/P),j=Math.round(py/P),
   return false}
 /* where you may stand */
 function walkable(x,y,rad){
+  if(typeof MODE!=='undefined'&&MODE.type!=='story'){
+    const m=MODE_MAPS[MODE.type];
+    if(m&&(Math.abs(x-m.i*P)>(m.radius+.43)*P-rad||
+      Math.abs(y-m.j*P)>(m.radius+.43)*P-rad))return false;
+  }
   if(galleryBarricadeAt(x,y,rad)||(typeof placedBlockAt==='function'&&placedBlockAt(x,y,rad)))return false;
    if(typeof bridgeFooting==='function'&&!bridgeFooting(x,y,rad))return false;
   const i=Math.round(x/P),j=Math.round(y/P),lx=x-i*P,ly=y-j*P,ax=Math.abs(lx),ay=Math.abs(ly);
@@ -2151,6 +2156,7 @@ function addZoneDressing(out){
   for(let i=x0-2;i<=x0+2;i++)for(let j=y0-2;j<=y0+2;j++){
     bridgeDressing(out,'h',i,j);bridgeDressing(out,'v',i,j);
   }
+  if(typeof MODE!=='undefined'&&MODE.type!=='story')MODE.addMapProps(out);
 }
 function addZoneFireLights(){
   const i0=Math.round(LX/P),j0=Math.round(LY/P),near=[];
@@ -2483,7 +2489,8 @@ function reset(){
     phrase,difficulty,state:'intro',playClock:0,cutSeen:{},swing:0,swingCd:0,hurtCd:0,walkT:0,opened:new Set(),readCount:{},q:0,met:{},encOn:null,corpses:{},wcorpse:{},corpseSeq:0,looted:new Set(),searchedBodies:0,torches:0,torchTime:0,type:0,tr:{},hsel:0,mirrorDay:0,tales:{},taleN:TALES.map(()=>0),taleDone:TALES.map(()=>false),echo:0,lostTo:null,phantomT:0,phantoms:[],flash:0,foundBio:false,alerted:false,found:[],journal:false,flip:0,flipDir:1,dieT:0,startT:0,bookAnim:0,bookFrom:{x:0,y:0},lastHit:null,page:null,verdict:'',
     won:false,winT:0,winG:0,winF:0,fall:null,fallWakeDay:0,personCd:0,knockback:null,rope:2,hangings:[],hungIds:new Set(),keyGuide:false,zoneState:new Map(),zoneVisited:new Set(),startGallery:c.gid+':'+f,frags:0,sentencesFound:0,seenSentences:new Set(),proofs:0,proofKeys:new Set(),xp:0,hints:0,day:1,resetCount:0,resetEpoch:1,lastResetDay:1,resetInterval:BASE_RESET_DAYS,nextResetDay:1+BASE_RESET_DAYS,justReset:false,clock:DAYLEN*7/24,meal:null,fedAt:-1e9,hatch:null,boT:0,wakeT:0,note:null,choice:null,climbT:0,climbDir:0,climbed:false,sleepT:0,sleepCd:0,pitch:0,weapon:'press',hasRod:false,fires:[],incense:0,incenseT:0,sins:[],over:{},written:0,dark:0,crackT:0,stepPh:0,heartT:0});EYE=0.5;
   MODE.initialize(FILM.gameMode);
-  spawnRoom(true);
+  if(MODE.type==='story')spawnRoom(true);
+  else MODE.enterMap();
 }
 function enterRoom(c){
   G.room=c;G.gal=c.gid;G.rooms.add(G.gal+':'+G.floor);
@@ -4242,6 +4249,7 @@ const MODE={
  },
  startWorld(){
    if(this.type==='story')return;
+   this.enterMap();
    G.ents=[];G.phantoms=[];ENC.list=[];BG.acts=[];
    G.cutSeen={opening:true,purifier:true,index:true};
    G.state='play';G.journal=false;G.health=100;G.sanity=100;
@@ -4530,6 +4538,7 @@ const NET={
           MODE.initialize(m.world.gameMode);
         }
         MODE.onState(m.game);
+        if(MODE.type!=='story')MODE.enterMap();
         G.ents=G.ents.filter(e=>e.type!=='pur'&&e.type!=='seek');
         if(mode==='join')this.applyWorld(m.world);
         this.receiveWorld(m.world,true,m.records);
