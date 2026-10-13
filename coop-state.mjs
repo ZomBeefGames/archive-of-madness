@@ -282,10 +282,26 @@ export class SharedWorld {
         const dist=Math.hypot(e.x-p.x,e.y-p.y);
         if(dist<best){nearest=p;best=dist}
       }
-      if(!nearest||best>8)continue;
+      if(!nearest)continue;
+      if(e.type==='zombie'&&best>11){
+        // Pursuit follows a survivor between depot galleries: when the
+        // horde is offscreen, the next bookshelves disgorge new zombies.
+        e.lostTime=(e.lostTime||0)+dt;
+        if(e.lostTime>3.3+(e.wave%4)*.6){
+          const cx=Math.round(nearest.x/16)*16,cy=Math.round(nearest.y/16)*16,
+            a=Math.atan2(nearest.y-cy,nearest.x-cx)+Math.PI+
+              (e.wave+e.x*.1)*.22,r=3.3;
+          e.cx=cx;e.cy=cy;e.x=cx+Math.cos(a)*r;
+          e.y=cy+Math.sin(a)*r;e.f=a+Math.PI;
+          e.lostTime=0;moving=true;
+        }
+        continue;
+      }
+      e.lostTime=0;
+      if(best>8)continue;
       if(best>1.15&&dt){
         const a=Math.atan2(nearest.y-e.y,nearest.x-e.x);
-        const speed=e.type==='zombie'?.60+Math.min(.95,(e.wave||1)*.09):e.type==='seek'?.88:.63;
+        const speed=e.type==='zombie'?(.58+Math.min(.85,(e.wave||1)*.085))*(e.mutant==='runner'?1.47:e.mutant==='brute'?.71:1):e.type==='seek'?.88:.63;
         const nx=e.x+Math.cos(a)*dt*speed,
               ny=e.y+Math.sin(a)*dt*speed;
         const r=Math.hypot(nx-e.cx,ny-e.cy);
