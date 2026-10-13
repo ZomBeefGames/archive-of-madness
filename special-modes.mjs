@@ -258,19 +258,107 @@ export class SpecialModes{
   if(next===0)this.alive.set(player.id,false);
   this.private(player);this.emit();this.checkSurvivors();return next;
  }
- hordeAction(player,msg){
+ bookInventory(player){
+  let inv=this.bookStates.get(player.id);
+  if(!inv){inv=newBookInventory();this.bookStates.set(player.id,inv)}
+  return inv;
+ }
+ bookReloadComplete(player,now=nowMs()){
+  const inv=this.bookInventory(player),book=WORD_BOOK_BY_ID[inv.equipped];
+  if(!book||!inv.reloadUntil||now<inv.reloadUntil)return false;
+  const needed=book.mag-(inv.clips[book.id]||0),
+    loaded=Math.min(needed,inv.reserves[book.id]||0);
+  inv.clips[book.id]=(inv.clips[book.id]||0)+loaded;
+  inv.reserves[book.id]=(inv.reserves[book.id]||0)-loaded;
+  inv.reloadUntil=0;this.private(player);return true;
+ }
+ wordShot(player,msg,now=nowMs()){
+  if(this.type!=='horde'||this.phase!=='wave'||this.alive.get(player.id)===false||
+    !player.active||player.falling)return false;
+  const inv=this.bookInventory(player);
+  this.bookReloadComplete(player,now);
+  const book=WORD_BOOK_BY_ID[inv.equipped];
+  if(!book||inv.reloadUntil||now-inv.lastShot<book.cadence||
+    (inv.clips[book.id]||0)<=0)return false;
+  inv.lastShot=now;inv.clips[book.id]--;inv.shots++;
+  const word=book.words[(inv.shots-1)%book.words.length],w=this.room.world;
+  // Clients cannot choose arbitrary victims or submit their own damage.
+  // Server sorts real zombies from the authoritative player aim and range.
+  const candidates=w.enemies.filter(e=>e.type==='zombie'&&!e.dead&&
+    allowedWordHit(player,e,book,.055)).sort((a,b)=>
+      Math.hypot(a.x-player.x,a.y-player.y)-Math.hypot(b.x-player.x,b.y-player.y));
+  let kills=0,hitCount=0,first=null;
+  const impacted=[];
+  for(const e of candidates.slice(0,book.pierce)){
+    if(!first)first=e;
+    const damage=book.damage*(inv.upgrade?1.5:1);
+    e.hp=Math.max(0,e.hp-damage);hitCount++;
+    e.hit=1;impacted.push(e.id);
+    if(e.hp<=0){e.dead=true;e.hp=0;kills++;inv.kills++}
+  }
+  inv.hits+=hitCount;inv.points=Math.min(99999,inv.points+hitCount*12+kills*80);
+  this.broadcast(this.room,{type:'word-shot',fromId:player.id,
+    x:player.x,y:player.y,floor:player.floor,f:player.f,book:book.id,word,
+    targets:impacted,tx:first?.x??player.x+Math.cos(player.f)*book.range,
+    ty:first?.y??player.y+Math.sin(player.f)*book.range});
+  if(hitCount)this.broadcast(this.room,{type:'enemies',enemies:w.enemies});
+  this.private(player);this.emit();
+  return true;
+ }
+ hordeAction(player,msg,now=nowMs()){
   if(this.type!=='horde'||this.phase==='over'||this.phase==='lobby')return;
-  const kind=msg.action;
+  const kind=msg.action,inv=this.bookInventory(player);
+  if(kind==='shoot'){this.wordShot(player,msg,now);return}
+  if(kind==='equip-book'){
+    const id=String(msg.book||'');
+    if(inv.owned.includes(id)&&WORD_BOOK_BY_ID[id]){
+      inv.equipped=id;inv.reloadUntil=0;this.private(player);
+    }
+    return;
+  }
+  if(kind==='reload-book'){
+    if(this.alive.get(player.id)===false)return;
+    const book=WORD_BOOK_BY_ID[inv.equipped];if(!book)return;
+    this.bookReloadComplete(player,now);
+    if(!inv.reloadUntil&&(inv.clips[book.id]||0)<book.mag&&
+      (inv.reserves[book.id]||0)>0){
+      inv.reloadUntil=now+book.reload;this.private(player);
+    }
+    return;
+  }
+  if(kind==='buy-book'){
+    if(this.alive.get(player.id)===false||!player.active)return;
+    const id=String(msg.book||'');
+    const book=WORD_BOOK_BY_ID[id],station=this.bookSites.find(q=>q.book===id);
+    if(!book||!station||player.floor!==station.floor||dist(player,station)>2.15)return;
+    const own=inv.owned.includes(id),cost=own?ammoPackCost(book):book.price;
+    if(inv.points<cost)return;
+    inv.points-=cost;
+    if(own)inv.reserves[id]=Math.min(book.reserve*2,(inv.reserves[id]||0)+book.reserve);
+    else{
+      inv.owned.push(id);inv.clips[id]=book.mag;
+      inv.reserves[id]=book.reserve;inv.equipped=id;inv.reloadUntil=0;
+    }
+    this.private(player);return;
+  }
+  if(kind==='upgrade-book'){
+    if(this.alive.get(player.id)===false||!player.active||inv.upgrade||
+      inv.points<WORD_UPGRADE_PRICE)return;
+    const center=modeSite('horde',0);
+    if(player.floor!==center.floor||dist(player,center)>2.25)return;
+    inv.points-=WORD_UPGRADE_PRICE;inv.upgrade=1;
+    this.private(player);return;
+  }
   if(kind==='revive'){
-   if(this.alive.get(player.id)===false)return;
-   const target=this.members().find(p=>p.id===String(msg.targetId));
-   if(!target||this.alive.get(target.id)!==false||
+    if(this.alive.get(player.id)===false)return;
+    const target=this.members().find(p=>p.id===String(msg.targetId));
+    if(!target||this.alive.get(target.id)!==false||
       target.floor!==player.floor||dist(player,target)>2.2)return;
-   if(this.room.world.resources.boards<2)return;
-   this.room.world.resources.boards-=2;
-   this.alive.set(target.id,true);this.health.set(target.id,45);target.modeHealth=45;
-   this.private(target);this.broadcast(this.room,{type:'resources',resources:{...this.room.world.resources},
-     tr:{...this.room.world.tr}});this.emit();
+    if(this.room.world.resources.boards<2)return;
+    this.room.world.resources.boards-=2;
+    this.alive.set(target.id,true);this.health.set(target.id,45);target.modeHealth=45;
+    this.private(target);this.broadcast(this.room,{type:'resources',resources:{...this.room.world.resources},
+      tr:{...this.room.world.tr}});this.emit();
   }
  }
  spawnWave(now=nowMs()){
@@ -287,7 +375,8 @@ export class SpecialModes{
      x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;
    // Different spawn angles place the swarm all around the gallery.
    world.enemies.push({id:'zombie:'+this.wave+':'+n,x,y,f:a+Math.PI,
-     floor:p.floor,type:'zombie',hp:3+Math.floor((this.wave-1)/2),
+     floor:p.floor,type:'zombie',hp:3+Math.floor((this.wave-1)/2)+(n%7===0?3:0),
+     mutant:n%11===0?'binder':n%7===0?'brute':n%4===0?'runner':'shambler',
      dead:false,region:'horde',cx,cy,lastAttack:0,wave:this.wave});
   }
   this.broadcast(this.room,{type:'enemies',enemies:world.enemies});
@@ -304,6 +393,8 @@ export class SpecialModes{
    if(now-this.lastReport>1500){this.lastReport=now;this.emit()}
    return;
   }
+  for(const p of this.members())if(this.bookStates.has(p.id))
+    this.bookReloadComplete(p,now);
   if(this.phase==='preparing'&&now>=this.prepUntil)this.spawnWave(now);
   if(this.phase==='wave'&&this.room.world.enemies.every(e=>e.type!=='zombie'||e.dead)){
    if(this.wave>=HORDE_FINAL_WAVE){this.finish('survivors');return}
