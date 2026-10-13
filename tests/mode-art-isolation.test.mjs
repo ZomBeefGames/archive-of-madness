@@ -14,6 +14,7 @@ const part=(start,end)=>{
 };
 function environment(){
   const ctx=vm.createContext({
+    P:16,
     G:{resetEpoch:1,floor:0,startGallery:null,zoneState:new Map()},
     NET:{zones:new Map()},
     FILM:{gameMode:'story'},
@@ -21,7 +22,8 @@ function environment(){
     MODE:{type:'story'}
   });
   vm.runInContext([
-    part('function hashStr(','/* cast one ray'),
+    part('function hashStr(','/* gallery (i,j)'),
+    part('const GALLERY_NAMES=','function crossingZone('),
   ].join('\n'),ctx);
   return {ctx,run:source=>vm.runInContext(source,ctx)};
 }
