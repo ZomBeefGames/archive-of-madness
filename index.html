@@ -4277,7 +4277,10 @@ function modeSite(type,n){
 const GAME_TYPES=[
  {id:'story',label:'THE ORIGINAL STORY',desc:'Find your own page; the Library remembers.'},
  {id:'impostor',label:'THE FALSE SCRIBE',desc:'Hidden traitor · tasks · sabotage · vote (3–8 players)'},
- {id:'horde',label:'THE LAST SHELF',desc:'Dead-letter depot · 6 spellbooks · word bullets · 10 waves'}
+ {id:'horde',label:'THE LAST SHELF',desc:'Dead-letter depot · 6 spellbooks · word bullets · 10 waves'},
+ // Ashen Sphere is its own page (ashen-sphere.html): a solo idle survival game on a round hex world.
+ // It never enters the Library's MODE system; BEGIN shows its splash and hands over to that page.
+ {id:'ashen',label:'ASHEN SPHERE',desc:'Solo idle survival on a round world · explore tiles · dig a bunker',external:'ashen-sphere.html'}
 ];
 const MODE={
  type:'story',state:null,role:null,alive:true,tasks:[],done:[],hp:100,
@@ -4285,7 +4288,7 @@ const MODE={
  book:modeBookInventory(),shots:[],bookHeld:false,lastWordAt:0,mapStaged:0,
  siege:hordeSiegeStart(),lastHordeRepair:0,
  initialize(type){
-   this.type=GAME_TYPES.some(t=>t.id===type)?type:'story';
+   this.type=GAME_TYPES.some(t=>t.id===type&&!t.external)?type:'story';
    this.state={type:this.type,phase:'lobby',players:[],bodies:[],
      stations:[],done:0,required:0,canStart:this.type!=='impostor',
      wave:0,maxWaves:10,zombies:0};
@@ -4823,6 +4826,8 @@ function cycleGameMode(step=1){
  FILM.gameMode=list[(n+step+list.length)%list.length];
  if(FILM.gameMode==='impostor'&&FILM.partyMode==='solo'){
    FILM.partyMode='host';FILM.autoHost=true;
+ }else if(FILM.gameMode==='ashen'){
+   FILM.partyMode='solo';FILM.partyCode='';FILM.autoHost=false;
  }else if(old==='impostor'&&FILM.autoHost){
    FILM.partyMode='solo';FILM.autoHost=false;
  }
@@ -5750,8 +5755,15 @@ function filmTick(dt){
 function filmBeginStoryNow(){
   if(!filmBegin('opening','intro')){G.state='intro';drawIntro()}
 }
+function ashenLaunch(){
+  const game=GAME_TYPES.find(t=>t.id==='ashen');
+  if(typeof NET!=='undefined'&&NET.ws)NET.leave();
+  snd('page');
+  if(typeof document!=='undefined'&&typeof location!=='undefined')location.href=game.external+'?from=archives';
+}
 function filmBeginStory(){
   FILM.help=false;
+  if(FILM.gameMode==='ashen'){ashenLaunch();return}
   if(typeof NET!=='undefined'&&NET.ws)return;
   // Secret roles require an authoritative online room: never enter local
   // Story/cinematic flow when an unsupported solo traitor is selected.
