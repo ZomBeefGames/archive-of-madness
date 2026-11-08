@@ -38,6 +38,12 @@ h1{font-family:var(--display);font-weight:400;font-size:24px;margin:0;letter-spa
 .chip b{font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip small{font-size:11px;color:var(--paper-dim);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip small.neg{color:var(--rust)}
+.chipbtn{font:inherit;color:inherit;text-align:left;cursor:pointer}
+.chipbtn:hover{border-color:var(--lamp)}
+.plist{display:flex;flex-direction:column;gap:4px}
+.prow{border-left:2px solid var(--line);padding:2px 0 2px 8px;display:flex;flex-direction:column;gap:1px}
+.prow small{color:var(--paper-dim);font-size:12px}
+.prow.ok{border-color:#7fa860}.prow.no{border-color:var(--rust)}
 .main{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
 .stage{position:relative;flex:1;min-height:180px}
 canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
@@ -113,7 +119,7 @@ button:disabled{opacity:.42;cursor:not-allowed}
     <div class="chip"><span class="lbl">Scrap</span><b id="r-scrap">0</b><small id="d-scrap">+0/s</small></div>
     <div class="chip"><span class="lbl">Water</span><b id="r-water">0</b><small id="d-water">+0/s</small></div>
     <div class="chip"><span class="lbl">Food</span><b id="r-food">0</b><small id="d-food">+0/s</small></div>
-    <div class="chip"><span class="lbl">People</span><b id="r-pop">0</b><small id="d-pop">all working</small></div>
+    <button class="chip chipbtn" id="people-chip" aria-label="Show your people"><span class="lbl">People ›</span><b id="r-pop">0</b><small id="d-pop">all working</small></button>
   </div>
   <div class="main">
     <div class="stage" id="stage">
@@ -204,7 +210,8 @@ const CFG={
     gen:  {cost:95, staff:true, supply:6,burn:.015},
     store:{cost:55, staff:false,power:0,prio:3},   // (C) shelves need no power so the cap never drops
     med:  {cost:140,staff:true, power:2,prio:3},
-    radio:{cost:160,staff:true, power:2,prio:3}
+    radio:{cost:160,staff:true, power:2,prio:3},
+    fuel: {cost:140,staff:true, power:2,prio:2}
   },
   roomPerRow:4,roomScale:1.15,mergeBonus:.15,mergeMax:3,
   // tile expeditions (GPT G-125)
@@ -217,7 +224,13 @@ const CFG={
     pack:   {name:"Backpacks",       cost:{scrap:35,food:8}, steps:10,what:"+10 steps every trip"},
     mule:   {name:"Pack Mule",       cost:{scrap:90,food:15},steps:8, what:"+8 steps every trip"}
   },
-  wind:{cost:{scrap:60},power:2}
+  wind:{cost:{scrap:60},power:2},
+  // Kestrel programme (GPT G-126). Abstract rocketry: TWR = thrust/(mass*g), delta-v = Isp*g*ln(m0/mdry). Masses in tonnes, thrust in kN.
+  space:{scoutDv:2800,rescueDv:3200,g:9.81,fuelPerTonne:10,plant:{fuel:.08,water:.16},tankCap:100,flightSecs:20,refund:.6,riskMargin:.05,
+    pad:{cost:{scrap:180,water:30},ruinsPremium:1.3},
+    parts:{core:{name:"Probe core",mass:.5,cost:40},frame:{name:"Frame",mass:.2,cost:15},antenna:{name:"Antenna",mass:.1,cost:20},arm:{name:"Repair arm",mass:.3,cost:50},
+      small:{name:"Small tank",mass:.3,fuel:1.5,cost:25},large:{name:"Large tank",mass:.6,fuel:4,cost:55},
+      spark:{name:"Spark engine",mass:.4,thrust:60,isp:300,cost:45},thud:{name:"Thud engine",mass:1.2,thrust:200,isp:270,cost:80}}}
 };
 
 // ---------------------------------------------------------------- land
@@ -258,7 +271,9 @@ const BLD={
   green:  {name:"Greenhouse", cost:CFG.surface.green.cost,  staff:true, what:"+"+CFG.surface.green.rate+" food/s"},
   shelter:{name:"Shelter",    cost:CFG.surface.shelter.cost,staff:false,what:"Room for "+CFG.surface.shelter.cap+" more people"},
   tower:  {name:"Radio Tower",cost:CFG.surface.tower.cost,  staff:true, what:"Shows land 4 tiles out, calls people in"},
-  wind:   {name:"Wind Turbine",cost:CFG.wind.cost,          staff:false,what:"+"+CFG.wind.power+" power to the bunker"}
+  wind:   {name:"Wind Turbine",cost:CFG.wind.cost,          staff:false,what:"+"+CFG.wind.power+" power to the bunker"},
+  pad:    {name:"Launch Pad", cost:CFG.space.pad.cost,      staff:true, what:"Needs 2 workers. Builds and launches rockets"},
+  tank:   {name:"Fuel Tank",  cost:{scrap:85},              staff:false,what:"Holds "+CFG.space.tankCap+" rocket fuel"}
 };
 const BUILD_LIST=["camp","still","green","shelter","tower"];
 function mult(i,b){const t=T[i];let m=1;
@@ -282,10 +297,11 @@ const ROOM={
   gen:  {name:"Generator",  what:"+"+RC.gen.supply+" power, burns a little scrap",    col:[156,124,44]},
   store:{name:"Storage",    what:"+"+CFG.storePerRoom+" storage for each supply",     col:[112,100,84]},
   med:  {name:"Med Bay",    what:"People hold on twice as long when supplies run out",col:[150,80,74]},
-  radio:{name:"Radio Room", what:"Scans the rock: shows what's behind cells you can dig",col:[96,92,130]}
+  radio:{name:"Radio Room", what:"Scans the rock: shows what's behind cells you can dig",col:[96,92,130]},
+  fuel: {name:"Electrolysis Plant",what:"Splits water into rocket fuel: "+CFG.space.plant.fuel+" fuel/s for "+CFG.space.plant.water+" water/s",col:[150,98,140]}
 };
 for(const k in ROOM)Object.assign(ROOM[k],RC[k],{power:RC[k].power||0});
-const ROOM_LIST=["bunks","pump","hydro","gen","shop","store","med","radio"];
+const ROOM_LIST=["bunks","pump","hydro","gen","shop","store","med","radio","fuel"];
 function FIND(r,c){if(c===SHAFT)return null;const h=h3(r,c,77);if(r>=3&&r<=8&&h<.22)return"aquifer";if(r>=9&&h>.86)return"relic";if(h>.78)return"cache";if(h>.68&&h<.76)return"cave";return null}
 const rowNeed=r=>{const b=Math.min(3,Math.floor(r/3));return b===3&&S.unl.skywell?30:CFG.rowGates[b]};
 const isDug=(r,c)=>!!(S.ug[r+","+c]&&S.ug[r+","+c].d);
@@ -307,19 +323,21 @@ let S;
 const STARTERS=(()=>{const nb=T[START].n.filter(land).filter(j=>!T[j].pent);
   const w=nb.find(j=>T[j].coast)??nb[0],f=nb.filter(j=>j!==w).sort((a,b)=>(T[b].b==="woods")-(T[a].b==="woods"))[0];return[[w,"still"],[f,"green"]]})();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
-  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
+  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false}},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:5,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
-function deser(o){if(!o||o.v!==5||!Array.isArray(o.owned)||!o.owned.length)return null;
+function ser(){return{v:6,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function deser(o){if(!o||(o.v!==5&&o.v!==6)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
     owned:new Set(o.owned.filter(ok)),bld:o.bld||{},order:(o.order||[]).filter(i=>ok(i)||(typeof i==="string"&&i.startsWith("u:"))),goal:o.goal|0,grow:+o.grow||0,starve:+o.starve||0,
     seen:new Set((o.seen||[]).filter(ok)),hatch:!!o.hatch,ug:(o.ug&&typeof o.ug==="object")?o.ug:{},dig:o.dig&&o.dig.k?o.dig:null,relics:o.relics|0,
     maps:(o.maps&&typeof o.maps==="object")?o.maps:{},exp:o.exp&&ok(o.exp.i)?o.exp:null,
+    people:Array.isArray(o.people)?o.people:[],   // v5 saves get their people generated from pop
+    k:Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false}},o.k&&typeof o.k==="object"?o.k:{}),
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
-const KEY="ashen-sphere-v5";
+const KEY="ashen-sphere-v6",OLD_KEY="ashen-sphere-v5";
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
-function loadSaved(){try{const raw=localStorage.getItem(KEY);return raw?JSON.parse(raw):null}catch(e){return null}}
+function loadSaved(){try{const raw=localStorage.getItem(KEY)||localStorage.getItem(OLD_KEY);return raw?JSON.parse(raw):null}catch(e){return null}}
 
 // ---------------------------------------------------------------- economy
 function econ(){
@@ -330,11 +348,12 @@ function econ(){
   let free=Math.max(0,S.pop-(S.exp?XC.squad:0)),pw=S.hatch?CFG.bunker.power+(U.vent?1:0):0;
   const st=new Set(),on=new Set(),paused=new Map(),pend=[];
   const genSup=RC.gen.supply+(U.geo?1:0),powOf=room=>room==="hydro"?RC.hydro.power+(U.coldhydro?.5:0):RC[room].power;
-  const take=id=>{need++;if(free>0){free--;st.add(id);return true}return false};
+  const jobs=[],take=id=>{need++;if(free>0){free--;st.add(id);jobs.push(id);return true}return false};
   const order=S.order.map((id,ix)=>[id,ix]),ugRoom=id=>typeof id==="string"&&S.ug[id.slice(2)]?S.ug[id.slice(2)].room:null;
   for(const[id]of order)if(typeof id==="number"&&(S.bld[id]==="still"||S.bld[id]==="green"))take(id);
   for(const[id]of order)if(ugRoom(id)==="gen"&&take(id)){on.add(id);pw+=genSup;gens++}
-  for(const[id]of order)if(typeof id==="number"){const b=S.bld[id];if(b&&b!=="still"&&b!=="green"&&BLD[b]&&BLD[b].staff)take(id)}
+  for(const[id]of order)if(typeof id==="number"){const b=S.bld[id];if(!b||b==="still"||b==="green"||!BLD[b]||!BLD[b].staff)continue;
+    if(b==="pad"){if(take(id)&&!take("pad2:"+id)){free++;st.delete(id);jobs.pop()}}else take(id)}
   if(S.hatch)for(const k in S.bld)if(S.bld[k]==="wind")pw+=CFG.wind.power;
   for(const[id,ix]of order){const room=ugRoom(id);if(!room||room==="gen")continue;
     if(room==="store"){on.add(id);store+=CFG.storePerRoom;continue}
@@ -343,31 +362,44 @@ function econ(){
   for(const[,,id,room]of pend){const d=RC[room],p=powOf(room);
     if(d.staff&&free<=0){paused.set(id,"nobody free");continue}
     if(dem+p>pw+1e-9){paused.set(id,"no power");continue}
-    dem+=p;on.add(id);if(d.staff){free--;st.add(id)}}
+    dem+=p;on.add(id);if(d.staff){free--;st.add(id);jobs.push(id)}}
+  // people: the squad goes out first (scavengers preferred), then each job gets the best-matching free person
+  const pool=S.people.slice(),squad=[],who=new Map(),jobOf=new Map(),bonus=new Map();
+  if(S.exp){pool.sort((a,b)=>((b.sk==="scav")*b.lv-(a.sk==="scav")*a.lv)||a.id-b.id);for(let j=0;j<XC.squad&&pool.length;j++)squad.push(pool.shift());pool.sort((a,b)=>a.id-b.id)}
+  const org=S.people.some(p=>p.tr==="organizer"&&!squad.includes(p));
+  for(const id of jobs){if(!pool.length)break;const need=JOB_SKILL[typeof id==="number"?S.bld[id]:id.startsWith("pad2:")?"pad":ugRoom(id)];
+    let bi=0,bs=-1;pool.forEach((p,j)=>{const sc=(p.sk===need?p.lv:0)*10+(p.tr==="tinkerer"?1:0);if(sc>bs){bs=sc;bi=j}});
+    const p=pool.splice(bi,1)[0];who.set(id,p);jobOf.set(p.id,id);bonus.set(id,1+(p.sk===need?.1*p.lv:0)+(p.tr==="tinkerer"?.1:0)+(org?.05:0))}
+  const pb=id=>bonus.get(id)||1;
+  let fuelRate=0;const tanks=Object.values(S.bld).filter(b=>b==="tank").length,fuelCap=tanks*CFG.space.tankCap;
   for(const k in S.bld){const id=+k,b=S.bld[k];
     if(b==="shelter"){cap+=SF.shelter.cap+lmAdd(id,"shelter");continue}
-    if(!st.has(id))continue;const m=mult(id,b);
+    if(!st.has(id))continue;const m=mult(id,b)*pb(id);
     if(b==="camp")sc+=SF.camp.rate*m;else if(b==="still")wa+=SF.still.rate*m;else if(b==="green")fo+=SF.green.rate*m;else if(b==="tower")towers++}
-  for(const id of on){const k=id.slice(2),cell=S.ug[k],room=cell.room,m=ugMult(k);
+  for(const id of on){const k=id.slice(2),cell=S.ug[k],room=cell.room,m=ugMult(k)*pb(id);
+    if(room==="fuel"){if(S.k.fuel<fuelCap){fuelRate+=CFG.space.plant.fuel*m;wa-=CFG.space.plant.water}continue}
     if(room==="bunks")cap+=RC.bunks.cap;else if(room==="hydro")fo+=RC.hydro.food*m*(U.coldhydro?1.15:1);else if(room==="shop")sc+=RC.shop.scrap*m*(U.archive?1.1:1);
     else if(room==="pump")wa+=(cell.f==="aquifer"?RC.pump.aquifer:RC.pump.water)*m;else if(room==="med")med=true;else if(room==="radio")radio=true}
   if(dem>0)sc-=RC.gen.burn*gens;
   const eat=EAT*S.pop;
-  return{sc,wa:wa-eat,fo:fo-eat,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,power:{supply:pw,demand:Math.round(dem*10)/10}}
+  return{sc,wa:wa-eat,fo:fo-eat,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,power:{supply:pw,demand:Math.round(dem*10)/10}}
 }
 let E;
 function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
 function step(dt,quiet){
-  E=econ();
+  reconcile();E=econ();
   S.t+=dt;
   S.res.scrap+=E.sc*dt;S.res.water+=E.wa*dt;S.res.food+=E.fo*dt;
   const dry=S.res.water<=0||S.res.food<=0;
   for(const k of["scrap","water","food"])S.res[k]=Math.max(0,Math.min(E.store,S.res[k]));
   if(!S.hatch&&S.pop>=CFG.hatch.freeAt)openHatch(true,quiet);
-  if(!dry&&S.res.water>.5&&S.res.food>.5&&S.pop<E.cap){S.grow+=dt*(1+.6*E.towers);if(S.grow>=CFG.growEvery){S.grow=0;S.pop++;if(!quiet)say(E.towers?"A stranger followed the radio signal in.":"A stranger walked in out of the ash.");dirty=true}}
+  if(!dry&&S.res.water>.5&&S.res.food>.5&&S.pop<E.cap){S.grow+=dt*(1+.6*E.towers);if(S.grow>=CFG.growEvery){S.grow=0;S.pop++;const np=reconcile();if(!quiet&&np)say(np.name+(E.towers?" followed the radio signal in":" walked in out of the ash")+": a "+SKILL[np.sk]+", "+TRAIT[np.tr].name.toLowerCase()+".");dirty=true}}
+  if(E.fuelRate)S.k.fuel=Math.min(E.fuelCap,S.k.fuel+E.fuelRate*dt);
+  if(S.k.flight){S.k.flight.t+=dt;if(S.k.flight.t>=CFG.space.flightSecs)resolveFlight(quiet);else if(!quiet)dirty=true}
+  if(!S.k.ping&&towerOn()&&spiresOwned()>=1){S.k.ping=true;if(!quiet){say("The radio tower picks up a weak, repeating ping from orbit: Kestrel Station is calling for help.");toast("Kestrel Station is calling. Tap the station in orbit to see what it will take to reach it.")}}
   if(S.wounded>0)S.wounded=Math.max(0,S.wounded-dt*(1+(E.med?1:0)+(S.unl.ambulance?1:0)));
   if(S.dig){S.dig.left-=dt;if(S.dig.left<=0){const k=S.dig.k;S.dig=null;finishDig(k,quiet)}}
-  if(dry){S.starve+=dt;if(S.starve>=CFG.leaveAfter*(E.med?2:1)){S.starve=0;if(S.pop>1){S.pop--;if(!quiet)say("Someone left to look for "+(S.res.water<=0?"water":"food")+".");dirty=true}}}else S.starve=0;
+  if(dry){S.starve+=dt;if(S.starve>=CFG.leaveAfter*(E.med?2:1)){S.starve=0;if(S.pop>1){const gone=leaveOne();if(!quiet)say(gone.name+" left to look for "+(S.res.water<=0?"water":"food")+".");dirty=true}}}else S.starve=0;
   checkGoal(quiet);
 }
 function cost(b){const n=Object.values(S.bld).filter(x=>x===b).length,c={};for(const k in BLD[b].cost)c[k]=Math.ceil(BLD[b].cost[k]*Math.pow(CFG.sameKindScale,n));return c}
@@ -390,7 +422,9 @@ function claim(i){
   else say("Claimed "+BIOME[t.b].name.toLowerCase()+". Your border grows.");
   refreshSeen();dirty=true;save();
 }
-function build(i,b){if(!S.owned.has(i)||S.bld[i])return;const c=cost(b);if(!afford(c))return;pay(c);S.bld[i]=b;S.order.push(i);E=econ();refreshSeen();say("Built a "+BLD[b].name.toLowerCase()+".");dirty=true;save()}
+function costAt(i,b){const c=cost(b);if(b==="pad"&&T[i].b==="ruins")for(const k in c)c[k]=Math.ceil(c[k]*CFG.space.pad.ruinsPremium);return c}
+function canBuild(i,b){if(b==="pad")return S.k.ping&&spiresOwned()>=2&&padTile()<0&&(T[i].pent||T[i].b==="ruins");if(b==="tank")return padTile()>=0;if(b==="wind")return!!S.unl.wind;return true}
+function build(i,b){if(!S.owned.has(i)||S.bld[i]||!canBuild(i,b))return;const c=costAt(i,b);if(!afford(c))return;pay(c);S.bld[i]=b;S.order.push(i);E=econ();refreshSeen();say("Built a "+BLD[b].name.toLowerCase()+".");dirty=true;save()}
 function startDig(k){const[r,c]=k.split(",").map(Number);if(digBlock(r,c))return;const co=digCost(r,c);if(!afford(co))return;pay(co);const tt=digTime(r,c);S.dig={k,left:tt,total:tt};for(const x of["survey","excav"])if(S.cnt[x]>0)S.cnt[x]--;if(c===SHAFT&&S.cnt.hoist>0)S.cnt.hoist--;dirty=true}
 function finishDig(k,quiet){const[r,c]=k.split(",").map(Number);let f=FIND(r,c);if(S.unl.luckydig>0&&c!==SHAFT&&f!=="relic"){S.unl.luckydig--;f="cache"}S.ug[k]={d:1,f};
   if(f==="cache"){const g=30+r*10;S.res.scrap+=g;if(!quiet)say("The diggers broke into an old locker. "+g+" scrap.")}
@@ -417,6 +451,9 @@ const GOALS=[
   {text:"Sink the shaft to bedrock (row 7)",     p:()=>[Math.min(7,S.hatch?maxShaft()+1:0),7],reward:{scrap:200}},
   {text:"Light a tile on the far side of the world",p:()=>[[...S.owned].some(i=>dot(T[i].c,T[START].c)<-.5)?1:0,1],reward:{scrap:250}},
   {text:"Wake a sleeper in the old-world layer", p:()=>[S.relics,1],      reward:{scrap:300}},
+  {text:"Hear Kestrel Station's distress ping",   p:()=>[S.k.ping?1:0,1],  reward:{scrap:100}},
+  {text:"Put a probe in orbit",                  p:()=>[S.k.scout?1:0,1], reward:{scrap:250}},
+  {text:"Bring Lantern-2 back online",           p:()=>[S.k.lantern?1:0,1],reward:{scrap:300}},
   {text:"Hold 60 tiles",                         p:()=>[S.owned.size,60], reward:{scrap:400}}
 ];
 function checkGoal(quiet){const g=GOALS[S.goal];if(!g||!E)return;const[a,b]=g.p();if(a>=b){for(const k in g.reward)S.res[k]+=g.reward[k];if(!quiet)say("Goal met: "+g.text.toLowerCase()+". Reward "+costText(g.reward)+".");S.goal++;dirty=true}}
@@ -447,6 +484,8 @@ function glyph(type,x,y,s,a){
     case"green":ctx.moveTo(-s*.75,s*.55);ctx.lineTo(-s*.75,-s*.1);ctx.arc(0,-s*.1,s*.75,Math.PI,0);ctx.lineTo(s*.75,s*.55);ctx.closePath();break;
     case"shelter":ctx.moveTo(-s*.75,s*.6);ctx.lineTo(-s*.75,-s*.1);ctx.lineTo(0,-s*.8);ctx.lineTo(s*.75,-s*.1);ctx.lineTo(s*.75,s*.6);ctx.closePath();break;
     case"tower":ctx.rect(-s*.13,-s*.75,s*.26,s*1.4);break;
+    case"pad":ctx.rect(-s*.8,s*.35,s*1.6,s*.3);ctx.moveTo(-s*.18,s*.35);ctx.lineTo(-s*.18,-s*.45);ctx.lineTo(0,-s*.9);ctx.lineTo(s*.18,-s*.45);ctx.lineTo(s*.18,s*.35);break;
+    case"tank":ctx.ellipse(0,0,s*.55,s*.75,0,0,6.2832);break;
     case"spire":ctx.moveTo(-s*.32,s*.7);ctx.lineTo(0,-s*.95);ctx.lineTo(s*.32,s*.7);ctx.closePath();break;
     case"flag":ctx.rect(-s*.09,-s*.9,s*.18,s*1.75);break;
     case"wind":ctx.rect(-s*.08,-s*.4,s*.16,s*1.2);break;
@@ -503,7 +542,7 @@ function draw(now){
     if(S.bld[i])glyph(S.bld[i],x,y,s,1);else if(T[i].pent&&S.seen.has(i))glyph("spire",x,y,s,S.owned.has(i)?1:.75);
     else if(S.maps[i]&&S.owned.has(i)&&landmarkOf(i))glyph("flag",x,y,s,1);
     else if(S.maps[i]&&!S.owned.has(i)){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(x,y,Math.max(1.5*DPR,s*.22),0,6.2832);ctx.fill()}}
-  drawOrbits(true,cx,cy,r,now);
+  drawOrbits(true,cx,cy,r,now);drawFlight(cx,cy,r,now);
   // selection
   if(sel>=0&&selOrb<0){const t=T[sel],z=dot([R[6],R[7],R[8]],t.c);if(z>.02){ctx.strokeStyle="#e8dcc2";ctx.lineWidth=Math.max(2,2.4*DPR);ctx.setLineDash([4*DPR,3*DPR]);ctx.beginPath();const k=t.k;ctx.moveTo(PX[k[0]],PY[k[0]]);for(let m=1;m<k.length;m++)ctx.lineTo(PX[k[m]],PY[k[m]]);ctx.closePath();ctx.stroke();ctx.setLineDash([])}}
 }
@@ -516,6 +555,8 @@ const ORBITERS=[
    desc:"A survey satellite on a low orbit. Its camera still works. With a running radio tower you can pull down one survey a day."},
   {name:"Halo-7",kind:"weather",r:1.22,tilt:[.1,.4,1],speed:-.08,phase:4.0,
    desc:"A weather satellite. It still sends the day and night forecast to anyone listening."},
+  {name:"Kestrel Scout",kind:"scout",r:1.2,tilt:[0,1,.05],speed:.13,phase:1.0,
+   desc:"Your probe, launched from your own pad. It relays the station's beacon down to you."},
   {name:"Lantern-2",kind:"relay",r:1.36,tilt:[.8,1,-.3],speed:.035,phase:5.2,
    desc:"A relay satellite that bounces radio around the curve of the world. It is why your towers can hear strangers far away."}
 ].map(o=>{const n=norm(o.tilt),ref=Math.abs(n[1])<.9?[0,1,0]:[1,0,0],u=norm(cross(n,ref)),v=cross(n,u);return Object.assign(o,{u,v})});
@@ -523,7 +564,7 @@ let selOrb=-1,ORB_SCREEN=[];
 const orbPos=(o,t)=>{const a=o.phase+o.speed*t,c=Math.cos(a)*o.r,s=Math.sin(a)*o.r;return[o.u[0]*c+o.v[0]*s,o.u[1]*c+o.v[1]*s,o.u[2]*c+o.v[2]*s]};
 function drawOrbits(front,cx,cy,r,now){
   const sun=sunAt(S.t);
-  for(let oi=0;oi<ORBITERS.length;oi++){const o=ORBITERS[oi];
+  for(let oi=0;oi<ORBITERS.length;oi++){const o=ORBITERS[oi];if(o.kind==="scout"&&!S.k.scout)continue;
     // faint orbit line, back half behind the globe, front half in front
     ctx.strokeStyle=front?"rgba(232,220,194,.16)":"rgba(232,220,194,.07)";ctx.lineWidth=DPR;ctx.setLineDash([2*DPR,4*DPR]);ctx.beginPath();let pen=false;
     for(let j=0;j<=72;j++){const a=j/72*6.2832,w=[o.u[0]*Math.cos(a)*o.r+o.v[0]*Math.sin(a)*o.r,o.u[1]*Math.cos(a)*o.r+o.v[1]*Math.sin(a)*o.r,o.u[2]*Math.cos(a)*o.r+o.v[2]*Math.sin(a)*o.r],p=applyM(R,w);
@@ -539,7 +580,7 @@ function drawOrbits(front,cx,cy,r,now){
       ctx.fillStyle=panel;for(const sx of[-1,1]){ctx.fillRect(sx*s*.55-s*.22,-s*1.1,s*.44,s*.8);ctx.strokeRect(sx*s*.55-s*.22,-s*1.1,s*.44,s*.8);ctx.fillRect(sx*s*.55-s*.22,s*.3,s*.44,s*.8);ctx.strokeRect(sx*s*.55-s*.22,s*.3,s*.44,s*.8)}
       ctx.fillStyle=body;ctx.fillRect(-s*1.1,-s*.14,s*2.2,s*.28);ctx.strokeRect(-s*1.1,-s*.14,s*2.2,s*.28);
       ctx.beginPath();ctx.arc(0,0,s*.34,0,6.2832);ctx.fill();ctx.stroke();
-      if(reduced||Math.floor(now/900)%3===0){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(s*1.1,0,Math.max(1.5*DPR,s*.12),0,6.2832);ctx.fill()}
+      if(reduced||S.k.lantern||Math.floor(now/900)%3===0){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(s*1.1,0,Math.max(1.5*DPR,s*.12),0,6.2832);ctx.fill()}
     }else{
       ctx.fillStyle=panel;ctx.fillRect(-s*1.5,-s*.3,s*.9,s*.6);ctx.strokeRect(-s*1.5,-s*.3,s*.9,s*.6);ctx.fillRect(s*.6,-s*.3,s*.9,s*.6);ctx.strokeRect(s*.6,-s*.3,s*.9,s*.6);
       ctx.fillStyle=body;ctx.fillRect(-s*.45,-s*.45,s*.9,s*.9);ctx.strokeRect(-s*.45,-s*.45,s*.9,s*.9);
@@ -557,7 +598,8 @@ function orbitHTML(){const o=ORBITERS[selOrb];const h0=dot(norm(orbPos(o,S.t)),s
     return h+(ready?'<div class="acts">'+btn("survey","Download a survey","Charts one nearby tile's map",null,"primary")+"</div>":"<p>Today's survey is done. Next one tomorrow (day "+(day()+1)+").</p>")}
   if(o.kind==="weather"){const l=dot(sunAt(S.t),T[START].c);let t=0;for(;t<DAY;t+=1){const l2=dot(sunAt(S.t+t),T[START].c);if((l>=-.05)!==(l2>=-.05))break}
     return h+"<p>Forecast for your bunker: "+(l>=-.05?"dark":"light")+" in about "+Math.round(t)+" s.</p>"}
-  if(o.kind==="station")return h+"<p>Nobody has been up there since the ash. Getting there would take a launch site, fuel and a lot of luck.</p>";
+  if(o.kind==="station")return h+(S.k.lantern?"<p>Its first segment is lit again. One beacon is steady now.</p>":"<p>Nobody has been up there since the ash. Here is what it will take:</p>")+stagesHTML();
+  if(o.kind==="scout")return h+"<p>Your own probe, the first thing to leave the planet since the ash.</p>"+stagesHTML();
   return h}
 function doSurvey(){const towerOn=Object.keys(S.bld).some(k=>S.bld[k]==="tower"&&E.st.has(+k));if(!towerOn||(S.cnt.survDay||0)>=day())return;
   const front=[];for(const i of S.owned)for(const j of T[i].n)if(land(j)&&!S.owned.has(j)&&explored(j)<1)front.push(j);
@@ -565,8 +607,97 @@ function doSurvey(){const towerOn=Object.keys(S.bld).some(k=>S.bld[k]==="tower"&
   const j=front[Math.floor(h3(day(),7,11)*front.length)];S.seen.add(j);mapState(j).rev="1".repeat(MW*MH);S.cnt.survDay=day();
   say("Argus-3 sends down a survey. Tile "+j+" is charted.");sel=j;selOrb=-1;dirty=true;save()}
 
+// ---------------------------------------------------------------- people: named colonists (GPT G-126 brief)
+const NAMES=["Mara","Joss","Ilse","Tobin","Wren","Ade","Sol","Petra","Kaz","Noor","Bram","Ines","Otto","Rhea","Cass","Dov","Lune","Fitz","Yara","Hollis","Tam","Vesna","Grey","Oriel","Pike","Saskia","Juno","Emmet","Kit","Zora","Arlo","Mei","Nils","Ruth","Silas","Tove","Bea","Cyr","Dagny","Ezra"];
+const SKILL={eng:"engineer",scav:"scavenger",grow:"grower"};
+const TRAIT={cautious:{name:"Cautious",txt:"comes home less hurt when a fight goes wrong"},tinkerer:{name:"Tinkerer",txt:"+10% at any job"},
+  organizer:{name:"Organizer",txt:"everyone working makes 5% more"},stubborn:{name:"Stubborn",txt:"never the first to leave"}};
+const JOB_SKILL={camp:"scav",still:"eng",green:"grow",tower:"eng",pad:"eng",gen:"eng",pump:"eng",hydro:"grow",shop:"eng",med:"grow",radio:"eng",fuel:"eng"};
+function newPerson(id){const n=NAMES.length,used=new Set(S.people.map(p=>p.name));let j=(id*17+(h3(id,3,61)*7|0))%n,name=null;
+  for(let t=0;t<n;t++){const c=NAMES[(j+t)%n];if(!used.has(c)){name=c;break}}
+  if(!name)name=NAMES[j]+" "+String.fromCharCode(65+(id%26))+".";
+  return{id,name,sk:["eng","scav","grow"][h3(id,1,61)*3|0],lv:1+(h3(id,4,61)*3|0),tr:Object.keys(TRAIT)[h3(id,2,61)*4|0]}}
+function reconcile(){const P=S.people;let added=null;while(P.length<S.pop){const p=newPerson(S.k.nextPid++);P.push(p);added=p}
+  while(P.length>S.pop){let ix=-1;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}P.splice(ix<0?P.length-1:ix,1)}return added}
+function leaveOne(){let ix=-1;const P=S.people;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}if(ix<0)ix=P.length-1;const p=P.splice(ix,1)[0];S.pop=P.length;return p}
+const personLine=p=>"<b>"+p.name+"</b> · "+SKILL[p.sk]+" "+p.lv+" · "+TRAIT[p.tr].name;
+function jobName(id){if(typeof id==="number")return BLD[S.bld[id]]?BLD[S.bld[id]].name.toLowerCase()+" (tile "+id+")":"a job";
+  if(id.startsWith("pad2:"))return"the launch pad (tile "+id.slice(5)+")";const c=S.ug[id.slice(2)];return c&&c.room?ROOM[c.room].name.toLowerCase()+" below":"a job"}
+function workerNote(id){const p=E.who.get(id);if(!p)return"";const need=JOB_SKILL[typeof id==="number"?S.bld[id]:(S.ug[id.slice(2)]||{}).room];
+  const pct=Math.round((E.bonus.get(id)-1)*100);return" "+p.name+" works here ("+SKILL[p.sk]+" "+p.lv+(p.sk===need?", the right skill":"")+")"+(pct?": +"+pct+"%":"")+"."}
+function peopleHTML(){const P=S.people;let h='<div class="meta">'+P.length+" people · "+E.st.size+" working · "+E.idle+" resting"+(S.exp?" · "+XC.squad+" exploring":"")+'</div><div class="tile-h">Your people</div><div class="plist">';
+  for(const p of P){const job=E.jobOf.get(p.id),sq=E.squad.includes(p);
+    h+='<div class="prow"><div>'+personLine(p)+'</div><small>'+(sq?"out with the squad":job!==undefined?"works the "+jobName(job):"resting")+" · "+TRAIT[p.tr].txt+"</small></div>"}
+  return h+"</div><p class=\"meta\">Each job wants a skill. The right person adds 10% per skill level.</p>"}
+
+// ---------------------------------------------------------------- the Kestrel programme: reach the station (GPT G-126 stages 0-5)
+const SP=CFG.space;
+const spiresOwned=()=>[...S.owned].filter(i=>T[i].pent).length;
+const towerOn=()=>Object.keys(S.bld).some(k=>S.bld[k]==="tower"&&E&&E.st.has(+k));
+const padTile=()=>{for(const k in S.bld)if(S.bld[k]==="pad")return+k;return-1};
+const hasFuelChain=()=>Object.values(S.ug).some(c=>c.room==="fuel")&&Object.values(S.bld).includes("tank");
+const mission=()=>!S.k.scout?"scout":!S.k.lantern?"rescue":"crew";
+function rocket(d,ms){const P=SP.parts,list=["core","frame",...(d.antenna?["antenna"]:[]),...(d.arm?["arm"]:[]),...d.tanks,d.engine];
+  let dry=0,fuel=0,cost=0;for(const p of list){dry+=P[p].mass;fuel+=P[p].fuel||0;cost+=P[p].cost}
+  const eng=P[d.engine],m0=dry+fuel,isp=eng.isp*(1+.05*Math.min(4,S.k.tele)),twr=eng.thrust/(m0*SP.g),dv=fuel>0?isp*SP.g*Math.log(m0/dry):0;
+  const need=ms==="rescue"?SP.rescueDv:SP.scoutDv,fuelUnits=Math.ceil(fuel*SP.fuelPerTonne),padOn=padTile()>=0&&E.st.has(padTile());
+  const checks=[["Thrust-to-weight over 1.2 (now "+twr.toFixed(2)+")",twr>1.2],["Delta-v "+Math.round(dv)+" of "+need+" m/s to reach "+(ms==="rescue"?"Lantern-2":"orbit"),dv>=need],
+    ["Antenna to send telemetry home",!!d.antenna],...(ms==="rescue"?[["Repair arm to fix Lantern-2",!!d.arm]]:[]),
+    ["Fuel loaded: "+Math.floor(S.k.fuel)+" of "+fuelUnits,S.k.fuel>=fuelUnits],["Parts: "+cost+" scrap"+(cost>E.store?" (more than you can store: build a Storage room below)":""),S.res.scrap>=cost],["Launch pad crewed by 2 people",padOn]];
+  return{list,dry,fuel,m0,twr,dv,need,cost,fuelUnits,checks,ok:checks.every(c=>c[1]),margin:dv/need-1}}
+function launch(){const ms=mission();if(ms==="crew"||S.k.flight)return;const r=rocket(S.k.design,ms);if(!r.ok)return;
+  pay({scrap:r.cost});S.k.fuel-=r.fuelUnits;S.k.launches=(S.k.launches||0)+1;
+  const fail=r.margin<SP.riskMargin&&h3(S.k.launches,S.k.tele,909)<.5;
+  S.k.flight={t:0,ms,fail,cost:r.cost,pad:padTile()};focus=padTile();sel=padTile();selOrb=-1;showPeople=false;
+  say((ms==="scout"?"Kestrel Scout":"Repair probe")+" is on the pad. Ignition.");dirty=true;save()}
+function flightStage(f){const t=f.t,L=SP.flightSecs;if(f.fail&&t>L*.55)return"Lost: the rocket broke apart";
+  return t<2?"Ignition":t<L*.25?"Liftoff":t<L*.45?"Max Q: the hardest push":t<L*.7?"Main engine cut-off":t<L*.9?"Coasting to orbit":"Orbit"}
+function resolveFlight(quiet){const f=S.k.flight;S.k.flight=null;
+  if(f.fail){S.res.scrap+=Math.floor(f.cost*SP.refund);S.k.tele++;if(!quiet)say("The rocket broke apart at Max Q. You salvage "+Math.round(SP.refund*100)+"% of the parts, and the telemetry makes your engines 5% better.")}
+  else if(f.ms==="scout"){S.k.scout=true;if(!quiet)say("Kestrel Scout is in orbit. Kestrel Station's beacon answers it.")}
+  else if(f.ms==="rescue"){S.k.lantern=true;if(!quiet)say("The repair probe reaches Lantern-2 and brings it back. Squads can walk 4 steps further, and a segment of Kestrel Station lights up.")}
+  dirty=true;save()}
+function kestrelStages(){return[
+  ["Hear the station","Staff a radio tower and hold a Spire",S.k.ping],
+  ["Find the old launch data","Hold 2 Spires",spiresOwned()>=2],
+  ["Build a launch pad","On a Spire, or on ruins for 30% more scrap",padTile()>=0],
+  ["Make rocket fuel","An Electrolysis Plant below and a Fuel Tank on the surface",hasFuelChain()],
+  ["Put a probe in orbit","Build and launch Kestrel Scout from the pad",S.k.scout],
+  ["Repair Lantern-2","A second launch, with a repair arm",S.k.lantern],
+  ["Crewed ascent","Coming next: capsule, life support, docking",false]]}
+function stagesHTML(){return'<div class="plist">'+kestrelStages().map(s=>'<div class="prow"><div>'+(s[2]?"✓ ":"○ ")+"<b>"+s[0]+'</b></div><small>'+s[1]+"</small></div>").join("")+"</div>"}
+function padHTML(){const ms=mission();let h="";
+  if(S.k.flight){const f=S.k.flight;return'<p class="meta">T+'+Math.floor(f.t)+" s</p><p><b>"+flightStage(f)+"</b></p><p>Watch the planet: the rocket is climbing out of the pad.</p>"}
+  if(ms==="crew")return"<p>Lantern-2 is back and Kestrel is waking up. A crewed ascent comes next: capsule, life support, docking.</p>";
+  if(!hasFuelChain())h+="<p><b>No fuel yet.</b> Fit an Electrolysis Plant in the bunker and build a Fuel Tank on the surface.</p>";
+  const d=S.k.design,r=rocket(d,ms),P=SP.parts;
+  h+="<p>Mission: <b>"+(ms==="scout"?"Kestrel Scout: put a probe in orbit":"Rescue: carry a repair arm up to Lantern-2")+"</b>."+(S.k.tele?" Telemetry from "+S.k.tele+" lost rocket"+(S.k.tele>1?"s":"")+" makes engines "+5*Math.min(4,S.k.tele)+"% better.":"")+"</p>";
+  h+='<p class="meta">Stack, top to bottom: '+r.list.map(p=>P[p].name).join(" · ")+"</p>";
+  h+='<div class="acts">'+btn("rk:engine","Engine: "+P[d.engine].name,"Tap to switch. "+P[d.engine].thrust+" kN, Isp "+P[d.engine].isp,null)+
+    btn("rk:small","Add small tank","+"+P.small.fuel+" t fuel · "+P.small.cost+" scrap",null)+btn("rk:large","Add large tank","+"+P.large.fuel+" t fuel · "+P.large.cost+" scrap",null)+
+    (d.tanks.length?btn("rk:drop","Remove a tank","Takes off the lowest tank",null):"")+
+    btn("rk:antenna",(d.antenna?"Antenna: on":"Antenna: off"),"Tap to switch",null)+btn("rk:arm",(d.arm?"Repair arm: on":"Repair arm: off"),"Tap to switch",null)+"</div>";
+  h+='<p class="meta">Mass '+r.m0.toFixed(1)+" t ("+r.dry.toFixed(1)+" t empty) · "+r.list.length+" parts</p>";
+  h+='<div class="plist">'+r.checks.map(c=>'<div class="prow '+(c[1]?"ok":"no")+'"><div>'+(c[1]?"✓ ":"✗ ")+c[0]+"</div></div>").join("")+"</div>";
+  if(r.ok&&r.margin<SP.riskMargin)h+="<p><b>Thin margin.</b> With less than "+Math.round(SP.riskMargin*100)+"% spare delta-v the launch may fail. A failure refunds "+Math.round(SP.refund*100)+"% of the parts.</p>";
+  return h+'<div class="acts"><button class="act primary" data-act="launch"'+(r.ok?"":" disabled")+"><span>Launch</span><small>"+(r.ok?"Uses "+r.fuelUnits+" fuel and "+r.cost+" scrap":"Fix the red checks first")+"</small></button></div>"}
+function designAct(a){const d=S.k.design;
+  if(a==="engine")d.engine=d.engine==="spark"?"thud":"spark";else if(a==="small"&&d.tanks.length<5)d.tanks.push("small");else if(a==="large"&&d.tanks.length<5)d.tanks.push("large");
+  else if(a==="drop")d.tanks.pop();else if(a==="antenna")d.antenna=!d.antenna;else if(a==="arm")d.arm=!d.arm;dirty=true;save()}
+function drawFlight(cx,cy,r,now){const f=S.k.flight;if(!f||f.pad<0)return;const L=SP.flightSecs,u=Math.min(1,f.t/L),c=T[f.pad].c;
+  const ax=norm(cross(c,[0,1,0]).map((v,i)=>v||[1e-3,0,0][i])),orbitR=f.ms==="rescue"?1.36:1.2;
+  const at=uu=>{const turn=rot(ax,-uu*1.1),p=applyM(turn,c),a=1+(orbitR-1)*(uu*uu*(3-2*uu));return applyM(R,[p[0]*a,p[1]*a,p[2]*a])};
+  const dead=f.fail&&u>.55;const p=at(dead?.55:u);if(p[2]<0&&p[0]*p[0]+p[1]*p[1]<1)return;
+  // trail
+  ctx.strokeStyle="rgba(240,164,58,.55)";ctx.lineWidth=2*DPR;ctx.beginPath();for(let j=0;j<=12;j++){const q=at(Math.max(0,(dead?.55:u)-j*.02));const x=cx+q[0]*r,y=cy-q[1]*r;j?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.stroke();
+  const x=cx+p[0]*r,y=cy-p[1]*r;
+  if(dead){const k=(u-.55)/.45,rad=(4+k*18)*DPR;ctx.globalCompositeOperation="lighter";const g=ctx.createRadialGradient(x,y,0,x,y,rad);g.addColorStop(0,"rgba(255,200,120,"+(1-k).toFixed(2)+")");g.addColorStop(1,"rgba(240,100,40,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,rad,0,6.2832);ctx.fill();ctx.globalCompositeOperation="source-over";return}
+  const q=at(Math.max(0,u-.01)),ang=Math.atan2(-(p[1]-q[1]),p[0]-q[0]);ctx.save();ctx.translate(x,y);ctx.rotate(ang+Math.PI/2);const s=7*DPR;
+  if(u<.7){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.moveTo(-s*.3,s*.9);ctx.lineTo(0,s*(1.6+(reduced?0:Math.sin(now/40)*.3)));ctx.lineTo(s*.3,s*.9);ctx.fill()}
+  ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.moveTo(0,-s);ctx.lineTo(s*.35,-s*.3);ctx.lineTo(s*.35,s*.9);ctx.lineTo(-s*.35,s*.9);ctx.lineTo(-s*.35,-s*.3);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
+
 // ---------------------------------------------------------------- cutaway renderer
-let VIEW="surface",selU=null,GR={cw:1,ch:1,gy:0,maxScroll:0},scrollY=0;
+let showPeople=false,VIEW="surface",selU=null,GR={cw:1,ch:1,gy:0,maxScroll:0},scrollY=0;
 const col=(a,m=1,al=1)=>"rgba("+(Math.min(255,a[0]*m)|0)+","+(Math.min(255,a[1]*m)|0)+","+(Math.min(255,a[2]*m)|0)+","+al+")";
 function person(x,y,s,seed,now){const bob=reduced?0:Math.abs(Math.sin(now/240+seed))*s*.06;ctx.save();ctx.translate(x,y);ctx.fillStyle="#efe2c4";ctx.strokeStyle="#1a140e";ctx.lineWidth=Math.max(1,s*.09);ctx.lineJoin="round";
   ctx.beginPath();ctx.moveTo(-s*.2,0);ctx.lineTo(-s*.13,-s*.55-bob);ctx.lineTo(s*.13,-s*.55-bob);ctx.lineTo(s*.2,0);ctx.closePath();ctx.fill();ctx.stroke();
@@ -728,7 +859,7 @@ function reveal(ms,k,rad){const x0=k%MW,y0=(k/MW)|0,r=ms.rev.split("");
   for(let y=y0-rad;y<=y0+rad;y++)for(let x=x0-rad;x<=x0+rad;x++){if(x<0||y<0||x>=MW||y>=MH||Math.abs(x-x0)+Math.abs(y-y0)>rad+1)continue;r[y*MW+x]="1"}ms.rev=r.join("")}
 const sightR=i=>(smooth(-.12,.3,dot(sunAt(S.t),T[i].c))>.4?2:1)+(S.unl.lookout?1:0)+(S.gear.scanner?1:0);
 function squadP(){const base=Math.min(2,1+Math.floor(S.pop/8)),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0)),morale=E&&(E.med||E.radio)?1:0;return{P:base+gear+morale,base,gear,morale}}
-const tripSteps=()=>XC.steps+(S.gear.pack?CFG.gear.pack.steps:0)+(S.gear.mule?CFG.gear.mule.steps:0)+(S.cnt.watch>0?6:0)-(S.cnt.decon>0?5:0);
+const tripSteps=()=>XC.steps+(S.k.lantern?4:0)+(S.gear.pack?CFG.gear.pack.steps:0)+(S.gear.mule?CFG.gear.mule.steps:0)+(S.cnt.watch>0?6:0)-(S.cnt.decon>0?5:0);
 function sendBlock(){if(S.wounded>0)return"The squad is still recovering ("+Math.ceil(S.wounded)+" s).";if(S.pop<=XC.squad)return"You need more than "+XC.squad+" people to send a squad.";return null}
 let PATH=[],CARD=null,stepT=0,GM={cs:1,ox:0,oy:0};
 function startExp(i){if(!land(i))return;const own=S.owned.has(i);if(!own&&!touches(i))return;if(sendBlock())return;
@@ -803,7 +934,7 @@ function resolve(act){const e=S.exp;if(!e||!CARD)return;const M=genMap(e.i),ms=S
   if(CARD.kind==="threat"){const p=M.pois[CARD.pi],th=THREAT[p.t];
     if(act==="fight"&&th.lvl>0){const P=squadP().P;ms.att=ms.att||{};const att=ms.att[CARD.pi]||0;ms.att[CARD.pi]=att+1;
       if(h3(e.i*31+CARD.pi,att,4242)<P/(P+th.lvl)){ms.got.push(CARD.pi);S.res.scrap+=6*th.lvl;say("Drove off the "+th.name.toLowerCase()+". "+6*th.lvl+" scrap in what they left.");CARD=null;afterClear()}
-      else{CARD=null;S.wounded=XC.woundedSecs;endExp("The "+th.name.toLowerCase()+" were too much. The squad limps home, hurt but alive.");return}}
+      else{CARD=null;S.wounded=XC.woundedSecs*(E.squad.some(p=>p.tr==="cautious")?.5:1);endExp("The "+th.name.toLowerCase()+" were too much. The squad limps home, hurt but alive.");return}}
     else if(act==="pay"&&th.pay&&afford(th.pay)){pay(th.pay);ms.got.push(CARD.pi);say(th.payTxt+": the "+th.name.toLowerCase()+" is behind you.");CARD=null;afterClear()}
     else if(act==="back")CARD=null}
   else if(CARD.kind==="event"){if(act!=="close"){if(evDo(act,e,ms,e.i))ms.got.push(CARD.pi);else return}CARD=null}
@@ -878,7 +1009,7 @@ const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.si
     const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<MW&&y<MH){const p=pathTo(y*MW+x);if(p)PATH=p}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="below"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const c=Math.floor(sx/GR.cw),r=Math.floor((sy-GR.gy)/GR.ch);if(c>=0&&c<COLS&&r>=0&&r<ROWS){selU=r+","+c;dirty=true}return}
-  if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b0=cv.getBoundingClientRect(),oi=pickOrbit((e.clientX-b0.left)*DPR,(e.clientY-b0.top)*DPR);if(oi>=0){selOrb=oi;dirty=true;return}selOrb=-1;}
+  if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b0=cv.getBoundingClientRect(),oi=pickOrbit((e.clientX-b0.left)*DPR,(e.clientY-b0.top)*DPR);showPeople=false;if(oi>=0){selOrb=oi;dirty=true;return}selOrb=-1;}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b=cv.getBoundingClientRect();const i=pick((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);if(i>=0){sel=i;dirty=true}}
   if(reduced)vel=[0,0]};
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
@@ -911,7 +1042,8 @@ function panelHTML(){
     (S.hatch?'<div class="acts">'+btn("below","Go below","See the cutaway and dig",null,"primary")+"</div>"
      :"<p>The hatch is rusted shut. Pay to force it, or wait until "+CFG.hatch.freeAt+" people live here and pry it open together.</p>"+'<div class="acts">'+btn("hatch","Force the hatch","Costs "+costText(CFG.hatch.cost),CFG.hatch.cost,"primary")+"</div>");
   if(b){const working=!BLD[b].staff||E.st.has(sel),m=mult(sel,b);
-    h+="<p>"+BLD[b].what+(m!==1&&BLD[b].staff?" (×"+m.toFixed(1)+" here)":"")+". "+(working?(BLD[b].staff?"Someone is working here.":"No worker needed."):"<b>Nobody to work here.</b> Grow your people or tear down something else.")+"</p>";
+    h+="<p>"+BLD[b].what+(m!==1&&BLD[b].staff?" (×"+m.toFixed(1)+" here)":"")+". "+(working?(BLD[b].staff?(workerNote(sel)||" Someone is working here.")+(b==="pad"&&E.who.get("pad2:"+sel)?" "+E.who.get("pad2:"+sel).name+" helps.":""):"No worker needed."):"<b>"+(b==="pad"?"The pad needs 2 free people.":"Nobody to work here.")+"</b> Grow your people or tear down something else.")+"</p>";
+    if(b==="pad")h+=padHTML();if(b==="tank")h+="<p>Fuel: <b>"+Math.floor(S.k.fuel)+" / "+E.fuelCap+"</b>"+(E.fuelRate?" · filling at "+E.fuelRate.toFixed(2)+"/s":"")+".</p>";
     const lmb=S.maps[sel]?landmarkOf(sel):null;if(lmb)h+="<p><b>Landmark: "+lmb.name+".</b> "+lmb.txt+"</p>";
     return h+'<div class="acts">'+btn("walk","Walk this tile","Free on your land",null)+btn("raze","Tear down","Get some parts back",null,"warn")+"</div>"}
   h+="<p>"+bi.desc+"</p>";
@@ -925,7 +1057,7 @@ function panelHTML(){
     return h+'<div class="acts">'+btn("explore",S.maps[sel]?"Send the squad back":"Send a squad","Costs "+costText(XC.cost)+" · "+tripSteps()+" steps",XC.cost,"primary")+"</div>"}
   if(lm)h+="<p><b>Landmark: "+lm.name+".</b> "+lm.txt+"</p>";
   h+='<div class="acts">'+walk;
-  for(const k of BUILD_LIST.concat(S.unl.wind?["wind"]:[])){const c=cost(k),m=mult(sel,k);h+=btn("build:"+k,BLD[k].name,BLD[k].what+(m!==1&&BLD[k].staff?" ×"+m.toFixed(1):"")+" · "+costText(c),c)}
+  for(const k of BUILD_LIST.concat(["wind","pad","tank"]).filter(k=>canBuild(sel,k))){const c=costAt(sel,k),m=mult(sel,k);h+=btn("build:"+k,BLD[k].name,BLD[k].what+(m!==1&&BLD[k].staff?" ×"+m.toFixed(1):"")+" · "+costText(c),c)}
   return h+"</div>";
 }
 function belowHTML(){
@@ -935,7 +1067,7 @@ function belowHTML(){
   let h=back+'<div class="meta">Row '+(r+1)+" · "+((r+1)*4)+" m down · "+st.name+"</div>";
   if(cell&&cell.d&&cell.room){const id="u:"+selU,def=ROOM[cell.room],on=E.on.has(id),why=E.paused.get(id),n=Math.min(CFG.mergeMax,runLen(selU));
     h+='<div class="tile-h">'+def.name+"</div><p>"+def.what+". "+(def.power?"Uses "+def.power+" power. ":"");
-    h+=on?(def.staff?"Someone is working here.":"Running."):why==="no power"?"<b>Paused: not enough power.</b> Build or staff a generator. Its worker is free for other jobs.":"<b>Paused: nobody free to work here.</b>";
+    h+=on?(def.staff?(workerNote(id)||"Someone is working here."):"Running."):why==="no power"?"<b>Paused: not enough power.</b> Build or staff a generator. Its worker is free for other jobs.":"<b>Paused: nobody free to work here.</b>";
     if(n>1&&["hydro","pump","shop"].includes(cell.room))h+=" Joined with "+(n-1)+" more of the same: +"+Math.round((n-1)*CFG.mergeBonus*100)+"%.";
     if(cell.f==="aquifer")h+=" Water runs through this wall.";
     h+="</p>";
@@ -945,7 +1077,7 @@ function belowHTML(){
   if(cell&&cell.d){
     if(shaft)return h+'<div class="tile-h">Elevator shaft</div><p>Connects every row. Dig the cell below it to open the next row down.</p>';
     h+='<div class="tile-h">Open space</div><p>'+(cell.f==="aquifer"?"Water runs through this wall: a pump here makes about twice as much. ":"")+"Fit it out. Producing rooms of the same kind side by side work better together (up to 3). Power left: "+(E.power.supply-E.power.demand)+".</p><div class=\"acts\">";
-    for(const k of ROOM_LIST){const co=ugCost(k,selU),d=ROOM[k];h+=btn("room:"+k,d.name,d.what+(d.power?" · "+d.power+" power":"")+(d.staff?" · 1 worker":"")+" · "+costText(co),co)}
+    for(const k of ROOM_LIST.filter(k=>k!=="fuel"||padTile()>=0)){const co=ugCost(k,selU),d=ROOM[k];h+=btn("room:"+k,d.name,d.what+(d.power?" · "+d.power+" power":"")+(d.staff?" · 1 worker":"")+" · "+costText(co),co)}
     return h+"</div>"}
   h+='<div class="tile-h">'+(shaft?"Shaft rock":st.name)+"</div>";
   if(S.dig&&S.dig.k===selU)return h+'<p>Digging. <span id="digleft">'+Math.ceil(S.dig.left)+"</span> s left.</p>";
@@ -958,7 +1090,7 @@ function belowHTML(){
 }
 function renderPanel(){
   const p=$("panel"),f=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.act:null;
-  p.innerHTML=VIEW==="map"&&S.exp?mapHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
+  p.innerHTML=VIEW==="map"&&S.exp?mapHTML():showPeople?peopleHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
   $("goal").innerHTML=g?"<span>Goal: "+g.text+"</span><b>"+Math.min(g.p()[0],g.p()[1])+" / "+g.p()[1]+"</b>":"<span>Every goal met. The world remembers your lights.</span><b>✓</b>";
@@ -967,7 +1099,7 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;const a=b.dataset.act;
   if(a==="claim")claim(sel);else if(a==="raze")raze(sel);else if(a.startsWith("build:"))build(sel,a.slice(6));
-  else if(a.startsWith("gear:"))craft(a.slice(5));else if(a==="survey")doSurvey();
+  else if(a.startsWith("gear:"))craft(a.slice(5));else if(a.startsWith("rk:"))designAct(a.slice(3));else if(a==="launch")launch();else if(a==="survey")doSurvey();
   else if(a==="explore"||a==="walk")startExp(sel);else if(a==="leave")endExp(null);
   else if(["fight","pay","back","ok","out"].includes(a))resolve(a);else if(a.startsWith("ev:"))resolve(a.slice(3));
   else if(a==="hatch"){openHatch(false);if(S.hatch)setView("below")}
@@ -981,7 +1113,8 @@ bindReset();
 
 const fmt=v=>v>=1e4?(v/1e3).toFixed(1)+"k":Math.floor(v).toString();
 const rate=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(2)+"/s";
-let lastPop=-1,wasDigging=false;
+let lastPop=-1,wasDigging=false,lastPadSig="";
+document.getElementById("people-chip").onclick=()=>{showPeople=!showPeople;dirty=true};
 function hud(){
   $("r-scrap").textContent=fmt(S.res.scrap);$("r-water").textContent=fmt(S.res.water);$("r-food").textContent=fmt(S.res.food);
   for(const[k,v]of[["scrap",E.sc],["water",E.wa],["food",E.fo]]){const el=$("d-"+k),have=S.res[k];
@@ -995,6 +1128,7 @@ function hud(){
   const dlft=$("digleft");if(dlft&&S.dig)dlft.textContent=Math.ceil(S.dig.left);
   if(S.dig===null&&wasDigging){dirty=true}wasDigging=!!S.dig;
   if(S.pop!==lastPop){lastPop=S.pop;dirty=true}
+  if(VIEW==="surface"&&!showPeople&&selOrb<0&&sel>=0&&S.bld[sel]==="pad"){const sig=S.k.flight?"f"+Math.floor(S.k.flight.t):(rocket(S.k.design,mission()).ok?"ok":"no")+Math.floor(S.k.fuel/5);if(sig!==lastPadSig){lastPadSig=sig;dirty=true}}
   updateButtons();
 }
 let toastTimer=0;
@@ -1029,7 +1163,7 @@ function start(data){
   const fromHot=data&&data.S?deser(data.S):null;
   if(fromHot){S=fromHot;if(Array.isArray(data.R)&&data.R.length===9)R=data.R;else R=faceR(T[START].c)}
   else{const o=loadSaved(),d=deser(o);S=d||fresh();R=faceR(T[START].c);E=econ();if(d&&o.saved)catchUp(Math.max(0,(Date.now()-o.saved)/1000))}
-  E=econ();refreshSeen();if(S.exp)setView("map");hud();renderPanel();
+  reconcile();if(S.k.flight)resolveFlight(true);E=econ();refreshSeen();if(S.exp)setView("map");hud();renderPanel();
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R,splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START};
   last=performance.now();requestAnimationFrame(frame);
