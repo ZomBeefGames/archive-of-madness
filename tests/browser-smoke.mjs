@@ -130,6 +130,8 @@ async function caseRun(label,contextOptions){
   await clickTitle(page,'gameMode',!!contextOptions.hasTouch);
   await page.waitForFunction(()=>window.__AOM_TEST?.FILM.gameMode==='horde');
   await clickTitle(page,'gameMode',!!contextOptions.hasTouch);
+  await page.waitForFunction(()=>window.__AOM_TEST?.FILM.gameMode==='ashen');
+  await clickTitle(page,'gameMode',!!contextOptions.hasTouch);
   await page.waitForFunction(()=>window.__AOM_TEST?.FILM.gameMode==='story');
   // Auto-hosting is only for social deduction. Returning to Story mode
   // restores solo unless the player explicitly selected another party mode.
