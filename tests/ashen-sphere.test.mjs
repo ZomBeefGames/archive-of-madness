@@ -46,7 +46,7 @@ test('the Kestrel programme and named people are wired in',()=>{
   assert.match(page,/space:\{scoutDv:2800,rescueDv:3200/);
   assert.match(page,/function rocket\(d,ms\)/);
   assert.match(page,/function reconcile\(\)/);
-  assert.match(page,/o\.v!==5&&o\.v!==6/);   // v5 saves still load
+  assert.match(page,/!\[5,6,7\]\.includes\(o\.v\)/);   // v5 and v6 saves still load
 });
 
 test('rocket maths: the default scout fails, Thud with two large tanks reaches orbit',()=>{
@@ -58,4 +58,22 @@ test('rocket maths: the default scout fails, Thud with two large tanks reaches o
   const a=fly('thud',['large','large']);assert.ok(a.twr>1.2&&a.dv>=2800);
   const b=fly('thud',['large']);assert.ok(b.dv<2800);
   const c=fly('thud',['large','large','large'],['arm']);assert.ok(c.twr>1.2&&c.dv>=3200);
+});
+
+test('Planet Harvester slice 1: secret silo, inspections, Spire harvest, next world',()=>{
+  assert.match(page,/harvest:\{costScale:1\.5/);
+  assert.match(page,/function inspect\(\)/);
+  assert.match(page,/function harvestGo\(\)/);
+  assert.match(page,/function completeJump\(\)/);
+  assert.match(page,/data-act="harvest-arm"/);             // two-step confirm before the world cracks
+  assert.match(page,/data-act="harvest-go"/);
+  assert.match(page,/function regen\(w\)/);
+  assert.match(page,/if\(gap>1\)catchUp\(gap\);else\{if\(!S\.h\.crack\)step\(gap\);if\(!document\.hidden\)tickActive\(gap\)/); // inspections never run during catch-up
+});
+
+test('the silo plan has nine parts ending in the Spire coupling, rows 0 to 7',()=>{
+  const m=page.match(/silo:\[([\s\S]*?)\],\s*inspections/);assert.ok(m);
+  const rows=[...m[1].matchAll(/row:(-?\d+)/g)].map(x=>+x[1]);
+  assert.deepEqual(rows,[-1,0,1,2,3,4,5,6,7]);
+  assert.match(m[1],/key:"coupling",name:"Spire coupling",row:7/);
 });
