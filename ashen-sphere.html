@@ -44,6 +44,9 @@ h1{font-family:var(--display);font-weight:400;font-size:24px;margin:0;letter-spa
 .prow{border-left:2px solid var(--line);padding:2px 0 2px 8px;display:flex;flex-direction:column;gap:1px}
 .prow small{color:var(--paper-dim);font-size:12px}
 .prow.ok{border-color:#7fa860}.prow.no{border-color:var(--rust)}
+.alert{position:absolute;left:0;right:0;bottom:22px;margin-inline:auto;width:min(100%,420px);background:var(--soot-2);border:1px solid var(--rust);padding:8px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+.alert[hidden]{display:none}.alert span{flex:1;min-width:0}.alert button.act{padding:6px 10px}
+.clock b.hot{color:var(--rust)}
 .main{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
 .stage{position:relative;flex:1;min-height:180px}
 canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
@@ -132,6 +135,7 @@ button:disabled{opacity:.42;cursor:not-allowed}
       </div>
       <div class="legend" id="legend">642 tiles · 12 spires</div>
       <div class="toast" id="toast" hidden></div>
+      <div class="alert" id="alert" hidden role="status"></div>
     </div>
     <aside class="drawer" id="drawer">
       <div id="panel"></div>
@@ -158,7 +162,7 @@ const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3
 const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------------------------------------------------------------- noise (fixed seed: everyone gets the same world)
-const SEED=1999;
+let SEED=1999,WORLD=0;
 function h3(x,y,z){let h=Math.imul(x,374761393)^Math.imul(y,668265263)^Math.imul(z,1440662683)^SEED;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return(h>>>0)/4294967296}
 function vnoise(x,y,z){const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),xf=x-xi,yf=y-yi,zf=z-zi;
   const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf),w=zf*zf*(3-2*zf);const L=(a,b,t)=>a+(b-a)*t;
@@ -230,8 +234,19 @@ const CFG={
     pad:{cost:{scrap:180,water:30},ruinsPremium:1.3},
     parts:{core:{name:"Probe core",mass:.5,cost:40},frame:{name:"Frame",mass:.2,cost:15},antenna:{name:"Antenna",mass:.1,cost:20},arm:{name:"Repair arm",mass:.3,cost:50},
       small:{name:"Small tank",mass:.3,fuel:1.5,cost:25},large:{name:"Large tank",mass:.6,fuel:4,cost:55},
-      spark:{name:"Spark engine",mass:.4,thrust:60,isp:300,cost:45},thud:{name:"Thud engine",mass:1.2,thrust:200,isp:270,cost:80}}}
+      spark:{name:"Spark engine",mass:.4,thrust:60,isp:300,cost:45},thud:{name:"Thud engine",mass:1.2,thrust:200,isp:270,cost:80}}},
+  // Planet Harvester slice 1 (GPT G-131 numbers; costs scaled by costScale to match this economy)
+  harvest:{costScale:1.5,hideCost:6,releaseCost:20,fine:15,raidFine:40,detainSecs:90,crackSecs:9,launchFuel:60,arrivalLocals:3,
+    silo:[{key:"floor",name:"False floor over the hatch",row:-1,cost:{scrap:35},workers:0,power:0,secs:10},
+      {key:"cmd",name:"Command board",row:0,cost:{scrap:25},workers:1,power:1,secs:12},{key:"lift",name:"Maintenance lift",row:1,cost:{scrap:35},workers:1,power:0,secs:15},
+      {key:"feed",name:"Foundry feed",row:2,cost:{scrap:55},workers:1,power:2,secs:18},{key:"cradle",name:"Hull cradle",row:3,cost:{scrap:65},workers:2,power:2,secs:22},
+      {key:"fuel",name:"Fuel line",row:4,cost:{scrap:50},workers:1,power:2,secs:20},{key:"ring",name:"Pressure hull ring",row:5,cost:{scrap:65},workers:2,power:3,secs:26},
+      {key:"engine",name:"Engine mount",row:6,cost:{scrap:80},workers:2,power:2,secs:30},{key:"coupling",name:"Spire coupling",row:7,cost:{scrap:130,water:20},workers:2,power:4,secs:35}],
+    inspections:[22,46,70,94,114],jitter:4,warnSecs:90,quotaEvery:1800,quotaScrap:20,quotaGrace:120,
+    susp:{hatch:25,power:10,crate:15,worker:5,workerMax:15,fuel:10,quotaPaid:-5,quotaMissed:8,seize:50,detain:75,raid:100,decayPerMin:1},
+    hold:{slots:6,people:2,pallet:10}}
 };
+const WORLDS=[{name:"the Ashen World",sea:-.04,tint:[1,1,1]},{name:"Mirewater",sea:.06,tint:[.78,1.08,.95]},{name:"Cinderfall",sea:-.16,tint:[1.2,.9,.76]},{name:"Glasswind",sea:-.02,tint:[.88,.98,1.18]}];
 
 // ---------------------------------------------------------------- land
 const BIOME={
@@ -243,25 +258,28 @@ const BIOME={
   frost:{name:"Ash Frost", col:[178,172,160],claim:CFG.claim.frost,desc:"Pole ice under a crust of soot. Food grows badly here."},
   spire:{name:"Spire",     col:[156,116,70], claim:CFG.claim.spire,desc:"One of the twelve old towers. The whole world is stitched around them, which is why their tiles have five sides instead of six. Claiming one turns up a big cache and a stranger who joins you."}
 };
+function genBiomes(){const WD=WORLDS[Math.min(WORLD,WORLDS.length-1)];
 T.forEach((t,i)=>{
   const p=t.c,e=fbm(p,1.9,11.3),m=fbm(p,2.6,37.1),r=fbm(p,3.4,71.9);
   let b;
   if(t.pent)b="spire";
-  else if(e<-.04)b="sea";
+  else if(e<WD.sea)b="sea";
   else if(e>.3)b="crags";
   else if(Math.abs(p[1])>.87)b="frost";
   else if(r>.16)b="ruins";
   else if(m>.08)b="woods";
   else b="ash";
-  t.b=b;const j=(h3(i,7,3)-.5)*14;t.base=BIOME[b].col.map(v=>v+j);
+  t.b=b;const j=(h3(i,7,3)-.5)*14;t.base=BIOME[b].col.map((v,q)=>Math.min(255,(v+j)*WD.tint[q]));
   t.coast=false;
 });
-T.forEach(t=>{if(t.b!=="sea")t.coast=t.n.some(j=>T[j].b==="sea")});
+T.forEach(t=>{if(t.b!=="sea")t.coast=t.n.some(j=>T[j].b==="sea")})}
+genBiomes();
 const land=i=>T[i].b!=="sea";
 function ring(set,depth){const out=new Set(set);let f=[...set];for(let d=0;d<depth;d++){const nf=[];for(const i of f)for(const j of T[i].n)if(!out.has(j)){out.add(j);nf.push(j)}f=nf}return out}
 // bunker: the plain or ruin tile with the most dry land around it
-let START=0,bestScore=-1;
-T.forEach((t,i)=>{if(!(t.b==="ash"||t.b==="ruins")||Math.abs(t.c[1])>.55)return;let s=0;for(const j of ring([i],2)){if(land(j))s+=1;if(T[j].b==="ruins")s+=.4}if(s>bestScore){bestScore=s;START=i}});
+let START=0;
+function pickStart(){let best=-1;START=0;T.forEach((t,i)=>{if(!(t.b==="ash"||t.b==="ruins")||Math.abs(t.c[1])>.55)return;let s=0;for(const j of ring([i],2)){if(land(j))s+=1;if(T[j].b==="ruins")s+=.4}if(s>best){best=s;START=i}})}
+pickStart();
 
 // ---------------------------------------------------------------- buildings
 const BLD={
@@ -309,7 +327,7 @@ const rockMult=r=>r>=9?CFG.dig.oldWorld:r>=6?CFG.dig.bedrock:1;
 const digCost=(r,c)=>{if(FIND(r,c)==="cave")return{scrap:CFG.dig.caveCost};let v=Math.round((CFG.dig.base+CFG.dig.perRow*(r+1))*rockMult(r));if(c===SHAFT&&CFG.dig.shaftSupportRows.includes(r+1))v+=CFG.dig.shaftSupport;
   if(S.cnt.survey>0)v=Math.round(v*.7);if(c===SHAFT&&S.cnt.hoist>0)v=Math.max(1,v-8);return{scrap:v}};
 const digTime=(r,c)=>{if(FIND(r,c)==="cave")return CFG.dig.caveTime;let v=(CFG.dig.time+CFG.dig.timePerRow*(r+1))*rockMult(r);if(S.cnt.excav>0)v*=.7;if(c===SHAFT&&S.cnt.hoist>0)v*=.75;return v};
-function digBlock(r,c){if(isDug(r,c))return"dug";if(S.pop<rowNeed(r))return"locked";
+function digBlock(r,c){if(isDug(r,c))return"dug";if(S.pop<rowNeed(r)&&!(c===SHAFT&&S.h.secret))return"locked";
   const near=c===SHAFT?(r===0||isDug(r-1,SHAFT)):((c>0&&isDug(r,c-1))||(c<COLS-1&&isDug(r,c+1)));if(!near)return"far";return S.dig?"busy":null}
 function runLen(k){const[r,c]=k.split(",").map(Number),room=S.ug[k].room;let n=1;
   for(let x=c-1;x>=0&&S.ug[r+","+x]&&S.ug[r+","+x].room===room;x--)n++;for(let x=c+1;x<COLS&&S.ug[r+","+x]&&S.ug[r+","+x].room===room;x++)n++;return n}
@@ -320,13 +338,14 @@ const maxShaft=()=>{let d=0;while(d<ROWS-1&&isDug(d+1,SHAFT))d++;return d};
 // ---------------------------------------------------------------- state
 let S;
 // two starter producers next to the bunker (one water, one food) so nobody starves on minute one
-const STARTERS=(()=>{const nb=T[START].n.filter(land).filter(j=>!T[j].pent);
-  const w=nb.find(j=>T[j].coast)??nb[0],f=nb.filter(j=>j!==w).sort((a,b)=>(T[b].b==="woods")-(T[a].b==="woods"))[0];return[[w,"still"],[f,"green"]]})();
+const pickStarters=()=>{const nb=T[START].n.filter(land).filter(j=>!T[j].pent);
+  const w=nb.find(j=>T[j].coast)??nb[0],f=nb.filter(j=>j!==w).sort((a,b)=>(T[b].b==="woods")-(T[a].b==="woods"))[0];return[[w,"still"],[f,"green"]]};
+let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
-  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false}},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
+  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[]},h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false}},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:6,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
-function deser(o){if(!o||(o.v!==5&&o.v!==6)||!Array.isArray(o.owned)||!o.owned.length)return null;
+function ser(){return{v:7,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function deser(o){if(!o||![5,6,7].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
     owned:new Set(o.owned.filter(ok)),bld:o.bld||{},order:(o.order||[]).filter(i=>ok(i)||(typeof i==="string"&&i.startsWith("u:"))),goal:o.goal|0,grow:+o.grow||0,starve:+o.starve||0,
@@ -334,10 +353,12 @@ function deser(o){if(!o||(o.v!==5&&o.v!==6)||!Array.isArray(o.owned)||!o.owned.l
     maps:(o.maps&&typeof o.maps==="object")?o.maps:{},exp:o.exp&&ok(o.exp.i)?o.exp:null,
     people:Array.isArray(o.people)?o.people:[],   // v5 saves get their people generated from pop
     k:Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false}},o.k&&typeof o.k==="object"?o.k:{}),
-    unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
-const KEY="ashen-sphere-v6",OLD_KEY="ashen-sphere-v5";
+    unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
+    codex:o.codex&&Array.isArray(o.codex.worlds)?o.codex:{worlds:[],items:[]},
+    h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
+const KEY="ashen-sphere-v7",OLD_KEYS=["ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
-function loadSaved(){try{const raw=localStorage.getItem(KEY)||localStorage.getItem(OLD_KEY);return raw?JSON.parse(raw):null}catch(e){return null}}
+function loadSaved(){try{const raw=localStorage.getItem(KEY)||localStorage.getItem(OLD_KEYS[0])||localStorage.getItem(OLD_KEYS[1]);return raw?JSON.parse(raw):null}catch(e){return null}}
 
 // ---------------------------------------------------------------- economy
 function econ(){
@@ -363,6 +384,8 @@ function econ(){
     if(d.staff&&free<=0){paused.set(id,"nobody free");continue}
     if(dem+p>pw+1e-9){paused.set(id,"no power");continue}
     dem+=p;on.add(id);if(d.staff){free--;st.add(id);jobs.push(id)}}
+  let siloRunning=false;const sj=S.h.silo.job;
+  if(sj&&S.h.silo.power&&!S.h.sealed&&!sj.stashed&&!S.h.crack){const sp=HV.silo.find(p=>p.key===sj.key);if(free>=sp.workers&&pw-dem>=sp.power-1e-9){free-=sp.workers;dem+=sp.power;siloRunning=true}}
   // people: the squad goes out first (scavengers preferred), then each job gets the best-matching free person
   const pool=S.people.slice(),squad=[],who=new Map(),jobOf=new Map(),bonus=new Map();
   if(S.exp){pool.sort((a,b)=>((b.sk==="scav")*b.lv-(a.sk==="scav")*a.lv)||a.id-b.id);for(let j=0;j<XC.squad&&pool.length;j++)squad.push(pool.shift());pool.sort((a,b)=>a.id-b.id)}
@@ -382,7 +405,7 @@ function econ(){
     else if(room==="pump")wa+=(cell.f==="aquifer"?RC.pump.aquifer:RC.pump.water)*m;else if(room==="med")med=true;else if(room==="radio")radio=true}
   if(dem>0)sc-=RC.gen.burn*gens;
   const eat=EAT*S.pop;
-  return{sc,wa:wa-eat,fo:fo-eat,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,power:{supply:pw,demand:Math.round(dem*10)/10}}
+  return{sc,wa:wa-eat,fo:fo-eat,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
 }
 let E;
 function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
@@ -395,6 +418,7 @@ function step(dt,quiet){
   if(!S.hatch&&S.pop>=CFG.hatch.freeAt)openHatch(true,quiet);
   if(!dry&&S.res.water>.5&&S.res.food>.5&&S.pop<E.cap){S.grow+=dt*(1+.6*E.towers);if(S.grow>=CFG.growEvery){S.grow=0;S.pop++;const np=reconcile();if(!quiet&&np)say(np.name+(E.towers?" followed the radio signal in":" walked in out of the ash")+": a "+SKILL[np.sk]+", "+TRAIT[np.tr].name.toLowerCase()+".");dirty=true}}
   if(E.fuelRate)S.k.fuel=Math.min(E.fuelCap,S.k.fuel+E.fuelRate*dt);
+  if(E.siloRunning&&S.h.silo.job){S.h.silo.job.left-=dt;if(S.h.silo.job.left<=0){const k=S.h.silo.job.key;S.h.silo.parts[k]=true;S.h.silo.job=null;if(!quiet)say("Fitted: "+HV.silo.find(p=>p.key===k).name.toLowerCase()+".");dirty=true}}
   if(S.k.flight){S.k.flight.t+=dt;if(S.k.flight.t>=CFG.space.flightSecs)resolveFlight(quiet);else if(!quiet)dirty=true}
   if(!S.k.ping&&towerOn()&&spiresOwned()>=1){S.k.ping=true;if(!quiet){say("The radio tower picks up a weak, repeating ping from orbit: Kestrel Station is calling for help.");toast("Kestrel Station is calling. Tap the station in orbit to see what it will take to reach it.")}}
   if(S.wounded>0)S.wounded=Math.max(0,S.wounded-dt*(1+(E.med?1:0)+(S.unl.ambulance?1:0)));
@@ -453,13 +477,15 @@ const GOALS=[
   {text:"Wake a sleeper in the old-world layer", p:()=>[S.relics,1],      reward:{scrap:300}},
   {text:"Hear Kestrel Station's distress ping",   p:()=>[S.k.ping?1:0,1],  reward:{scrap:100}},
   {text:"Put a probe in orbit",                  p:()=>[S.k.scout?1:0,1], reward:{scrap:250}},
+  {text:"Finish the secret silo",                p:()=>[HV.silo.filter(p=>siloDone(p.key)).length,HV.silo.length],reward:{scrap:150}},
   {text:"Bring Lantern-2 back online",           p:()=>[S.k.lantern?1:0,1],reward:{scrap:300}},
   {text:"Hold 60 tiles",                         p:()=>[S.owned.size,60], reward:{scrap:400}}
 ];
 function checkGoal(quiet){const g=GOALS[S.goal];if(!g||!E)return;const[a,b]=g.p();if(a>=b){for(const k in g.reward)S.res[k]+=g.reward[k];if(!quiet)say("Goal met: "+g.text.toLowerCase()+". Reward "+costText(g.reward)+".");S.goal++;dirty=true}}
 
 // ---------------------------------------------------------------- sun and clock
-const PHASE=Math.atan2(T[START].c[2],T[START].c[0])-.75;
+let PHASE=Math.atan2(T[START].c[2],T[START].c[0])-.75;
+function regen(w){WORLD=w;SEED=1999+w*7717;genBiomes();pickStart();STARTERS=pickStarters();PHASE=Math.atan2(T[START].c[2],T[START].c[0])-.75;EASY=null;MAPS.clear();CRACK_DIST=null}
 const sunAt=t=>{const a=PHASE+t/DAY*Math.PI*2;return norm([Math.cos(a),.32,Math.sin(a)])};
 const day=()=>Math.floor(S.t/DAY)+1;
 function partOfDay(){const l=dot(sunAt(S.t),T[START].c),l2=dot(sunAt(S.t+2),T[START].c);if(l<-.05)return"night";if(l>.4)return"day";return l2>l?"dawn":"dusk"}
@@ -513,16 +539,19 @@ function draw(now){
   for(let i=0;i<CORNERS.length;i++){const p=applyM(R,CORNERS[i]);PX[i]=cx+p[0]*r;PY[i]=cy-p[1]*r;PZ[i]=p[2]}
   const sun=sunAt(S.t),vis=[],tr=r*.079;
   ctx.lineJoin="round";ctx.lineWidth=Math.max(.6,.7*DPR);ctx.strokeStyle="rgba(14,11,8,.6)";
+  const ck=S.h.crack,cd=ck?crackDist(ck.spire):null,cp=ck?ck.t/HV.crackSecs:0;
   for(let i=0;i<T.length;i++){
     const t=T[i],z=dot([R[6],R[7],R[8]],t.c);if(z<=.02)continue;
+    let ox=0,oy=0,hot=0;if(ck){const front=cp*16-cd[i];hot=Math.max(0,Math.min(1,front/3));if(cp>.45){const k=(cp-.45)*r*.9*(.4+h3(i,9,9))*hot;const sx=dot([R[0],R[1],R[2]],t.c),sy=-dot([R[3],R[4],R[5]],t.c),n=Math.hypot(sx,sy)||1;ox=sx/n*k;oy=sy/n*k}}
     const lam=dot(t.c,sun),dayl=smooth(-.12,.3,lam),sh=(.2+.8*dayl)*(.55+.45*z);
     let c=t.base;const seen=S.seen.has(i),own=S.owned.has(i);
     let rr,gg,bb;
     if(!seen){const l=(c[0]*.3+c[1]*.5+c[2]*.2)*.46;rr=gg=bb=l;bb+=4}
     else{rr=c[0];gg=c[1];bb=c[2];if(own){rr=rr*.8+232*.2;gg=gg*.8+196*.2;bb=bb*.8+150*.2}}
     rr=rr*sh+(1-dayl)*6;gg=gg*sh+(1-dayl)*9;bb=bb*sh+(1-dayl)*22;
+    if(hot){rr=rr*(1-hot)+230*hot;gg=gg*(1-hot)+90*hot;bb=bb*(1-hot)+40*hot}
     ctx.fillStyle="rgb("+(rr|0)+","+(gg|0)+","+(bb|0)+")";
-    ctx.beginPath();const k=t.k;ctx.moveTo(PX[k[0]],PY[k[0]]);for(let m=1;m<k.length;m++)ctx.lineTo(PX[k[m]],PY[k[m]]);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.beginPath();const k=t.k;ctx.moveTo(PX[k[0]]+ox,PY[k[0]]+oy);for(let m=1;m<k.length;m++)ctx.lineTo(PX[k[m]]+ox,PY[k[m]]+oy);ctx.closePath();ctx.fill();ctx.stroke();
     vis.push(i,z,dayl);
   }
   // lanterns on your land at night
@@ -543,6 +572,8 @@ function draw(now){
     else if(S.maps[i]&&S.owned.has(i)&&landmarkOf(i))glyph("flag",x,y,s,1);
     else if(S.maps[i]&&!S.owned.has(i)){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(x,y,Math.max(1.5*DPR,s*.22),0,6.2832);ctx.fill()}}
   drawOrbits(true,cx,cy,r,now);drawFlight(cx,cy,r,now);
+  if(ck){const p=applyM(R,T[START].c),a=1+Math.max(0,cp-.35)*1.4,x=cx+p[0]*r*a,y=cy-p[1]*r*a;if(p[2]>-.2){ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.arc(x,y,5*DPR,0,6.2832);ctx.fill();ctx.stroke()}
+    if(cp>.8){ctx.fillStyle="rgba(255,236,200,"+((cp-.8)*5).toFixed(2)+")";ctx.fillRect(0,0,W,H)}}
   // selection
   if(sel>=0&&selOrb<0){const t=T[sel],z=dot([R[6],R[7],R[8]],t.c);if(z>.02){ctx.strokeStyle="#e8dcc2";ctx.lineWidth=Math.max(2,2.4*DPR);ctx.setLineDash([4*DPR,3*DPR]);ctx.beginPath();const k=t.k;ctx.moveTo(PX[k[0]],PY[k[0]]);for(let m=1;m<k.length;m++)ctx.lineTo(PX[k[m]],PY[k[m]]);ctx.closePath();ctx.stroke();ctx.setLineDash([])}}
 }
@@ -564,6 +595,7 @@ let selOrb=-1,ORB_SCREEN=[];
 const orbPos=(o,t)=>{const a=o.phase+o.speed*t,c=Math.cos(a)*o.r,s=Math.sin(a)*o.r;return[o.u[0]*c+o.v[0]*s,o.u[1]*c+o.v[1]*s,o.u[2]*c+o.v[2]*s]};
 function drawOrbits(front,cx,cy,r,now){
   const sun=sunAt(S.t);
+  if(S.world>0)return;   // the station and satellites belong to the Ashen World
   for(let oi=0;oi<ORBITERS.length;oi++){const o=ORBITERS[oi];if(o.kind==="scout"&&!S.k.scout)continue;
     // faint orbit line, back half behind the globe, front half in front
     ctx.strokeStyle=front?"rgba(232,220,194,.16)":"rgba(232,220,194,.07)";ctx.lineWidth=DPR;ctx.setLineDash([2*DPR,4*DPR]);ctx.beginPath();let pen=false;
@@ -652,9 +684,11 @@ function launch(){const ms=mission();if(ms==="crew"||S.k.flight)return;const r=r
   say((ms==="scout"?"Kestrel Scout":"Repair probe")+" is on the pad. Ignition.");dirty=true;save()}
 function flightStage(f){const t=f.t,L=SP.flightSecs;if(f.fail&&t>L*.55)return"Lost: the rocket broke apart";
   return t<2?"Ignition":t<L*.25?"Liftoff":t<L*.45?"Max Q: the hardest push":t<L*.7?"Main engine cut-off":t<L*.9?"Coasting to orbit":"Orbit"}
+function learnSecret(quiet){if(S.h.secret)return;S.h.secret=true;if(!quiet){say("Kestrel's logs come through the scout: the Spires are Builder engines. Harvest one and the world itself becomes the launch. The Republic must never know.");
+  toast("The secret: the Spires are Builder engines. Build an ark in a hidden silo under your bunker, then harvest a Spire to launch. Hide it from the Republic.")}}
 function resolveFlight(quiet){const f=S.k.flight;S.k.flight=null;
   if(f.fail){S.res.scrap+=Math.floor(f.cost*SP.refund);S.k.tele++;if(!quiet)say("The rocket broke apart at Max Q. You salvage "+Math.round(SP.refund*100)+"% of the parts, and the telemetry makes your engines 5% better.")}
-  else if(f.ms==="scout"){S.k.scout=true;if(!quiet)say("Kestrel Scout is in orbit. Kestrel Station's beacon answers it.")}
+  else if(f.ms==="scout"){S.k.scout=true;learnSecret(quiet)}
   else if(f.ms==="rescue"){S.k.lantern=true;if(!quiet)say("The repair probe reaches Lantern-2 and brings it back. Squads can walk 4 steps further, and a segment of Kestrel Station lights up.")}
   dirty=true;save()}
 function kestrelStages(){return[
@@ -696,6 +730,103 @@ function drawFlight(cx,cy,r,now){const f=S.k.flight;if(!f||f.pad<0)return;const 
   if(u<.7){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.moveTo(-s*.3,s*.9);ctx.lineTo(0,s*(1.6+(reduced?0:Math.sin(now/40)*.3)));ctx.lineTo(s*.3,s*.9);ctx.fill()}
   ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.moveTo(0,-s);ctx.lineTo(s*.35,-s*.3);ctx.lineTo(s*.35,s*.9);ctx.lineTo(-s*.35,s*.9);ctx.lineTo(-s*.35,-s*.3);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
 
+// ---------------------------------------------------------------- Planet Harvester, slice 1: the secret, the silo, the Republic, the first jump
+// Numbers: GPT's first pass (inbox G-131), costs x CFG.harvest.costScale. Design: the Planet Harvester doc.
+const HV=CFG.harvest;
+const siloCost=p=>{const c={};for(const k in p.cost)c[k]=Math.ceil(p.cost[k]*HV.costScale);return c};
+const siloDone=k=>!!S.h.silo.parts[k];
+const siloNext=()=>HV.silo.find(p=>!siloDone(p.key));
+const siloComplete=()=>HV.silo.every(p=>siloDone(p.key));
+const siloAny=()=>HV.silo.some(p=>siloDone(p.key))||!!S.h.silo.job;
+const spireHeld=()=>[...S.owned].find(i=>T[i].pent);
+const republicHere=()=>S.world===0;   // open decision: does the Republic follow you? For now it doesn't.
+function inspTimes(){return HV.inspections.map((m,i)=>(m+(h3(S.world+3,i,55)*2-1)*HV.jitter)*60)}
+function siloBlock(p){if(!S.h.secret)return"You don't know what to build yet.";if(p.row>=0&&!isDug(p.row,SHAFT))return"Dig the shaft down to row "+(p.row+1)+" first.";
+  if(S.h.silo.job)return"Another part is being fitted.";if(!afford(siloCost(p)))return null;return null}
+function startSilo(key){const p=HV.silo.find(x=>x.key===key);if(!p||siloDone(key)||siloBlock(p))return;const c=siloCost(p);if(!afford(c))return;pay(c);
+  S.h.silo.job={key,left:p.secs,total:p.secs,stashed:false};S.h.silo.power=true;S.h.sealed=false;say("Started fitting the "+p.name.toLowerCase()+" in the silo.");dirty=true;save()}
+function hideAll(){if(!S.h.silo.parts.floor){if(!S.h.sealed){if(S.res.scrap<HV.hideCost)return;S.res.scrap-=HV.hideCost}}S.h.sealed=true;S.h.silo.power=false;if(S.h.silo.job)S.h.silo.job.stashed=true;
+  say("Hatch sealed, silo dark, parts stashed. Up top it looks like an ordinary colony.");dirty=true;save()}
+function resumeSilo(){S.h.sealed=false;S.h.silo.power=true;if(S.h.silo.job)S.h.silo.job.stashed=false;say("Back to work in the silo.");dirty=true;save()}
+function payQuota(){const q=S.h.quota;if(!q.due||!afford({scrap:q.amount}))return;pay({scrap:q.amount});q.due=false;S.h.susp=Math.max(0,S.h.susp+HV.susp.quotaPaid);S.res.food+=10;
+  say("Quota sent to the Republic: "+q.amount+" scrap. A supply drop brings 10 food.");dirty=true;save()}
+function releaseDetained(){const d=S.h.detained;if(!d||!afford({scrap:HV.releaseCost}))return;pay({scrap:HV.releaseCost});freeDetained();dirty=true}
+function freeDetained(){const d=S.h.detained;if(!d)return;S.people.push(d.person);S.pop=S.people.length;S.h.detained=null;say(d.person.name+" is back from Republic questioning.")}
+function evidence(){const ev=[],X=HV.susp;if(!S.h.secret)return ev;
+  if(siloAny()&&!S.h.sealed&&!siloDone("floor"))ev.push(["The bunker hatch is open",X.hatch]);
+  if(S.h.silo.power&&siloAny())ev.push(["The silo is drawing power",X.power]);
+  if(S.h.silo.job&&!S.h.silo.job.stashed)ev.push(["Ship parts are lying in sight",X.crate]);
+  const surf=Object.keys(S.bld).filter(k=>BLD[S.bld[k]]&&BLD[S.bld[k]].staff&&!E.st.has(+k)).length;if(surf)ev.push([surf+" surface job"+(surf>1?"s":"")+" left empty",Math.min(X.workerMax,surf*X.worker)]);
+  if(S.k.fuel>50)ev.push(["The fuel tanks smell of rocket fuel",X.fuel]);return ev}
+function inspect(){const ev=evidence(),add=ev.reduce((a,e)=>a+e[1],0),X=HV.susp;S.h.susp=Math.min(100,S.h.susp+add);let out=[];
+  if(S.h.susp>=X.raid){out.push("They open an investigation: a "+HV.raidFine+" scrap fine");S.res.scrap=Math.max(0,S.res.scrap-HV.raidFine);S.h.susp=80}
+  if(S.h.susp>=X.detain&&!S.h.detained&&S.people.length>2){const pool=S.people.filter(p=>!E.jobOf.has(p.id));const p=(pool.length?pool:S.people).at(-1);
+    S.people.splice(S.people.indexOf(p),1);S.pop=S.people.length;S.h.detained={person:p,left:HV.detainSecs};out.push(p.name+" is taken in for questioning")}
+  if(S.h.susp>=X.seize){if(S.h.silo.job&&!S.h.silo.job.stashed){out.push("they confiscate the "+HV.silo.find(p=>p.key===S.h.silo.job.key).name.toLowerCase()+" parts");S.h.silo.job=null}
+    S.res.scrap=Math.max(0,S.res.scrap-HV.fine);out.push("a "+HV.fine+" scrap fine")}
+  const msg=ev.length?"Republic inspectors found: "+ev.map(e=>e[0].toLowerCase()).join("; ")+"."+(out.length?" Result: "+out.join(", ")+".":" They leave with a warning."):"Republic inspectors walked the colony and found nothing.";
+  say(msg);toast(msg);dirty=true;save()}
+function tickActive(dt){if(!S||S.h.crack)return;S.h.active+=dt;const a=S.h.active,I=S.h.insp;
+  if(S.h.detained){S.h.detained.left-=dt;if(S.h.detained.left<=0)freeDetained()}
+  if(!republicHere())return;
+  const floor=siloAny()?25:0;if(S.h.susp>floor)S.h.susp=Math.max(floor,S.h.susp-dt*HV.susp.decayPerMin/60);
+  const times=inspTimes();if(I.i<times.length){const at=times[I.i];
+    if(I.phase!=="warn"&&a>=at-HV.warnSecs&&a<at){I.phase="warn";toast("Republic inspectors land in "+HV.warnSecs+" seconds. Hide what you need to hide.");dirty=true}
+    if(a>=at){I.phase="idle";I.i++;inspect()}}
+  const q=S.h.quota;if(!q.due&&a>=q.next){q.due=true;q.deadline=a+HV.quotaGrace;q.amount=HV.quotaScrap;q.next=a+HV.quotaEvery;toast("The Republic wants its quota: "+q.amount+" scrap within "+HV.quotaGrace+" seconds.");dirty=true}
+  if(q.due&&a>=q.deadline){q.due=false;S.h.susp=Math.min(100,S.h.susp+HV.susp.quotaMissed);say("You missed the Republic's quota. They will remember.");dirty=true}}
+function alertText(){if(!S||!S.h||S.h.crack)return null;const I=S.h.insp,a=S.h.active;
+  if(republicHere()&&I.phase==="warn"){const at=inspTimes().at(I.i);return{t:"Inspectors land in "+Math.max(0,Math.ceil(at-a))+" s",b:[["hide","Hide everything"+(siloDone("floor")||S.h.sealed?"":" ("+HV.hideCost+" scrap)")]]}}
+  if(republicHere()&&S.h.quota.due)return{t:"Quota due: "+S.h.quota.amount+" scrap in "+Math.max(0,Math.ceil(S.h.quota.deadline-a))+" s",b:[["quota","Send it"]]};
+  if(S.h.detained)return{t:S.h.detained.person.name+" is held for questioning ("+Math.ceil(S.h.detained.left)+" s)",b:[["release","Pay "+HV.releaseCost+" scrap to release"]]};return null}
+function holdSlots(){const H=S.h.hold;return H.people.length+H.pallets.scrap+H.pallets.water+H.pallets.food}
+function holdAct(a){const H=S.h.hold,P=HV.hold;
+  if(a.startsWith("p:")){const id=+a.slice(2),ix=H.people.indexOf(id);if(ix>=0)H.people.splice(ix,1);else if(H.people.length<P.people&&holdSlots()<P.slots)H.people.push(id)}
+  else{const [k,d]=a.split(":");if(d==="+"&&holdSlots()<P.slots&&S.res[k]>=(H.pallets[k]+1)*P.pallet)H.pallets[k]++;if(d==="-"&&H.pallets[k]>0)H.pallets[k]--}
+  H.people=H.people.filter(id=>S.people.some(p=>p.id===id));dirty=true;save()}
+function preflight(){const H=S.h.hold,P=HV.hold;return[
+  ["You know the Spires' secret",S.h.secret],["The silo is complete ("+HV.silo.filter(p=>siloDone(p.key)).length+" of "+HV.silo.length+" parts)",siloComplete()],
+  ["You hold a Spire for the coupling",spireHeld()!==undefined],["Fuel: "+Math.floor(S.k.fuel)+" of "+HV.launchFuel,S.k.fuel>=HV.launchFuel],
+  ["At least one person aboard ("+H.people.length+" of "+P.people+")",H.people.length>0],
+  ["Pallets in the hold are in stock",["scrap","water","food"].every(k=>S.res[k]>=H.pallets[k]*P.pallet)],
+  ["No inspectors on the way",!(republicHere()&&S.h.insp.phase==="warn")]]}
+function harvestHTML(){const H=S.h.hold,P=HV.hold;let h="";
+  if(!S.h.secret)return"";
+  if(!siloComplete()){const n=siloNext();return'<p class="meta">The silo</p><p>'+HV.silo.filter(p=>siloDone(p.key)).length+" of "+HV.silo.length+" parts fitted. Next: <b>"+n.name+"</b>. Go below and tap the shaft to build it.</p>"}
+  h+='<p class="meta">Pack the hold · '+holdSlots()+" of "+P.slots+" slots</p><p>Up to "+P.people+" people. Everyone else stays behind. Each pallet carries "+P.pallet+" of one supply. What you've learned (the codex) takes no space.</p>";
+  h+='<div class="acts">'+S.people.map(p=>btn("hold:p:"+p.id,(H.people.includes(p.id)?"✓ Aboard: ":"Board ")+p.name,SKILL[p.sk]+" "+p.lv+" · "+TRAIT[p.tr].name,null)).join("")+"</div>";
+  h+='<div class="acts">'+["scrap","water","food"].map(k=>btn("hold:"+k+":+","+1 pallet of "+k,H.pallets[k]+" packed ("+H.pallets[k]*P.pallet+")",null)+(H.pallets[k]?btn("hold:"+k+":-","−1 pallet of "+k,"",null):"")).join("")+"</div>";
+  const pf=preflight(),ok=pf.every(c=>c[1]);
+  h+='<div class="plist">'+pf.map(c=>'<div class="prow '+(c[1]?"ok":"no")+'"><div>'+(c[1]?"✓ ":"✗ ")+c[0]+"</div></div>").join("")+"</div>";
+  if(S.h.arming)return h+"<p><b>This cannot be undone.</b> Harvesting the Spire cracks this world. Your buildings, your land and everyone not in the hold stay behind. The ark rides the blast out.</p>"+
+    '<div class="acts"><button class="act primary" data-act="harvest-go"'+(ok?"":" disabled")+"><span>Yes, harvest the Spire</span><small>Crack the world and launch</small></button>"+btn("harvest-cancel","Not yet","Keep building",null)+"</div>";
+  return h+'<div class="acts"><button class="act primary" data-act="harvest-arm"'+(ok?"":" disabled")+"><span>Harvest the Spire</span><small>"+(ok?"You'll be asked once more":"Fix the red checks first")+"</small></button></div>"}
+function siloHTML(){let h='<div class="tile-h">The silo</div>';
+  if(!S.h.secret)return h+"<p>Just the elevator shaft for now.</p>";
+  h+="<p>The ark grows up this shaft, out of sight of the Republic. Each part needs workers and power while it's fitted. Shaft digging here ignores the population limits.</p>";
+  h+='<div class="plist">'+HV.silo.map(p=>{const done=siloDone(p.key),job=S.h.silo.job&&S.h.silo.job.key===p.key;
+    return'<div class="prow '+(done?"ok":"")+'"><div>'+(done?"✓ ":job?"⚙ ":"○ ")+"<b>"+p.name+"</b>"+(p.row>=0?" · row "+(p.row+1):" · surface")+"</div><small>"+(job?(S.h.silo.job.stashed?"stashed":S.h.sealed||!S.h.silo.power?"paused":E.siloRunning?Math.ceil(S.h.silo.job.left)+" s left":"waiting for "+p.workers+" free people and "+p.power+" power"):costText(siloCost(p))+" · "+p.workers+" workers · "+p.power+" power")+"</small></div>"}).join("")+"</div>";
+  const n=siloNext();if(n&&!S.h.silo.job){const why=siloBlock(n);h+='<div class="acts">'+(why?"<p>"+why+"</p>":btn("silo:"+n.key,"Fit the "+n.name.toLowerCase(),"Costs "+costText(siloCost(n))+" · "+n.secs+" s",siloCost(n),"primary"))+"</div>"}
+  h+='<div class="acts">'+(S.h.sealed||!S.h.silo.power?btn("resume","Resume silo work","Unseal and power up",null):btn("hide","Hide everything","Seal, power down, stash"+(siloDone("floor")?"":" · "+HV.hideCost+" scrap"),null))+"</div>";
+  return h}
+// --- the crack: the first Spire harvest breaks the world and throws the ark
+function harvestGo(){if(!preflight().every(c=>c[1]))return;const H=S.h.hold,P=HV.hold;
+  const carry={people:S.people.filter(p=>H.people.includes(p.id)),pallets:{...H.pallets}};for(const k in carry.pallets)S.res[k]-=carry.pallets[k]*P.pallet;S.k.fuel-=HV.launchFuel;
+  const sp=spireHeld();S.h.crack={t:0,spire:sp,carry,dist:null};S.h.arming=0;sel=-1;selOrb=-1;showPeople=false;setView("surface");focus=sp;
+  say("The coupling bites into the Spire. The ground starts to sing.");dirty=true;save()}
+let CRACK_DIST=null;
+function crackDist(sp){if(CRACK_DIST&&CRACK_DIST.sp===sp)return CRACK_DIST.d;const d=new Array(T.length).fill(99);d[sp]=0;const q=[sp];while(q.length){const i=q.shift();for(const j of T[i].n)if(d[j]>d[i]+1){d[j]=d[i]+1;q.push(j)}}CRACK_DIST={sp,d};return d}
+function tickCrack(dt){const c=S.h.crack;if(!c)return;c.t+=dt;if(c.t>=HV.crackSecs)completeJump()}
+function completeJump(){const c=S.h.crack,from=WORLDS[Math.min(S.world,WORLDS.length-1)].name.replace(/^the /,"The "),keep={unl:S.unl,gear:S.gear,tele:S.k.tele,design:S.k.design,
+    codex:S.codex,nextPid:S.k.nextPid,world:S.world+1,goal:0};
+  keep.codex.worlds.push(from);if(!keep.codex.items.includes("Builder Resonance Map"))keep.codex.items.push("Builder Resonance Map");
+  regen(keep.world);S=fresh();S.world=keep.world;S.unl=keep.unl;S.gear=keep.gear;S.k.tele=keep.tele;S.k.design=keep.design;S.k.nextPid=keep.nextPid;S.codex=keep.codex;
+  S.people=c.carry.people.concat([]);S.pop=S.people.length+HV.arrivalLocals;for(const k in c.carry.pallets)S.res[k]+=c.carry.pallets[k]*HV.hold.pallet;
+  for(let i=0;i<T.length;i++)if(T[i].pent)S.seen.add(i);   // the resonance map shows every Spire on the new world
+  S.log=["Landed on "+WORLDS[Math.min(S.world,WORLDS.length-1)].name+". "+from+" is gone behind you."];reconcile();E=econ();R=faceR(T[START].c);sel=START;focus=null;
+  toast("Landfall: "+WORLDS[Math.min(S.world,WORLDS.length-1)].name+". "+c.carry.people.map(p=>p.name).join(" and ")+" made it, and "+HV.arrivalLocals+" locals join you. The resonance map shows this world's Spires.");
+  dirty=true;save()}
+
 // ---------------------------------------------------------------- cutaway renderer
 let showPeople=false,VIEW="surface",selU=null,GR={cw:1,ch:1,gy:0,maxScroll:0},scrollY=0;
 const col=(a,m=1,al=1)=>"rgba("+(Math.min(255,a[0]*m)|0)+","+(Math.min(255,a[1]*m)|0)+","+(Math.min(255,a[2]*m)|0)+","+al+")";
@@ -723,6 +854,9 @@ function drawBelow(now){
     if(!cell||!cell.d){ctx.fillStyle=col(st.col,(.92+h3(r,c,5)*.16)*dim);ctx.fillRect(x,y,cw+1,ch+1);
       ctx.fillStyle=col(st.col,.6*dim);for(let s=0;s<4;s++){const sx=h3(r,c,10+s),sy=h3(r,c,20+s);ctx.fillRect(x+sx*cw,y+sy*ch,2*DPR,2*DPR)}
       if(r>=9){ctx.strokeStyle=col([90,100,120],dim,.5);ctx.lineWidth=DPR;ctx.beginPath();ctx.moveTo(x,y+ch*.3+h3(r,c,30)*ch*.4);ctx.lineTo(x+cw,y+ch*.3+h3(r,c,30)*ch*.4);ctx.stroke()}}
+    else if(c===SHAFT&&S.h.secret&&HV.silo.some(p=>p.row===r&&(siloDone(p.key)||(S.h.silo.job&&S.h.silo.job.key===p.key)))){const p=HV.silo.find(q=>q.row===r),done=siloDone(p.key);
+      ctx.fillStyle="#1c1712";ctx.fillRect(x,y,cw,ch+1);ctx.fillStyle=done?"#d9cdb1":"rgba(240,164,58,.35)";ctx.fillRect(x+cw*.18,y+1,cw*.64,ch-1);ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.strokeRect(x+cw*.18,y+1,cw*.64,ch-1);
+      if(r===Math.min(...HV.silo.filter(q=>q.row>=0&&siloDone(q.key)).map(q=>q.row))&&done){ctx.fillStyle="#d9cdb1";ctx.beginPath();ctx.moveTo(x+cw*.18,y+1);ctx.lineTo(x+cw/2,y-ch*.5);ctx.lineTo(x+cw*.82,y+1);ctx.closePath();ctx.fill();ctx.stroke()}}
     else if(c===SHAFT){ctx.fillStyle="#1c1712";ctx.fillRect(x,y,cw,ch+1);ctx.strokeStyle="#4a3d2e";ctx.lineWidth=Math.max(1,DPR);ctx.beginPath();ctx.moveTo(x+cw*.2,y);ctx.lineTo(x+cw*.2,y+ch);ctx.moveTo(x+cw*.8,y);ctx.lineTo(x+cw*.8,y+ch);ctx.stroke()}
     else if(!cell.room){ctx.fillStyle="#2e251c";ctx.fillRect(x,y,cw+1,ch+1);ctx.fillStyle="#3d3226";ctx.fillRect(x,y+ch-3*DPR,cw,3*DPR);ctx.fillStyle="#4a3b2b";ctx.fillRect(x+2*DPR,y,2*DPR,ch);ctx.fillRect(x+cw-4*DPR,y,2*DPR,ch)}
     else{const def=ROOM[cell.room],lit=E.on.has("u:"+k);
@@ -1038,7 +1172,7 @@ function panelHTML(){
   let h='<div class="meta">Tile '+sel+" · "+(t.pent?"five sides":"six sides")+" · "+latlon(t.c)+(t.coast&&seen?" · shore":"")+"</div>";
   if(!seen)return h+'<div class="tile-h">Unexplored</div><p>Too far to see. Claim land closer to it, or raise a radio tower.</p>';
   h+='<div class="tile-h">'+(b?BLD[b].name+" on "+bi.name.toLowerCase():bi.name)+"</div>";
-  if(b==="bunker")return h+"<p>Where you started. It sleeps "+CFG.bunker.cap+" and scrapes together a little scrap. Under it is an old hatch to the ground below.</p>"+
+  if(b==="bunker")return h+(S.h.secret?harvestHTML():"")+"<p>Where you started. It sleeps "+CFG.bunker.cap+" and scrapes together a little scrap. Under it is an old hatch to the ground below.</p>"+
     (S.hatch?'<div class="acts">'+btn("below","Go below","See the cutaway and dig",null,"primary")+"</div>"
      :"<p>The hatch is rusted shut. Pay to force it, or wait until "+CFG.hatch.freeAt+" people live here and pry it open together.</p>"+'<div class="acts">'+btn("hatch","Force the hatch","Costs "+costText(CFG.hatch.cost),CFG.hatch.cost,"primary")+"</div>");
   if(b){const working=!BLD[b].staff||E.st.has(sel),m=mult(sel,b);
@@ -1075,7 +1209,7 @@ function belowHTML(){
       h+=on?(left.length?"<p>Craft gear for the squad. Each piece is made once and kept.</p><div class=\"acts\">"+left.map(g=>btn("gear:"+g,CFG.gear[g].name,CFG.gear[g].what+" · "+costText(CFG.gear[g].cost),CFG.gear[g].cost)).join("")+"</div>":"<p>All squad gear is made.</p>"):"<p>When this workshop is running you can craft squad gear here.</p>"}
     return h+'<div class="acts">'+btn("uraze","Strip it","Get some parts back",null,"warn")+"</div>"}
   if(cell&&cell.d){
-    if(shaft)return h+'<div class="tile-h">Elevator shaft</div><p>Connects every row. Dig the cell below it to open the next row down.</p>';
+    if(shaft)return h+(S.h.secret?siloHTML():'<div class="tile-h">Elevator shaft</div><p>Connects every row. Dig the cell below it to open the next row down.</p>');
     h+='<div class="tile-h">Open space</div><p>'+(cell.f==="aquifer"?"Water runs through this wall: a pump here makes about twice as much. ":"")+"Fit it out. Producing rooms of the same kind side by side work better together (up to 3). Power left: "+(E.power.supply-E.power.demand)+".</p><div class=\"acts\">";
     for(const k of ROOM_LIST.filter(k=>k!=="fuel"||padTile()>=0)){const co=ugCost(k,selU),d=ROOM[k];h+=btn("room:"+k,d.name,d.what+(d.power?" · "+d.power+" power":"")+(d.staff?" · 1 worker":"")+" · "+costText(co),co)}
     return h+"</div>"}
@@ -1090,7 +1224,7 @@ function belowHTML(){
 }
 function renderPanel(){
   const p=$("panel"),f=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.act:null;
-  p.innerHTML=VIEW==="map"&&S.exp?mapHTML():showPeople?peopleHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
+  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="map"&&S.exp?mapHTML():showPeople?peopleHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
   $("goal").innerHTML=g?"<span>Goal: "+g.text+"</span><b>"+Math.min(g.p()[0],g.p()[1])+" / "+g.p()[1]+"</b>":"<span>Every goal met. The world remembers your lights.</span><b>✓</b>";
@@ -1099,7 +1233,9 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;const a=b.dataset.act;
   if(a==="claim")claim(sel);else if(a==="raze")raze(sel);else if(a.startsWith("build:"))build(sel,a.slice(6));
-  else if(a.startsWith("gear:"))craft(a.slice(5));else if(a.startsWith("rk:"))designAct(a.slice(3));else if(a==="launch")launch();else if(a==="survey")doSurvey();
+  else if(a.startsWith("gear:"))craft(a.slice(5));else if(a.startsWith("silo:"))startSilo(a.slice(5));else if(a==="hide")hideAll();else if(a==="resume")resumeSilo();
+  else if(a==="quota")payQuota();else if(a==="release")releaseDetained();else if(a.startsWith("hold:"))holdAct(a.slice(5));
+  else if(a==="harvest-arm"){S.h.arming=1;dirty=true}else if(a==="harvest-cancel"){S.h.arming=0;dirty=true}else if(a==="harvest-go")harvestGo();else if(a.startsWith("rk:"))designAct(a.slice(3));else if(a==="launch")launch();else if(a==="survey")doSurvey();
   else if(a==="explore"||a==="walk")startExp(sel);else if(a==="leave")endExp(null);
   else if(["fight","pay","back","ok","out"].includes(a))resolve(a);else if(a.startsWith("ev:"))resolve(a.slice(3));
   else if(a==="hatch"){openHatch(false);if(S.hatch)setView("below")}
@@ -1114,6 +1250,8 @@ bindReset();
 const fmt=v=>v>=1e4?(v/1e3).toFixed(1)+"k":Math.floor(v).toString();
 const rate=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(2)+"/s";
 let lastPop=-1,wasDigging=false,lastPadSig="";
+document.getElementById("alert").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b)return;const a=b.dataset.act;
+  if(a==="hide")hideAll();else if(a==="quota")payQuota();else if(a==="release")releaseDetained();$("alert").dataset.sig="";hud()});
 document.getElementById("people-chip").onclick=()=>{showPeople=!showPeople;dirty=true};
 function hud(){
   $("r-scrap").textContent=fmt(S.res.scrap);$("r-water").textContent=fmt(S.res.water);$("r-food").textContent=fmt(S.res.food);
@@ -1123,7 +1261,8 @@ function hud(){
   $("dive").hidden=!S.hatch||VIEW==="map";
   $("r-pop").textContent=S.pop+" / "+E.cap;
   const unstaffed=E.needStaff-E.st.size,dp=$("d-pop");dp.textContent=S.exp?XC.squad+" out exploring":S.wounded>0?"squad resting":unstaffed>0?unstaffed+" job"+(unstaffed>1?"s":"")+" empty":E.idle>0?E.idle+" idle":"all working";dp.className=unstaffed>0?"neg":"";
-  $("clock").innerHTML="Day <b>"+day()+"</b> · "+partOfDay();
+  $("clock").innerHTML=(S.world?WORLDS[Math.min(S.world,WORLDS.length-1)].name+" · ":"")+"Day <b>"+day()+"</b> · "+partOfDay()+(republicHere()&&S.h.secret?" · suspicion <b"+(S.h.susp>=50?' class="hot"':"")+">"+Math.round(S.h.susp)+"</b>":"");
+  const al=alertText(),ab=$("alert");if(al){const sig=al.t+al.b.map(x=>x[0]).join();if(ab.dataset.sig!==sig){ab.dataset.sig=sig;ab.innerHTML="<span>"+al.t+"</span>"+al.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+x[1]+"</span></button>").join("")}ab.hidden=false}else ab.hidden=true;
   $("legend").textContent=VIEW==="map"&&S.exp?(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of supplies":"Your land")+" · "+threatsLeft(S.exp.i)+" threats left · "+Math.round(explored(S.exp.i)*100)+"% explored":VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand:S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
   const dlft=$("digleft");if(dlft&&S.dig)dlft.textContent=Math.ceil(S.dig.left);
   if(S.dig===null&&wasDigging){dirty=true}wasDigging=!!S.dig;
@@ -1142,7 +1281,7 @@ function catchUp(sec){const before={...S.res},p0=S.pop;sec=Math.min(sec,4*3600);
 let last=performance.now(),hudT=0,saveT=0;
 function frame(now){
   const gap=(now-last)/1000;last=now;
-  if(gap>1)catchUp(gap);else step(gap);
+  if(gap>1)catchUp(gap);else{if(!S.h.crack)step(gap);if(!document.hidden)tickActive(gap);tickCrack(gap)}
   if(VIEW==="map"){stepT+=Math.min(gap,.5);while(stepT>.13){stepT-=.13;stepOnce()}}
   else if(VIEW==="below"){}
   else if(focus!==null){const p=applyM(R,T[focus].c),ax=cross(p,[0,0,1]),s=Math.hypot(ax[0],ax[1],ax[2]);
@@ -1163,7 +1302,9 @@ function start(data){
   const fromHot=data&&data.S?deser(data.S):null;
   if(fromHot){S=fromHot;if(Array.isArray(data.R)&&data.R.length===9)R=data.R;else R=faceR(T[START].c)}
   else{const o=loadSaved(),d=deser(o);S=d||fresh();R=faceR(T[START].c);E=econ();if(d&&o.saved)catchUp(Math.max(0,(Date.now()-o.saved)/1000))}
-  reconcile();if(S.k.flight)resolveFlight(true);E=econ();refreshSeen();if(S.exp)setView("map");hud();renderPanel();
+  if((S.world|0)!==WORLD){regen(S.world|0);if(!fromHot)R=faceR(T[START].c)}
+  if(S.k.scout&&!S.h.secret)learnSecret(true);
+  reconcile();if(S.k.flight)resolveFlight(true);E=econ();if(S.h.crack)completeJump();refreshSeen();if(S.exp)setView("map");hud();renderPanel();
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R,splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START};
   last=performance.now();requestAnimationFrame(frame);
