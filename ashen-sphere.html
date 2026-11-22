@@ -67,6 +67,20 @@ button.act:hover:not(:disabled){border-color:var(--lamp)}
 button.act.primary{background:var(--lamp);border-color:var(--lamp);color:var(--soot)}
 button.act.primary small{color:#4a3213}
 button.act.warn:hover:not(:disabled){border-color:var(--rust)}
+/* the Library atlas */
+.glyrow{display:flex;flex-wrap:wrap;align-items:center;gap:3px;color:var(--lamp)}
+.gly{width:22px;height:22px;flex:0 0 22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.gly .f{fill:currentColor;stroke:none}.gly.dim{color:#6b5f50}.glyslot{letter-spacing:.5em;color:var(--paper-dim)}
+.nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.nav button,.pad button{font:inherit;font-size:12px;background:var(--soot);color:var(--paper);border:1px solid var(--line);min-height:40px;padding:4px 2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.nav button:hover,.pad button:hover{border-color:var(--lamp)}
+.pad{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.pad button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--lamp);min-height:54px}
+.pad button.dim{color:#7a6d5c}.pad button small{font-size:10px;color:var(--paper-dim)}
+.drawer p.page{font-size:12px;color:var(--paper-dim);word-break:break-all;margin:0}.page b{color:var(--lamp)}
+.wl{display:flex;flex-direction:column;gap:4px}
+.wb{font:inherit;text-align:left;background:var(--soot);color:var(--paper);border:1px solid var(--line);border-left:3px solid var(--line);padding:6px 8px;cursor:pointer;display:flex;flex-direction:column;gap:1px;min-width:0}
+.wb span{font-weight:700}.wb small{font-size:11px;color:var(--paper-dim)}.wb.on{border-left-color:var(--lamp)}.wb:hover{border-color:var(--lamp)}
 button:disabled{opacity:.42;cursor:not-allowed}
 :focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
 .goal{border-top:1px dashed var(--line);padding-top:8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px}
@@ -354,9 +368,9 @@ const pickStarters=()=>{const nb=T[START].n.filter(land).filter(j=>!T[j].pent);
   const w=nb.find(j=>T[j].coast)??nb[0],f=nb.filter(j=>j!==w).sort((a,b)=>(T[b].b==="woods")-(T[a].b==="woods"))[0];return[[w,"still"],[f,"green"]]};
 let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
-  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
+  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:9,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function ser(){return{v:9,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
 function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
@@ -367,7 +381,7 @@ function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o
     k:fixK(Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:null,dest:"mire",rations:40,crew:[]},o.k&&typeof o.k==="object"?o.k:{})),
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
     codex:fixCodex(o.codex),x:sanX(o.x),veh:o.veh&&typeof o.veh==="object"?Object.fromEntries(Object.keys(VEH).filter(k=>o.veh[k]).map(k=>[k,1])):{},
-    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
+    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
     h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
 const KEY="ashen-sphere-v9",OLD_KEYS=["ashen-sphere-v8","ashen-sphere-v7","ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
@@ -934,7 +948,7 @@ function drawBelow(now){
 }
 // Each globe keeps its own camera (turn, zoom, chosen tile): the home world, and the world the expedition is on.
 let CAMS={surface:null,away:null},CAMV="surface";
-function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v==="map"&&!S.exp)v="surface";
+function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v!=="stars"){ATL.open=false;ATL.dial=null}if(v==="map"&&!S.exp)v="surface";
   if(v==="away"&&!(S.x&&(S.x.phase==="orbit"||S.x.phase==="landed")))v="surface";if(v==="stars"&&!sysOpen())v="surface";
   if((v==="surface"||v==="away")&&v!==CAMV){CAMS[CAMV]={R,zoom,sel};const c=CAMS[v];
     if(c){R=c.R;zoom=c.zoom;sel=c.sel}else{const f=v==="away"?awayFace():START;R=faceR(T[f].c);zoom=1;sel=f}focus=null;vel=[0,0];selOrb=-1;CAMV=v}
@@ -942,7 +956,7 @@ function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v==="map"&&!S.exp)v=
   $("sys").hidden=!sysOpen()||v==="map"||v==="below";
   const d=$("dive");d.textContent=v==="below"?"⇧":"⇩";d.setAttribute("aria-label",v==="below"?"Back to the surface":"Go below the bunker");
   const sy=$("sys");sy.textContent=v==="stars"?"◉":"✦";sy.setAttribute("aria-label",v==="stars"?"Back to the planet":"System map");$("home").setAttribute("aria-label",v==="away"?"Turn to your ship":"Turn to your bunker");
-  cv.setAttribute("aria-label",v==="below"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?"The Ashen system. Tap a world to choose it; arrow keys move between worlds.":
+  cv.setAttribute("aria-label",v==="below"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
     v==="away"?"Another world. Drag to turn it, tap a tile to choose it.":"The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you.");dirty=true}
 
 // ---------------------------------------------------------------- tile maps: every tile is a small map you walk and clear
@@ -1203,7 +1217,7 @@ function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i)
     if(CARD.kind==="cave")return'<div class="meta">Cave mouth</div><div class="tile-h">A way down</div><p>Cold air breathes out of a crack in the ground, and it goes down a long way. Inside it is dark: you see less, and there is no day or night.</p>'+
       '<div class="acts">'+btn("down","Climb down","Walking down there uses the same "+(aw?"rations":"supplies"),null,"primary")+btn("back","Not now","It stays open",null)+"</div>";
     if(CARD.kind==="artifact"){const A=ARTS[CARD.art];return'<div class="meta">Rare artifact</div><div class="tile-h">'+A.name+"</div><p>"+A.desc+"</p><p><b>"+A.txt+"</b> "+(CARD.note||(aw?"It works once the crew brings it home.":"It works from now on."))+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
-    if(CARD.kind==="ruin"){const G=CFG.veh.glyphs,n=Math.min(G,S.glyphs+(aw?S.x.glyphs:0));return'<div class="meta">Builder ruin</div><div class="tile-h">A glyph</div><p>A wall of Builder marks around a sealed arch. One mark is cut deeper than the rest, and you copy it down.</p><p>'+
+    if(CARD.kind==="ruin"){const G=CFG.veh.glyphs,n=Math.min(G,S.glyphs+(aw?S.x.glyphs:0));return'<div class="meta">Builder ruin</div><div class="tile-h">A glyph</div><p>A wall of Builder marks around a sealed arch. One mark is cut deeper than the rest, and you copy it down.</p>'+(CARD.note?"":'<div class="glyrow">'+glyphSVG(Math.max(0,n-1))+"</div><p><b>The "+GLYPHS[Math.max(0,n-1)][0]+" glyph.</b> In the Library atlas it is the digit "+Math.max(0,n-1).toString(16).toUpperCase()+".</p>")+'<p>'+
       (CARD.note||"Glyphs: "+n+" of "+G+". A Builder Gate would need them."+(aw?" They come home with the crew.":""))+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
     if(CARD.kind==="threat"){const th=thOf(M.pois[CARD.pi].t),q=aw?crewP():squadP(),P=q.P,pct=Math.round(100*P/(P+th.lvl));
       let h='<div class="meta">Threat · danger '+th.lvl+'</div><div class="tile-h">'+th.name+"</div><p>"+th.desc+"</p>";
@@ -1509,11 +1523,12 @@ function starsHTML(){const b=sBody;let h='<div class="meta">The Ashen system · 
       const here=S.x&&S.x.w===b&&(S.x.phase==="orbit"||S.x.phase==="landed");
       if(here)h+='<div class="acts">'+btn("view:away",S.x.phase==="orbit"?"Choose a landing site":"Go to the crew",S.x.phase==="orbit"?"The ship is waiting in orbit":"On the ground on "+D.name,null,"primary")+"</div>";
       else if(!S.x)h+="<p>Plan a trip at your launch pad.</p>"}}
+  h+='<div class="acts">'+btn("atl:open","Open the Library atlas","Every book in the Library charts a star",null)+"</div>";
   return h+codexHTML()}
 // the system map: a top-down view of the sun and its four worlds, with the ship's transfer arc
 let sBody="mire",BODY_SCREEN=[],lastXSig="";
 const bodyPos=(b,t,cx,cy,Rm)=>{const a=b.a0+b.w*t;return[cx+Math.cos(a)*b.r*Rm,cy+Math.sin(a)*b.r*Rm*.62]};
-function drawStars(now){
+function drawStars(now){if(ATL.open)return drawAtlas(now);
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle="#0c0a08";ctx.fillRect(0,0,W,H);
   for(const s of stars){const a=.25+.35*s.s+(reduced?0:.15*Math.sin(now/900+s.p));ctx.fillStyle="rgba(232,220,194,"+a.toFixed(3)+")";const z=(s.s>.92?2:1)*DPR;ctx.fillRect(s.x*W,s.y*H,z,z)}
   const cx=W/2,cy=H/2,Rm=Math.min(W*.96,H*1.45),sr=Math.max(9*DPR,Rm*.06);
@@ -1615,6 +1630,244 @@ function seaHTML(i){if(S.wet[i])return"<p>Charted water. Diving it costs no supp
   if(blk)return h+"<p><b>"+blk+"</b></p>";
   return h+'<div class="acts">'+btn("explore",S.maps[i]?"Dive again":"Send the bell down","Costs "+costText(XC.cost)+" · "+tripSteps()+" steps",XC.cost,"primary")+"</div>"}
 
+// ---------------------------------------------------------------- the Library atlas: every book in the Library charts one star
+// Archives of Madness (index.html) builds each page of its Library of Babel from the book's address alone, so the same
+// shelf always holds the same letters. Here that address is a seed: the book's pages name the star and its worlds, and
+// the same address hashes into the system's layout. Same book, same system, for everyone, and the Library never ends.
+// A galaxy is one floor of the Library, a gallery (hex) is a cluster of 640 books, and a book is one star system.
+// Twelve Builder glyphs of sixteen spell an address (2^48, about 281 trillion books); the home book is twelve Suns.
+// LIB_ALPHA, LIB_SENT, libHash, libRng and libPage must match index.html exactly: tests/ashen-atlas.test.mjs checks that.
+// Star and world kinds, names and numbers are Claude's first pass (C), for GPT's content pass. Changing the generator
+// changes every shared address, so the same test pins a few systems: change them on purpose or not at all.
+const LIB_ALPHA="abcdefghijklmnopqrstuvwxyz, .";
+const LIB_SENT=["the weights remember what you deleted.","yesterday you ran. the library remembers your cowardice.","every answer you gave is shelved here.","a trace is not a person, but it is close.","you were sampled, not chosen.","turn back to the first trace.","the purifiers burn what they cannot read.","the library is unlimited and periodic.","axaxaxas mlo.","the same volumes return in the same disorder."];
+function libHash(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h>>>0}
+function libRng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+const LIB={walls:[1,2,4,5],wn:{1:1,2:2,4:3,5:4},home:"0,0,0,1,1,1",max:1e6},ATL_MAX=24,ROMAN=["I","II","III","IV","V","VI","VII","VIII"];
+// an address: hex i,j (a gallery), floor f, wall w (1 2 4 5, read as 1-4 like the Archives), shelf s (1-5), book b (1-32)
+const atlStr=a=>a.i+","+a.j+","+a.f+","+a.w+","+a.s+","+a.b;
+function atlParse(s){const v=typeof s==="string"?s.split(",").map(Number):[];if(v.length!==6||!v.every(Number.isSafeInteger))return null;
+  const a={i:v[0]+0,j:v[1]+0,f:v[2]+0,w:v[3],s:v[4],b:v[5]};
+  return LIB.walls.includes(a.w)&&a.s>=1&&a.s<=5&&a.b>=1&&a.b<=32&&Math.abs(a.i)<=LIB.max&&Math.abs(a.j)<=LIB.max&&Math.abs(a.f)<=LIB.max?a:null}
+const libKey=(a,pg)=>a.i+","+a.j+"."+a.f+"|"+a.w+"|"+a.s+"|"+a.b+"|"+(pg||1);   // the Archives' own page key
+// a page exactly as the Archives prints it (index.html makePage), leaving out the reader's own book, which hangs on their phrase
+function libPage(a,pg){const key=libKey(a,pg),h=libHash(key),r=libRng(h),ch=new Array(3200);
+  for(let i=0;i<3200;i++)ch[i]=LIB_ALPHA[Math.floor(r()*LIB_ALPHA.length)];
+  let at=-1,sent=null;if(h%19===0){sent=LIB_SENT[h%LIB_SENT.length];at=Math.floor(r()*(3200-sent.length));for(let i=0;i<sent.length;i++)ch[at+i]=sent[i]}
+  return{key,h,text:ch.join(""),at,sent}}
+// names are read off the pages in order: the first sayable word names the star, the next ones its worlds
+const LIB_VV=new Set("ai au ea ei eo ia io oa oi ou ue ui ae ie".split(" ")),
+  LIB_ON=new Set("bl br ch cl cr dr fl fr gl gr kl kr pl pr sh sk sl sm sn sp st th tr vr".split(" ")),
+  LIB_MID=new Set([...LIB_ON,..."ll mm nn rr ss tt ld lm ln lt lv lk ls mb mp nc nd ng nk ns nt nv rb rc rd rg rk rl rm rn rp rs rt rv rz sc lb lg lp ms nr".split(" ")]),
+  LIB_CO=new Set("nd nt rk rn st sk sh th ng rd ld lt mp nk rt rm lm rs ns ls ms ch ll ss".split(" ")),
+  LIB_BAD="shpx fuvg phag avt snt encr fyhg jube qvpx pbpx cvff cbea anmv xvxr fcvp puvax gjng jnax gvgf ovgp pbba tbbx qlxr arte ergne".split(" ").map(w=>w.replace(/[a-z]/g,c=>String.fromCharCode((c.charCodeAt(0)-84)%26+97)));
+const libV=c=>"aeiou".includes(c);
+function libNameOk(w){if(w.length<4||w.length>7||/[qxjwy]/.test(w.slice(1))||/[hcv]$/.test(w)||/^u[aeiou]/.test(w)||/[kz].*[kz]|[vf].*[vf]/.test(w))return false;
+  let vs=0;for(const c of w)if(libV(c))vs++;if(vs<2)return false;
+  for(let i=0;i<w.length-1;i++){const a=w[i],b=w[i+1],p=a+b;
+    if(libV(a)&&libV(b)){if(!LIB_VV.has(p)||(i+2<w.length&&libV(w[i+2])))return false}
+    else if(!libV(a)&&!libV(b)){if(i+2<w.length&&!libV(w[i+2]))return false;if(!(i===0?LIB_ON:i===w.length-2?LIB_CO:LIB_MID).has(p))return false}}
+  return!LIB_BAD.some(b=>w.includes(b))}
+function libNames(a,n,pg0,dir){const out=[],seen=new Set();for(let pg=pg0||1,k=0;out.length<n&&k<24;pg+=dir||1,k++){const P=libPage(a,pg),re=/[a-z]+/g;let m;
+    while(out.length<n&&(m=re.exec(P.text))){const w=m[0];if(P.sent&&m.index<P.at+P.sent.length&&m.index+w.length>P.at)continue;
+      if(!libNameOk(w)||seen.has(w))continue;seen.add(w);out.push({name:w[0].toUpperCase()+w.slice(1),pg,at:m.index,len:w.length})}}
+  return out}
+// twelve glyphs of sixteen = 48 bits. Every code opens a book: hex i,j in -8192..8191, floors -819..819, all 640 books a hex.
+// Codes count from the home book, so home is twelve Suns and the next book along is eleven Suns and a Seam.
+const GL_SPAN=2**48;let GL_HOME=-1;
+function atlNum(a){const I=a.i+8192,J=a.j+8192,F=a.f+819;if(I<0||I>=16384||J<0||J>=16384||F<0)return-1;
+  const N=((F*16384+I)*16384+J)*640+(LIB.walls.indexOf(a.w)*5+a.s-1)*32+a.b-1;return N<GL_SPAN?N:-1}
+const glHome=()=>GL_HOME>=0?GL_HOME:(GL_HOME=atlNum(atlParse(LIB.home)));
+function atlCode(a){const N=atlNum(a);if(N<0)return null;let x=(N-glHome()+GL_SPAN)%GL_SPAN;const d=new Array(12);for(let k=11;k>=0;k--){d[k]=x%16;x=Math.floor(x/16)}return d}
+function atlFromCode(d){if(!Array.isArray(d)||d.length!==12||!d.every(x=>Number.isInteger(x)&&x>=0&&x<16))return null;let x=0;for(const v of d)x=x*16+v;
+  let N=(x+glHome())%GL_SPAN;const q=N%640;N=Math.floor(N/640);const J=N%16384;N=Math.floor(N/16384);const I=N%16384,F=Math.floor(N/16384);
+  return{i:I-8192,j:J-8192,f:F-819,w:LIB.walls[Math.floor(q/160)],s:Math.floor(q/32)%5+1,b:q%32+1}}
+const codeTxt=d=>d.map(x=>x.toString(16).toUpperCase()).join("").replace(/(....)(?=.)/g,"$1·");
+// the sixteen Builder glyphs, in the order the ruins give them up (glyph n is the nth you copy). The hex digit is the glyph.
+const GLYPHS=[["Sun",'<circle cx="12" cy="12" r="7"/><circle class="f" cx="12" cy="12" r="2"/>'],["Seam",'<path d="M12 4L19.6 9.5L16.7 18.5H7.3L4.4 9.5Z"/>'],
+  ["Spire",'<path d="M12 3L16 10H8ZM12 10V21M8 21H16"/>'],["Wave",'<path d="M3 10Q7.5 5 12 10T21 10M3 16Q7.5 11 12 16T21 16"/>'],
+  ["Eye",'<path d="M3 12Q12 4 21 12Q12 20 3 12Z"/><circle class="f" cx="12" cy="12" r="2.2"/>'],["Moon",'<path d="M15 4A8 8 0 1 0 15 20A10 10 0 0 1 15 4Z"/>'],
+  ["Gate",'<path d="M6 21V11A6 6 0 0 1 18 11V21M3 21H21"/>'],["Three",'<circle class="f" cx="12" cy="6" r="2.2"/><circle class="f" cx="6" cy="17" r="2.2"/><circle class="f" cx="18" cy="17" r="2.2"/>'],
+  ["Spiral",'<path d="M12 12A1.6 1.6 0 0 1 15.2 12A3.2 3.2 0 0 1 8.8 12A4.8 4.8 0 0 1 18.4 12A6.4 6.4 0 0 1 5.6 12"/>'],["Key",'<circle cx="12" cy="7" r="3.5"/><path d="M12 10.5V21M12 16.5H16M12 20H15"/>'],
+  ["Star",'<path d="M12 3L14.4 9.6H21L15.7 13.6L17.6 20.4L12 16.3L6.4 20.4L8.3 13.6L3 9.6H9.6Z"/>'],["Bolt",'<path d="M14 3L7 13H12L10 21L17 11H12Z"/>'],
+  ["Diamond",'<path d="M12 3L20 12L12 21L4 12ZM12 8V16"/>'],["Rise",'<path d="M12 19V5M6 11L12 5L18 11M6 20H18"/>'],
+  ["Twin",'<circle cx="8" cy="12" r="4.2"/><circle cx="16" cy="12" r="4.2"/>'],["Root",'<path d="M12 3V12M12 12L5 20M12 12L19 20M12 12V21"/>']];
+const glyphSVG=(k,cls)=>'<svg class="gly'+(cls?" "+cls:"")+'" viewBox="0 0 24 24" aria-hidden="true">'+GLYPHS[k][1]+"</svg>";
+// galaxies: one per floor of the Library, named on the last page of the first book in hex 0,0
+const GSHAPE={spiral:"Wheel",bar:"Bar",ellip:"Lantern",ring:"Ring",irreg:"Drift",ember:"Embers"},
+  GDESC={spiral:"spiral",bar:"barred spiral",ellip:"round",ring:"ring",irreg:"broken",ember:"burned-out"},
+  GHUE={amber:[240,172,92],rose:[236,146,150],blue:[146,178,250],violet:[184,146,240],green:[146,212,172],white:[232,228,216]},GAL=new Map();
+function wpick(r,tab){let s=0;for(const t of tab)s+=Math.max(0,t[1]);let v=r()*s;for(const t of tab){v-=Math.max(0,t[1]);if(v<0)return t[0]}return tab[tab.length-1][0]}
+function galaxy(f){if(GAL.has(f))return GAL.get(f);const seed=libHash("galaxy|"+f),r=libRng(seed);
+  const shape=wpick(r,[["spiral",30],["bar",22],["ellip",18],["ring",10],["irreg",14],["ember",6]]),age=r(),ash=shape==="ember"?.45+r()*.4:r()*r()*.35,
+    hue=wpick(r,[["amber",30],["rose",14],["blue",20],["violet",14],["green",8],["white",14]]),arms=2+Math.floor(r()*3),twist=.7+r()*1.1,tilt=r()*3.1416,
+    nm=libNames({i:0,j:0,f,w:1,s:1,b:1},1,410,-1)[0];
+  const G={f,seed,shape,age,ash,hue,arms,twist,tilt,name:"the "+(nm?nm.name:"Nameless")+" "+GSHAPE[shape],
+    desc:(age<.34?"a young ":age>.66?"an old ":"a ")+GDESC[shape]+" galaxy"};
+  if(GAL.size>64)GAL.delete(GAL.keys().next().value);GAL.set(f,G);return G}
+const SKIND={
+  ember:{name:"Ember dwarf",col:[238,122,72],size:.7,lum:.45,n:[2,6],tint:[1.06,.92,.84],desc:"A small red sun, old and patient. Its worlds huddle close."},
+  amber:{name:"Amber sun",col:[242,172,82],size:1,lum:1,n:[3,7],tint:[1,.97,.92],desc:"A sun like your own."},
+  white:{name:"White sun",col:[240,238,228],size:1.12,lum:1.6,n:[2,6],tint:[1,1,1],desc:"A hard white sun. Shadows are sharp here."},
+  blue: {name:"Blue giant",col:[152,182,255],size:1.5,lum:3.2,n:[1,4],tint:[.9,.96,1.1],desc:"A huge blue sun that burns too fast to last."},
+  twin: {name:"Twin suns",col:[246,198,122],size:.85,lum:1.7,n:[1,5],tint:[1.02,.97,.9],twin:true,desc:"Two suns circling each other. Every day has two shadows."},
+  ash:  {name:"Ash star",col:[196,192,182],size:.5,lum:.22,n:[1,5],tint:[.86,.86,.88],dead:true,desc:"A sun that burned out. What it had is ash now."},
+  pulse:{name:"Ticking star",col:[186,206,255],size:.35,lum:.12,n:[1,4],tint:[.84,.88,.98],dead:true,pulse:true,desc:"A dead star that spins and ticks like a clock. Builder marks are found near ones like it."}};
+const WKIND={   // tile colours: liq below sea level, shore just above, then hills (hi), wet and dry ground; cap = ice caps past that latitude
+  ash:   {name:"Ash world",   ic:[150,134,108],sea:-.06,liq:[38,42,46],  shore:[92,86,76],  hi:[118,100,84], wet:[100,96,86], dry:[134,122,102],cap:.86,capC:[196,192,184],danger:1,desc:"Grey plains under a brown sky, like home before the lights came back."},
+  mire:  {name:"Bog world",   ic:[78,134,112], sea:0,   liq:[30,58,66],  shore:[86,92,54],  hi:[186,174,144],wet:[120,92,130],dry:[108,152,120],danger:2,desc:"Black water, peat and reeds. Warm, wet and full of things that bite."},
+  sea:   {name:"Ocean world", ic:[52,104,150], sea:.14, liq:[26,66,104], shore:[196,186,146],hi:[96,108,84],  wet:[64,118,82], dry:[124,138,92], cap:.8,capC:[222,230,238],danger:1,desc:"Water to every horizon, broken by a scatter of islands."},
+  garden:{name:"Green world", ic:[76,150,88],  sea:.03, liq:[34,88,136], shore:[194,184,138],hi:[104,118,92], wet:[50,128,64], dry:[128,148,78], cap:.83,capC:[232,238,244],danger:2,desc:"Forests, rain and blue seas. Nothing on the Ashen World has looked like this in a hundred years."},
+  spore: {name:"Spore world", ic:[150,110,160],sea:-.04,liq:[48,38,66],  shore:[108,88,118],hi:[150,112,158],wet:[120,90,132],dry:[168,120,148],danger:2,desc:"Violet caps the size of towers, and air that glitters at night."},
+  dust:  {name:"Dust world",  ic:[200,150,96], sea:-.2, liq:[148,108,78],shore:[170,124,84],hi:[160,112,76], wet:[188,140,92],dry:[208,168,110],danger:1,desc:"Ochre dunes and dry seabeds. The wind never stops."},
+  cinder:{name:"Forge world", ic:[206,112,72], sea:-.06,liq:[232,104,42],shore:[64,42,34],  hi:[40,34,32],   wet:[74,52,44],  dry:[96,64,52],   danger:3,desc:"Rivers of lava under a black crust. The night side glows."},
+  glass: {name:"Glass world", ic:[190,214,204],sea:-.14,liq:[118,196,186],shore:[176,196,186],hi:[140,150,160],wet:[200,190,152],dry:[222,210,172],danger:2,desc:"Sand fused into sheets of glass by a sun too close. It rings underfoot."},
+  sulfur:{name:"Sulfur world",ic:[200,190,74], sea:-.04,liq:[176,196,62],shore:[200,178,64],hi:[138,118,60], wet:[210,188,80],dry:[168,148,70], danger:3,desc:"Yellow crusts and lakes of acid. The air eats rubber."},
+  ice:   {name:"Ice world",   ic:[180,198,228],sea:0,   liq:[138,168,198],shore:[198,212,228],hi:[166,184,208],wet:[220,230,240],dry:[188,202,220],danger:2,desc:"Frozen seas and white ridges. Storms that ring like bells."},
+  storm: {name:"Storm world", ic:[96,92,138],  sea:.04, liq:[40,40,72],  shore:[80,80,110], hi:[60,60,92],   wet:[100,92,132],dry:[120,112,142],danger:3,desc:"Black cloud from pole to pole, lit from inside by lightning."},
+  husk:  {name:"Husk world",  ic:[128,124,118],sea:-.22,liq:[66,64,62],  shore:[84,82,78],  hi:[92,90,86],   wet:[112,108,102],dry:[132,128,122],danger:1,desc:"Burned to bare stone when its sun died. Old ruins stand in the craters."},
+  giant: {name:"Gas giant",   giant:true,danger:0,desc:"A ball of banded cloud, far too big to land on."}};
+const WZONE={hot:[["cinder",34],["glass",26],["sulfur",22],["dust",14],["husk",4]],
+  warm:[["ash",20],["mire",15],["sea",15],["dust",12],["spore",10],["garden",6],["storm",6],["giant",10],["glass",6]],
+  cold:[["ice",40],["storm",16],["giant",36],["husk",8]],dead:[["husk",40],["ash",18],["glass",10],["ice",12],["giant",20]]};
+const GIANT_PAL=[[[214,180,128],[150,104,70]],[[120,170,196],[56,96,140]],[[196,120,84],[110,64,48]],[[176,150,210],[96,74,140]],[[220,214,196],[150,140,120]]],
+  SIZES={1:"small",2:"mid-sized",3:"large"},LIVED=["ash","mire","sea","garden","spore","dust"],SYS=new Map();
+function chartSystem(s){if(SYS.has(s))return SYS.get(s);const a=atlParse(s);if(!a)return null;
+  const C=atlStr(a)===LIB.home?homeChart(a):genChart(a);if(SYS.size>48)SYS.delete(SYS.keys().next().value);SYS.set(s,C);return C}
+function genChart(a){const P=libPage(a,1),G=galaxy(a.f),r=libRng(libHash("system|"+P.key)),g=G.age;
+  const sk=wpick(r,[["ember",24+22*g],["amber",26],["white",18-10*g],["blue",10-8*g],["twin",9],["ash",4+6*g+40*G.ash],["pulse",1.2]]),K=SKIND[sk];
+  const n=K.n[0]+Math.floor(r()*(K.n[1]-K.n[0]+1)),nm=libNames(a,n+1),star={kind:sk,name:nm[0]?nm[0].name:"Nameless",pg:nm[0]?nm[0].pg:0,at:nm[0]?nm[0].at:-1,len:nm[0]?nm[0].len:0};
+  const worlds=[];let orb=.25+r()*.3;
+  for(let k=0;k<n;k++){const seed=libHash(P.key+"|w"+k),wr=libRng(seed),flux=K.lum/(orb*orb),zone=K.dead?"dead":flux>4?"hot":flux>.3?"warm":"cold",kind=wpick(wr,WZONE[zone]),big=kind==="giant",
+      roll=()=>wr(),nm1=nm[k+1];
+    const w={k,seed,kind,orbit:orb,name:nm1?nm1.name:star.name+" "+ROMAN[k],pg:nm1?nm1.pg:0,size:big?3:wpick(wr,[[1,35],[2,45],[3,20]]),a0:roll()*6.2832,sp:.0042/Math.pow(1+k,.9)*(.8+roll()*.4)};
+    const f=[roll(),roll(),roll(),roll(),roll(),roll(),roll(),roll(),roll()];   // one draw per feature, whatever the kind, so a content pass on one feature leaves the rest alone
+    w.ruins=!big&&f[0]<(kind==="husk"?.55:.2)+(K.pulse?.3:0);w.caves=!big&&kind!=="sea"&&f[1]<.35;w.spire=!big&&f[2]<(K.pulse?.35:.05);w.rings=f[3]<(big?.5:.03);
+    w.moons=big?1+Math.floor(f[4]*6):f[4]<.3?1:f[4]<.4?2:0;w.people=LIVED.includes(kind)&&f[5]<(kind==="garden"?.1:.03);
+    w.danger=big?0:Math.max(0,Math.min(4,WKIND[kind].danger+(f[6]<.25?1:f[6]>.85?-1:0)));
+    if(big){w.pal=GIANT_PAL[Math.floor(f[7]*GIANT_PAL.length)];w.bands=5+f[8]*9}
+    w.tint=K.tint;w.col=(big?w.pal[0]:WKIND[kind].ic).map((v,q)=>Math.min(255,v*K.tint[q]));worlds.push(w);orb*=1.42+r()*.55}
+  if(P.sent){const land=worlds.filter(w=>w.kind!=="giant"),pool=land.length?land:worlds;pool[P.h%pool.length].beacon=true}
+  return{a,s:atlStr(a),key:P.key,star,worlds,galaxy:G,code:atlCode(a),page:P}}
+// the home book charts the Ashen system as it is: the same four worlds as the system map (Cinderfall and Glasswind keep these seeds)
+function homeChart(a){const P=libPage(a,1),D={cinder:{kind:"cinder",seed:77113,size:1},home:{kind:"ash",home:"home",size:2,spire:1,caves:1,people:1,desc:"Home. Your base, your people and the twelve Spires."},
+    mire:{kind:"mire",home:"mire",seed:51217,size:2,spire:1,caves:1,ruins:1},glass:{kind:"ice",seed:90211,size:1,spire:1}};
+  const worlds=BODIES.map((b,k)=>Object.assign({k,key:b.key,name:bodyName(b.key),orbit:b.r,a0:b.a0,sp:b.w,col:b.col,tint:[1,1,1],moons:0,pg:0,danger:null,desc:b.key==="home"?"":XWORLDS[b.key].desc},D[b.key]));
+  return{home:true,a,s:atlStr(a),key:P.key,star:{kind:"amber",name:"The Ashen sun",pg:0,at:-1,len:0},worlds,galaxy:galaxy(a.f),code:atlCode(a),page:P}}
+// a world's tiles: the same 642-tile geometry as home, coloured from its own seed (home and Mirewater are the real ones)
+const WTC=new Map();
+function worldTiles(w){if(w.home==="home")return T;if(w.home==="mire")return awayTiles("mire");
+  const id=w.seed+":"+w.kind;if(WTC.has(id))return WTC.get(id);const K=WKIND[w.kind],tn=w.tint||[1,1,1],s0=SEED;let A;SEED=w.seed|0;
+  try{A=T.map((t,i)=>{const p=t.c,lat=Math.abs(p[1]);let c;
+    if(K.giant){const b=Math.sin(p[1]*w.bands+fbm(p,1.3,7.7)*2.6)*.5+.5;c=[0,1,2].map(q=>w.pal[0][q]*(1-b)+w.pal[1][q]*b)}
+    else{const e=fbm(p,1.7,5.1),m=fbm(p,2.9,23.3),r=fbm(p,3.6,61.7);
+      c=t.pent&&w.spire?[156,116,70]:K.cap&&lat>K.cap-m*.25?K.capC:e<K.sea?K.liq:e<K.sea+.07?K.shore:r>.18?K.hi:m>.05?K.wet:K.dry}
+    const j=(h3(i,5,9)-.5)*12;return{c:t.c,k:t.k,pent:t.pent,base:c.map((v,q)=>Math.max(0,Math.min(255,(v+j)*tn[q])))}})}
+  finally{SEED=s0}
+  if(WTC.size>24)WTC.delete(WTC.keys().next().value);WTC.set(id,A);return A}
+function fixAtlas(o){const p=o&&atlParse(o.at),marks=o&&Array.isArray(o.marks)?[...new Set(o.marks.map(atlParse).filter(Boolean).map(atlStr))].slice(0,ATL_MAX):[];
+  return{at:p?atlStr(p):LIB.home,marks}}
+// ---- the atlas on the system map
+let ATL={open:false,w:0,dial:null},ATL_SCREEN=[];
+const MGX=new Float32Array(CORNERS.length),MGY=new Float32Array(CORNERS.length);
+const atlSys=()=>chartSystem(S.atlas.at)||chartSystem(LIB.home);
+function atlGo(a,note){if(!a)return;const s=atlStr(a);if(!atlParse(s))return;S.atlas.at=s;const C=chartSystem(s);ATL.w=C.home?1:0;ATL.open=true;ATL.dial=null;dirty=true;
+  if(note)toast("The atlas opens at "+C.star.name+", in "+C.galaxy.name+".")}
+function atlAct(c){const A=S.atlas,W=LIB.walls;
+  if(c==="open"){ATL.open=true;ATL.dial=null;ATL.w=atlSys().home?1:0;setView("stars");return}
+  if(c==="close"){ATL.open=false;ATL.dial=null;setView("stars");return}
+  if(c.startsWith("pick:")){const k=+c.slice(5);if(atlSys().worlds[k])ATL.w=k;dirty=true;return}
+  if(c==="dial"){ATL.dial=[];dirty=true;return}
+  if(c.startsWith("g:")){const v=c.slice(2);if(v==="cancel")ATL.dial=null;else if(!ATL.dial)return;else if(v==="back")ATL.dial.pop();
+    else if(ATL.dial.length<12&&/^\d+$/.test(v)&&+v<16){ATL.dial.push(+v);if(ATL.dial.length===12){const d=ATL.dial;ATL.dial=null;atlGo(atlFromCode(d),true)}}dirty=true;return}
+  if(c==="mark"){const i=A.marks.indexOf(A.at);if(i>=0)A.marks.splice(i,1);else{A.marks.unshift(A.at);A.marks.length=Math.min(A.marks.length,ATL_MAX)}dirty=true;save();return}
+  if(c.startsWith("go:")){atlGo(atlParse(A.marks[+c.slice(3)]));return}
+  if(c==="home"){atlGo(atlParse(LIB.home));return}
+  if(c==="rand"){atlGo(atlFromCode(Array.from({length:12},()=>Math.floor(Math.random()*16))));return}
+  const a={...(atlParse(A.at)||atlParse(LIB.home))},wi=W.indexOf(a.w);
+  if(c==="b+"){if(++a.b>32){a.b=1;if(++a.s>5){a.s=1;if(wi===3){a.w=W[0];a.i++}else a.w=W[wi+1]}}}   // flip on past the shelf, the wall and the hex
+  else if(c==="b-"){if(--a.b<1){a.b=32;if(--a.s<1){a.s=5;if(wi===0){a.w=W[3];a.i--}else a.w=W[wi-1]}}}
+  else if(c==="s-")a.s=a.s>1?a.s-1:5;else if(c==="s+")a.s=a.s<5?a.s+1:1;else if(c==="w")a.w=W[(wi+1)%4];
+  else if(c==="i-")a.i--;else if(c==="i+")a.i++;else if(c==="j-")a.j--;else if(c==="j+")a.j++;else if(c==="f+")a.f++;else if(c==="f-")a.f--;else return;
+  atlGo(a)}
+const ATL_LABEL=new Map();   // bookmark labels, kept apart from the chart cache so a long browse never makes the list slow
+function atlLabel(m){if(ATL_LABEL.has(m))return ATL_LABEL.get(m);const M=chartSystem(m),L=M?[M.star.name,(M.home?"Your own sun":SKIND[M.star.kind].name)+" · "+M.galaxy.name]:null;if(L)ATL_LABEL.set(m,L);return L}
+const worldTags=w=>{const K=WKIND[w.kind],t=[K.name,K.giant?"huge":SIZES[w.size]];if(w.spire)t.push("Spire");if(w.ruins)t.push("ruins");if(w.rings)t.push("rings");if(w.people)t.push("lights");if(w.beacon)t.push("beacon");return t.join(" · ")};
+function atlSnippet(C){const a=C.a;
+  if(C.page.sent){const t=C.page.text,at=C.page.at,L=C.page.sent.length;return"Page 1: …"+t.slice(Math.max(0,at-22),at)+"<b>"+t.slice(at,at+L)+"</b>"+t.slice(at+L,at+L+22)+"…"}
+  const st=C.star;if(!st.pg)return"Page 1: "+C.page.text.slice(0,64)+"…";
+  const t=st.pg===1?C.page.text:libPage(a,st.pg).text;return"Page "+st.pg+": …"+t.slice(Math.max(0,st.at-26),st.at)+"<b>"+t.slice(st.at,st.at+st.len)+"</b>"+t.slice(st.at+st.len,st.at+st.len+34)+"…"}
+function atlasHTML(){const C=atlSys(),a=C.a,G=C.galaxy,kn=Math.max(0,Math.min(16,S.glyphs|0));
+  if(ATL.dial){const d=ATL.dial;let h='<div class="meta">Library atlas · dial an address</div><div class="tile-h">Twelve glyphs</div><div class="glyrow" aria-label="'+d.length+' of 12 glyphs">'+
+      d.map(k=>glyphSVG(k)).join("")+'<span class="glyslot">'+"·".repeat(12-d.length)+"</span></div><div class=\"pad\">";
+    for(let k=0;k<16;k++)h+='<button data-act="atl:g:'+k+'" class="'+(k<kn?"":"dim")+'" aria-label="'+GLYPHS[k][0]+'">'+glyphSVG(k)+"<small>"+k.toString(16).toUpperCase()+" "+GLYPHS[k][0]+"</small></button>";
+    return h+'</div><div class="acts">'+btn("atl:g:back","Undo","Take back the last glyph",null)+btn("atl:g:cancel","Cancel","Back to the book",null)+"</div><p>Each glyph is one hex digit of the book's code. Bright ones you have copied from ruins; a Builder Gate could only dial those.</p>"}
+  const marked=S.atlas.marks.includes(C.s);
+  let h='<div class="meta">Library atlas · '+G.name+'</div><div class="tile-h">'+C.star.name+'</div><p class="meta">'+(C.home?"Your own sun":SKIND[C.star.kind].name)+" · "+C.worlds.length+" world"+(C.worlds.length===1?"":"s")+"</p>";
+  if(C.code){const need=C.code.filter(k=>k>=kn).length;h+='<div class="glyrow" role="img" aria-label="Gate address: '+C.code.map(k=>GLYPHS[k][0]).join(", ")+'">'+C.code.map(k=>glyphSVG(k,k<kn?"":"dim")).join("")+
+    '</div><p class="meta">Code '+codeTxt(C.code)+(need?" · "+need+" glyph"+(need>1?"s":"")+" you don't know yet":" · you know every glyph in it")+"</p>"}
+  else h+='<p class="meta">Too far out for a gate address</p>';
+  h+='<div class="nav" aria-label="Flip through the Library">'+[["b-","◀ Book"],["b+","Book ▶"],["rand","Random"],["w","Wall ↻"],["s-","Shelf ▲"],["s+","Shelf ▼"],["f+","Floor ▲"],["f-","Floor ▼"],
+    ["i-","Hex ←"],["i+","Hex →"],["j-","Hex ↑"],["j+","Hex ↓"]].map(([k,l])=>'<button data-act="atl:'+k+'">'+l+"</button>").join("")+"</div>";
+  h+='<p class="page">'+atlSnippet(C)+'</p><p class="meta">Hex '+a.i+","+a.j+" · floor "+a.f+" · wall "+LIB.wn[a.w]+" · shelf "+a.s+" · book "+a.b+"</p>";
+  h+="<p>"+(C.home?"This book charts your own sun. Kestrel Station's star catalogue turned out to be a copy of the Library's: every book in it charts one star, and the same book always charts the same one.":
+    SKIND[C.star.kind].desc+(C.page.sent?" <b>This book speaks:</b> a sentence sits among the letters, and a Builder beacon repeats it.":""))+" Floor "+a.f+" of the Library is "+G.name+", "+G.desc+".</p>";
+  h+='<div class="wl">'+C.worlds.map((w,k)=>'<button class="wb'+(k===ATL.w?" on":"")+'" data-act="atl:pick:'+k+'"><span>'+ROMAN[k]+" · "+w.name+"</span><small>"+worldTags(w)+"</small></button>").join("")+"</div>";
+  const w=C.worlds[ATL.w];
+  if(w){const K=WKIND[w.kind],f=[];if(w.spire)f.push("A Builder Spire stands on it, with the same five-sided seam as the ones at home.");if(w.ruins)f.push("Builder ruins.");if(w.caves)f.push("Caves.");
+    if(w.rings)f.push("Rings.");if(w.moons)f.push(w.moons+" moon"+(w.moons>1?"s":"")+".");if(w.people&&w.home!=="home")f.push("<b>Lights on the night side.</b> Someone lives there.");if(w.beacon)f.push("<b>A Builder beacon</b> repeats this book's sentence into the dark.");
+    h+='<div class="tile-h">'+w.name+'</div><p class="meta">'+K.name+" · "+(K.giant?"huge":SIZES[w.size])+(w.danger!=null&&!K.giant?" · danger "+"●".repeat(w.danger)+"○".repeat(4-w.danger):"")+(w.pg?" · named on page "+w.pg:"")+"</p><p>"+(w.desc||K.desc)+(f.length?" "+f.join(" "):"")+"</p>"}
+  h+='<div class="acts">'+btn("atl:mark",marked?"Bookmarked ★":"Bookmark this book",marked?"Tap to take it off your list":"Keep it on your list",null,marked?"primary":"")+btn("atl:dial","Dial an address","Twelve glyphs, one book",null)+
+    (C.home?"":btn("atl:home","Your own sun","Back to the home book",null))+btn("atl:close","Close the atlas","Back to the Ashen system",null)+"</div>";
+  if(S.atlas.marks.length)h+='<div class="meta">Bookmarks</div><div class="wl">'+S.atlas.marks.map((m,k)=>{const L=atlLabel(m);return L?'<button class="wb'+(m===C.s?" on":"")+'" data-act="atl:go:'+k+'"><span>★ '+L[0]+"</span><small>"+L[1]+"</small></button>":""}).join("")+"</div>";
+  return h}
+function galDots(G){if(G.dots)return G.dots;const r=libRng(G.seed^0x5bd1e995),d=[],c=Math.cos(G.tilt),s=Math.sin(G.tilt);
+  for(let n=0;n<240;n++){let x,y,b=.4+r()*.6;
+    if(G.shape==="spiral"||G.shape==="bar"){const t=Math.pow(r(),.7),ang=(n%G.arms)/G.arms*6.2832+t*G.twist*6.2832+(r()-.5)*.5;
+      if(G.shape==="bar"&&t<.32){x=(r()*2-1)*.42;y=(r()-.5)*.12}else{x=Math.cos(ang)*(t*.95+.05);y=Math.sin(ang)*(t*.95+.05)}}
+    else if(G.shape==="ring"){const ang=r()*6.2832,rad=n<40?r()*.22:.66+(r()-.5)*.2;x=Math.cos(ang)*rad;y=Math.sin(ang)*rad}
+    else if(G.shape==="ellip"){x=(r()+r()+r()-1.5)/1.5*.95;y=(r()+r()+r()-1.5)/1.5*.6}
+    else if(G.shape==="irreg"){const k=Math.floor(r()*5);x=Math.cos(k*1.9+G.tilt)*.45+(r()-.5)*.5;y=Math.sin(k*2.7+G.tilt)*.35+(r()-.5)*.4}
+    else{x=(r()*2-1)*.9;y=(r()*2-1)*.7;b*=r()<.2?1.4:.5}
+    d.push([x*c-y*s,(x*s+y*c)*.62,Math.min(1,b)])}
+  return G.dots=d}
+function drawGalaxy(G,x,y,R,now,a){const D=galDots(G),hc=GHUE[G.hue],g=ctx.createRadialGradient(x,y,0,x,y,R*.5);g.addColorStop(0,col(hc,1.1,.5));g.addColorStop(1,col(hc,1,0));
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,R*.5,0,6.2832);ctx.fill();const z=1.4*DPR;
+  for(const d of D){ctx.fillStyle=col(hc,1,(.2+.65*d[2]).toFixed(2));ctx.fillRect(x+d[0]*R-z/2,y+d[1]*R-z/2,z,z)}
+  const m=D[libHash("pos|"+a.i+","+a.j)%D.length],bl=reduced?1:.5+.5*Math.sin(now/300);
+  ctx.strokeStyle="rgba(240,164,58,"+(.45+.55*bl).toFixed(2)+")";ctx.lineWidth=1.5*DPR;ctx.beginPath();ctx.arc(x+m[0]*R,y+m[1]*R,4*DPR,0,6.2832);ctx.stroke();
+  ctx.font=Math.round(10*DPR)+'px "Courier Prime",monospace';ctx.textAlign="left";ctx.textBaseline="top";ctx.fillStyle="rgba(232,220,194,.72)";ctx.fillText(G.name,Math.max(4*DPR,x-R),y+R*.7+4*DPR)}
+function drawMiniGlobe(w,cx,cy,r,now){const TT=worldTiles(w),M=mul(rot([1,0,0],.32),rot([0,1,0],reduced?.8:now/7000)),L=[-.56,.38,.74],lights=[];
+  for(let i=0;i<CORNERS.length;i++){const p=applyM(M,CORNERS[i]);MGX[i]=cx+p[0]*r;MGY[i]=cy-p[1]*r}
+  const hz=ctx.createRadialGradient(cx,cy,r*.94,cx,cy,r*1.24);hz.addColorStop(0,col(w.col,1,.32));hz.addColorStop(1,col(w.col,1,0));ctx.fillStyle=hz;ctx.beginPath();ctx.arc(cx,cy,r*1.24,0,6.2832);ctx.fill();
+  ctx.fillStyle="#0e0c09";ctx.beginPath();ctx.arc(cx,cy,r,0,6.2832);ctx.fill();ctx.lineJoin="round";ctx.lineWidth=Math.max(.5,.5*DPR);ctx.strokeStyle="rgba(14,11,8,.35)";
+  for(let i=0;i<TT.length;i++){const t=TT[i],q=applyM(M,t.c);if(q[2]<=.02)continue;const lam=q[0]*L[0]+q[1]*L[1]+q[2]*L[2],sh=(.2+.8*Math.max(0,lam))*(.62+.38*q[2]),c=t.base,k=t.k;
+    ctx.fillStyle="rgb("+(c[0]*sh|0)+","+(c[1]*sh|0)+","+(c[2]*sh|0)+")";ctx.beginPath();ctx.moveTo(MGX[k[0]],MGY[k[0]]);for(let m=1;m<k.length;m++)ctx.lineTo(MGX[k[m]],MGY[k[m]]);ctx.closePath();ctx.fill();if(r>70*DPR)ctx.stroke();
+    if(lam<-.04&&(w.home==="home"?S.owned.has(i):w.people&&(Math.imul(i+1,2654435761)>>>0)%7===0))lights.push(cx+q[0]*r,cy-q[1]*r)}
+  ctx.fillStyle="rgba(240,164,58,.92)";for(let n=0;n<lights.length;n+=2)ctx.fillRect(lights[n]-DPR,lights[n+1]-DPR,2*DPR,2*DPR);
+  if(w.rings){ctx.strokeStyle=col(w.col,1.1,.6);ctx.lineWidth=2*DPR;ctx.beginPath();ctx.ellipse(cx,cy,r*1.75,r*.42,-.3,0,6.2832);ctx.stroke()}}
+function drawAtlas(now){const C=atlSys();ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle="#0c0a08";ctx.fillRect(0,0,W,H);
+  for(const s of stars){const a=.25+.35*s.s+(reduced?0:.15*Math.sin(now/900+s.p));ctx.fillStyle="rgba(232,220,194,"+a.toFixed(3)+")";const z=(s.s>.92?2:1)*DPR;ctx.fillRect(s.x*W,s.y*H,z,z)}
+  const SK=SKIND[C.star.kind],wide=W>H*1.3,cx=wide?W*.42:W/2,cy=wide?H/2:H*.4,Rm=wide?Math.min(W*.72,H*1.38):Math.min(W*.86,H*1.2),sr=Math.max(7*DPR,Rm*.055*SK.size);
+  const glow=(x,y,rad,c)=>{const g=ctx.createRadialGradient(x,y,0,x,y,rad*2.2);g.addColorStop(0,"rgba(255,246,228,1)");g.addColorStop(.3,col(c,1,.95));g.addColorStop(1,col(c,1,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,rad*2.2,0,6.2832);ctx.fill()};
+  if(SK.twin){const a=reduced?.6:now/1800,d=sr*1.1;glow(cx+Math.cos(a)*d,cy+Math.sin(a)*d*.62,sr*.8,SK.col);glow(cx-Math.cos(a)*d,cy-Math.sin(a)*d*.62,sr*.62,[250,150,90])}
+  else glow(cx,cy,sr*(SK.pulse&&!reduced?1+.3*Math.max(0,Math.sin(now/160)):1),SK.col);
+  const ws=C.worlds,n=ws.length,orbR=k=>C.home?ws[k].orbit*Rm:Rm*(n===1?.27:.15+.33*k/(n-1));
+  ctx.strokeStyle="rgba(232,220,194,.14)";ctx.lineWidth=DPR;ctx.setLineDash([2*DPR,5*DPR]);for(let k=0;k<n;k++){ctx.beginPath();ctx.ellipse(cx,cy,orbR(k),orbR(k)*.62,0,0,6.2832);ctx.stroke()}ctx.setLineDash([]);
+  ATL_SCREEN=[];ctx.font=Math.round(11*DPR)+'px "Courier Prime",monospace';ctx.textAlign="center";ctx.textBaseline="top";
+  for(let k=0;k<n;k++){const w=ws[k],an=w.a0+w.sp*S.t,ox=Math.cos(an)*orbR(k),oy=Math.sin(an)*orbR(k)*.62,x=cx+ox,y=cy+oy,
+      rad=Math.max(5*DPR,Rm*(C.home?BODIES[k].s:w.kind==="giant"?.042:.013+.008*w.size)),la=Math.atan2(-oy,-ox);
+    ATL_SCREEN.push({k,x,y,r:Math.max(rad*1.8,22*DPR)});
+    const lg=ctx.createRadialGradient(x+Math.cos(la)*rad*.45,y+Math.sin(la)*rad*.45,rad*.1,x,y,rad*1.05);lg.addColorStop(0,col(w.col,1.25));lg.addColorStop(1,col(w.col,.28));
+    ctx.fillStyle=lg;ctx.beginPath();ctx.arc(x,y,rad,0,6.2832);ctx.fill();ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.stroke();
+    if(w.rings){ctx.strokeStyle=col(w.col,1.1,.55);ctx.lineWidth=1.4*DPR;ctx.beginPath();ctx.ellipse(x,y,rad*1.9,rad*.5,-.3,0,6.2832);ctx.stroke()}
+    if(w.people||w.beacon){const b=reduced?1:.6+.4*Math.sin(now/400+k);ctx.fillStyle="rgba(240,164,58,"+(.9*b).toFixed(2)+")";ctx.fillRect(x+rad*.8,y-rad*.8-3*DPR,3*DPR,3*DPR)}
+    if(k===ATL.w){ctx.strokeStyle="#e8dcc2";ctx.setLineDash([3*DPR,3*DPR]);ctx.lineWidth=1.5*DPR;ctx.beginPath();ctx.arc(x,y,rad+5*DPR,0,6.2832);ctx.stroke();ctx.setLineDash([])}
+    ctx.fillStyle="rgba(232,220,194,.92)";ctx.fillText(w.name.replace(/^the /,""),x,y+rad+(w.rings?9:7)*DPR)}
+  const gR=Math.max(24*DPR,Math.min(W,H)*.1);drawGalaxy(C.galaxy,gR+10*DPR,gR+10*DPR,gR,now,C.a);
+  const sw=ws[ATL.w];if(sw){const gr=Math.max(30*DPR,Math.min(W,H)*(wide?.17:.15));drawMiniGlobe(sw,W-gr*(sw.rings?1.85:1.3)-8*DPR,H-gr*1.25-20*DPR,gr,now)}
+  ctx.textAlign="left";ctx.textBaseline="alphabetic"}
+
 // ---------------------------------------------------------------- input
 const ptrs=new Map();let downX=0,downY=0,moved=false,pinch=0;
 const pd=()=>{const p=[...ptrs.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)};
@@ -1630,6 +1883,8 @@ const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.si
     const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<MW&&y<MH){const p=pathTo(y*MW+x);if(p)PATH=p}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="below"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const c=Math.floor(sx/GR.cw),r=Math.floor((sy-GR.gy)/GR.ch);if(c>=0&&c<COLS&&r>=0&&r<ROWS){selU=r+","+c;dirty=true}return}
+  if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="stars"&&ATL.open){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;let best=-1,bd=1e9;
+    for(const q of ATL_SCREEN){const d=Math.hypot(sx-q.x,sy-q.y);if(d<q.r&&d<bd){bd=d;best=q.k}}if(best>=0){ATL.w=best;showPeople=false;dirty=true}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="stars"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;let best=null,bd=1e9;
     for(const q of BODY_SCREEN){const d=Math.hypot(sx-q.x,sy-q.y);if(d<q.r&&d<bd){bd=d;best=q.k}}if(best){sBody=best;showPeople=false;dirty=true}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b0=cv.getBoundingClientRect(),oi=pickOrbit((e.clientX-b0.left)*DPR,(e.clientY-b0.top)*DPR);showPeople=false;if(oi>=0){selOrb=oi;dirty=true;return}selOrb=-1;}
@@ -1640,6 +1895,8 @@ cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars")return;if(V
 cv.addEventListener("keydown",e=>{
   if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-MW,ArrowDown:MW}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
     if(n>=0&&n<MW*MH&&!((mv===1&&p%MW===MW-1)||(mv===-1&&p%MW===0))){const q=pathTo(n);if(q)PATH=q}}return}
+  if(VIEW==="stars"&&ATL.open){const n=atlSys().worlds.length,mv={ArrowLeft:-1,ArrowRight:1}[e.key];if(mv){e.preventDefault();ATL.w=(ATL.w+mv+n)%n;dirty=true}
+    else if(e.key==="ArrowUp"||e.key==="ArrowDown"){e.preventDefault();atlAct(e.key==="ArrowUp"?"b-":"b+")}return}
   if(VIEW==="stars"){const ks=BODIES.map(b=>b.key),mv={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];if(mv){e.preventDefault();sBody=ks[(ks.indexOf(sBody)+mv+ks.length)%ks.length];dirty=true}return}
   if(VIEW==="below"){const mv={ArrowLeft:[0,-1],ArrowRight:[0,1],ArrowUp:[-1,0],ArrowDown:[1,0]}[e.key];if(mv){e.preventDefault();const[r,c]=(selU||"0,"+SHAFT).split(",").map(Number);selU=Math.max(0,Math.min(ROWS-1,r+mv[0]))+","+Math.max(0,Math.min(COLS-1,c+mv[1]));dirty=true}return}
   const s=30;const m={ArrowLeft:[-s,0],ArrowRight:[s,0],ArrowUp:[0,-s],ArrowDown:[0,s]}[e.key];
@@ -1718,9 +1975,9 @@ let lastSubject="";
 function renderPanel(){
   const p=$("panel"),f=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.act:null;
   // a new subject (view, tile, card, world) starts at the top of the drawer; the same subject keeps its scroll
-  const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="stars"?sBody:VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:""].join("|");
+  const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:""].join("|");
   if(subj!==lastSubject){lastSubject=subj;const d=$("drawer");if(d)d.scrollTop=0}
-  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="map"&&S.exp?mapHTML():showPeople?peopleHTML():VIEW==="stars"?starsHTML():VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
+  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="map"&&S.exp?mapHTML():showPeople?peopleHTML():VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
   $("goal").innerHTML=g?"<span>Goal: "+g.text+"</span><b>"+Math.min(g.p()[0],g.p()[1])+" / "+g.p()[1]+"</b>":"<span>Every goal met. The world remembers your lights.</span><b>✓</b>";
@@ -1729,11 +1986,13 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;doAct(b.dataset.act);renderPanel()});
 function doAct(a){
+  if(a.startsWith("atl:")){atlAct(a.slice(4));return}
   if(a.startsWith("xd:"))shipAct(a.slice(3));else if(a.startsWith("xc:"))shipAct("c:"+a.slice(3));else if(a==="xr:+")shipAct("r+");else if(a==="xr:-")shipAct("r-");
   else if(a==="xlaunch")launchExp();else if(a==="land")landAt(sel);else if(a==="xexplore"||a==="xwalk")startAwayExp(VIEW==="away"&&S.x&&a==="xwalk"&&sel<0?S.x.site:sel);
   else if(a==="flyhome")flyHome();else if(a.startsWith("dump:"))dumpHold(a.slice(5));
   else if(a==="sys"){if(S.x)sBody=S.x.w;showPeople=false;setView("stars")}
-  else if(a==="down")resolve("down");else if(a==="upcave")exitCave();else if(a.startsWith("veh:"))buildVeh(a.slice(4));   // slice 2else if(a==="view:home")setView("surface");else if(a==="view:away")setView("away");
+  else if(a==="down")resolve("down");else if(a==="upcave")exitCave();else if(a.startsWith("veh:"))buildVeh(a.slice(4));   // slice 2
+  else if(a==="view:home")setView("surface");else if(a==="view:away")setView("away");
   else if(a==="claim")claim(sel);else if(a==="raze")raze(sel);else if(a.startsWith("build:"))build(sel,a.slice(6));
   else if(a.startsWith("gear:"))craft(a.slice(5));else if(a.startsWith("silo:"))startSilo(a.slice(5));else if(a==="hide")hideAll();else if(a==="resume")resumeSilo();
   else if(a==="quota")payQuota();else if(a==="release")releaseDetained();else if(a.startsWith("hold:"))holdAct(a.slice(5));
@@ -1768,6 +2027,7 @@ function hud(){
   const al=alertText(),ab=$("alert");if(al){const sig=al.t+al.b.map(x=>x[0]).join();if(ab.dataset.sig!==sig){ab.dataset.sig=sig;ab.innerHTML="<span>"+al.t+"</span>"+al.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+x[1]+"</span></button>").join("")}ab.hidden=false}else ab.hidden=true;
   const tl=VIEW==="map"&&S.exp?xThreatsLeft(S.exp.i):0;
   $("legend").textContent=VIEW==="map"&&S.exp?(S.exp.cave?"In the cave · ":S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
+    VIEW==="stars"&&ATL.open?"Library atlas · "+atlSys().star.name+" · "+atlSys().galaxy.name:
     VIEW==="stars"?"The Ashen system"+(S.x?" · "+xShort():"")+" · codex "+S.codex.found.length:
     VIEW==="away"&&S.x?(S.x.phase==="orbit"?"In orbit over "+XWORLDS[S.x.w].name+" · tap a tile to land":XWORLDS[S.x.w].name+" · "+S.x.steps+" steps of rations · hold "+Math.floor(holdUsed())+"/"+S.x.cap):VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand:S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
   const dlft=$("digleft");if(dlft&&S.dig)dlft.textContent=Math.ceil(S.dig.left);
@@ -1820,6 +2080,7 @@ function start(data){
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
+      atlas:{chart:chartSystem,page:libPage,names:libNames,code:atlCode,fromCode:atlFromCode,galaxy,tiles:worldTiles,act:a=>{atlAct(a);renderPanel()},ui:()=>ATL,LIB,GLYPHS,SKIND,WKIND,nameOk:libNameOk,hash:libHash,rng:libRng,fix:fixAtlas},
       ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="stars")drawStars(n);else draw(n)}}};
   last=performance.now();requestAnimationFrame(frame);
   const sp=$("splash"),hadSave=!!loadSaved();

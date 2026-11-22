@@ -8,6 +8,7 @@ const MW = 11, MH = 9;
 
 // A scripted player for one tile map: picks up what it can reach, otherwise walks into the nearest fog.
 // Threats are paid off (or stepped back from), events are left alone, landmarks and finds are acknowledged.
+const ruinCards = [];   // what the ruin card said, each time one was found
 function explore(dev, { onCave = 'back' } = {}) {
   for (let guard = 0; guard < 200; guard++) {
     const card = dev.card();
@@ -16,6 +17,7 @@ function explore(dev, { onCave = 'back' } = {}) {
       if (card.kind === 'event') { dev.act('ev:close'); continue; }
       if (card.kind === 'cave') { dev.act(onCave); if (onCave === 'down') return 'down'; continue; }
       if (card.kind === 'out') return 'out';
+      if (card.kind === 'ruin') ruinCards.push(dev.panel());
       dev.act('ok'); continue;
     }
     if (!dev.S().exp) return 'left';
@@ -148,6 +150,7 @@ test('caves: climb down, find an artifact or a glyph, climb back up', () => {
   for (let n = 0; n < 4; n++) { S.res.food = 400; S.res.water = 400; S.res.scrap = 400; dev.mapState().rev = '1'.repeat(MW * MH); explore(dev); }
   assert.equal(S.arts.length, arts0 + 1, 'the artifact is yours');
   assert.equal(S.glyphs, glyphs0 + 1, 'the glyph is copied');
+  assert.ok(ruinCards.some(h => /class="glyrow"/.test(h) && /The \w+ glyph/.test(h)), 'the ruin card shows which glyph it was');
   dev.act('upcave');
   assert.ok(!S.exp.cave, 'back on the surface');
   assert.equal(S.exp.pos, M.pois[mouth].k, 'standing at the cave mouth');
