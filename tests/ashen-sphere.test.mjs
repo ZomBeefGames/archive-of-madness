@@ -46,7 +46,7 @@ test('the Kestrel programme and named people are wired in',()=>{
   assert.match(page,/space:\{scoutDv:2800,rescueDv:3200/);
   assert.match(page,/function rocket\(d,ms\)/);
   assert.match(page,/function reconcile\(\)/);
-  assert.match(page,/!\[5,6,7,8\]\.includes\(o\.v\)/);   // v5, v6 and v7 saves still load
+  assert.match(page,/!\[5,6,7,8,9\]\.includes\(o\.v\)/);   // v5 to v8 saves still load
 });
 
 test('expeditions: the ship, the system map and Mirewater are wired in',()=>{
@@ -56,6 +56,16 @@ test('expeditions: the ship, the system map and Mirewater are wired in',()=>{
     assert.match(page,new RegExp('function '+f+'\\('),f);
   assert.match(page,/<button id="sys" aria-label="System map" hidden>/);
   assert.match(page,/\["The expedition ship is home",!S\.x\]/);   // the world can't crack with the crew away
+});
+
+test('slice 2 is wired in: garage, vehicles, caves, seabeds, artifacts, glyphs',()=>{
+  assert.match(page,/veh:\{garage:\{scrap:140\},crawler:\{scrap:120\},skimmer:\{scrap:150,water:20\},bell:\{scrap:170\}/);
+  for(const f of ['seaMap','caveMap','caveState','addCaveMouth','enterCave','exitCave','buildVeh','garageHTML','seaHTML','reachHome','reachAway'])
+    assert.match(page,new RegExp('function '+f+'\\('),f);
+  assert.match(page,/if\(T\[i\]\.b==="sea"\)\{const m=seaMap\(i,null\);MAPS\.set\(i,m\);return m\}/);   // seabeds for home sea tiles
+  assert.match(page,/const m=addCaveMouth\(\{g,pois,entry\},i,b,null\);MAPS\.set\(i,m\);return m\}/);   // the cave mouth is appended last
+  const arts=page.match(/const ARTS=\{([\s\S]*?)\n\};/)[1];
+  assert.equal([...arts.matchAll(/^\s+(\w+):\s*\{name:/gm)].length,8,'eight rare artifacts');
 });
 
 test('expedition rocket maths: the default ship reaches Mirewater with a safe margin, a Thud ship cannot',()=>{
