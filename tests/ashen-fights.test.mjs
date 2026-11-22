@@ -92,7 +92,8 @@ test('a fight you play: the stick, the button, a puppet that can go on alone, an
   assert.ok(F && F.kind === 'threat' && F.g.f[0].ctl === 'cab', 'you hold the rod');
   assert.equal(els.get('fdeck').hidden, false, 'the stick and button show');
   assert.match(dev.panel(), /against the /);
-  assert.equal(F.g.start[0].bubble, 1, 'armour: a spare balloon every round');
+  assert.ok(F.g.f[0].ab.includes('armour'), 'armour is an ability now: Plate Armour');
+  assert.equal(F.g.f[0].pu.bubble, 1, 'a spare balloon every round');
   for (let n = 0; n < 90; n++) dev.fight.tick(1 / 30);
   dev.draw();
   assert.ok(F.g.t > 2, 'the fight runs');

@@ -91,6 +91,13 @@ button.act.warn:hover:not(:disabled){border-color:var(--rust)}
 .fbtn.down{transform:translateY(4px);box-shadow:0 1px 0 #4a0f1c}
 .fscore{font-size:13px}.fscore b{color:var(--lamp);font-size:16px}
 .pface{vertical-align:-5px;margin-right:5px}
+.fmid{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.fabs{display:flex;flex-direction:column;gap:6px;width:100%;max-width:210px}.fabs[hidden]{display:none}
+.fab{display:flex;align-items:center;gap:5px;width:100%;min-height:40px;padding:4px 9px;border-radius:20px;border:1px solid var(--line);background:#241c14;color:var(--paper);font:inherit;font-size:12px;font-weight:700;line-height:1.2;text-align:left;touch-action:none;cursor:pointer;box-shadow:0 3px 0 #120e0a}
+.fab:active{transform:translateY(2px);box-shadow:0 1px 0 #120e0a}.fab.used{opacity:.38;box-shadow:none}.fab kbd{margin-left:auto;font:inherit;font-size:10px;font-weight:400;color:var(--paper-dim);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.foepic{float:right;width:150px;height:100px;margin:0 0 6px 10px;border-radius:6px;background:radial-gradient(circle at 50% 70%,#2c241a,#15110c)}
+@media (pointer:coarse){.fhint{display:none}}
+.abchip{display:inline-block;flex:0 0 auto;width:12px;height:12px;border-radius:50%;margin-right:4px;vertical-align:-1px;border:1px solid rgba(0,0,0,.55)}.abchip.on{outline:1px dashed rgba(255,255,255,.65);outline-offset:1px}.abchip.dim{opacity:.35}
 button:disabled{opacity:.42;cursor:not-allowed}
 :focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
 .goal{border-top:1px dashed var(--line);padding-top:8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px}
@@ -163,7 +170,7 @@ button:disabled{opacity:.42;cursor:not-allowed}
       <div class="alert" id="alert" hidden role="status"></div>
     </div>
     <aside class="drawer" id="drawer">
-      <div class="fdeck" id="fdeck" hidden><div class="fstick" id="fstick" role="img" aria-label="The stick: your puppet's rod"><div class="fball" id="fball"></div></div><p class="fhint">Stick: arrows or WASD<br>Button: Space or Enter</p><button class="fbtn" id="fbtn" type="button" aria-label="The button: fire, thrust, throw or punch">FIRE</button></div>
+      <div class="fdeck" id="fdeck" hidden><div class="fstick" id="fstick" role="img" aria-label="The stick: your puppet's rod"><div class="fball" id="fball"></div></div><div class="fmid"><div class="fabs" id="fabs" hidden></div><p class="fhint">Stick: arrows or WASD<br>Button: Space or Enter<br>Abilities: Q and E</p></div><button class="fbtn" id="fbtn" type="button" aria-label="The button: fire, thrust, throw or punch">FIRE</button></div>
       <div id="panel"></div>
       <div class="goal" id="goal"></div>
       <div class="log" id="log"></div>
@@ -383,9 +390,9 @@ const pickStarters=()=>{const nb=T[START].n.filter(land).filter(j=>!T[j].pent);
   const w=nb.find(j=>T[j].coast)??nb[0],f=nb.filter(j=>j!==w).sort((a,b)=>(T[b].b==="woods")-(T[a].b==="woods"))[0];return[[w,"still"],[f,"green"]]};
 let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
-  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
+  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:9,fw:S.fw,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function ser(){return{v:9,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
 function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
@@ -396,7 +403,7 @@ function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o
     k:fixK(Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:null,dest:"mire",rations:40,crew:[]},o.k&&typeof o.k==="object"?o.k:{})),
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
     codex:fixCodex(o.codex),x:sanX(o.x),veh:o.veh&&typeof o.veh==="object"?Object.fromEntries(Object.keys(VEH).filter(k=>o.veh[k]).map(k=>[k,1])):{},
-    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
+    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
     h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
 const KEY="ashen-sphere-v9",OLD_KEYS=["ashen-sphere-v8","ashen-sphere-v7","ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
@@ -454,7 +461,7 @@ let E;
 function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
 function step(dt,quiet){
   reconcile();E=econ();
-  S.t+=dt;
+  S.t+=dt;abTick(dt,quiet);
   S.res.scrap+=E.sc*dt;S.res.water+=E.wa*dt;S.res.food+=E.fo*dt;
   const dry=S.res.water<=0||S.res.food<=0;
   for(const k of["scrap","water","food"])S.res[k]=Math.max(0,Math.min(E.store,S.res[k]));
@@ -1188,7 +1195,7 @@ function feature(b,x,y,cs,lit){ctx.save();ctx.translate(x,y);const ink="#16110c"
   else if(b==="cave"){ctx.fillStyle=col([104,94,84],lit);ctx.beginPath();ctx.moveTo(cs*.08,cs*.95);ctx.lineTo(cs*.28,cs*.3);ctx.lineTo(cs*.48,cs*.62);ctx.lineTo(cs*.66,cs*.12);ctx.lineTo(cs*.92,cs*.95);ctx.closePath();ctx.fill();ctx.stroke()}
   else{ctx.fillStyle=col(b==="crags"?[104,98,94]:[96,90,80],lit);ctx.beginPath();ctx.moveTo(cs*.12,cs*.85);ctx.lineTo(cs*.22,cs*.4);ctx.lineTo(cs*.5,cs*.18);ctx.lineTo(cs*.8,cs*.35);ctx.lineTo(cs*.9,cs*.85);ctx.closePath();ctx.fill();ctx.stroke()}
   ctx.restore()}
-function poiIcon(p,x,y,cs,done,now){const s=cs*.3,ink="#16110c";
+function poiIcon(p,x,y,cs,done,now,ix){const s=cs*.3,ink="#16110c";
   if(p.type==="survivor"){person(x,y+cs*.36,cs*.7,7,now,STRANGER,{mood:"worry",f:-1});return}
   if(p.type==="landmark"){glyph("flag",x,y,cs*.42,done?.8:1);return}
   ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.05);ctx.strokeStyle=ink;
@@ -1196,7 +1203,9 @@ function poiIcon(p,x,y,cs,done,now){const s=cs*.3,ink="#16110c";
   else if(p.type==="spring"){ctx.fillStyle="#6f9fb8";ctx.beginPath();ctx.moveTo(0,-s*1.1);ctx.quadraticCurveTo(s*1.1,s*.2,0,s*.9);ctx.quadraticCurveTo(-s*1.1,s*.2,0,-s*1.1);ctx.fill();ctx.stroke()}
   else if(p.type==="garden"){ctx.fillStyle="#7fa860";ctx.beginPath();ctx.ellipse(-s*.45,-s*.2,s*.5,s*.28,-.6,0,6.2832);ctx.fill();ctx.stroke();ctx.beginPath();ctx.ellipse(s*.45,-s*.35,s*.5,s*.28,.6,0,6.2832);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(0,s);ctx.lineTo(0,-s*.2);ctx.stroke()}
   else if(p.type==="threat"){const th=thOf(p.t);ctx.fillStyle="#c0623a";ctx.beginPath();ctx.moveTo(0,-s*1.2);ctx.lineTo(s*1.2,0);ctx.lineTo(0,s*1.2);ctx.lineTo(-s*1.2,0);ctx.closePath();ctx.fill();ctx.stroke();
-    ctx.fillStyle=ink;const n=Math.max(1,th.lvl);for(let j=0;j<n;j++)ctx.fillRect(-n*s*.21+j*s*.42,-s*.12,s*.26,s*.26)}
+    ctx.fillStyle=ink;const n=Math.max(1,th.lvl);for(let j=0;j<n;j++)ctx.fillRect(-n*s*.21+j*s*.42,-s*.12,s*.26,s*.26);
+    // the creature itself, standing on its marker (once you can see it)
+    if(th.lvl>0&&!done&&S.exp){const ic=foeIcon(p.t,S.exp.i,ix|0);if(ic){const w=cs*1.35,h=w*ic.height/ic.width;ctx.drawImage(ic,-w/2,s*.9-h,w,h)}}}
   else if(p.type==="pack"){ctx.fillStyle="#8a9a5b";ctx.beginPath();ctx.moveTo(-s,s*.8);ctx.lineTo(0,-s);ctx.lineTo(s,s*.8);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle=ink;ctx.fillRect(-s*.15,s*.1,s*.3,s*.7)}
   else if(p.type==="event"){ctx.fillStyle="#efe2c4";ctx.fillRect(-s*.8,-s,s*1.6,s*2);ctx.strokeRect(-s*.8,-s,s*1.6,s*2);ctx.fillStyle=ink;ctx.font="bold "+Math.round(s*1.4)+'px "Courier Prime",monospace';ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("?",0,s*.1)}
   // slice 2: a cave mouth, a rare artifact, a Builder ruin with a glyph
@@ -1215,7 +1224,7 @@ function drawMap(now){
     ctx.fillStyle=col(base,(.86+h3(i,k,3)*.22)*lit);ctx.fillRect(x,y,cs+1,cs+1);
     if(M.g[k]===2){ctx.fillStyle=col(base,.5*lit);for(let s=0;s<5;s++)ctx.fillRect(x+h3(i,k,40+s)*cs*.8,y+h3(i,k,50+s)*cs*.8,cs*.15,cs*.1)}
     if(M.g[k]===1)feature(b,x,y,cs,lit)}
-  M.pois.forEach((p,ix)=>{const got=ms.got.includes(ix);if((got&&p.type!=="landmark")||ms.rev[p.k]!=="1")return;poiIcon(p,ox+(p.k%MW+.5)*cs,oy+(((p.k/MW)|0)+.5)*cs,cs,got,now)});
+  M.pois.forEach((p,ix)=>{const got=ms.got.includes(ix);if((got&&p.type!=="landmark")||ms.rev[p.k]!=="1")return;poiIcon(p,ox+(p.k%MW+.5)*cs,oy+(((p.k/MW)|0)+.5)*cs,cs,got,now,ix)});
   const ex=ox+(M.entry%MW)*cs,ey=oy+((M.entry/MW)|0)*cs;ctx.strokeStyle="#f0a43a";ctx.lineWidth=2*DPR;ctx.setLineDash([3*DPR,3*DPR]);ctx.beginPath();ctx.moveTo(ex,ey+cs-DPR);ctx.lineTo(ex+cs,ey+cs-DPR);ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle="rgba(240,164,58,.6)";for(const k of PATH)ctx.fillRect(ox+(k%MW+.5)*cs-1.5*DPR,oy+(((k/MW)|0)+.5)*cs-1.5*DPR,3*DPR,3*DPR);
   const sx=ox+(e.pos%MW+.5)*cs,sy=oy+(((e.pos/MW)|0)+.5)*cs;
@@ -1232,12 +1241,14 @@ function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i)
     if(CARD.kind==="artifact"){const A=ARTS[CARD.art];return'<div class="meta">Rare artifact</div><div class="tile-h">'+A.name+"</div><p>"+A.desc+"</p><p><b>"+A.txt+"</b> "+(CARD.note||(aw?"It works once the crew brings it home.":"It works from now on."))+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
     if(CARD.kind==="ruin"){const G=CFG.veh.glyphs,n=Math.min(G,S.glyphs+(aw?S.x.glyphs:0));return'<div class="meta">Builder ruin</div><div class="tile-h">A glyph</div><p>A wall of Builder marks around a sealed arch. One mark is cut deeper than the rest, and you copy it down.</p>'+(CARD.note?"":'<div class="glyrow">'+glyphSVG(Math.max(0,n-1))+"</div><p><b>The "+GLYPHS[Math.max(0,n-1)][0]+" glyph.</b> In the Library atlas it is the digit "+Math.max(0,n-1).toString(16).toUpperCase()+".</p>")+'<p>'+
       (CARD.note||"Glyphs: "+n+" of "+G+". A Builder Gate would need them."+(aw?" They come home with the crew.":""))+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
-    if(CARD.kind==="threat"){const th=thOf(M.pois[CARD.pi].t),q=aw?crewP():squadP(),P=q.P,pct=Math.round(100*P/(P+th.lvl));
+    if(CARD.kind==="threat"&&CARD.abPick)return abPickHTML();
+    if(CARD.kind==="threat"){const th=thOf(M.pois[CARD.pi].t),q=aw?crewP():squadP(),P=q.P,pct=Math.round(100*P/(P+th.lvl)),FO=foeOf(M.pois[CARD.pi].t,i,CARD.pi);
       let h='<div class="meta">Threat · danger '+th.lvl+'</div><div class="tile-h">'+th.name+"</div><p>"+th.desc+"</p>";
       if(th.lvl>0)h+="<p>"+(aw?"Crew":"Squad")+" strength "+P+" ("+q.base+" from your people"+(q.gear?", "+q.gear+" from gear":"")+(q.morale?", "+q.morale+(aw?" from skill and rest":" from morale"):"")+") against danger "+th.lvl+": "+pct+"% to win. If you lose, the "+(aw?"crew goes back to the ship hurt":"squad comes home hurt")+" and rests for a while. The threat stays. Nobody dies.</p>";
+      if(th.lvl>0)h=foePic(FO)+h+threatAbHTML(FO);
       const payB=aw?btn("pay",th.payTxt,"Costs "+th.pay+" steps of rations · always works",null,th.lvl>0?"":"primary",S.x.steps<th.pay):btn("pay",th.payTxt,"Costs "+costText(th.pay)+" · always works",th.pay,th.lvl>0?"":"primary");
       h+='<div class="acts">'+(th.lvl>0?btn("play","Fight it out","You work the stick · "+FW[fightWeapon()].name.toLowerCase(),null,"primary")+btn("fight","Quick fight",pct+"% to win",null):"")+payB+btn("back","Step back","Deal with it later",null)+
-        (th.lvl>0&&fightWeapons().length>1?btn("fw","Weapon: "+FW[fightWeapon()].name,"Tap to switch",null):"")+"</div>";return h}
+        (th.lvl>0&&fightWeapons().length>1?btn("fw","Weapon: "+FW[fightWeapon()].name,"Tap to switch",null):"")+(th.lvl>0&&abKnown().some(abActive)?btn("fab","Abilities","Pick the two you bring",null):"")+"</div>";return h}
     if(CARD.kind==="event"&&aw){const ev=AEVENTS[M.pois[CARD.pi].e];return'<div class="meta">Event</div><div class="tile-h">'+ev.title+"</div><p>"+ev.text+'</p><div class="acts">'+
       ev.opts.map((o,j)=>btn("ev:"+o[1],o[0],(o[2]?"Costs "+o[2]+" steps"+(o[3]?" · ":""):"")+(o[3]||(o[1]==="close"?"It stays here for later":"")),null,j===0?"primary":"",o[2]>S.x.steps)).join("")+"</div>"}
     if(CARD.kind==="landmark"&&aw){const c=CODEX[M.pois[CARD.pi].cx];return'<div class="meta">Site · for the codex</div><div class="tile-h">'+c.site.charAt(0).toUpperCase()+c.site.slice(1)+"</div><p>"+c.desc+"</p><p><b>"+c.name+".</b> "+c.txt+" "+(CARD.note||"It goes in the codex when the crew gets home.")+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
@@ -1934,7 +1945,7 @@ var BAL_K = 330, BAL_C = 8.5;      // the balloon wobbles on its neck
 // how shots fly (units a second, and their drop): slow enough to see coming and duck. Every shot is tied to its
 // shooter by a string: it flies out until the string runs out (then swings on it), and once it hits something, or
 // has swung a moment, it reels back to the hand. Until it's back, it's your only shot.
-var TACK_V = 650, TACK_G = 300, STAR_V = 720, STAR_G = 220, ARROW_G = 760;
+var TACK_V = 650, TACK_G = 300, STAR_V = 720, STAR_G = 220, ARROW_G = 760, SPIT_V = 560, SPIT_G = 520;
 var REEL_V = 760, OUT_T = 1.3, TAUT_T = 0.22, STRING = 0.82;   // reel speed, longest flight, swing on a taut string, string per board
 function arrowV(draw) { return 320 + 680 * draw; }
 var WPN = {
@@ -1946,6 +1957,9 @@ var WPN = {
     tip: "Hold to draw, let go to loose an arrow on a string. A longer draw flies faster and flatter; arrows drop, so aim a little high. One that runs out of string swings down on it." },
   star: { k: "star", name: "THROWING STARS", D: 420, minD: 300, blurb: "A star on a string. It bounces.",
     tip: "Tap to throw your star on its string. It bounces off the board once, swings when the string runs out, and knocks the other star back." },
+  bite: { k: "bite", name: "BITE", D: 300, minD: 250, blurb: "Lunge and snap.", tip: "Tap to lunge and bite: the jaws pop the balloon they close on, but the head goes in with them." },
+  claw: { k: "claw", name: "CLAWS", D: 300, minD: 250, blurb: "A clean pinch pops it.", tip: "Claws work like gloves, only sharp: one clean pinch pops it. Tap to pinch, hold and let go to crush. A raised claw guards." },
+  spit: { k: "spit", name: "SPIT", D: 380, minD: 300, blurb: "A glob of acid.", tip: "Tap to spit a glob of acid: it flies free, arcs and drops, and splashes where it lands." },
   box: { k: "box", name: "BOXING", D: 232, minD: 212, blurb: "Three clean punches pop it.",
     tip: "Gloves don't pop it; three clean punches do. Tap to jab, hold and let go for a haymaker (it counts twice). Pull back to guard." }
 };
@@ -1984,7 +1998,8 @@ function freshPU() { var p = { shieldN: 0 }; PUPS.forEach(function (q) { p[q.k] 
 
 // ---------- a pose from the rod: hu leans in (0 back, 1 lunging, past 1 the arm stretches), hv stands up (0 crouched) ----------
 var PL = {};
-function poseLocal(hu, hv, o) {
+function poseLocal(hu, hv, o, al) {
+  al = al || 1;
   hu = clamp(hu, -0.15, 1.4);   // the rod's reach ends here, for a real pose or a rival's guess at one
   var c = clamp(1 - hv, 0, 1), uu = Math.min(hu, 1), lean = lerp(-0.22, 0.5, uu);
   var kn = lerp(0.2, 2.1, c), phS = 0.45 * lean + 0.5 * kn, phT = phS - kn, phO = 0.9 * lean + 0.3 * c;
@@ -1993,20 +2008,21 @@ function poseLocal(hu, hv, o) {
   o.sx = o.px + LO * Math.sin(phO); o.sy = o.py + LO * Math.cos(phO);
   o.nx = o.sx + LN * Math.sin(phO); o.ny = o.sy + LN * Math.cos(phO);
   o.tilt = phO;
-  var a = lerp(-0.55, 0.6, clamp(hv, -0.12, 1.12)), ext = lerp(0.7, 1, uu) * LA + Math.max(0, hu - 1) * 70;
+  var a = lerp(-0.55, 0.6, clamp(hv, -0.12, 1.12)), ext = (lerp(0.7, 1, uu) * LA + Math.max(0, hu - 1) * 70) * al;
   o.aim = a; o.ca = Math.cos(a); o.sa = Math.sin(a);
   o.hx = o.sx + ext * o.ca; o.hy = o.sy + ext * o.sa;
   // the elbow bends down
-  var dx = o.hx - o.sx, dy = o.hy - o.sy, d = Math.min(Math.sqrt(dx * dx + dy * dy), LA - 0.01);
-  var b = Math.atan2(dy, dx) - Math.acos(clamp((LU * LU + d * d - LF * LF) / (2 * LU * d), -1, 1));
-  o.ex = o.sx + LU * Math.cos(b); o.ey = o.sy + LU * Math.sin(b);
+  var U = LU * al, Fq = LF * al, dx = o.hx - o.sx, dy = o.hy - o.sy, d = Math.min(Math.sqrt(dx * dx + dy * dy), U + Fq - 0.01);
+  var b = Math.atan2(dy, dx) - Math.acos(clamp((U * U + d * d - Fq * Fq) / (2 * U * d), -1, 1));
+  o.ex = o.sx + U * Math.cos(b); o.ey = o.sy + U * Math.sin(b);
   return o;
 }
 // the same pose on the board, for the puppet facing f from its feet at fx; (dx, dy) is where its weapon points
 // and (qx, qy) the weapon's top side
 function poseInto(F, hu, hv, o) {
-  poseLocal(hu, hv, PL);
-  var f = F.f, x0 = F.fx;
+  poseLocal(hu, hv, PL, F.look.al);
+  var wu0 = walkU(F, hu, o), f = F.f, x0 = F.fx + F.f * (adv(F, wu0) + (F.look.walk ? (F.pounce || 0) * pounceAt(F, hu, wu0, o) : 0));
+  o.adv = x0 - F.fx;
   o.kx = x0 + f * PL.kx; o.ky = FOOT_Y + PL.ky;
   o.px = x0 + f * PL.px; o.py = FOOT_Y + PL.py;
   o.sx = x0 + f * PL.sx; o.sy = FOOT_Y + PL.sy;
@@ -2019,9 +2035,14 @@ function poseInto(F, hu, hv, o) {
 }
 // the weapon's working points: (tx, ty) is the pin, the arrow's tip, the star in hand or the lead glove
 function gear(F, g, o, draw) {
-  var k = g.wk, ext = F.pu.extendo > 0;
+  var k = F.wk, ext = F.pu.extendo > 0;
   o.dual = false;
-  if (k === "gun") {
+  if (k === "bite" || k === "spit") {
+    // (Ashen Sphere) the mouth, in front of the head along where it aims; POUNCE (extendo) reaches further
+    var L = F.look, sb = Math.max(0.3, F.b.inf) * (L.big || 1) * F.bs, lift = BRY * 0.92 * sb * (L.bh || 1);
+    var cx = o.nx + o.ux * lift, cy = o.ny + o.uy * lift, R = BRX * sb * (L.bw || 1) * 0.9 + (L.snl || 18) + (ext ? 44 : 0);
+    o.mR = R; o.tx = cx + o.dx * R; o.ty = cy + o.dy * R; o.mx = o.tx; o.my = o.ty; o.wax = cx; o.way = cy;
+  } else if (k === "gun") {
     o.wax = o.hx + o.qx * 5 - o.dx * 5; o.way = o.hy + o.qy * 5 - o.dy * 5;
     o.mx = o.hx + o.dx * 40 + o.qx * 5; o.my = o.hy + o.dy * 40 + o.qy * 5;
     o.tx = o.mx + o.dx * 6; o.ty = o.my + o.dy * 6;
@@ -2045,7 +2066,7 @@ function gear(F, g, o, draw) {
   } else if (k === "star") {
     o.tx = o.hx + o.dx * 12; o.ty = o.hy + o.dy * 12;
   } else {
-    var gr = ext ? 54 : 8;   // with EXTENDO the glove rides out on a spring
+    var gr = (ext ? 54 : 8) + (F.look.talon || 0);   // with EXTENDO the glove rides out on a spring (and talons reach past the hand)
     o.gx = o.hx + o.dx * gr; o.gy = o.hy + o.dy * gr; o.tx = o.gx; o.ty = o.gy;
   }
   return o;
@@ -2053,32 +2074,36 @@ function gear(F, g, o, draw) {
 function setSeg(s, ax, ay, bx, by, r) { s.ax = ax; s.ay = ay; s.bx = bx; s.by = by; s.r = r; }
 // the puppet's pose this step, and the wood that stops shots: legs, body, neck, arm and the weapon
 function pose(g, F) {
-  var P = gear(F, g, poseInto(F, F.hu, F.hv, F.p), F.w.draw), S = F.segs, k = g.wk;
-  setSeg(S[0], F.fx, FOOT_Y, P.kx, P.ky, 5);
+  var P = gear(F, g, poseFor(F, F.hu, F.hv, F.p), F.w.draw), S = F.segs, k = F.wk;
+  setSeg(S[0], F.fx + (P.adv || 0), FOOT_Y, P.kx, P.ky, 5);
   setSeg(S[1], P.kx, P.ky, P.px, P.py, 5);
   setSeg(S[2], P.px, P.py, P.sx, P.sy, 6);
   setSeg(S[3], P.sx, P.sy, P.nx, P.ny, 4);
   setSeg(S[4], P.sx, P.sy, P.ex, P.ey, 4.5);
   setSeg(S[5], P.ex, P.ey, P.hx, P.hy, 4.5);
   F.nseg = 6;
+  if (F.look.body) bodySegs(F, P, S);   // (Ashen Sphere) a dog, a serpent, a crab or a crawler blocks with its own shape
+  // the mouth works from the head where it really is, a moment behind the rod
+  if (isMouth(k) && F.b.alive && F.b.inf > 0.5) { P.tx = F.b.x + P.dx * P.mR; P.ty = F.b.y + P.dy * P.mR; P.mx = P.tx; P.my = P.ty; }
   // (a bow's thin limb lets arrows past; a gun's body and a blade don't)
-  if (k === "gun" || k === "sword") { setSeg(S[6], P.wax, P.way, P.mx, P.my, k === "gun" ? 5 : 3.5); F.nseg = 7; }
-  else if (k === "box") {
+  if (k === "gun" || k === "sword") { setSeg(S[F.nseg], P.wax, P.way, P.mx, P.my, k === "gun" ? 5 : 3.5); F.nseg++; }
+  else if (isFist(k)) {
     // the other glove: at the chest, or up in front of the balloon when guarding (with DUAL WIELD it punches too)
     var b = F.b;
-    P.ggx = lerp(P.sx + P.dx * 22, b.x + F.f * BRX * 0.95 * F.bs, F.gs); P.ggy = lerp(P.sy - 18, b.y - 6, F.gs);
+    P.ggx = lerp(P.sx + P.dx * 22, b.x + F.f * BRX * 0.95 * F.bs * (F.look.big || 1) * (F.look.bw || 1), F.gs); P.ggy = lerp(P.sy - 18, b.y - 6, F.gs);
     if (F.pu.dual > 0 && F.gs < 0.5) { P.ggx = P.gx - P.dx * 8; P.ggy = P.gy - 17; }
   }
   // a RIOT SHIELD is held up in front of the balloon
+  contSeg(F);
   F.shOn = F.pu.shield > 0 && F.pu.shieldN > 0;
-  if (F.shOn) { var bb = F.b, sc = bb.inf * F.look.big * F.bs, x = bb.x + F.f * (BRX * sc + 18); setSeg(F.sh, x, bb.y - BRY * sc - 34, x + F.f * 5, bb.y + BRY * sc + 8, 6); }
+  if (F.shOn) { var bb = F.b, sc = bb.inf * F.look.big * F.bs, x = bb.x + F.f * (BRX * sc * (F.look.bw || 1) + 18); setSeg(F.sh, x, bb.y - BRY * sc - 34, x + F.f * 5, bb.y + BRY * sc + 8, 6); }
 }
 
 // ===================== a fight =====================
 function newFighter(i, look, ctl) {
-  var segs = []; for (var k = 0; k < 8; k++) segs.push({ ax: 0, ay: 0, bx: 0, by: 0, r: 4, part: k });
-  return { i: i, f: i ? -1 : 1, fx: 0, look: shades(look), ctl: ctl, bot: typeof ctl === "number" ? makeBot(skillAt(ctl)) : SKILLS[ctl] ? makeBot(SKILLS[ctl]) : null,
-    u: 0.42, v: 0.62, hu: 0.42, hv: 0.62, vu: 0, vv: 0, sx: 0, sy: 0, btn: false, prev: false, guard: false, gs: 0, parryAt: -9,
+  var segs = []; for (var k = 0; k < 12; k++) segs.push({ ax: 0, ay: 0, bx: 0, by: 0, r: 4, part: k });
+  return { i: i, f: i ? -1 : 1, fx: 0, look: shades(look), ctl: ctl, wk: "gun", ab: [], abU: {}, abW: 0, fz: "", bot: typeof ctl === "number" ? makeBot(skillAt(ctl)) : SKILLS[ctl] ? makeBot(SKILLS[ctl]) : null,
+    u: 0.42, v: 0.62, hu: 0.42, hv: 0.62, vu: 0, vv: 0, hu0: 0.42, vu0: 0, sx: 0, sy: 0, btn: false, prev: false, guard: false, gs: 0, parryAt: -9,
     p: {}, segs: segs, nseg: 6,
     pu: freshPU(), bs: 1, inner: 1, hl: 0, iframe: 0, uiT: 0, uiU: 0, uiV: 0, uiFx: 0, shOn: false, sh: { ax: 0, ay: 0, bx: 0, by: 0, r: 6 }, dk: { x: 0, y: 0, vy: 0 },
     b: { x: 0, y: 0, vx: 0, vy: 0, rot: 0, sq: 0, vs: 0, alive: true, inf: 1, pr: 0, hitT: -9 },
@@ -2088,14 +2113,17 @@ function newFighter(i, look, ctl) {
 // o: { weapon, seed, mode ("arcade", "free", "friend", "demo", "test"), look0, look1, ctl0, ctl1, tier, need, intro, pups }
 // A controller is "cab" (the cabinet), "p2" (player 2's keys or pad), "idle", "script" (tests) or a rival's skill.
 function newMatch(o) {
-  var Wd = WPN[o.weapon];
-  var g = { seed: o.seed >>> 0, r: mulberry((o.seed >>> 0) || 7), mode: o.mode, wk: o.weapon, W: Wd, D: Wd.D, boardHW: Wd.D / 2 + 125,
+  // (Ashen Sphere) each side has its own weapon, and the closer one sets how far apart the puppets stand
+  // (a creature that walks in fights at the other side's distance; otherwise the closer weapon sets it)
+  var w0 = o.weapon0 || o.weapon, w1 = o.weapon1 || o.weapon, D0 = o.look1.walk ? WPN[w0].D : o.look0.walk ? WPN[w1].D : Math.min(WPN[w0].D, WPN[w1].D), Wd = { D: D0, minD: Math.min(WPN[w0].minD, WPN[w1].minD, Math.round(D0 * 0.86)) };
+  var g = { seed: o.seed >>> 0, r: mulberry((o.seed >>> 0) || 7), mode: o.mode, wk: w0, W: Wd, D: Wd.D, boardHW: Wd.D / 2 + 125, abLog: [],
     t: 0, pt: 0, rt: 0, phase: "inflate", round: 1, wins: [0, 0], needs: o.needs || [NEED, NEED], start: o.start || null, tier: o.tier || 0, demo: !!o.demo, test: !!o.test,
     f: [], shots: [], fx: [], ev: [], cap: null, pops: [], popLog: [], over: null, score: 0, nid: 1, closing: false,
     lastWin: -1, popCam: null, resolved: true, bonus: [], tx: 0, pups: !!o.pups, crate: null, crateT: 0, lastPU: "" };
   g.crateT = g.pups ? 1.2 + 0.8 * g.r() : 0;
   g.f.push(newFighter(0, o.look0, o.ctl0)); g.f.push(newFighter(1, o.look1, o.ctl1));
-  resetRound(g);
+  g.f[0].wk = w0; g.f[1].wk = w1; g.f[0].ab = (o.ab0 || []).slice(); g.f[1].ab = (o.ab1 || []).slice();
+  resetRound(g); walkers(g);
   if (o.intro) { g.phase = "intro"; g.f[0].b.inf = g.f[1].b.inf = 1; }
   return g;
 }
@@ -2107,7 +2135,7 @@ function resetRound(g) {
   g.fx = keep.slice(-50);
   for (i = 0; i < 2; i++) {
     var F = g.f[i], w = F.w, b = F.b;
-    F.fx = (i ? 1 : -1) * g.D / 2; F.u = F.hu = 0.42; F.v = F.hv = 0.62; F.vu = F.vv = 0; F.guard = false; F.gs = 0; F.parryAt = -9;
+    F.fx = (i ? 1 : -1) * g.D / 2; F.u = F.hu = F.hu0 = 0.42; F.vu0 = 0; F.v = F.hv = 0.62; F.vu = F.vv = 0; F.guard = false; F.gs = 0; F.parryAt = -9;
     w.cd = 0; w.ammo = 0; w.rl = 0; w.draw = 0; w.drawing = false; w.act = ""; w.actT = 0; w.holdT = 0;
     w.off = 0; w.stun = 0; w.regen = 0; w.landed = false; w.clashT = 0;
     F.pu = freshPU(); F.bs = 1; F.inner = 1; F.hl = 0; F.iframe = 0; F.uiT = 0; F.uiFx = 0; F.shOn = false;
@@ -2116,6 +2144,7 @@ function resetRound(g) {
     b.alive = true; b.inf = 0; b.pr = 0; b.sq = 0; b.vs = 0; b.hitT = -9; b.x = F.p.nx; b.y = F.p.ny; b.vx = b.vy = 0; b.rot = 0;
     if (F.bot) botReset(F.bot, g.r);
   }
+  for (i = 0; i < 2; i++) abilRound(g, g.f[i]);   // (Ashen Sphere) abilities ready again, and what's always on comes on
   g.phase = "inflate"; g.pt = 0; g.rt = 0;
 }
 function ev(g, n, i) { g.ev.push({ n: n, i: i }); }
@@ -2139,15 +2168,16 @@ function simStep(g, dt) {
   if (g.phase !== "intro") {
     puStep(g, A, dt); puStep(g, B, dt);
     readCtl(g, A, B, dt); readCtl(g, B, A, dt);
-    if (g.phase === "fight") { if (A.pu.ui > 0) instinct(g, A, B); if (B.pu.ui > 0) instinct(g, B, A); }
+    abilStep(g, A, B, dt); abilStep(g, B, A, dt);
+    if (g.phase === "fight") { if (A.pu.ui > 0) instinct(g, A, B); if (B.pu.ui > 0) instinct(g, B, A); reflex(g, A, B); reflex(g, B, A); }
     moveStep(g, A, dt); moveStep(g, B, dt);
   }
   pose(g, A); pose(g, B);
   if (g.phase === "fight") {
     g.rt += dt; closeIn(g, dt);
-    if (g.wk === "sword") clash(g);
+    if (A.wk === "sword" && B.wk === "sword") clash(g);
     weaponStep(g, A, B, dt); weaponStep(g, B, A, dt);
-    if (g.wk === "box") gloveBump(g);
+    if (isFist(A.wk) && isFist(B.wk)) gloveBump(g);
   } else { calm(A, dt); calm(B, dt); }
   shotsStep(g, dt);
   crateStep(g, dt);
@@ -2182,14 +2212,15 @@ function moveStep(g, F, dt) {
   var w = F.w, pu = F.pu, st = w.stun > 0 || pu.freeze > 0, fwd = st ? 0 : clamp(F.sx, -1, 1), up = st ? 0 : clamp(F.sy, -1, 1), fast = 1;
   if (pu.flip > 0) { fwd = -fwd; up = -up; }
   if (F.uiT > 0) { F.uiT -= dt; if (!st) { fwd = clamp((F.uiU - F.u) * 12, -1, 1); up = clamp((F.uiV - F.v) * 12, -1, 1); fast = 1.8; } }
-  F.u = clamp(F.u + fwd * RATE_U * fast * dt, 0, 1); F.v = clamp(F.v + up * RATE_V * fast * dt, 0, 1);
+  F.u = clamp(F.u + fwd * RATE_U * fast * (F.look.walk ? BEAST.walk : 1) * dt, 0, 1); F.v = clamp(F.v + up * RATE_V * fast * dt, 0, 1);
   F.vu +=(SPR_K * (F.u + w.off - F.hu) - SPR_C * F.vu) * dt; F.hu = clamp(F.hu + F.vu * dt, -0.15, 1.4);
+  F.vu0 += (SPR_K * (F.u - F.hu0) - SPR_C * F.vu0) * dt; F.hu0 = clamp(F.hu0 + F.vu0 * dt, -0.15, 1.4);
   F.vv += (SPR_K * (F.v - F.hv) - SPR_C * F.vv) * dt; F.hv = clamp(F.hv + F.vv * dt, -0.12, 1.12);
 }
 
 // ---------- the weapons ----------
 function weaponStep(g, F, O, dt) {
-  var w = F.w, down = F.btn && !F.prev, can = w.stun <= 0 && F.pu.freeze <= 0 && F.b.alive, k = g.wk;
+  var w = F.w, down = F.btn && !F.prev, can = w.stun <= 0 && F.pu.freeze <= 0 && F.b.alive, k = F.wk;
   if (w.cd > 0) w.cd -= dt;
   if (w.stun > 0) w.stun -= dt;
   if (w.clashT > 0) w.clashT -= dt;
@@ -2197,7 +2228,40 @@ function weaponStep(g, F, O, dt) {
   else if (k === "sword") swordStep(g, F, O, w, down, can, dt);
   else if (k === "bow") bowStep(g, F, O, w, can, dt);
   else if (k === "star") starStep(g, F, O, w, down, can, dt);
+  else if (k === "bite") biteStep(g, F, O, w, down, can, dt);
+  else if (k === "spit") spitStep(g, F, O, w, down, can, dt);
   else boxStep(g, F, O, w, down, can, dt);
+}
+// (Ashen Sphere) jaws: tap to lunge and bite, and the jaws pop the balloon they close on. The head goes in with the
+// bite, so one that misses leaves it out there a moment. AUTO FIRE bites again and again; POUNCE lunges further.
+function biteStep(g, F, O, w, down, can, dt) {
+  var P = F.p, auto = F.pu.auto > 0;
+  if ((down || (auto && F.btn)) && can && w.cd <= 0 && !w.act) { w.act = "bite"; w.actT = 0; w.cd = auto ? 0.34 : 0.56; F.stat.shots++; ev(g, "bite", F.i); }
+  if (w.act === "bite" && can) { w.actT += dt; w.off = w.actT < 0.17 ? (F.pu.extendo > 0 ? 0.85 : 0.62) : 0; if (w.actT >= 0.36) w.act = ""; }
+  else { w.act = ""; w.off = 0; }
+  if (F.pu.magnet > 0) pull(O, P.tx, P.ty, dt);
+  var snap = w.act === "bite" && w.actT >= 0.07 && w.actT < 0.27;
+  if (snap && !(F.pu.drill > 0) && crossesShield(O, F.b.x, F.b.y, P.tx, P.ty, 6)) { shieldHit(g, O); w.act = ""; w.off = 0; F.vu -= 2.2; return; }
+  if (snap && inDecoy(g, O, P.tx, P.ty, 6)) { popDecoy(g, O); w.act = ""; w.off = 0; return; }
+  // jaws that close on a blade as it thrusts catch it: the thrust is stopped and the one holding it thrown off a moment
+  if (snap && O.wk === "sword" && O.w.act === "thrust" && segPt(P.tx, P.ty, O.p.wax, O.p.way, O.p.tx, O.p.ty) < 22 * 22) {
+    O.w.act = ""; O.w.off = 0; O.w.stun = Math.max(O.w.stun, 0.55); O.vu -= 2.6; O.w.clashT = 0.3; w.act = ""; w.off = 0; w.cd = 0.12;
+    sparks(g, P.tx, P.ty, 8); text(g, P.tx, P.ty + 30, "CAUGHT IT!", "#ffd166"); ev(g, "parry", -1); return;
+  }
+  // a raised glove (or claw) in front of the balloon takes the bite, and leaves the biter open a moment
+  if (snap && isFist(O.wk) && O.gs > 0.6 && dist2(P.tx, P.ty, O.p.ggx, O.p.ggy) < 32 * 32) { w.act = ""; w.off = 0; w.stun = Math.max(w.stun, 0.4); F.vu -= 2.4; O.stat.blocked++; text(g, O.p.ggx, O.p.ggy + 30, "BLOCKED", "#d7dde8"); ev(g, "block", O.i); return; }
+  if (!inBalloon(g, O, P.tx, P.ty, 6)) return;
+  if (snap) popIt(g, O, F, P.tx, P.ty, "bite");
+  else { O.b.vx += P.dx * 70; O.b.vy += P.dy * 70; }
+}
+// spit: tap to spit a glob of acid. It flies free (no string), arcs and drops, and splashes where it lands; one at a
+// time. DUAL WIELD spits two, AUTO FIRE keeps on spitting.
+function spitStep(g, F, O, w, down, can, dt) {
+  if ((down || (F.pu.auto > 0 && F.btn)) && can && w.cd <= 0 && !shotOut(g, F)) {
+    var P = F.p; w.cd = F.pu.auto > 0 ? 0.4 : 1.2; F.stat.shots++;
+    volley(g, F, "spit", P.tx, P.ty, SPIT_V, SPIT_G);
+    F.vu -= 0.8; ev(g, "spit", F.i);
+  }
 }
 // rubber-band pistols: tap fires a tack on a string, and the next shot waits until it's reeled back in; the muzzle
 // carries a pin too. AUTO FIRE fires again the moment it's back, for as long as the button is held.
@@ -2209,7 +2273,7 @@ function gunStep(g, F, O, w, down, can, dt) {
     F.vv += 1.6; F.vu -= 0.9;
     ev(g, "gun", F.i);
   }
-  if (inBalloon(g, O, P.tx, P.ty, 1)) popIt(g, O, F, P.tx, P.ty, "poke");
+  if ((BEAST.poke || !O.look.beast) && inBalloon(g, O, P.tx, P.ty, 1)) popIt(g, O, F, P.tx, P.ty, "poke");
 }
 // swords: tap thrusts, and the pin on the tip pops a balloon it's driven into; a blade held still only nudges one
 // that bumps against it. DUAL WIELD adds a second blade; AUTO FIRE thrusts again and again while the button is held.
@@ -2231,7 +2295,7 @@ function bladeHit(g, F, O, ax, ay, tx, ty, thrusting) {
   if (thrusting && inDecoy(g, O, tx, ty, 2)) { popDecoy(g, O); return; }
   if (!inBalloon(g, O, tx, ty, 1)) return;
   if (thrusting) popIt(g, O, F, tx, ty, g.t - F.parryAt < 0.5 ? "riposte" : "sword");
-  else { O.b.vx += P.dx * 90; O.b.vy += P.dy * 90; O.vu -= 0.35; }
+  else if (BEAST.nudge || !O.look.beast) { O.b.vx += P.dx * 90; O.b.vy += P.dy * 90; O.vu -= 0.35; }
 }
 // MAGNET: a balloon near your pin or glove is drawn onto it
 function pull(O, x, y, dt) {
@@ -2317,14 +2381,15 @@ function landPunch(g, F, O, hay) {
   if (!inBalloon(g, O, gx, gy, 12)) return;
   var b = O.b, ow = O.w;
   w.landed = true; F.stat.hits++;
+  var need = F.wk === "claw" ? 1 : O.look.beast ? BEAST.punch : 3;
   b.pr += (hay ? 2 : 1) + (F.pu.dual > 0 ? 1 : 0); b.hitT = g.t; b.vs -= hay ? 9 : 5.5; b.vx += F.f * (hay ? 260 : 150); b.vy += 40;
-  if (ow.act === "hold" || ow.act === "wind") { ow.act = ""; ow.off = 0; if (b.pr < 3) text(g, b.x, b.y + 74, "INTERRUPTED!", "#9cc7ff"); }
+  if (ow.act === "hold" || ow.act === "wind") { ow.act = ""; ow.off = 0; if (b.pr < need) text(g, b.x, b.y + 74, "INTERRUPTED!", "#9cc7ff"); }
   // the first punch to land wins the exchange: one thrown after it and still on its way is knocked off line
   else if ((ow.act === "jab" || ow.act === "hay") && !ow.landed && ow.actT < w.actT) { ow.landed = true; ow.off = 0; }
   ow.stun = Math.max(ow.stun, hay ? 0.5 : 0.22); O.vu -= hay ? 2.2 : 1.2; F.vu -= 0.6;
   ev(g, hay ? "hay" : "punch", O.i);
-  if (b.pr >= 3) popIt(g, O, F, gx, gy, hay ? "ko" : "box");
-  else if (hay) text(g, b.x, b.y + 52, "HAYMAKER!", "#ffd166");
+  if (b.pr >= need) popIt(g, O, F, gx, gy, F.wk === "claw" ? (hay ? "crush" : "pinch") : hay ? "ko" : "box");
+  else if (hay) text(g, b.x, b.y + 52, F.wk === "claw" ? "CRUSH!" : "HAYMAKER!", "#ffd166");
 }
 // two punches meeting in the middle knock both back (a glove held still lets a punch past: that's the guard's job)
 function gloveBump(g) {
@@ -2341,10 +2406,10 @@ function gloveBump(g) {
 // ---------- shots on strings: tacks, arrows and stars ----------
 var AN = { x: 0, y: 0 };
 // where a puppet's string is tied: the gun's muzzle, or the hand
-function anchor(g, F) { var P = F.p; if (g.wk === "gun") { AN.x = P.mx; AN.y = P.my; } else { AN.x = P.hx + P.dx * 6; AN.y = P.hy + P.dy * 6; } return AN; }
+function anchor(g, F) { var P = F.p; if (F.wk === "gun" || isMouth(F.wk)) { AN.x = P.mx; AN.y = P.my; } else { AN.x = P.hx + P.dx * 6; AN.y = P.hy + P.dy * 6; } return AN; }
 function shotOut(g, F) { for (var i = 0; i < g.shots.length; i++) if (g.shots[i].o === F.i && !g.shots[i].dead) return true; return false; }
 function shoot(g, F, k, x, y, vx, vy, gr) {
-  g.shots.push({ id: g.nid++, k: k, o: F.i, x: x, y: y, vx: vx, vy: vy, gr: gr, r: k === "star" ? 9 : k === "tack" ? 4 : 3, t: 0, rot: 0, vr: k === "star" ? 24 * F.f : 0,
+  g.shots.push({ id: g.nid++, k: k, o: F.i, x: x, y: y, vx: vx, vy: vy, gr: gr, r: k === "star" ? 9 : k === "spit" ? 6 : k === "tack" ? 4 : 3, t: 0, rot: 0, vr: k === "star" ? 24 * F.f : 0,
     bounce: 0, dead: false, st: "out", L: g.D * STRING * (F.pu.extendo > 0 ? 1.4 : 1), taut: 0, tw: 0 });
 }
 // one shot, or two in a V with DUAL WIELD; EXTENDO sends them faster
@@ -2389,14 +2454,14 @@ function flyOut(g, s, Fo, A, h) {
   }
   s.vy -= s.gr * h; s.x += s.vx * h; s.y += s.vy * h; s.t += h; s.rot += s.vr * h;
   var dx = s.x - A.x, dy = s.y - A.y, d = Math.sqrt(dx * dx + dy * dy);
-  if (d > s.L) {
+  if (d > s.L && s.k !== "spit") {   // (spit flies free: there's no string)
     var nx = dx / d, ny = dy / d, vr = s.vx * nx + s.vy * ny;
     s.x = A.x + nx * s.L; s.y = A.y + ny * s.L;
     if (vr > 0) { s.vx -= nx * vr; s.vy -= ny * vr; }
     s.taut += h; if (!s.tw) { s.tw = 1; ev(g, "twang", s.o); }
   }
 }
-function reel(g, s) { if (s.st === "out") { s.st = "reel"; ev(g, "reel", s.o); } }
+function reel(g, s) { if (s.st === "out") { if (s.k === "spit") { s.dead = true; g.fx.push({ k: "splat", x: s.x, y: s.y, t: 0, life: 0.5 }); ev(g, "splat", s.o); return; } s.st = "reel"; ev(g, "reel", s.o); } }
 // reeling in: straight back to the hand (faster with AUTO FIRE); it can't hurt anyone on the way
 function reelIn(g, s, Fo, A, h) {
   var dx = A.x - s.x, dy = A.y - s.y, d = Math.sqrt(dx * dx + dy * dy), v = REEL_V * (Fo.pu.auto > 0 ? 3 : 1);
@@ -2408,11 +2473,11 @@ function reelIn(g, s, Fo, A, h) {
 // (DRILL TIPS go straight through shields and wood), or the board
 function hitTest(g, s) {
   var O = g.f[1 - s.o], F = g.f[s.o], drill = F.pu.drill > 0, pad = s.k === "star" ? 5 : 1.5, c = g.crate, i;
-  if (c && c.st !== "ride" && g.phase === "fight" && Math.abs(s.x - c.x) < 17 + s.r && Math.abs(s.y - c.y) < 17 + s.r) { takeCrate(g, F, c, s); reel(g, s); return; }
+  if (c && c.st !== "ride" && g.phase === "fight" && Math.abs(s.x - c.x) < 17 + s.r && Math.abs(s.y - c.y) < 17 + s.r) { takeCrate(g, F, c, s.k === "spit" ? null : s); reel(g, s); return; }
   if (inDecoy(g, O, s.x, s.y, pad)) { popDecoy(g, O); reel(g, s); return; }
   if (!drill && O.shOn && segPt(s.x, s.y, O.sh.ax, O.sh.ay, O.sh.bx, O.sh.by) < (6 + s.r) * (6 + s.r)) { shieldHit(g, O); reel(g, s); return; }
   if (inBalloon(g, O, s.x, s.y, pad)) {
-    popIt(g, O, F, s.x, s.y, s.taut > 0 ? "swing" : s.k === "star" ? (s.bounce ? "bank" : "star") : s.k);
+    popIt(g, O, F, s.x, s.y, s.k === "spit" ? "acid" : s.taut > 0 ? "swing" : s.k === "star" ? (s.bounce ? "bank" : "star") : s.k);
     reel(g, s); return;
   }
   if (!drill) for (i = 0; i < O.nseg; i++) {
@@ -2456,9 +2521,9 @@ function crateStep(g, dt) {
 }
 // does a puppet's hand, blade or glove touch the crate?
 function touches(g, F, c) {
-  var P = F.p, k = g.wk, R = 22;
+  var P = F.p, k = F.wk, R = 22;
   if (k === "sword") return segPt(c.x, c.y, P.wax, P.way, P.tx, P.ty) < R * R || (P.dual && segPt(c.x, c.y, P.w2x, P.w2y, P.t2x, P.t2y) < R * R);
-  if (k === "box") { var dx = c.x - P.gx, dy = c.y - P.gy, ex = c.x - P.ggx, ey = c.y - P.ggy; return dx * dx + dy * dy < 30 * 30 || ex * ex + ey * ey < 28 * 28; }
+  if (isFist(k)) { var dx = c.x - P.gx, dy = c.y - P.gy, ex = c.x - P.ggx, ey = c.y - P.ggy; return dx * dx + dy * dy < 30 * 30 || ex * ex + ey * ey < 28 * 28; }
   var hx = c.x - P.hx, hy = c.y - P.hy, tx = c.x - P.tx, ty = c.y - P.ty;
   return hx * hx + hy * hy < R * R || tx * tx + ty * ty < R * R;
 }
@@ -2508,8 +2573,8 @@ function instinct(g, F, O) {
     }
   }
   var oa = O.w.act;
-  if (oa === "thrust" || oa === "jab" || oa === "hay" || oa === "wind") {
-    gear(O, g, poseInto(O, O.u + (g.wk === "box" ? (oa === "jab" ? 0.55 : 0.72) : 0.5), O.hv, HP), 0);
+  if (oa === "thrust" || oa === "jab" || oa === "hay" || oa === "wind" || oa === "bite") {
+    gear(O, g, poseFor(O, O.u + (isFist(O.wk) ? (oa === "jab" ? 0.55 : 0.72) : O.wk === "bite" ? 0.75 : 0.5), O.hv, HP), 0);
     if (ellQ(F, HP.tx, HP.ty, 14) <= 1.15) { F.uiU = Math.max(0, F.u - 0.6); F.uiV = F.v; F.uiT = 0.35; F.uiFx = 0.4; ev(g, "swish", F.i); }
   }
 }
@@ -2536,7 +2601,7 @@ function popDecoy(g, F) {
 // ---------- the balloons ----------
 // how far a point is into the balloon: under 1 is inside (pad grows the balloon a little)
 function ellQ(F, x, y, pad) {
-  var b = F.b, sc = Math.max(0.05, b.inf * F.look.big * F.bs), rx = BRX * sc * (1 + b.sq) + pad, ry = BRY * sc * (1 - b.sq) + pad;
+  var b = F.b, sc = Math.max(0.05, b.inf * F.look.big * F.bs), rx = BRX * sc * (1 + b.sq) * (F.look.bw || 1) + pad, ry = BRY * sc * (1 - b.sq) * (F.look.bh || 1) + pad;
   var c = Math.cos(b.rot), s = Math.sin(b.rot), dx = x - b.x, dy = y - b.y, lx = dx * c - dy * s, ly = dx * s + dy * c;
   return Math.sqrt(lx * lx / (rx * rx) + ly * ly / (ry * ry));
 }
@@ -2549,9 +2614,9 @@ function inBalloon(g, F, x, y, pad) {
 function balloonStep(g, F, dt) {
   var b = F.b, P = F.p;
   if (!b.alive) return;
-  var sc = b.inf * F.look.big * F.bs, tx = P.nx + P.ux * BRY * 0.92 * sc, ty = P.ny + P.uy * BRY * 0.92 * sc, hl = F.hl;
+  var sc = b.inf * F.look.big * F.bs, lf = BRY * 0.92 * sc * (F.look.bh || 1), tx = P.nx + P.ux * lf, ty = P.ny + P.uy * lf, hl = F.hl;
   // HELIUM: the balloon floats up off the neck on a string and drifts about
-  if (hl > 0.01) { tx += (Math.sin(g.t * 1.3 + F.i * 2) * 22 - P.ux * BRY * 0.92 * sc) * hl; ty += (78 + Math.sin(g.t * 2.1) * 6) * hl; }
+  if (hl > 0.01) { tx += (Math.sin(g.t * 1.3 + F.i * 2) * 22 - P.ux * lf) * hl; ty += (78 + Math.sin(g.t * 2.1) * 6) * hl; }
   b.vx += (BAL_K * (tx - b.x) - BAL_C * b.vx) * dt; b.vy += (BAL_K * (ty - b.y) - BAL_C * b.vy) * dt;
   b.x += b.vx * dt; b.y += b.vy * dt;
   var dx = b.x - tx, dy = b.y - ty, d = Math.sqrt(dx * dx + dy * dy), mx = 18 * Math.max(0.3, sc) + 30 * hl;
@@ -2631,10 +2696,10 @@ function makeBot(sk) { return { sk: sk, next: 0, gu: 0.42, gv: 0.62, tx: 0, ty: 
 function botReset(B, r) { B.j = r ? r() : 0.5; B.next = 0; B.gu = 0.42; B.gv = 0.62; B.steady = 0; B.until = 0; B.mode = ""; B.seen = {}; B.press = false; B.hold = 0; B.last = -9; B.pat = B.sk.patience; B.counter = 0; }
 // where a shot from this rod position would start and how it would fly
 function launch(g, F, hu, hv, draw) {
-  gear(F, g, poseInto(F, hu, hv, HP), draw);
-  var k = g.wk, sp = k === "gun" ? TACK_V : k === "star" ? STAR_V : arrowV(draw);
+  gear(F, g, poseFor(F, hu, hv, HP), draw);
+  var k = F.wk, sp = k === "gun" ? TACK_V : k === "star" ? STAR_V : k === "spit" ? SPIT_V : arrowV(draw);
   LB.x = k === "gun" ? HP.mx : HP.tx; LB.y = k === "gun" ? HP.my : HP.ty;
-  LB.vx = HP.dx * sp; LB.vy = HP.dy * sp; LB.gr = k === "gun" ? TACK_G : k === "star" ? STAR_G : ARROW_G;
+  LB.vx = HP.dx * sp; LB.vy = HP.dy * sp; LB.gr = k === "gun" ? TACK_G : k === "star" ? STAR_G : k === "spit" ? SPIT_G : ARROW_G;
   return LB;
 }
 // how high above (or below) the target a shot passes when it gets there
@@ -2647,12 +2712,13 @@ function botStep(g, F, O, dt) {
   var B = F.bot, sk = B.sk;
   if (g.phase !== "fight") { B.gu = 0.42; B.gv = 0.62; B.press = false; B.hold = 0; B.steady = 0; B.go = false; B.next = g.t + sk.warm + sk.react * (0.3 + 0.7 * B.j); }
   else {
-    if (g.shots.length && g.wk !== "sword" && g.wk !== "box") dodge(g, F, O, B);
+    if (g.shots.length) dodge(g, F, O, B);
     if (g.t >= B.next) { botThink(g, F, O, B); B.go = true; }
     // (nothing until it has had its first look this round: no firing at where last round left it aiming)
     if (B.go) {
-      if (g.wk === "sword") swordAct(g, F, O, B, dt);
-      else if (g.wk === "box") boxAct(g, F, O, B, dt);
+      if (F.look.walk) stalkStep(g, F, O, B);
+      if (F.wk === "sword" || F.wk === "bite" || (F.wk === "claw" && F.look.beast)) swordAct(g, F, O, B, dt);
+      else if (isFist(F.wk)) boxAct(g, F, O, B, dt);
       else rangedAct(g, F, O, B, dt);
     }
   }
@@ -2670,7 +2736,7 @@ function botThink(g, F, O, B) {
   if (c && c.st !== "ride") { if (B.cid !== c.id) { B.cid = c.id; B.cgo = r() < 0.3 + 0.6 * sk.aggro; } B.crate = B.cgo; }
   if (!B.crate && O.pu.decoy > 0 && r() < 0.5) { B.tx = O.dk.x; B.ty = O.dk.y; }
   if (g.t < B.until) return;
-  if (g.wk === "sword" || g.wk === "box") meleeThink(g, F, O, B); else rangedThink(g, F, O, B);
+  if (isMelee(F.wk)) meleeThink(g, F, O, B); else rangedThink(g, F, O, B);
 }
 // anything coming my way? A rival sees a shot once it has been flying a moment, decides once whether to duck it,
 // and ducks (or stands) out of its path.
@@ -2694,17 +2760,18 @@ function rangedThink(g, F, O, B) {
   var sk = B.sk, r = g.r, v;
   B.mode = "aim"; B.pat = sk.patience * (0.5 + r());
   B.gu = clamp(0.3 + 0.3 * sk.aggro + 0.12 * gauss(r), 0.05, 0.85);
-  if (g.wk === "bow") B.want = clamp(0.72 + 0.28 * r(), 0.5, 1);
+  if (F.look.walk) kiteThink(g, F, O, B);
+  if (F.wk === "bow") B.want = clamp(0.72 + 0.28 * r(), 0.5, 1);
   if (B.crate && crateAim(g, F, B)) return;
   var best = 1e9, bv = F.v;
   for (v = 0; v <= 1.0001; v += 0.04) {
-    var m = Math.abs(missAt(launch(g, F, B.gu, v, g.wk === "bow" ? B.want : 0), B.tx, B.ty));
+    var m = Math.abs(missAt(launch(g, F, B.gu, v, F.wk === "bow" ? B.want : 0), B.tx, B.ty));
     if (m < best) { best = m; bv = v; }
   }
   B.gv = bv;
 }
 function rangedAct(g, F, O, B, dt) {
-  var sk = B.sk, w = F.w, k = g.wk, draw = k === "bow" ? Math.max(w.draw, B.want) : 0;
+  var sk = B.sk, w = F.w, k = F.wk, draw = k === "bow" ? Math.max(w.draw, B.want) : 0;
   var m = Math.abs(missAt(launch(g, F, F.hu, F.hv, draw), B.tx, B.ty)), aimed = m < BRY * 0.7;
   B.steady = aimed ? B.steady + dt : 0;
   if (k === "bow") {
@@ -2719,13 +2786,13 @@ function rangedAct(g, F, O, B, dt) {
 function crateAim(g, F, B) {
   var c = g.crate, u, v, bd = 1e9, bu = F.u, bw = F.v;
   for (u = 0; u <= 1.4001; u += 0.1) for (v = 0; v <= 1.0001; v += 0.1) {
-    gear(F, g, poseInto(F, u, v, HP), 0);
+    gear(F, g, poseFor(F, u, v, HP), 0);
     var d = Math.min(dist2(HP.hx, HP.hy, c.x, c.y), dist2(HP.tx, HP.ty, c.x, c.y)); if (d < bd) { bd = d; bu = u; bw = v; }
   }
   if (bd < 18 * 18) { B.gu = bu; B.gv = bw; B.mode = "crate"; return true; }
   var lead = c.st === "fall" ? 55 * (B.pat * 0.6 + Math.abs(c.x - F.p.hx) / 650) : 0, tx = c.x, ty = Math.max(16, c.y - lead), best = 1e9, gu = B.gu, gv = F.v;
   for (u = 0.1; u <= 1.0001; u += 0.3) for (v = 0; v <= 1.0001; v += 0.04) {
-    var m = Math.abs(missAt(launch(g, F, u, v, g.wk === "bow" ? B.want : 0), tx, ty));
+    var m = Math.abs(missAt(launch(g, F, u, v, F.wk === "bow" ? B.want : 0), tx, ty));
     if (m < best) { best = m; gu = u; gv = v; }
   }
   if (best > 12) return false;   // can't get a shot at it from here: go for the balloon instead
@@ -2734,16 +2801,16 @@ function crateAim(g, F, B) {
 function dist2(ax, ay, bx, by) { return (ax - bx) * (ax - bx) + (ay - by) * (ay - by); }
 // a blade or a glove: line it up with the balloon, hover just out of reach, and back off when they come at you
 function meleeThink(g, F, O, B) {
-  var sk = B.sk, r = g.r, k = g.wk, ext = k === "box" ? 0.55 : 0.5, v, u, oa = O.w.act;
+  var sk = B.sk, r = g.r, k = F.wk, ext = isFist(k) ? 0.55 : k === "bite" ? 0.62 : 0.5, v, u, oa = O.w.act;
   if (oa && r() < sk.dodge) {
-    if (k === "sword") {
+    if (k === "sword" || k === "bite") {
       // thrust back to parry, or just get out of reach
       if (oa === "thrust" && O.w.actT < 0.12 && r() < 0.55) B.counter = g.t + 0.12;
       B.gu = Math.max(0, F.u - 0.5); B.until = g.t + 0.3 + 0.2 * r(); B.mode = "back"; return;
     }
     // a wind-up gets jabbed if a jab reaches (or else a step back out of range), a jab gets the guard, and a
     // haymaker on its way gets a step back
-    gear(F, g, poseInto(F, F.hu + 0.55, F.hv, HP), 0);
+    gear(F, g, poseFor(F, F.hu + 0.55, F.hv, HP), 0);
     if ((oa === "wind" || oa === "hold") && ellQ(O, HP.gx, HP.gy, 16) <= 1) { B.counter = g.t + 0.15; B.until = g.t + 0.2; B.mode = "counter"; return; }
     B.gu = oa === "jab" ? 0.1 : 0; B.until = g.t + 0.3 + 0.2 * r(); B.mode = "guard"; return;
   }
@@ -2751,20 +2818,21 @@ function meleeThink(g, F, O, B) {
     // reach for it once it's in reach (a blade's whole length counts, a glove its fist)
     var c = g.crate, bd = 1e9, bu = F.u, bw = F.v, cy = c.y - (c.st === "fall" ? 55 * 0.25 : 0);
     for (u = 0; u <= 1.0001; u += 0.1) for (v = 0; v <= 1.0001; v += 0.1) {
-      gear(F, g, poseInto(F, u, v, HP), 0);
-      var cd = k === "sword" ? segPt(c.x, cy, HP.wax, HP.way, HP.tx, HP.ty) : dist2(HP.gx, HP.gy, c.x, cy); if (cd < bd) { bd = cd; bu = u; bw = v; }
+      WALK = F.look.walk ? u : -1; gear(F, g, poseFor(F, u, v, HP), 0); WALK = -1;
+      var cd = k === "sword" ? segPt(c.x, cy, HP.wax, HP.way, HP.tx, HP.ty) : k === "bite" ? dist2(HP.tx, HP.ty, c.x, cy) : dist2(HP.gx, HP.gy, c.x, cy); if (cd < bd) { bd = cd; bu = u; bw = v; }
     }
     if (bd < 26 * 26) { B.gu = bu; B.gv = bw; B.mode = "crate"; return; }
   }
+  if (F.look.walk && (pinThink(g, F, O, B, ext) || outThink(g, F, O, B, ext))) return;
   var best = 1e9, bv = F.v;
   for (v = 0; v <= 1.0001; v += 0.05) {
-    gear(F, g, poseInto(F, clamp(F.u + ext, 0, 1.4), v, HP), 0);
+    gear(F, g, poseFor(F, clamp(F.u + ext, 0, 1.4), v, HP), 0);
     var e = Math.abs(HP.ty - B.ty); if (e < best) { best = e; bv = v; }
   }
   B.gv = bv;
   var ru = 1;
   for (u = 0; u <= 1.0001; u += 0.05) {
-    gear(F, g, poseInto(F, u + ext, bv, HP), 0);
+    WALK = F.look.walk ? u : -1; gear(F, g, poseFor(F, u + ext, bv, HP), 0); WALK = -1;
     if (F.f * (HP.tx - (B.tx - F.f * BRX * 0.7)) >= 0) { ru = u; break; }
   }
   B.gu = r() < sk.aggro ? ru : Math.max(0, ru - 0.18 - 0.1 * r());
@@ -2777,7 +2845,7 @@ function swordAct(g, F, O, B, dt) {
   if (B.counter > g.t && w.cd <= 0 && w.stun <= 0 && !w.act) { B.counter = 0; B.press = true; B.last = g.t; return; }
   if (open && g.t >= B.until) { B.gu = clamp(F.u + 0.25, 0, 1); }
   if (w.cd > 0 || w.stun > 0 || w.act || (!open && g.t - B.last < sk.gap)) return;
-  gear(F, g, poseInto(F, F.hu + 0.5, F.hv, HP), 0);
+  gear(F, g, poseFor(F, F.hu + (F.wk === "bite" ? 0.62 : F.wk === "claw" ? 0.55 : 0.5), F.hv, HP), 0);
   var q = ellQ(O, HP.tx, HP.ty, 6);
   if (q <= 1 || (q < 1.5 && g.r() < sk.aggro * 1.5 * dt)) { B.press = true; B.last = g.t; }
 }
@@ -2787,7 +2855,7 @@ function boxAct(g, F, O, B, dt) {
   if (B.hold > 0) { B.hold -= dt; B.press = B.hold > 0; return; }
   if (B.press) { B.press = false; return; }
   if (w.cd > 0 || w.stun > 0 || w.act) return;
-  gear(F, g, poseInto(F, F.hu + 0.55, F.hv, HP), 0);
+  gear(F, g, poseFor(F, F.hu + 0.55, F.hv, HP), 0);
   var reach = ellQ(O, HP.gx, HP.gy, 16) <= 1;
   if (B.counter > g.t && reach) { B.counter = 0; B.press = true; B.last = g.t; return; }
   if (!reach || g.t - B.last < sk.gap) return;
@@ -2877,12 +2945,13 @@ function figures(c, g, refl) {
 }
 // where a shot would go: a few bright dots ahead of your gun, star or drawn bow, and fainter red ones for a rival's
 function sights(c, g) {
-  if (g.wk === "sword" || g.wk === "box" || g.phase !== "fight") return;
+  if (g.phase !== "fight") return;
   for (var i = 0; i < 2; i++) {
     var F = g.f[i], w = F.w, human = F.ctl === "cab" || F.ctl === "p2", j;
+    if (isMelee(F.wk)) continue;
     if (!F.b.alive || w.stun > 0) continue;
-    if (g.wk === "bow" ? !w.drawing : shotOut(g, F)) continue;
-    var L = launch(g, F, F.hu, F.hv, g.wk === "bow" ? Math.max(0.12, w.draw) : 0), T = g.wk === "bow" ? 0.3 : 0.2, n = 8;
+    if (F.wk === "bow" ? !w.drawing : shotOut(g, F) || w.cd > 0.05) continue;
+    var L = launch(g, F, F.hu, F.hv, F.wk === "bow" ? Math.max(0.12, w.draw) : 0), T = F.wk === "bow" ? 0.3 : 0.2, n = 8;
     c.fillStyle = human ? "rgba(255,244,214,0.6)" : "rgba(255,110,110,0.3)";
     for (j = 1; j <= n; j++) {
       var t = T * j / n, r = (human ? 2.6 : 2.1) * (1 - j / (n + 4));
@@ -2891,17 +2960,18 @@ function sights(c, g) {
   }
 }
 function body(c, g, F) {
-  var P = F.p, f = F.f, bx = F.fx - f * 17, kk = kneeFor(bx, FOOT_Y, P.px, P.py, f), kx = kk.x, ky = kk.y;
+  if (F.look.body) { creatureBody(c, g, F); return; }   // (Ashen Sphere) dogs, serpents, crabs, crawlers
+  var P = F.p, f = F.f, fx0 = F.fx + (P.adv || 0), bx = fx0 - f * 17, kk = kneeFor(bx, FOOT_Y, P.px, P.py, f), kx = kk.x, ky = kk.y;
   // the far leg, a shade darker (in space the legs are inside the ship)
   var sp = SKIN === "space";
   if (!sp) { stick(c, bx - f * 7, FOOT_Y, bx + f * 15, FOOT_Y, 7, WOOD2);
   stick(c, bx, FOOT_Y, kx, ky, 10, WOOD2); stick(c, kx, ky, P.px, P.py, 10, WOOD2); }
   // the rod runs off the board to the player's hand
   var rx = (P.ex + P.hx) / 2, ry = (P.ey + P.hy) / 2;
-  stick(c, rx, ry, F.fx - f * 1200, lerp(ry, 200, 0.6), 8, "#dcbf8f");
+  if (!NOROD) stick(c, rx, ry, fx0 - f * 1200, lerp(ry, 200, 0.6), 8, "#dcbf8f");
   // the near leg, the body, the neck and the arm
-  if (!sp) { stick(c, F.fx - f * 7, FOOT_Y, F.fx + f * 15, FOOT_Y, 7, WOOD);
-  stick(c, F.fx, FOOT_Y, P.kx, P.ky, 10, WOOD); stick(c, P.kx, P.ky, P.px, P.py, 10, WOOD); }
+  if (!sp) { stick(c, fx0 - f * 7, FOOT_Y, fx0 + f * 15, FOOT_Y, 7, WOOD);
+  stick(c, fx0, FOOT_Y, P.kx, P.ky, 10, WOOD); stick(c, P.kx, P.ky, P.px, P.py, 10, WOOD); }
   stick(c, P.px, P.py, P.sx, P.sy, 13, WOOD);
   stick(c, P.sx, P.sy, P.nx, P.ny, 7, WOOD);
   stick(c, P.sx, P.sy, P.ex, P.ey, 9, WOOD); stick(c, P.ex, P.ey, P.hx, P.hy, 9, WOOD);
@@ -2926,7 +2996,7 @@ function balloon(c, g, F, refl) {
     return;
   }
   var sc = b.inf * L.big * F.bs; if (sc < 0.03) return;
-  var rx = BRX * sc * (1 + b.sq), ry = BRY * sc * (1 - b.sq);
+  var rx = BRX * sc * (1 + b.sq) * (L.bw || 1), ry = BRY * sc * (1 - b.sq) * (L.bh || 1);
   if (F.hl > 0.05) {
     // HELIUM: a string from the neck up to the knot
     var kx = b.x - Math.sin(b.rot) * ry, ky = b.y - Math.cos(b.rot) * ry;
@@ -2948,11 +3018,13 @@ function balloon(c, g, F, refl) {
   c.fillStyle = "rgba(255,255,255,0.5)"; c.beginPath(); c.ellipse(-rx * 0.42, ry * 0.42, rx * 0.15, ry * 0.24, 0.55, 0, TAU); c.fill();
   // DOUBLE BUBBLE: the spare shows through
   if (F.pu.bubble > 0) { egg(c, rx * 0.74, ry * 0.74); c.strokeStyle = "rgba(255,255,255,0.7)"; c.lineWidth = 1.6; c.setLineDash([4, 3]); c.stroke(); c.setLineDash([]); }
-  if (!refl && sc > 0.4) { face(c, g, F, rx, ry, sc); hat(c, g, F, rx, ry, sc); }
-  if (!refl && g.wk === "box" && b.pr > 0.05) {
-    for (var i = 0; i < 3; i++) { var full = clamp(b.pr - i, 0, 1); c.fillStyle = full > 0 ? "rgba(255,93,115," + (0.35 + 0.65 * full) + ")" : "rgba(255,255,255,0.18)"; c.beginPath(); c.arc((i - 1) * 9, ry + 12 + (L.hat ? 18 : 0), 3.4, 0, TAU); c.fill(); }
+  if (!refl && sc > 0.4) { if (!L.noface) face(c, g, F, rx, ry, sc); hat(c, g, F, rx, ry, sc); if (L.body || L.eyes || L.lumps) creatureHead(c, g, F, rx, ry, sc); }
+  var need = L.beast ? 1 : 3;
+  if (!refl && b.pr > 0.05) {
+    for (var i = 0; i < need; i++) { var full = clamp(b.pr - i, 0, 1); c.fillStyle = full > 0 ? "rgba(255,93,115," + (0.35 + 0.65 * full) + ")" : "rgba(255,255,255,0.18)"; c.beginPath(); c.arc((i - (need - 1) / 2) * 9, ry + 12 + (L.hat || L.cont || L.ears ? 18 : 0), 3.4, 0, TAU); c.fill(); }
   }
   c.restore();
+  if (!refl && isMouth(F.wk)) snout(c, g, F);
 }
 // a balloon's egg shape around (0, 0), knot down
 function egg(c, rx, ry) {
@@ -2970,6 +3042,8 @@ function decoy(c, g, F, refl) {
   c.save(); c.translate(d.x, d.y); c.rotate(Math.sin(g.t * 3) * 0.08);
   egg(c, rx, ry); var gr = c.createRadialGradient(-rx * 0.3, ry * 0.35, 1, 0, 0, ry * 1.5);
   gr.addColorStop(0, L.c1); gr.addColorStop(0.45, L.col); gr.addColorStop(1, L.c4); c.fillStyle = gr; c.fill();
+  if (!refl && L.ears) creatureHead(c, g, { look: L, f: F.f, b: { vy: 0 }, i: F.i }, rx, ry, 0.9);
+  if (!refl && L.snout === "dog") { var fs = F.f > 0 ? 1 : -1; c.fillStyle = L.c1; c.strokeStyle = L.c4; c.lineWidth = 1.4; c.beginPath(); c.ellipse(fs * rx * 0.95, -2, 14, 9, 0, 0, TAU); c.fill(); c.stroke(); c.fillStyle = "#1d1512"; c.beginPath(); c.ellipse(fs * (rx * 0.95 + 11), 1, 4.5, 3.5, 0, 0, TAU); c.fill(); }
   if (!refl) {
     c.fillStyle = "#fff"; c.strokeStyle = "#1d1512"; c.lineWidth = 1.4;
     [-1, 1].forEach(function (s) { c.beginPath(); c.arc(s * 7, 6, 5, 0, TAU); c.fill(); c.stroke(); c.fillStyle = "#1d1512"; c.beginPath(); c.arc(s * 7 - s * 2, 5, 2, 0, TAU); c.fill(); c.fillStyle = "#fff"; });
@@ -2983,13 +3057,14 @@ function face(c, g, F, rx, ry, sc) {
   if (m === "dizzy") {
     [-1, 1].forEach(function (s) { var x = fx + s * ex, y = ey; c.beginPath(); c.moveTo(x - 3 * sc, y - 3 * sc); c.lineTo(x + 3 * sc, y + 3 * sc); c.moveTo(x - 3 * sc, y + 3 * sc); c.lineTo(x + 3 * sc, y - 3 * sc); c.stroke(); });
   } else {
-    var big = m === "worry" ? 1.35 : 1;
+    var big = (m === "worry" ? 1.35 : 1) * (F.look.eyes === "bug" ? 1.9 : 1);
     if (F.look.blind) { c.beginPath(); c.moveTo(fx - ex - 3 * sc, ey); c.lineTo(fx + ex + 3 * sc, ey); c.stroke(); }   // (no eyes: it hunts by sound)
     else { [-1, 1].forEach(function (s) { c.beginPath(); c.ellipse(fx + s * ex, ey, 2.7 * sc * big, 3.8 * sc * big, 0, 0, TAU); c.fill(); });
     c.fillStyle = "rgba(255,255,255,.8)"; [-1, 1].forEach(function (s) { c.beginPath(); c.arc(fx + s * ex + 0.9 * sc, ey + 1.4 * sc, 0.9 * sc, 0, TAU); c.fill(); }); }
     if (m === "mad") { [-1, 1].forEach(function (s) { var x = fx + s * ex; c.beginPath(); c.moveTo(x - 4 * sc * s * -1, ey + 7.5 * sc); c.lineTo(x + 4 * sc * s * -1, ey + 5 * sc); c.stroke(); }); }
     if (m === "worry") { [-1, 1].forEach(function (s) { var x = fx + s * ex; c.beginPath(); c.moveTo(x - 4 * sc, ey + 7 * sc - s * 1.5 * sc); c.lineTo(x + 4 * sc, ey + 7 * sc + s * 1.5 * sc); c.stroke(); }); }
   }
+  if (F.look.snout || isMouth(F.wk)) return;
   c.beginPath();
   if (m === "grin") { c.arc(fx, -ry * 0.18, rx * 0.22, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); }
   else if (m === "worry" || m === "dizzy") { c.ellipse(fx, -ry * 0.3, 2.6 * sc, 3.4 * sc, 0, 0, TAU); c.fill(); }
@@ -3053,7 +3128,8 @@ function hat(c, g, F, rx, ry, sc) {
 // ---------- the weapons ----------
 function inHand(c, F, P) { c.translate(P.hx, P.hy); c.rotate(Math.atan2(P.dy, P.dx)); if (F.f < 0) c.scale(1, -1); }
 function weapon(c, g, F) {
-  var P = F.p, w = F.w, k = g.wk, home = !shotOut(g, F), two = F.pu.dual > 0;
+  var P = F.p, w = F.w, k = F.wk, home = !shotOut(g, F), two = F.pu.dual > 0;
+  if (isMouth(k)) return;   // (the jaws go with the head)
   c.save();
   if (k === "gun") {
     inHand(c, F, P);
@@ -3084,11 +3160,11 @@ function weapon(c, g, F) {
       for (var i = 1; i <= 8; i++) { var t = i / 9, z = (i % 2 ? 6 : -6); c.lineTo(P.hx + (P.gx - P.hx) * t + P.qx * z, P.hy + (P.gy - P.hy) * t + P.qy * z); }
       c.lineTo(P.gx, P.gy); c.stroke();
     }
-    glove(c, P.ggx, P.ggy, 13, F, -0.3);
-    glove(c, P.gx, P.gy, 15, F, 0);
+    if (k === "claw") { pincer(c, g, P.ggx, P.ggy, 12, F, -0.3, false); pincer(c, g, P.gx, P.gy, 15, F, 0, true); }
+    else { glove(c, P.ggx, P.ggy, 13, F, -0.3); glove(c, P.gx, P.gy, 15, F, 0); }
   }
   c.restore();
-  if (F.pu.drill > 0 && (k === "sword" || k === "box" || home)) drillGlow(c, g, k === "gun" ? P.mx : P.tx, k === "gun" ? P.my : P.ty);
+  if (F.pu.drill > 0 && (k === "sword" || isFist(k) || home)) drillGlow(c, g, k === "gun" ? P.mx : P.tx, k === "gun" ? P.my : P.ty);
   if (k === "sword" && two && F.pu.drill > 0) drillGlow(c, g, P.t2x, P.t2y);
 }
 // drawn along +x from the hand, the top of the gun at +y
@@ -3141,7 +3217,8 @@ function effects(c, g, F) {
     for (i = 0; i < pu.shieldN; i++) { c.fillStyle = "#9be7ff"; c.beginPath(); c.arc(x + 2, h.ay + 14 + i * 11, 2.6, 0, TAU); c.fill(); }
     c.restore();
   }
-  if (pu.freeze > 0) {
+  if (pu.freeze > 0 && F.fz && F.fz !== "ice") frozenLook(c, g, F);
+  else if (pu.freeze > 0) {
     // FREEZE RAY: a block of ice around the whole puppet
     var top = b.alive ? b.y + BRY * F.bs + 8 : P.ny + 12, x0 = Math.min(F.fx - 30, P.hx - 16, b.x - 40), x1 = Math.max(F.fx + 30, P.hx + 16, b.x + 40);
     c.save(); c.fillStyle = "rgba(150,220,255,0.32)"; c.strokeStyle = "rgba(225,247,255,0.9)"; c.lineWidth = 2;
@@ -3186,7 +3263,9 @@ function glove(c, x, y, r, F, tilt) {
 // ---------- shots on their strings, and bits ----------
 function shotsDraw(c, g) {
   for (var i = 0; i < g.shots.length; i++) {
-    var s = g.shots[i], F = g.f[s.o], A = anchor(g, F), ax = A.x, ay = A.y, dx = s.x - ax, dy = s.y - ay, d = Math.sqrt(dx * dx + dy * dy) || 1;
+    var s = g.shots[i], F = g.f[s.o];
+    if (s.k === "spit") { glob(c, s); continue; }
+    var A = anchor(g, F), ax = A.x, ay = A.y, dx = s.x - ax, dy = s.y - ay, d = Math.sqrt(dx * dx + dy * dy) || 1;
     // it points the way it flies, and away from the hand while it's reeled in by its tail
     var ang = s.st === "out" ? Math.atan2(s.vy, s.vx) : Math.atan2(dy, dx), back = s.k === "arrow" ? 54 : s.k === "tack" ? 8 : 0;
     var ex = s.x - Math.cos(ang) * back, ey = s.y - Math.sin(ang) * back, sag = s.st === "out" ? Math.max(0, s.L - d) * 0.3 : 0;
@@ -3265,6 +3344,7 @@ function sparksDraw(c, g) {
   for (var i = 0; i < g.fx.length; i++) {
     var p = g.fx[i], k = p.t / p.life;
     if (p.k === "spark") { c.strokeStyle = "rgba(255,226,140," + (1 - k) + ")"; c.lineWidth = 2; c.lineCap = "round"; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); c.stroke(); }
+    else if (p.k === "splat") { c.fillStyle = "rgba(150,226,80," + ((1 - k) * 0.85).toFixed(2) + ")"; for (var q = 0; q < 7; q++) { var an = q * 0.9 + p.x * 0.01, rr = 5 + 24 * k; c.beginPath(); c.arc(p.x + Math.cos(an) * rr, p.y + Math.sin(an) * rr * 0.8, 4 * (1 - k) + 1.2, 0, TAU); c.fill(); } }
     else if (p.k === "ring") { c.strokeStyle = "rgba(255,255,255," + (1 - k) * 0.9 + ")"; c.lineWidth = 4 * (1 - k) + 1; c.beginPath(); c.arc(p.x, p.y, 14 + 70 * k, 0, TAU); c.stroke(); }
   }
 }
@@ -3292,8 +3372,625 @@ function captions(c, g) {
   if (cp.sub) { var f2 = Math.round(fs * (sm ? 0.42 : 0.34)), sy = fs * (sm ? 0.8 : 0.72); c.font = "800 " + f2 + "px " + MONO; c.lineWidth = 4; c.strokeText(cp.sub, 0, sy); c.fillStyle = "#f6efe4"; c.fillText(cp.sub, 0, sy); }
   c.restore();
 }
+// ===================== creatures (Ashen Sphere): their own bodies on the same rod =====================
+// How beasts fight, as settled by measuring thousands of bot fights (scratch/pup/sweep.mjs, cal.mjs):
+// ranged: how far a beast's pounce reaches when you have a gun, bow or stars (it walks in the rest of the way);
+// punch: clean punches it takes to pop a beast's balloon (a person's takes three); walk: how fast a beast walks in,
+// against a person leaning (1); poke: can a gun's tip pop a beast's face (no: you have to shoot it); nudge: does a
+// blade held still push a beast back (yes); pm: a pounce's length against the reach of the weapon it faces.
+var BEAST = { ranged: 200, punch: 1, walk: 0.6, poke: 0, nudge: 1, pm: -30 };
+// A creature works on the same rod as a person (up stands tall and aims high, down ducks, forward leans in), and its
+// balloon is what pops. What changes is the body around the balloon and what it fights with: a dog's balloon is its
+// head, on a neck that reaches, and it bites; a serpent's head rides up out of its coils and bites or spits; a crab's
+// shell is a wide balloon, low down, with claws on long arms; a crawler is a long, low thing with a mantis arm.
+function isMelee(k) { return k === "sword" || k === "box" || k === "bite" || k === "claw"; }
+function isFist(k) { return k === "box" || k === "claw"; }
+function isMouth(k) { return k === "bite" || k === "spit"; }
+function poseFor(F, hu, hv, o) { return F.look.body ? creaturePose(F, hu, hv, o) : poseInto(F, hu, hv, o); }
+// A creature walks: forward on the rod brings it across the board toward you (a person only leans), as far as it
+// needs to get its bite or claws to you. advMax is worked out once a fight starts, from the gap and its reach.
+// (The walk follows the rod itself, F.u; a bite or a pinch is a lunge on top of it. A rival's brain trying out a
+// pose says where it would have walked to with WALK.)
+var WALK = -1;
+function adv(F, wu) { if (!F.look.walk) return 0; var k = (wu - 0.42) / 0.58; return (k >= 0 ? (F.advMax || 0) * Math.min(1, k) : (F.back || 0) * Math.max(-1, k / 0.72)) - (F.off0 || 0); }
+// how far the rod has walked it in: what a rival's brain is trying out (WALK), the rod itself (the real pose), or a guess
+// how far each attack lunges the rod past where it is (a bite, a jab, a thrust)
+function lungeOf(F) { return isFist(F.wk) ? 0.55 : F.wk === "bite" ? 0.62 : 0.5; }
+// a walker's pounce on top of its walk (and a person who walks in, the hunter, gets one too)
+function pounceAt(F, hu, wu, o) { return 0.4 * clamp(((o === F.p ? F.hu - F.hu0 : hu - wu)) / lungeOf(F), 0, 1.3); }
+function walkU(F, hu, o) { return WALK >= 0 ? WALK : o === F.p ? clamp(F.hu0, 0, 1) : Math.min(clamp(hu, 0, 1), F.u); }
+// how far forward its bite or claws reach, at the height of a standing person's balloon, without walking in
+function reachOf(F, g) {
+  var keep = F.advMax, best = 0, hu, hv, o = {}, top = 0.42 + lungeOf(F) + 0.0001; F.advMax = 0; WALK = 0.42;
+  for (hu = 0.42; hu <= top; hu += lungeOf(F) / 10) for (hv = 0; hv <= 1.0001; hv += 0.05) {
+    gear(F, g, poseFor(F, hu, hv, o), 0);
+    var x = isFist(F.wk) ? o.gx : o.tx, y = isFist(F.wk) ? o.gy : o.ty;
+    if (Math.abs(y - 236) < 32) best = Math.max(best, F.f * (x - F.fx));
+  }
+  F.advMax = keep; WALK = -1; return best;
+}
+// At the start of a fight a walker sizes up the other side: its pounce (or lunge, or long arms) gets as long as their
+// weapon's reach, so a blade doesn't simply out-reach it, and its walk covers whatever gap is left.
+function walkers(g) {
+  for (var i = 0; i < 2; i++) {
+    var F = g.f[i], O = g.f[1 - i], o = {}, v, x; F.advMax = 0; F.pounce = 0; F.back = 0;
+    if (!F.look.walk) continue;
+    F.back = F.wk === "spit" ? 140 : 100;   // room to jump back (and a spitter, to keep its distance)
+    if (F.wk === "spit") continue;
+    var oR = BEAST.ranged;
+    if (isMelee(O.wk)) { oR = 0; for (v = 0; v <= 1.0001; v += 0.25) { gear(O, g, poseFor(O, 1.4, v, o), 0); x = isFist(O.wk) ? o.gx : o.tx; oR = Math.max(oR, O.f * (x - O.fx)); } }
+    F.off0 = 0; WALK = 0.42; gear(F, g, poseFor(F, 0.42, 0.62, o), 0); WALK = -1;
+    var rest = F.f * ((isFist(F.wk) ? o.gx : o.tx) - F.fx), b = ballAt(F, o), near = F.f * (b.x - F.fx) + b.rx;
+    // it starts out of easy reach: past where their weapon gets to without leaning in
+    if (isMelee(O.wk)) { var oE = 0; for (v = 0; v <= 1.0001; v += 0.25) { gear(O, g, poseFor(O, 0.42 + (isFist(O.wk) ? 0.55 : 0.5), v, o), 0); x = isFist(O.wk) ? o.gx : o.tx; oE = Math.max(oE, O.f * (x - O.fx)); }
+      F.off0 = Math.max(0, oE + 30 - (g.W.D - near)); }
+    F.pounce = clamp(oR - rest + F.off0 + BEAST.pm, 40, 300) / 0.4;
+    F.advMax = Math.max(0, g.W.D - 57 + 30 - reachOf(F, g));
+  }
+}
+// where its balloon would be in a pose (its own, not the one bobbing on the neck right now)
+function ballAt(F, o) { var L = F.look, sb = Math.max(0.3, F.b.inf) * (L.big || 1) * F.bs, lf = BRY * 0.92 * sb * (L.bh || 1); BZ.x = o.nx + o.ux * lf; BZ.y = o.ny + o.uy * lf; BZ.rx = BRX * sb * (L.bw || 1); BZ.ry = BRY * sb * (L.bh || 1); return BZ; }
+function pinIn(F, o, px, py, pad) { var b = ballAt(F, o), dx = (px - b.x) / (b.rx + pad), dy = (py - b.y) / (b.ry + pad); return dx * dx + dy * dy < 1; }
+// A creature that walks in looks where a gun's pin is (a gun pressed against a balloon pops it) and doesn't put its
+// face on it: it picks a height where both where it waits and where it bites stay clear, and its bite still lands;
+// if there's none, it holds back out of reach and waits for the gun to move.
+var PH = {};
+function pinThink(g, F, O, B, ext) {
+  if (O.wk !== "gun" || !O.b.alive || (F.look.beast && !BEAST.poke)) return false;
+  var px = O.p.tx, py = O.p.ty, u, v, tx = B.tx - F.f * BRX * 0.7, cand = [];
+  for (v = 0; v <= 1.0001; v += 0.1) {
+    var ru = -1;
+    for (u = 0; u <= 1.0001; u += 0.05) { WALK = u; gear(F, g, poseFor(F, u + ext, v, PH), 0); var x = isFist(F.wk) ? PH.gx : PH.tx, y = isFist(F.wk) ? PH.gy : PH.ty; if (F.f * (x - tx) >= 0 && Math.abs(y - B.ty) < BRY * 0.8) { ru = u; break; } }
+    if (ru < 0) { WALK = -1; continue; }
+    WALK = ru; var bad = pinIn(F, gear(F, g, poseFor(F, ru, v, PH), 0), px, py, 14) || pinIn(F, gear(F, g, poseFor(F, ru + ext, v, PH), 0), px, py, 10); WALK = -1;
+    if (bad) continue;
+    cand.push([v, ru]);
+  }
+  if (!cand.length) {
+    // nowhere clear: back off to just past the pin and wait
+    B.gu = Math.max(0, F.u - 0.3); B.gv = F.v > 0.5 ? 1 : 0; B.mode = "wait"; B.until = g.t + 0.25 + 0.3 * g.r(); return true;
+  }
+  var pick = cand[Math.floor(g.r() * cand.length)];
+  B.gv = pick[0]; B.gu = g.r() < B.sk.aggro ? pick[1] : Math.max(0, pick[1] - 0.18 - 0.1 * g.r()); B.mode = "fence";
+  return true;
+}
+// A beast walking in on a blade or fists keeps its balloon just outside their reach, and goes in when they can't hit
+// back: just after a thrust or a punch, or while they're stunned or frozen. (Against a gun or a bow it just comes on.)
+function outThink(g, F, O, B, ext) {
+  if (!isMelee(O.wk) || !O.b.alive) return false;
+  var oR = -1e9, v, u, x, safe = -1, gv = B.gv === undefined ? F.v : B.gv;
+  for (v = 0; v <= 1.0001; v += 0.25) { gear(O, g, poseFor(O, 1.4, v, PH), 0); x = isFist(O.wk) ? PH.gx : PH.tx; oR = Math.max(oR, O.f * (x - O.fx)); }
+  var edge = O.fx + O.f * (oR + 14);
+  for (u = 0; u <= 1.0001; u += 0.05) { WALK = u; var b = ballAt(F, gear(F, g, poseFor(F, u, gv, PH), 0)); WALK = -1; if (F.f * (b.x + F.f * b.rx - edge) < 0) safe = u; else break; }
+  safe = Math.max(safe, 0.42);   // (it waits where it stands, not further back: jumping back is for when something comes at it)
+  B.safe = safe;
+  if (open(O)) return false;   // they can't hit back right now: in it goes
+  // it waits with its jaws (or claws) at the height of their balloon, ready to spring
+  var best = 1e9, bv = gv;
+  for (v = 0; v <= 1.0001; v += 0.05) { WALK = safe; gear(F, g, poseFor(F, safe + ext, v, PH), 0); WALK = -1; var y = isFist(F.wk) ? PH.gy : PH.ty, e = Math.abs(y - B.ty); if (e < best) { best = e; bv = v; } }
+  B.gu = safe; B.gv = bv; B.mode = "stalk"; return true;
+}
+function open(O) { return O.w.cd > 0.12 || O.w.stun > 0.1 || O.pu.freeze > 0 || (O.w.act && O.w.actT > 0.14); }
+// A spitter backs off to keep its balloon outside a blade's or fist's reach, and spits from there.
+function kiteThink(g, F, O, B) {
+  if (!isMelee(O.wk) || !O.b.alive) return;
+  var oR = -1e9, v, u, x, safe = 0, gv = F.v;
+  for (v = 0; v <= 1.0001; v += 0.25) { gear(O, g, poseFor(O, 1.0, v, PH), 0); x = isFist(O.wk) ? PH.gx : PH.tx; oR = Math.max(oR, O.f * (x - O.fx)); }
+  var edge = O.fx + O.f * (oR + 10);   // (just out of easy reach: they have to lunge for it)
+  for (u = 0; u <= 1.0001; u += 0.05) { WALK = u; var b = ballAt(F, gear(F, g, poseFor(F, u, gv, PH), 0)); WALK = -1; if (F.f * (b.x + F.f * b.rx - edge) < 0) safe = u; else break; }
+  B.gu = Math.min(B.gu, safe);
+}
+// A beast's quick reflexes: a thrust, a punch or a bite it sees coming that would land, it jumps back from (a sharper
+// one more often). Once for each attack.
+function reflex(g, F, O) {
+  var B = F.bot, w = O.w, oa = w.act; if (!B || !F.look.beast || F.pu.freeze > 0 || F.uiT > 0) return;
+  if (!(oa === "thrust" || oa === "jab" || oa === "hay" || oa === "bite") || w.actT > 0.1) return;
+  var id = O.stat.shots; if (B.rfx === id) return; B.rfx = id;
+  if (g.r() > B.sk.dodge * 0.85) return;
+  gear(O, g, poseFor(O, O.u + (isFist(O.wk) ? (oa === "jab" ? 0.55 : 0.72) : oa === "bite" ? 0.62 : 0.5), O.hv, HP), 0);
+  var x = isFist(O.wk) ? HP.gx : HP.tx, y = isFist(O.wk) ? HP.gy : HP.ty;
+  if (ellQ(F, x, y, 16) > 1.2) return;
+  F.uiU = Math.max(0, F.u - 0.6); F.uiV = F.v; F.uiT = 0.3; ev(g, "swish", F.i);
+}
+// (each step) a stalking beast sees the opening and goes for it, after its reaction time
+function stalkStep(g, F, O, B) {
+  if (B.mode !== "stalk") return;
+  if (!open(O)) { B.openAt = -1; return; }
+  if (B.openAt < 0) B.openAt = g.t;
+  if (g.t - B.openAt >= B.sk.react * 0.4) { B.gu = 1; B.mode = "rush"; B.until = g.t + 0.45; B.openAt = -1; }
+}
+// a point on the board from (forward, up) for the puppet facing f
+function lp(F, o, n, lx, ly) { o[n + "x"] = F.fx + F.f * lx; o[n + "y"] = FOOT_Y + ly; }
+// an arm from the shoulder reaching ext along angle a, the elbow bending up (a claw) or down
+function arm(F, o, sxl, syl, a, ext, al, up) {
+  var U = LU * al, Fq = LF * al, hxl = sxl + ext * Math.cos(a), hyl = syl + ext * Math.sin(a), dx = hxl - sxl, dy = hyl - syl;
+  var d = Math.max(1, Math.min(Math.sqrt(dx * dx + dy * dy), U + Fq - 0.01));
+  var b = Math.atan2(dy, dx) + (up ? 1 : -1) * Math.acos(clamp((U * U + d * d - Fq * Fq) / (2 * U * d), -1, 1));
+  lp(F, o, "e", sxl + U * Math.cos(b), syl + U * Math.sin(b)); lp(F, o, "h", hxl, hyl);
+  o.dx = F.f * Math.cos(a); o.dy = Math.sin(a); o.qx = -F.f * Math.sin(a); o.qy = Math.cos(a);
+}
+function creaturePose(F, hu, hv, o) {
+  var L = F.look, bp = L.body, f = F.f;
+  hu = clamp(hu, -0.15, 1.4);
+  // a walker: how far it has walked in (wu), and how far it is lunging past that (ex, 0 to 0.4 as for a person's lunge)
+  var live = o === F.p, wu = L.walk ? walkU(F, hu, o) : clamp(hu, 0, 1);
+  var uu = wu, ex = L.walk ? pounceAt(F, hu, wu, o) : Math.max(0, hu - 1), c = clamp(hv, 0, 1), cv = clamp(hv, -0.12, 1.12), tl = 0, a = 0, nx, ny, hop;
+  var sb = Math.max(0.3, F.b.inf) * (L.big || 1) * F.bs, lift = BRY * 0.92 * sb * (L.bh || 1);
+  o.rear = 0; o.lg = 1; o.al = 1;
+  if (bp === "dog") {
+    // up rears it onto its hind legs; leaning in stretches the neck, and the lunge throws the whole dog forward
+    var lg = L.long ? 1.22 : 1, rear = smooth((c - 0.55) / 0.45);
+    hop = (F.pounce || L.hop || 220) * ex + adv(F, wu); o.hop = hop;
+    var hpx = (-62 + 8 * uu) * lg + hop, hpy = 56 + 6 * c + 10 * rear, wx = -18 + 16 * uu + hop, wy = 68 + 16 * c + 64 * rear;
+    var na = lerp(0.2, 0.9, c) - 0.3 * uu, nl = (24 + 30 * uu + 110 * ex) * (L.long ? 1.12 : 1);
+    lp(F, o, "p", hpx, hpy); lp(F, o, "s", wx, wy); lp(F, o, "n", wx + nl * Math.cos(na), wy + nl * Math.sin(na));
+    lp(F, o, "k", hpx - 4, 30); lp(F, o, "e", wx + nl * 0.5 * Math.cos(na), wy + nl * 0.5 * Math.sin(na));
+    tl = lerp(0.85, 0.15, c) + 0.15 * uu; a = lerp(-0.5, 0.5, cv); o.rear = rear; o.lg = lg;
+  } else if (bp === "snake") {
+    // the coils stay put; the head rides up out of them, and lunges
+    var hg = L.hgt || 1, sl = adv(F, wu); o.hop = sl;
+    nx = 4 + 66 * uu + (F.pounce || L.hop || 150) * ex + sl; ny = (36 + 172 * c) * hg + 20 * ex;
+    lp(F, o, "n", nx, ny); lp(F, o, "p", sl - 22, 12); lp(F, o, "k", sl - 22, 12); lp(F, o, "s", sl + (nx - sl) * 0.35 - 18, ny * 0.55); lp(F, o, "e", sl + (nx - sl) * 0.5, ny * 0.75);
+    tl = lerp(0.9, 0.2, c) + 0.2 * uu; a = F.wk === "spit" ? lerp(-0.3, 0.75, cv) : lerp(-0.5, 0.5, cv);
+  } else if (bp === "crab") {
+    // low on its legs; the lunge scuttles it forward
+    hop = (F.pounce || L.hop || 60) * ex + adv(F, wu); o.hop = hop;
+    nx = 4 + 14 * uu + hop; ny = 12 + 76 * c;
+    lp(F, o, "n", nx, ny); lp(F, o, "p", nx, ny); lp(F, o, "k", nx, ny * 0.5);
+    var sxl = nx + BRX * sb * (L.bw || 1) * 0.72, syl = ny + lift + 2;
+    lp(F, o, "s", sxl, syl); tl = 0.06 * uu; a = lerp(-0.4, 0.8, cv); o.al = L.al || 1.5;
+    arm(F, o, sxl, syl, a, (lerp(0.75, 1, uu) * LA + 90 * ex) * o.al, o.al, true);
+  } else {   // "bug"
+    hop = (F.pounce || L.hop || 60) * ex + adv(F, wu); o.hop = hop;
+    nx = 14 + 22 * uu + hop; ny = 46 + 92 * c;
+    lp(F, o, "n", nx, ny); lp(F, o, "p", -62 + hop * 0.6, 30 + 8 * c); lp(F, o, "k", -18 + hop * 0.8, 40 + 24 * c);
+    var bxl = nx - 6, byl = ny - 6;
+    lp(F, o, "s", bxl, byl); tl = 0.45 - 0.25 * c + 0.1 * uu; a = lerp(-0.45, 0.75, cv); o.al = L.al || 1.5;
+    arm(F, o, bxl, byl, a, (lerp(0.75, 1, uu) * LA + 90 * ex) * o.al, o.al, true);
+  }
+  if (bp === "dog" || bp === "snake") { o.dx = f * Math.cos(a); o.dy = Math.sin(a); o.qx = -f * Math.sin(a); o.qy = Math.cos(a); o.hx = o.nx; o.hy = o.ny; }
+  o.ux = f * Math.sin(tl); o.uy = Math.cos(tl); o.tilt = tl; o.aim = a;
+  return o;
+}
+// a serpent's body: a curve from its coils on the board up to its head (sw sways it, for the eye only)
+function snakeCurve(F, P, sw) { var f = F.f, x0 = F.fx + f * (P.hop || 0); return [x0 - f * 20, 12, x0 - f * 38 + sw, P.ny * 0.55, P.nx - f * 46 - sw * 0.6, P.ny - 16, P.nx, P.ny]; }
+var BZ = { x: 0, y: 0 };
+function bez(q, t, o) { var u = 1 - t, a = u * u * u, b = 3 * u * u * t, cc = 3 * u * t * t, d = t * t * t; o = o || BZ; o.x = a * q[0] + b * q[2] + cc * q[4] + d * q[6]; o.y = a * q[1] + b * q[3] + cc * q[5] + d * q[7]; return o; }
+// the wood (and shell, and coils) that stops shots
+function bodySegs(F, P, S) {
+  var L = F.look, bp = L.body, f = F.f, x0 = F.fx, n = 0;
+  function seg(ax, ay, bx, by, r) { setSeg(S[n++], ax, ay, bx, by, r); }
+  if (bp === "dog") {
+    seg(P.px, P.py, P.sx, P.sy, 13);
+    seg(P.sx, P.sy, P.nx, P.ny, 6);
+    seg(P.px, P.py, x0 + f * (P.hop - 62 * P.lg), FOOT_Y, 4.5);
+    seg(P.sx, P.sy - 6, x0 + f * (P.hop + 2 + 24 * P.rear), FOOT_Y + 46 * P.rear, 4.5);
+  } else if (bp === "snake") {
+    var q = snakeCurve(F, P, 0), th = L.thick || 1, a = bez(q, 0.05, {}), b = bez(q, 0.4, {}), cc = bez(q, 0.75, {}), d = bez(q, 0.97, {});
+    seg(a.x, a.y, b.x, b.y, 12 * th); seg(b.x, b.y, cc.x, cc.y, 10 * th); seg(cc.x, cc.y, d.x, d.y, 8 * th);
+  } else if (bp === "crab") {
+    seg(P.nx - f * 20, P.ny + 6, x0 + f * (P.hop - 46), FOOT_Y, 4); seg(P.nx + f * 16, P.ny + 6, x0 + f * (P.hop + 30), FOOT_Y, 4);
+    seg(P.sx, P.sy, P.ex, P.ey, 5); seg(P.ex, P.ey, P.hx, P.hy, 5);
+  } else {
+    seg(P.px, P.py, P.kx, P.ky, 11); seg(P.kx, P.ky, P.nx, P.ny - 8, 8); seg(P.kx, P.ky, x0 + f * (P.hop + 6), FOOT_Y, 4);
+    seg(P.sx, P.sy, P.ex, P.ey, 4.5); seg(P.ex, P.ey, P.hx, P.hy, 4.5);
+  }
+  F.nseg = n;
+}
+// a wreck crab's half a cargo container rides on top of its shell: shots from above hit steel
+function contSeg(F) {
+  var b = F.b, L = F.look; if (!L.cont || !b.alive) return;
+  var sc = Math.max(0.3, b.inf) * (L.big || 1) * F.bs, rx = BRX * sc * (L.bw || 1), ry = BRY * sc * (L.bh || 1);
+  setSeg(F.segs[F.nseg++], b.x - F.f * rx * 0.95, b.y + ry * 0.78, b.x + F.f * rx * 0.72, b.y + ry * 0.78, 7);
+}
+
+// ---------- drawing them ----------
+function paint(c, ax, ay, bx, by, w, col, edge) {
+  c.lineCap = "round"; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by);
+  c.strokeStyle = edge; c.lineWidth = w + 3; c.stroke(); c.strokeStyle = col; c.lineWidth = w; c.stroke();
+}
+// a leg with one joint, pushed out sideways by bend (a dog's hock, an insect's high knee)
+var JK = { x: 0, y: 0 };
+function jleg(c, ax, ay, bx, by, bend, w, col, paintIt, edge) {
+  var mx = (ax + bx) / 2, my = (ay + by) / 2, dx = bx - ax, dy = by - ay, d = Math.sqrt(dx * dx + dy * dy) || 1;
+  JK.x = mx - dy / d * bend; JK.y = my + dx / d * bend;
+  if (paintIt) { paint(c, ax, ay, JK.x, JK.y, w, col, edge); paint(c, JK.x, JK.y, bx, by, w * 0.8, col, edge); }
+  else { stick(c, ax, ay, JK.x, JK.y, w, col); stick(c, JK.x, JK.y, bx, by, w, col); }
+  return JK;
+}
+function creatureBody(c, g, F) {
+  var bp = F.look.body;
+  if (bp === "dog") dogDraw(c, g, F); else if (bp === "snake") snakeDraw(c, g, F); else if (bp === "crab") crabDraw(c, g, F); else bugDraw(c, g, F);
+}
+var NOROD = false;   // (a portrait has no rod)
+function rod(c, F, x, y) { if (!NOROD) stick(c, x, y, F.fx - F.f * 1200, lerp(y, 220, 0.6), 8, "#dcbf8f"); }
+function dogDraw(c, g, F) {
+  var P = F.p, f = F.f, L = F.look, x0 = F.fx + f * (P.hop || 0), rear = P.rear || 0, lg = P.lg || 1, t = g.t;
+  var fur = L.col, edge = L.c4, fy = FOOT_Y + 46 * rear, wag = REDUCED ? 0.25 : Math.sin(t * (F.w.act ? 7 : 14) + F.i * 2) * 0.5;
+  var feet = [x0 - f * 72 * lg, x0 - f * (12 - 26 * rear), x0 - f * 54 * lg, x0 + f * (4 + 28 * rear)];
+  function paw(x, y) { c.fillStyle = edge; c.beginPath(); c.ellipse(x + f * 4, y + 1.5, 7.5, 3.8, 0, 0, TAU); c.fill(); }
+  // the far legs, a shade darker, and the rod behind everything else
+  jleg(c, P.px - f * 3, P.py - 2, feet[0], FOOT_Y, -f * 14, 7, WOOD2); paw(feet[0], FOOT_Y);
+  jleg(c, P.sx - f * 6, P.sy - 8, feet[1], fy, -f * 6, 7, WOOD2); paw(feet[1], fy);
+  rod(c, F, P.sx - f * 10, P.sy + 6);
+  // the tail, wagging
+  var ta = 0.7 + wag, tx = P.px - f * 14, ty = P.py + 6, tl = 32 * lg, ex = tx - f * Math.cos(ta) * tl, ey = ty + Math.sin(ta) * tl;
+  c.lineCap = "round"; c.beginPath(); c.moveTo(tx, ty); c.quadraticCurveTo(tx - f * tl * 0.75, ty + 2, ex, ey);
+  c.strokeStyle = edge; c.lineWidth = 9.5; c.stroke(); c.strokeStyle = fur; c.lineWidth = 6.5; c.stroke();
+  // the body: painted cardboard, with a paler belly
+  paint(c, P.px - f * 8, P.py + 2, P.sx + f * 2, P.sy - 3, 31, fur, edge);
+  c.globalAlpha = 0.55; c.strokeStyle = L.c1; c.lineWidth = 9; c.beginPath(); c.moveTo(P.px + f * 2, P.py - 9); c.lineTo(P.sx - f * 4, P.sy - 13); c.stroke(); c.globalAlpha = 1;
+  if (L.spots) { c.fillStyle = edge; c.globalAlpha = 0.45; [0.25, 0.55, 0.8].forEach(function (k, j) { c.beginPath(); c.ellipse(lerp(P.px, P.sx, k), lerp(P.py, P.sy, k) + 5 - j * 2, 6, 4, 0, 0, TAU); c.fill(); }); c.globalAlpha = 1; }
+  // the near legs
+  var k1 = jleg(c, P.px, P.py - 4, feet[2], FOOT_Y, -f * 14, 8, WOOD), k1x = k1.x, k1y = k1.y; paw(feet[2], FOOT_Y);
+  var k2 = jleg(c, P.sx + f * 2, P.sy - 10, feet[3], fy, -f * 6, 8, WOOD); paw(feet[3], fy);
+  pin(c, k1x, k1y); pin(c, k2.x, k2.y);
+  // the neck, up to the head
+  paint(c, P.sx + f * 2, P.sy, P.nx, P.ny, 16, fur, edge);
+  pin(c, P.px, P.py); pin(c, P.sx, P.sy);
+}
+function snakeDraw(c, g, F) {
+  var P = F.p, f = F.f, L = F.look, t = g.t, th = L.thick || 1, sw = REDUCED ? 0 : Math.sin(t * 2.4 + F.i) * 9;
+  var q = snakeCurve(F, P, sw), pt = {}, i, n = 24, pass, bx = F.fx + f * ((P.hop || 0) - 22);
+  // coils on the board
+  c.fillStyle = L.c4; c.beginPath(); c.ellipse(bx - f * 14, 11, 36 * th, 12 * th, 0, 0, TAU); c.fill();
+  c.fillStyle = L.col; c.beginPath(); c.ellipse(bx - f * 12, 13, 32 * th, 9.5 * th, 0, 0, TAU); c.fill();
+  c.strokeStyle = L.c4; c.lineWidth = 2; c.beginPath(); c.ellipse(bx - f * 18, 14, 18 * th, 5 * th, 0, 0, TAU); c.stroke();
+  bez(q, 0.45, pt); rod(c, F, pt.x - f * 6, pt.y);
+  // the body: a tube that narrows from the coils to the head
+  for (pass = 0; pass < 2; pass++) for (i = 0; i <= n; i++) {
+    var k = i / n; bez(q, k, pt); var r = lerp(14, 9, k) * th;
+    c.fillStyle = pass ? L.col : L.c4; c.beginPath(); c.arc(pt.x, pt.y, pass ? r : r + 1.8, 0, TAU); c.fill();
+  }
+  // its belly, rings, and (on acid eels) the places that glow
+  c.lineCap = "round";
+  for (i = 2; i < n - 1; i += 2) {
+    var k2 = i / n, a = bez(q, k2, {}), b = bez(q, Math.min(1, k2 + 0.02), {}), dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 1, r2 = lerp(14, 9, k2) * th;
+    c.strokeStyle = L.c1; c.globalAlpha = 0.5; c.lineWidth = 2; c.beginPath(); c.moveTo(a.x + dy / d * r2 * f * 0.2 - dy / d * r2, a.y - dx / d * r2 * 0.2 + dx / d * r2); c.lineTo(a.x + dy / d * r2, a.y - dx / d * r2); c.stroke(); c.globalAlpha = 1;
+    if (L.glow && i % 4 === 2) { var pu = REDUCED ? 0.7 : 0.5 + 0.5 * Math.sin(t * 4 + i); c.fillStyle = L.glow; c.globalAlpha = 0.45 + 0.4 * pu; c.beginPath(); c.arc(a.x - dy / d * r2 * 0.35, a.y + dx / d * r2 * 0.35, 3 + 1.5 * pu, 0, TAU); c.fill(); c.globalAlpha = 1; }
+  }
+  if (L.fin) {
+    // a fin along its back
+    c.fillStyle = L.fin; c.globalAlpha = 0.6; c.beginPath();
+    for (i = 10; i <= n; i++) { var k3 = i / n, p3 = bez(q, k3, {}), p4 = bez(q, Math.min(1, k3 + 0.02), {}), ddx = p4.x - p3.x, ddy = p4.y - p3.y, dd = Math.sqrt(ddx * ddx + ddy * ddy) || 1, up = lerp(14, 9, k3) * th + 6 + 5 * Math.sin(i * 1.3 + (REDUCED ? 0 : t * 6)); c.lineTo(p3.x - ddy / dd * up * f, p3.y + ddx / dd * up * f); }
+    for (i = n; i >= 10; i--) { var k4 = i / n, p5 = bez(q, k4, {}); c.lineTo(p5.x, p5.y); }
+    c.closePath(); c.fill(); c.globalAlpha = 1;
+  }
+}
+function crabDraw(c, g, F) {
+  var P = F.p, f = F.f, L = F.look, x0 = F.fx + f * (P.hop || 0), b = F.b, t = g.t, i, j;
+  var sc = Math.max(0.3, b.inf) * (L.big || 1) * F.bs, rx = BRX * sc * (L.bw || 1), ry = BRY * sc * (L.bh || 1);
+  var cx = b.alive ? b.x : P.nx, cy = b.alive ? b.y : P.ny + ry * 0.9, ed = L.c4, tap = REDUCED ? 0 : Math.sin(t * 6 + F.i) * 2.5;
+  // three legs a side, up at the knee and down to a point; the far side darker
+  for (j = 1; j >= 0; j--) for (i = 0; i < 3; i++) {
+    var LG = [[-0.55, -1.3, -1.85, 0.85], [-0.2, -0.95, -1.3, 1.0], [0.25, 1.05, 1.45, 0.8]][i], o2 = j * 0.14;
+    var ax = cx + f * rx * (LG[0] + o2), ay = cy - ry * 0.1, kx = cx + f * rx * (LG[1] + o2), ky = cy + ry * LG[3] + (i % 2 ? tap : -tap), fx2 = cx + f * rx * (LG[2] + o2);
+    var col = j ? L.c3 : L.col;
+    paint(c, ax, ay, kx, ky, 7, col, ed); paint(c, kx, ky, fx2, FOOT_Y + 6, 5, col, ed);
+    c.strokeStyle = ed; c.lineWidth = 4; c.lineCap = "round"; c.beginPath(); c.moveTo(lerp(kx, fx2, 0.8), lerp(ky, FOOT_Y + 6, 0.8)); c.lineTo(fx2, FOOT_Y + 1); c.stroke();
+  }
+  rod(c, F, cx - f * rx * 0.6, cy + ry * 0.2);
+  // the small claw's arm (it guards), then the big claw's
+  var gx = P.ggx === undefined ? P.sx : P.ggx, gy = P.ggy === undefined ? P.sy : P.ggy, sx2 = cx + f * rx * 0.55, sy2 = cy - ry * 0.25;
+  var mx = (sx2 + gx) / 2 + f * 4, my = Math.min(sy2, gy) - 10;
+  paint(c, sx2, sy2, mx, my, 7, L.c3, ed); paint(c, mx, my, gx, gy, 6, L.c3, ed);
+  paint(c, P.sx, P.sy, P.ex, P.ey, 9, L.col, ed); paint(c, P.ex, P.ey, P.hx, P.hy, 8, L.col, ed);
+}
+function bugDraw(c, g, F) {
+  var P = F.p, f = F.f, L = F.look, x0 = F.fx, t = g.t, ed = L.c4, i, j, rip = REDUCED ? 0 : t * 9;
+  var ax = [P.px + f * 8, (P.px + P.kx) / 2, P.kx], ay = [P.py - 2, (P.py + P.ky) / 2 - 2, P.ky - 4];
+  // six legs bent high at the knee; the far side darker
+  for (j = 1; j >= 0; j--) for (i = 0; i < 3; i++) {
+    var ox = ax[i], oy = ay[i], fx2 = ox + f * ((i - 1) * 22 + (j ? 12 : -4)), kx = (ox + fx2) / 2 - f * 6, ky = oy + 20 + Math.sin(rip + i * 2.1 + j * 3) * 3;
+    var col = j ? L.c3 : L.c1;
+    paint(c, ox, oy, kx, ky, 4.5, col, ed); paint(c, kx, ky, fx2, FOOT_Y + 1, 3.5, col, ed);
+  }
+  rod(c, F, P.kx - f * 10, P.ky + 6);
+  // the body: three segments of abdomen, then the thorax
+  for (i = 0; i < 3; i++) { var k = i / 3, bx = lerp(P.px - f * 10, P.kx, k), by = lerp(P.py, P.ky, k) + 2, rr = lerp(17, 13, k);
+    c.fillStyle = ed; c.beginPath(); c.ellipse(bx, by, rr + 2, rr * 0.82 + 2, 0, 0, TAU); c.fill(); c.fillStyle = i % 2 ? L.c1 : L.col; c.beginPath(); c.ellipse(bx, by, rr, rr * 0.82, 0, 0, TAU); c.fill(); }
+  paint(c, P.kx, P.ky, P.nx - f * 4, P.ny - 10, 15, L.col, ed);
+  // the guard arm folded at the chest, then the striking arm
+  var gx = P.ggx === undefined ? P.sx : P.ggx, gy = P.ggy === undefined ? P.sy : P.ggy;
+  paint(c, P.sx - f * 6, P.sy - 4, (P.sx + gx) / 2 + f * 2, Math.max(P.sy, gy) + 8, 5, L.c3, ed); paint(c, (P.sx + gx) / 2 + f * 2, Math.max(P.sy, gy) + 8, gx, gy, 4.5, L.c3, ed);
+  paint(c, P.sx, P.sy, P.ex, P.ey, 6, L.c1, ed); paint(c, P.ex, P.ey, P.hx, P.hy, 5, L.c1, ed);
+}
+// what a creature has on its head (drawn in the balloon's own frame: +y up, the front toward f)
+function creatureHead(c, g, F, rx, ry, sc) {
+  var L = F.look, f = F.f > 0 ? 1 : -1, b = F.b, k;
+  if (L.ears === "flop") {
+    var sw = clamp(-b.vy * 0.0016, -0.25, 0.3);
+    c.fillStyle = L.c3; c.strokeStyle = L.c4; c.lineWidth = 1.4 * sc;
+    c.beginPath(); c.moveTo(-f * rx * 0.05, ry * 0.8); c.quadraticCurveTo(-f * rx * 0.75, ry * (0.95 + sw), -f * rx * (0.95 + sw), ry * 0.05); c.quadraticCurveTo(-f * rx * 0.62, ry * 0.1, -f * rx * 0.42, ry * 0.55); c.closePath(); c.fill(); c.stroke();
+  } else if (L.ears === "prick") {
+    c.fillStyle = L.c3; c.strokeStyle = L.c4; c.lineWidth = 1.4 * sc;
+    [0.05, -0.38].forEach(function (o) { c.beginPath(); c.moveTo(f * rx * (o + 0.12), ry * 0.86); c.lineTo(f * rx * (o - 0.08), ry * 1.55); c.lineTo(f * rx * (o - 0.34), ry * 0.7); c.closePath(); c.fill(); c.stroke(); });
+  }
+  if (L.cont) {
+    // half a cargo container, rusted, riding on top of the shell
+    c.fillStyle = "#8a4a2c"; c.strokeStyle = "#3d1f12"; c.lineWidth = 2 * sc;
+    c.beginPath(); c.moveTo(-f * rx * 1.04, ry * 0.42); c.lineTo(-f * rx * 1.04, ry * 1.12); c.lineTo(f * rx * 0.86, ry * 1.12); c.lineTo(f * rx * 0.86, ry * 0.5); c.quadraticCurveTo(0, ry * 0.86, -f * rx * 1.04, ry * 0.42); c.closePath(); c.fill(); c.stroke();
+    c.strokeStyle = "rgba(40,18,10,0.55)"; c.lineWidth = 2.2 * sc;
+    for (k = -0.85; k < 0.8; k += 0.24) { c.beginPath(); c.moveTo(f * rx * k, ry * 0.64); c.lineTo(f * rx * k, ry * 1.08); c.stroke(); }
+    c.fillStyle = "rgba(214,120,60,0.55)"; c.beginPath(); c.ellipse(-f * rx * 0.3, ry * 0.95, rx * 0.14, ry * 0.08, 0, 0, TAU); c.fill();
+  }
+  if (L.stalks) {
+    // eyes on stalks, out from under the shell
+    var look = clamp((g.f[1 - F.i].b.y - b.y) * 0.004, -0.3, 0.3);
+    [0.32, 0.6].forEach(function (o, j) {
+      var x1 = f * rx * o, y1 = ry * (L.cont ? 1.05 : 0.8), x2 = f * rx * (o + 0.08), y2 = ry * (L.cont ? 1.6 : 1.35) + j * 3 * sc;
+      c.strokeStyle = L.c4; c.lineWidth = 3.6 * sc; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+      c.fillStyle = "#f4efe2"; c.beginPath(); c.arc(x2, y2, 4.6 * sc, 0, TAU); c.fill();
+      c.fillStyle = "#1d1512"; c.beginPath(); c.arc(x2 + f * 1.6 * sc, y2 + look * 8 * sc, 2.4 * sc, 0, TAU); c.fill();
+    });
+  }
+  if (L.eyes === 3) { c.fillStyle = "#1d1512"; c.beginPath(); c.ellipse(f * rx * 0.24, ry * 0.5, 2.4 * sc, 3.2 * sc, 0, 0, TAU); c.fill(); }
+  if (L.lumps) { c.fillStyle = L.c3; c.globalAlpha = 0.55; [[-0.5, 0.35, 0.16], [-0.15, -0.45, 0.12], [0.45, -0.2, 0.1]].forEach(function (q) { c.beginPath(); c.arc(f * rx * q[0], ry * q[1], rx * q[2], 0, TAU); c.fill(); }); c.globalAlpha = 1; }
+}
+// a mouth in front of the head, drawn along where it bites or spits (world frame)
+function snout(c, g, F) {
+  var b = F.b, P = F.p, L = F.look, w = F.w, st = L.snout || "mouth";
+  if (!b.alive || b.inf < 0.35) return;
+  var sc = b.inf * (L.big || 1) * F.bs, rx = BRX * sc * (L.bw || 1), R = P.mR || rx + 18, x0 = rx * 0.42, len = Math.max(8, R - x0), hw = (st === "wyrm" ? 15 : st === "eel" ? 8.5 : 10.5) * sc;
+  var op = 0.14 + (REDUCED ? 0 : 0.06 * Math.sin(g.t * 9 + F.i));
+  if (w.act === "bite") { var at = w.actT; op = at < 0.09 ? lerp(0.2, 1, at / 0.09) : at < 0.21 ? lerp(1, 0, (at - 0.09) / 0.12) : 0.03; }
+  else if (F.wk === "spit") op = w.cd > 0.5 ? 0.85 : 0.18;
+  if (F.pu.freeze > 0) op = 0.04;
+  c.save(); c.translate(b.x, b.y); c.rotate(Math.atan2(P.dy, P.dx)); if (F.f < 0) c.scale(1, -1);
+  c.lineJoin = "round"; c.lineCap = "round";
+  if (st === "sucker") {
+    // a leech: a round mouth ringed with teeth
+    c.fillStyle = L.c3; c.strokeStyle = L.c4; c.lineWidth = 2;
+    c.beginPath(); c.ellipse(x0 + len * 0.55, 0, len * 0.5, hw * (0.8 + op * 0.5), 0, 0, TAU); c.fill(); c.stroke();
+    c.fillStyle = "#2a0e12"; c.beginPath(); c.ellipse(x0 + len * 0.75, 0, len * 0.22, hw * (0.35 + op * 0.5), 0, 0, TAU); c.fill();
+    c.fillStyle = "#f4efe2"; for (var i = 0; i < 6; i++) { var an = i * TAU / 6; c.beginPath(); c.arc(x0 + len * 0.75 + Math.cos(an) * len * 0.2, Math.sin(an) * hw * (0.35 + op * 0.45), 1.6, 0, TAU); c.fill(); }
+    c.restore(); return;
+  }
+  if (st === "mouth") {
+    // no snout: a round mouth at the front of the balloon (it spits)
+    c.fillStyle = "#2a0e12"; c.beginPath(); c.ellipse(rx * 0.86, 0, 4 * sc, (2 + op * 5) * sc, 0, 0, TAU); c.fill();
+    if (F.wk === "spit" && op > 0.5) { c.fillStyle = "rgba(170,240,90,0.85)"; c.beginPath(); c.arc(rx * 0.95, -1, 3 * sc, 0, TAU); c.fill(); }
+    c.restore(); return;
+  }
+  var mz = st === "dog" ? L.c1 : L.col, ed = L.c4, ang = -op * (st === "wyrm" ? 0.8 : 0.7), dn = -hw * (st === "dog" ? 0.5 : 0.3), tw = st === "eel" ? 0.12 : st === "wyrm" ? 0.22 : 0.3;
+  var mx = x0 + len * 0.52, mrx = len * 0.56, ty = st === "eel" ? 1.6 : 2.2;
+  c.translate(0, dn);   // (the muzzle sits low on the head, under the eyes)
+  // the lower jaw: a smaller rounded piece hinged at the back, swung open
+  c.save(); c.translate(x0 + len * 0.05, -hw * 0.15); c.rotate(ang);
+  c.fillStyle = mz; c.strokeStyle = ed; c.lineWidth = 1.8;
+  c.beginPath(); c.ellipse(len * 0.44, -hw * 0.34, len * 0.47, hw * 0.52, 0, 0, TAU); c.fill(); c.stroke();
+  if (op > 0.1) { c.fillStyle = "#f4efe2"; for (var tq = st === "dog" ? 0.7 : 0.25; tq < 0.92; tq += tw) { c.beginPath(); c.moveTo(len * tq, hw * 0.1); c.lineTo(len * tq + 3.4, hw * 0.1); c.lineTo(len * tq + 1.7, hw * 0.1 + 5 * sc * (st === "wyrm" ? 1.4 : 1)); c.closePath(); c.fill(); } }
+  if (st === "dog" && op > 0.1 && w.act !== "bite") { c.fillStyle = "#e86a80"; c.strokeStyle = "#b8455a"; c.lineWidth = 1; c.beginPath(); c.ellipse(len * 0.62, -hw * 0.6, len * 0.17, hw * 0.42, 0.25, 0, TAU); c.fill(); c.stroke(); }
+  c.restore();
+  // the inside of the mouth shows when it opens
+  if (op > 0.1) { c.fillStyle = L.mouthGlow || "#3a1416"; c.beginPath(); c.moveTo(x0 + len * 0.05, -hw * 0.15); c.lineTo(x0 + len * 0.98, -hw * 0.1); c.lineTo(x0 + len * 0.05 + len * 0.9 * Math.cos(ang), -hw * 0.15 + len * 0.9 * Math.sin(ang)); c.closePath(); c.fill(); }
+  // the snout: a long rounded shape out of the front of the head, the nose on the end
+  c.fillStyle = mz; c.strokeStyle = ed; c.lineWidth = 1.8;
+  c.beginPath(); c.ellipse(mx, hw * 0.25, mrx, hw * 0.78, 0, 0, TAU); c.fill(); c.stroke();
+  c.fillStyle = "rgba(255,255,255,0.28)"; c.beginPath(); c.ellipse(mx - mrx * 0.15, hw * 0.62, mrx * 0.55, hw * 0.18, 0, 0, TAU); c.fill();
+  if (op <= 0.1) { c.strokeStyle = ed; c.lineWidth = 1.4; c.beginPath(); c.moveTo(x0 + len * 0.25, -hw * 0.3); c.quadraticCurveTo(x0 + len * 0.6, -hw * 0.45, x0 + len * 0.98, -hw * 0.18); c.stroke(); }
+  if (op > 0.1 || st !== "dog") { c.fillStyle = "#f4efe2"; for (var tu = st === "dog" ? 0.72 : 0.3; tu < 0.98; tu += tw) { c.beginPath(); c.moveTo(x0 + len * tu, -hw * 0.38); c.lineTo(x0 + len * tu + 3.4, -hw * 0.38); c.lineTo(x0 + len * tu + 1.7, -hw * 0.38 - ty * 2.4 * sc * (st === "wyrm" ? 1.4 : 1)); c.closePath(); c.fill(); } }
+  if (st === "dog") { c.fillStyle = "#1d1512"; c.beginPath(); c.ellipse(x0 + len * 1.04, hw * 0.42, 6 * sc, 4.6 * sc, 0, 0, TAU); c.fill(); c.fillStyle = "rgba(255,255,255,0.5)"; c.beginPath(); c.arc(x0 + len * 1.02, hw * 0.62, 1.5 * sc, 0, TAU); c.fill(); }
+  else if (st === "wyrm" || st === "eel") { c.fillStyle = ed; [0.82, 0.9].forEach(function (k) { c.beginPath(); c.arc(x0 + len * k, hw * 0.55, 1.4 * sc, 0, TAU); c.fill(); }); }
+  if (L.lamp) { var lg = REDUCED ? 0.8 : 0.6 + 0.4 * Math.sin(g.t * 5 + F.i); c.fillStyle = "rgba(255,240,150," + (0.5 + 0.4 * lg).toFixed(2) + ")"; c.beginPath(); c.arc(x0 + len * 0.6, hw * 1.6, 4 * sc, 0, TAU); c.fill(); c.strokeStyle = L.c4; c.lineWidth = 1.4; c.beginPath(); c.moveTo(x0 + len * 0.2, hw * 0.9); c.quadraticCurveTo(x0 + len * 0.3, hw * 1.9, x0 + len * 0.6, hw * 1.6); c.stroke(); }
+  c.restore();
+}
+// claws: a crab's pincer, a crawler's hooked foreleg, the hunter's bone talons
+function pincer(c, g, x, y, r, F, tilt, big) {
+  var L = F.look, st = L.claws || "crab", w = F.w, open = (w.act === "hold" || w.act === "wind") ? 0.9 : (w.act === "jab" || w.act === "hay") ? (w.actT < 0.08 ? 0.9 : 0.05) : 0.4;
+  c.save(); c.translate(x, y); c.rotate(Math.atan2(F.p.dy, F.p.dx) + tilt * F.f); if (F.f < 0) c.scale(1, -1);
+  c.lineJoin = "round"; c.lineCap = "round"; c.strokeStyle = L.c4; c.lineWidth = 1.8;
+  if (st === "bone") {
+    c.strokeStyle = "#efe6d2"; c.lineWidth = 3;
+    [-0.5, 0, 0.5].forEach(function (k) { var a = k * (0.5 + open * 0.6); c.beginPath(); c.moveTo(-4, 0); c.quadraticCurveTo(r * 0.8 * Math.cos(a) , r * 0.8 * Math.sin(a), r * 1.5 * Math.cos(a) , r * 1.5 * Math.sin(a) - 5); c.stroke(); });
+    c.fillStyle = L.c3; c.beginPath(); c.arc(-4, 0, r * 0.42, 0, TAU); c.fill();
+  } else if (st === "mantis") {
+    c.fillStyle = L.c1; c.beginPath(); c.moveTo(-6, -4); c.lineTo(r * 1.3, 2); c.quadraticCurveTo(r * 1.6, 8, r * 1.1, 10); c.lineTo(r * 1.15, 4); c.lineTo(-6, 6); c.closePath(); c.fill(); c.stroke();
+    c.strokeStyle = "#f4efe2"; c.lineWidth = 1.4; for (var k = 0; k < 4; k++) { c.beginPath(); c.moveTo(k * r * 0.28, -2); c.lineTo(k * r * 0.28 + 2, -6); c.stroke(); }
+  } else {
+    // a crab's claw: a fat palm, a fixed finger and one that opens
+    var s = big ? 1.15 : 0.85, ed = L.c4;
+    c.fillStyle = L.col; c.strokeStyle = ed;
+    c.beginPath(); c.ellipse(0, 0, r * 0.95 * s, r * 0.72 * s, 0, 0, TAU); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(r * 0.5 * s, -r * 0.1 * s); c.quadraticCurveTo(r * 1.6 * s, -r * 0.2 * s, r * 1.75 * s, r * 0.15 * s); c.quadraticCurveTo(r * 1.2 * s, -r * 0.5 * s, r * 0.4 * s, -r * 0.55 * s); c.closePath(); c.fill(); c.stroke();
+    c.save(); c.translate(r * 0.5 * s, r * 0.25 * s); c.rotate(open * 0.7);
+    c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(r * 1.1 * s, r * 0.5 * s, r * 1.3 * s, r * 0.05 * s); c.quadraticCurveTo(r * 0.8 * s, r * 0.15 * s, 0, -r * 0.2 * s); c.closePath(); c.fill(); c.stroke();
+    c.restore();
+    c.fillStyle = "rgba(255,255,255,0.3)"; c.beginPath(); c.ellipse(-r * 0.2 * s, r * 0.3 * s, r * 0.35 * s, r * 0.18 * s, -0.3, 0, TAU); c.fill();
+  }
+  c.restore();
+}
+// a glob of acid in flight
+function glob(c, s) {
+  var k = Math.min(1, s.t * 6), sq = 1 + Math.min(0.5, Math.abs(s.vy) / 1400);
+  c.save(); c.translate(s.x, s.y); c.rotate(Math.atan2(s.vy, s.vx));
+  c.fillStyle = "rgba(120,200,70,0.35)"; c.beginPath(); c.ellipse(-8, 0, 10 * sq, 5, 0, 0, TAU); c.fill();
+  c.fillStyle = "#9be04a"; c.strokeStyle = "#4f7a1f"; c.lineWidth = 1.4; c.beginPath(); c.ellipse(0, 0, 6.5 * sq * k + 1, 5.2 * k + 1, 0, 0, TAU); c.fill(); c.stroke();
+  c.fillStyle = "rgba(255,255,255,0.6)"; c.beginPath(); c.arc(1.5, 2, 1.6, 0, TAU); c.fill();
+  c.restore();
+}
+// how a frozen puppet looks: ice, fear, a blinding flash, a shock, a grip
+function frozenLook(c, g, F) {
+  var P = F.p, b = F.b, fz = F.fz || "ice", left = F.pu.freeze, k = clamp(left * 2, 0, 1), i;
+  var top = b.alive ? b.y + BRY * F.bs * (F.look.bh || 1) + 10 : P.ny + 14, cx = b.alive ? b.x : P.nx, cy = b.alive ? b.y : P.ny;
+  c.save();
+  if (fz === "fear") {
+    // "!!" over its head and drops of sweat
+    c.strokeStyle = "#ffd166"; c.fillStyle = "#ffd166"; c.lineWidth = 4.5; c.lineCap = "round";
+    [-9, 9].forEach(function (o) { var x = cx + o, j = REDUCED ? 0 : Math.sin(g.t * 40 + o) * 1.5; c.beginPath(); c.moveTo(x + j, top + 34); c.lineTo(x + j, top + 16); c.stroke(); c.beginPath(); c.arc(x + j, top + 8, 2.6, 0, TAU); c.fill(); });
+    c.fillStyle = "rgba(160,210,255,0.85)"; [[-1, 0.2], [1, -0.1]].forEach(function (q) { var x = cx + q[0] * BRX * 1.05, y = cy + q[1] * BRY - ((g.t * 30) % 20); c.beginPath(); c.moveTo(x, y + 7); c.quadraticCurveTo(x + 4, y, x, y - 3); c.quadraticCurveTo(x - 4, y, x, y + 7); c.fill(); });
+  } else if (fz === "flash") {
+    // dazzled: a white burst over the face
+    var rr = 36 + 18 * k; c.globalAlpha = 0.25 + 0.55 * k;
+    var gr = c.createRadialGradient(cx, cy, 2, cx, cy, rr * 1.6); gr.addColorStop(0, "rgba(255,255,235,0.95)"); gr.addColorStop(1, "rgba(255,255,235,0)");
+    c.fillStyle = gr; c.beginPath(); c.arc(cx, cy, rr * 1.6, 0, TAU); c.fill();
+    c.strokeStyle = "rgba(255,250,210,0.9)"; c.lineWidth = 2.5;
+    for (i = 0; i < 8; i++) { var an = i * TAU / 8 + (REDUCED ? 0 : g.t * 2); c.beginPath(); c.moveTo(cx + Math.cos(an) * rr * 0.9, cy + Math.sin(an) * rr * 0.9); c.lineTo(cx + Math.cos(an) * rr * 1.35, cy + Math.sin(an) * rr * 1.35); c.stroke(); }
+  } else if (fz === "shock") {
+    // knocked off balance: stars going round
+    for (i = 0; i < 3; i++) { var a2 = (REDUCED ? 0 : g.t * 5) + i * TAU / 3; starShape(c, cx + Math.cos(a2) * 34, top + 8 + Math.sin(a2) * 8, 6, a2); }
+  } else if (fz === "grip") {
+    // held fast: dark bands around the body
+    c.strokeStyle = "rgba(40,50,36,0.85)"; c.lineWidth = 6;
+    [[P.px, P.py], [P.sx, P.sy]].forEach(function (q) { c.beginPath(); c.ellipse(q[0], q[1], 20, 9, 0, 0, TAU); c.stroke(); });
+    c.beginPath(); c.ellipse(cx, cy - BRY * 0.6, 26, 8, 0, 0, TAU); c.stroke();
+  }
+  c.restore();
+}
+
+// ===================== abilities (Ashen Sphere: these take the place of the crates) =====================
+// What each fighter brings to a fight. k: the effect (the crates' own: shield, bubble, freeze...), t: how long it
+// lasts, n: hits a shield takes. when: "start" (on at the start of every round) or "low" (on at the start of a round
+// you're one pop from losing); without one it's used once a round, when the player says (the ability buttons) or, for a
+// rival's brain, at its moment: use "atk" (as it attacks), "def" (when something is coming) or "now" (early on).
+// fz: how a freeze looks. ic: its own picture (otherwise the crate's).
+var ABIL = {
+  // the colony's: learned from what you build, craft and find
+  armour: { name: "PLATE ARMOUR", k: "bubble", when: "start", col: "#9be7ff", say: "A spare balloon inside, every round" },
+  patch: { name: "PATCH UP", k: "bubble", when: "low", col: "#ff9a9a", say: "A spare balloon when it's close" },
+  scare: { name: "SCARECROW", k: "decoy", use: "now", col: "#d9c38a", say: "A fake head takes the hit" },
+  scrap: { name: "SCRAP SHIELD", k: "shield", t: 10, n: 2, use: "def", col: "#8fb8d8", say: "Blocks two hits" },
+  duck: { name: "DUCK AND COVER", k: "shrink", t: 6, use: "def", col: "#7cf0c2", say: "A smaller target" },
+  callout: { name: "CALL OUT", k: "ui", t: 5, use: "def", col: "#d8ecff", say: "Someone shouts what's coming" },
+  spring: { name: "SPRING ARM", k: "extendo", t: 7, use: "atk", col: "#ffd166", say: "Longer reach, longer string" },
+  wired: { name: "WIRED TRIGGER", k: "auto", t: 6, use: "atk", col: "#ff7a45", say: "Hold the button to keep going" },
+  spare: { name: "SPARE WEAPON", k: "dual", t: 7, use: "atk", col: "#ffb547", say: "Two at once" },
+  pump: { name: "PUMP IT", k: "pump", t: 6, use: "atk", col: "#ff8fb8", say: "Balloon pumped up" },
+  hydro: { name: "HYDROGEN", k: "helium", t: 6, use: "def", col: "#ffe680", say: "Your head floats up out of reach" },
+  lens: { name: "BUILDER LENS", k: "magnet", t: 6, use: "atk", col: "#ff4d6d", say: "Shots curve to the balloon" },
+  flash: { name: "LAMP FLASH", k: "freeze", t: 1.6, fz: "flash", use: "def", col: "#fff3b0", say: "Blinded for a moment", ic: "sun" },
+  song: { name: "SHELL SONG", k: "flip", t: 4.5, use: "now", col: "#d78bff", say: "Stick turned upside down" },
+  drill: { name: "EMBER DRILL", k: "drill", t: 6, use: "atk", col: "#f2c14e", say: "Straight through shields and wood" },
+  warcry: { name: "WAR CRY", k: "freeze", t: 1.2, fz: "fear", use: "atk", col: "#ffcf7a", say: "Frozen with fear", ic: "howl" },
+  // dogs and the stalker
+  pack: { name: "THE PACK", k: "decoy", when: "start", col: "#c8a878", say: "Another dog takes the first hit", ic: "pack" },
+  howl: { name: "HOWL", k: "freeze", t: 1.3, fz: "fear", use: "atk", col: "#e8d8b0", say: "Frozen with fear", ic: "howl" },
+  pounce: { name: "POUNCE", k: "extendo", t: 5, use: "atk", col: "#ffd166", say: "Lunges twice as far", ic: "paw" },
+  reeds: { name: "IN THE REEDS", k: "shrink", t: 6, use: "def", col: "#a9c98a", say: "Hard to see" },
+  pace: { name: "KEEPS PACE", k: "ui", t: 5, use: "def", col: "#e3e0d0", say: "Moves when you move" },
+  // raiders, the Warden, the hunter
+  rapid: { name: "PIPE GUNS", k: "auto", t: 6, use: "atk", col: "#ff7a45", say: "They keep firing" },
+  cover: { name: "LOOT PILE", k: "shield", t: 10, n: 2, use: "def", col: "#b8874b", say: "Ducks behind the loot" },
+  plate: { name: "WELDED PLATE", k: "shield", t: 99, n: 1, when: "start", col: "#9aa1ab", say: "Blocks a hit every round" },
+  slam: { name: "GROUND SLAM", k: "freeze", t: 1.2, fz: "shock", use: "atk", col: "#c9ced6", say: "Knocked off balance", ic: "slam" },
+  weld: { name: "BUILDER CUTTER", k: "drill", t: 6, use: "atk", col: "#f2c14e", say: "Straight through shields" },
+  echo: { name: "ECHO", k: "magnet", t: 6, use: "atk", col: "#cbbfa8", say: "It hears where you are" },
+  listen: { name: "LISTEN", k: "ui", t: 5, use: "def", col: "#e6ddc8", say: "It hears it coming" },
+  lunge: { name: "LONG ARMS", k: "extendo", t: 6, use: "atk", col: "#efe6d2", say: "Reaches twice as far" },
+  // crawlers, the crab, eels, leeches, the wyrm
+  swarm: { name: "THE SWARM", k: "decoy", when: "start", col: "#d9d2c3", say: "Another one takes the first hit", ic: "pack" },
+  skitter: { name: "SKITTER", k: "ui", t: 5, use: "def", col: "#e8e2d4", say: "Too many legs to catch" },
+  bigclaw: { name: "BOTH CLAWS", k: "dual", t: 5, use: "atk", col: "#ff8a5c", say: "One clean pinch pops you" },
+  scuttle: { name: "SCUTTLE", k: "shrink", t: 6, use: "def", col: "#d4673a", say: "Pulls in under the shell" },
+  glow: { name: "GLOW", k: "freeze", t: 1.4, fz: "flash", use: "def", col: "#d8ff7a", say: "Blinded by the glow", ic: "sun" },
+  slip: { name: "SLIPPERY", k: "ui", t: 5, use: "def", col: "#9fe0c0", say: "Slides out of the way" },
+  latch: { name: "LATCH ON", k: "freeze", t: 1.2, fz: "grip", use: "atk", col: "#7a8a6a", say: "Held fast" },
+  coil: { name: "COILS", k: "shield", t: 99, n: 1, when: "start", col: "#8a7550", say: "Blocks a hit every round" },
+  sink: { name: "SINK", k: "shrink", t: 6, use: "def", col: "#6b5a3c", say: "Sinks into the bog" },
+  bog: { name: "BOG BREATH", k: "flip", t: 4, use: "now", col: "#9a8a5a", say: "Stick turned upside down" },
+  // in space
+  deflect: { name: "DEFLECTOR", k: "shield", t: 10, n: 2, use: "def", col: "#8fb8d8", say: "Blocks two hits" },
+  hooks: { name: "MAGNET HOOKS", k: "magnet", t: 6, use: "atk", col: "#ff4d6d", say: "Stars curve to the balloon" },
+  phase: { name: "PHASE", k: "ui", t: 5, use: "def", col: "#d8ecff", say: "Slips out of the way" },
+  blight: { name: "BUILDER LIGHT", k: "freeze", t: 1.5, fz: "flash", use: "def", col: "#fff3b0", say: "Blinded for a moment", ic: "sun" },
+  glock: { name: "GLYPH LOCK", k: "flip", t: 4, use: "now", col: "#d78bff", say: "Stick turned upside down" }
+};
+function activeAb(F) { var a = [], i; for (i = 0; i < F.ab.length; i++) if (ABIL[F.ab[i]] && !ABIL[F.ab[i]].when) a.push(F.ab[i]); return a; }
+// the start of a round: actives are ready again, and what's always on comes on
+function abilRound(g, F) {
+  F.abU = {}; F.abW = 0; F.fz = "";
+  var close = g.needs[1 - F.i] - g.wins[1 - F.i] <= 1, i;
+  for (i = 0; i < F.ab.length; i++) { var A = ABIL[F.ab[i]]; if (A && (A.when === "start" || (A.when === "low" && close))) applyAb(g, F, A); }
+}
+function applyAb(g, F, A) {
+  var P = PUK[A.k], O = g.f[1 - F.i], T = P.foe ? O : F;
+  if (A.k === "shield") { T.pu.shield = A.t || P.t; T.pu.shieldN = A.n || P.n; }
+  else if (A.k === "bubble" || A.k === "decoy") T.pu[A.k] = 1;
+  else T.pu[A.k] = A.t || P.t;
+  if (A.k === "decoy") { T.dk.x = T.fx + T.f * 100; T.dk.y = T.b.y; T.dk.vy = 0; }
+  if (A.k === "freeze") { T.fz = A.fz || "ice"; T.w.act = ""; T.w.off = 0; T.w.drawing = false; T.w.draw = 0; }
+}
+function useAb(g, F, id) {
+  var A = ABIL[id]; if (!A || A.when || F.abU[id] || !F.b.alive || g.phase !== "fight") return false;
+  F.abU[id] = 1; applyAb(g, F, A);
+  var O = g.f[1 - F.i], foe = PUK[A.k].foe;
+  cap(g, A.name + "!", (foe ? O.look.name : F.look.name) + " · " + A.say.toUpperCase(), A.col, 1.5, true);
+  text(g, F.b.x, F.b.y + 64, A.name, A.col);
+  ev(g, A.k === "freeze" ? "freeze" : "power", F.i);
+  g.abLog.push({ i: F.i, id: id, t: g.t, r: g.round });
+  return true;
+}
+function abilStep(g, F, O, dt) {
+  if (F.abW > 0) F.abW -= dt;
+  if (F.ctl === "cab") {
+    // the player's ability buttons: held over until the fight is on
+    if (g.phase === "fight") while (CTL.q.length) useAb(g, F, activeAb(F)[CTL.q.shift()]);
+    else if (CTL.q.length > 2) CTL.q.length = 0;
+    return;
+  }
+  if (F.bot && g.phase === "fight") abilBot(g, F, O);
+}
+// is something coming at it? a shot on its way to the balloon, a thrust or bite or punch on its way, a bow drawn
+function threatened(g, F, O) {
+  var b = F.b, i, s, oa = O.w.act;
+  for (i = 0; i < g.shots.length; i++) {
+    s = g.shots[i]; if (s.o === F.i || s.st !== "out" || s.dead) continue;
+    var tt = (b.x - s.x) / (s.vx || 1e-6); if (tt <= 0 || tt > 0.55) continue;
+    var yy = s.y + s.vy * tt - 0.5 * s.gr * tt * tt;
+    if (Math.abs(yy - b.y) < BRY * F.bs * (F.look.bh || 1) + 22) return true;
+  }
+  if ((oa === "thrust" || oa === "jab" || oa === "hay" || oa === "wind" || oa === "bite") && Math.abs(O.p.tx - b.x) < 150) return true;
+  return O.w.drawing && O.w.draw > 0.5;
+}
+// a rival's brain uses what it has at its moment, and a sharper rival more often at the right one
+function abilBot(g, F, O) {
+  var B = F.bot, sk = B.sk, acts, i, def = -1;
+  if (F.abW > 0 || !F.b.alive || g.rt < sk.warm * 0.7) return;
+  acts = activeAb(F); if (!acts.length) return;
+  var atk = (F.btn && !F.prev) || F.w.drawing;
+  for (i = 0; i < acts.length; i++) {
+    var id = acts[i], A = ABIL[id], want; if (F.abU[id]) continue;
+    if (A.use === "now") want = g.rt > sk.warm + 0.4;
+    else if (A.use === "atk") want = atk;
+    else { if (def < 0) def = threatened(g, F, O) ? 1 : 0; want = def === 1; }
+    if (!want && g.rt > 14 && g.r() < 0.004) want = true;   // (sooner or later it uses what it has)
+    if (!want) continue;
+    F.abW = 0.3;
+    if (g.r() < 0.35 + 0.6 * sk.dodge) { useAb(g, F, id); F.abW = 0.8 + 0.6 * g.r(); return; }
+  }
+}
+// what each side has, along the bottom corners: bright while it's ready (or always on), dim once used this round
+function abilChips(c, g) {
+  var r = Math.round(clamp(Math.min(W.w, W.h) * 0.028, 9, 14)), pad = 8, y = W.h - r - 30, i, j;   // (above the line of words along the bottom)
+  for (i = 0; i < 2; i++) {
+    var F = g.f[i]; if (!F.ab || !F.ab.length) continue;
+    for (j = 0; j < F.ab.length; j++) {
+      var id = F.ab[j], A = ABIL[id]; if (!A) continue;
+      var used = !A.when && F.abU[id], x = i ? W.w - pad - r - j * (2 * r + 7) : pad + r + j * (2 * r + 7);
+      c.globalAlpha = used ? 0.35 : 1;
+      c.fillStyle = "rgba(15,10,6,0.82)"; c.beginPath(); c.arc(x, y, r + 2.5, 0, TAU); c.fill();
+      c.fillStyle = A.col; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+      abIcon(c, A, x, y, r * 0.62);
+      if (A.when) { c.strokeStyle = "rgba(255,255,255,0.85)"; c.lineWidth = 1.5; c.setLineDash([2.5, 2.5]); c.beginPath(); c.arc(x, y, r + 1, 0, TAU); c.stroke(); c.setLineDash([]); }
+      c.globalAlpha = 1;
+    }
+  }
+}
+// an ability's picture: its own, or the crate's for its effect
+function abIcon(c, A, x, y, s) {
+  var k = A.ic; if (!k) { puIcon(c, A.k, x, y, s); return; }
+  c.save(); c.translate(x, y); c.scale(s / 10, s / 10);
+  c.lineCap = "round"; c.lineJoin = "round"; c.strokeStyle = "#1b1410"; c.fillStyle = "#1b1410"; c.lineWidth = 2.2;
+  if (k === "howl") { c.beginPath(); c.arc(-6, 0, 3, 0, TAU); c.fill(); [5, 9].forEach(function (r) { c.beginPath(); c.arc(-6, 0, r + 2, -0.7, 0.7); c.stroke(); }); c.beginPath(); c.arc(-6, 0, 15, -0.55, 0.55); c.stroke(); }
+  else if (k === "paw") { c.beginPath(); c.ellipse(0, 3, 4.5, 3.8, 0, 0, TAU); c.fill(); [[-5.5, -2], [-2, -6], [2, -6], [5.5, -2]].forEach(function (q) { c.beginPath(); c.arc(q[0], q[1], 1.9, 0, TAU); c.fill(); }); }
+  else if (k === "pack") { [[-4, 1, 5.5], [4.5, -1, 4.5]].forEach(function (q) { c.beginPath(); c.ellipse(q[0], q[1], q[2], q[2] * 1.15, 0, 0, TAU); c.stroke(); }); }
+  else if (k === "sun") { c.beginPath(); c.arc(0, 0, 3.6, 0, TAU); c.fill(); for (var i = 0; i < 8; i++) { var a = i * Math.PI / 4; c.beginPath(); c.moveTo(Math.cos(a) * 6, Math.sin(a) * 6); c.lineTo(Math.cos(a) * 9, Math.sin(a) * 9); c.stroke(); } }
+  else if (k === "slam") { c.beginPath(); c.moveTo(-9, 6); c.lineTo(9, 6); c.stroke(); c.beginPath(); c.moveTo(-4, -8); c.lineTo(-4, 2); c.lineTo(4, 2); c.lineTo(4, -8); c.stroke(); c.beginPath(); c.moveTo(-8, 1); c.lineTo(-10, -2); c.moveTo(8, 1); c.lineTo(10, -2); c.stroke(); }
+  c.restore();
+}
+
 // ===================== Ashen Sphere's side: the view, the skins, the cardboard ships, the little puppets =====================
-var CTL = { x: 0, y: 0, btn: false };   // the stick (x right, y down, -1..1) and the button, set by the game
+var CTL = { x: 0, y: 0, btn: false, q: [] };   // the stick (x right, y down, -1..1), the button, and ability buttons pressed (slot numbers), set by the game
 var W = { ctx: null, w: 1, h: 1, dpr: 1 }, V = { s: 1, ox: 0, oy: 0 }, CAM = { z: 1, x: 0, y: 155 };
 var CUR = null, SKIN = "board", ACC = 0, REDUCED = false;
 // the same fight, drawn as a toy on a table (board) or as cardboard ships against a painted sky (space)
@@ -3322,6 +4019,7 @@ function drawWorld(dt) {
   crates(c, g);
   texts(c, g);
   captions(c, g);
+  abilChips(c, g);
 }
 // ash drifts down over the table, as it does everywhere on the Ashen World
 function ash(c, g) {
@@ -3435,10 +4133,28 @@ function faceSVG(look, size) {
     (L.blind ? '<path d="M-6 -2H6" stroke="#1d1512" stroke-width="1.6" stroke-linecap="round"/>' : '<ellipse cx="-3" cy="-3" rx="1.4" ry="2" fill="#1d1512"/><ellipse cx="4" cy="-3" rx="1.4" ry="2" fill="#1d1512"/>') +
     '<path d="M-3 5H4" stroke="#1d1512" stroke-width="1.4" stroke-linecap="round"/><path d="M-2 15L2 15L0 18Z" fill="' + L.c3 + '"/></svg>';
 }
+// a puppet (a creature or a person) standing still, drawn to fill a little picture: for the threat card
+var PBOX = { dog: [300, 240, 20], snake: [270, 290, 35], crab: [320, 190, 10], bug: [300, 230, -10] }, PORT = {};   // (how big it is, and how far forward its middle is)
+function portrait(c, w, h, look, wk) {
+  var key = JSON.stringify(look) + wk, g = PORT[key];
+  if (!g) g = PORT[key] = newMatch({ weapon0: "box", weapon1: wk || "box", seed: 1, mode: "test", look0: { name: "", col: "#7fb2ff", big: 1 }, look1: look, ctl0: "idle", ctl1: "idle", needs: [1, 1] });
+  var F = g.f[1], L = F.look, box = PBOX[L.body] || [230, 340], k = Math.min(w / box[0], h / box[1]) * 0.94, keep = SKIN;
+  F.fx = 0; F.f = 1; F.advMax = F.off0 = F.pounce = F.back = 0; F.b.inf = 1; F.b.alive = true; g.phase = "ready";
+  pose(g, F);
+  var sb = (L.big || 1) * F.bs, lf = BRY * 0.92 * sb * (L.bh || 1); F.b.x = F.p.nx + F.p.ux * lf; F.b.y = F.p.ny + F.p.uy * lf; F.b.rot = Math.atan2(F.b.x - F.p.nx, F.b.y - F.p.ny);
+  if (isFist(F.wk)) pose(g, F);   // (the guarding claw goes where the balloon is)
+  SKIN = "board";
+  c.save(); c.translate(w / 2 - (box[2] || 30) * k, h - 6); c.scale(k, -k); NOROD = true;
+  body(c, g, F); balloon(c, g, F, false); weapon(c, g, F);
+  c.restore(); SKIN = keep; NOROD = false;
+}
 // ---------- the game's way in ----------
-// o: { weapon, seed, look0, look1, ctl0 ("cab" or a skill), ctl1 (a skill), needs: [pops you need, pops they need], start: [pu0, pu1], pups, skin }
+// o: { weapon (or weapon0 and weapon1, one a side), seed, look0, look1, ctl0 ("cab" or a skill), ctl1 (a skill),
+//      needs: [pops you need, pops they need], start: [pu0, pu1], ab0, ab1 (abilities), pups (crates: off unless asked), skin }
 function start(o) {
-  var g = newMatch({ weapon: o.weapon, seed: o.seed, mode: "fight", look0: o.look0, look1: o.look1, ctl0: o.ctl0, ctl1: o.ctl1, needs: o.needs, start: o.start, pups: o.pups !== false });
+  var g = newMatch({ weapon: o.weapon, weapon0: o.weapon0, weapon1: o.weapon1, seed: o.seed, mode: "fight", look0: o.look0, look1: o.look1, ctl0: o.ctl0, ctl1: o.ctl1,
+    needs: o.needs, start: o.start, ab0: o.ab0, ab1: o.ab1, pups: !!o.pups });
+  CTL.q.length = 0;
   g.skin = o.skin || "board"; ACC = 0; CAM.z = 1; CAM.x = 0; CAM.y = 155; SLOW = 0; SHAKE = 0;
   return g;
 }
@@ -3467,6 +4183,8 @@ function skillAt(x) { x = clamp(x, 0, 4); var i = Math.min(3, Math.floor(x)), t 
   for (k in a) if (k !== "id") o[k] = lerp(a[k], b[k], t); return o; }
 function hand(g, i, skill) { var F = g.f[i]; F.ctl = skill; F.bot = typeof skill === "number" ? makeBot(skillAt(skill)) : SKILLS[skill] ? makeBot(SKILLS[skill]) : null; if (F.bot) botReset(F.bot, g.r); }
 return { skillAt: skillAt, start: start, run: run, quick: quick, draw: draw, mini: mini, faceSVG: faceSVG, hand: hand, CTL: CTL, WPN: WPN, ORDER: ORDER, SKILLS: SKILLS, PUPS: PUPS,
+  ABIL: ABIL, activeAb: activeAb, abIcon: abIcon, portrait: portrait,
+  dbg: { newMatch: newMatch, poseFor: poseFor, gear: gear, simStep: simStep, BEAST: BEAST },
   set reduced(v) { REDUCED = !!v; } };
 })();
 PUP.reduced=reduced;
@@ -3477,55 +4195,150 @@ function lookOf(p){if(!p)return{name:"SQUAD",col:"#7fb2ff",hat:"",big:1};const n
 const STRANGER={name:"SURVIVOR",col:"#c3ccd8",hat:"",big:1};
 // who is out there: the squad on your land, the crew on another world
 const squadPeople=()=>S.exp&&S.exp.away&&S.x?S.x.crew:(E&&E.squad&&E.squad.length?E.squad:S.people.slice(0,2));
-// the threats, as rival puppets (Claude's first pass, for GPT's content pass)
-const FOE_LOOK={
-  dogs:{name:"THE DOGS",col:"#9b7b55",hat:"ears",plural:1},raiders:{name:"THE RAIDERS",col:"#c45a3c",hat:"band",plural:1},nest:{name:"THE MUTANT",col:"#8fbf5a",hat:"horns",big:1.15},
-  warden:{name:"THE WARDEN",col:"#8c8f96",hat:"helmet",big:1.25},crawlers:{name:"THE CRAWLERS",col:"#d9d2c3",hat:"antenna",plural:1},hunter:{name:"THE HUNTER",col:"#cbbfa8",hat:"",blind:1},
-  eels:{name:"THE EELS",col:"#9fe0c0",hat:"fin",plural:1},crab:{name:"THE CRAB",col:"#d4673a",hat:"horns",big:1.1},
-  leech:{name:"THE LEECHES",col:"#4a5a44",hat:"",blind:1,plural:1},stalker:{name:"THE STALKER",col:"#e3e0d0",hat:"ears"},wyrm:{name:"THE WYRM",col:"#6b5a3c",hat:"horns",big:1.2}};
-// the weapon a fight is fought with: both puppets use the same one, as in Stick 'Em Up. Fists are always there; the rest are crafted
+// ---- the creatures: each fights its own way, with a body to match and abilities of its kind (Claude's first pass,
+// for GPT's content pass). body: dog, snake (eels, leeches, the wyrm), crab, bug (crawlers), or a person's if none.
+// wk: how it fights ("same": with whatever you bring). walk/beast: it walks in across the board and pounces, and a
+// clean hit of anything pops it. ab: its abilities (the engine's ABIL). does: what the threat card says about it.
+const FOES={
+  dogs:{look:{name:"THE DOGS",col:"#9b7b55",plural:1,body:"dog",ears:"flop",snout:"dog",snl:22,spots:1,walk:1,beast:1},wk:"bite",ab:["pack","howl","pounce"],does:"They circle, then lunge and bite."},
+  raiders:{look:{name:"THE RAIDERS",col:"#c45a3c",hat:"band",plural:1},wk:"same",ab:["rapid","cover"],does:"They fight with whatever you bring."},
+  warden:{look:{name:"THE WARDEN",col:"#8c8f96",hat:"helmet",big:1.25},wk:"same",ab:["plate","slam","weld"],does:"It fights with whatever you bring, in welded armour."},
+  crawlers:{look:{name:"THE CRAWLERS",col:"#d9d2c3",plural:1,body:"bug",eyes:"bug",hat:"antenna",claws:"mantis",al:1.65,walk:1,beast:1},wk:"claw",ab:["swarm","skitter"],does:"They creep in and strike with hooked forelegs."},
+  hunter:{look:{name:"THE HUNTER",col:"#cbbfa8",blind:1,claws:"bone",al:1.35,talon:22,walk:1,beast:1},wk:"claw",ab:["echo","listen","lunge"],does:"It stalks in on long arms and slashes with bone talons."},
+  eels:{look:{name:"THE EELS",col:"#9fe0c0",plural:1,body:"snake",bw:1.25,bh:.85,snout:"eel",snl:12,fin:"#bff5dd",glow:"#d8ff7a",eyes:"glow",walk:1,beast:1},wk:"spit",ab:["glow","slip"],does:"They keep their distance and spit acid."},
+  crab:{look:{name:"THE CRAB",col:"#d4673a",big:1.1,bw:1.55,bh:.72,body:"crab",cont:1,stalks:1,noface:1,walk:1,beast:1},wk:"claw",ab:["bigclaw","scuttle"],does:"It scuttles in and pinches. Its container shell stops hits from above."},
+  leech:{look:{name:"THE LEECHES",col:"#4a5a44",plural:1,big:.9,bw:1.2,bh:.8,body:"snake",snout:"sucker",snl:10,hgt:.92,blind:1,walk:1,beast:1},wk:"bite",ab:["latch","swarm"],does:"They rear up out of the water and latch on."},
+  stalker:{look:{name:"THE STALKER",col:"#e3e0d0",body:"dog",long:1,ears:"prick",snout:"dog",snl:26,walk:1,beast:1},wk:"bite",ab:["reeds","pace","pounce"],does:"It waits in the reeds, then springs."},
+  wyrm:{look:{name:"THE WYRM",col:"#6b5a3c",big:1.3,bw:1.3,body:"snake",snout:"wyrm",snl:20,thick:1.4,blind:1,hat:"horns",walk:1,beast:1},wk:"bite",ab:["coil","sink","bog"],does:"It rises out of the bog and bites."}};
+// the Mirewater eels carry lights in their mouths
+const LAMP_EELS={lamp:1,mouthGlow:"#ffe98a",col:"#7fc8b0"};
+// A mutant is different in every nest: its body, how it fights and its abilities, rolled from where the nest is (so a
+// reload, or a second try, meets the same one).
+// (its abilities come from the wild ones: what dogs, crawlers, eels and the rest have)
+const MUT_AB=["howl","pounce","reeds","pace","slam","echo","listen","lunge","swarm","skitter","bigclaw","scuttle","glow","slip","latch","coil","sink","bog"];
+const MUT_BODY=[["dog","bite"],["snake","bite"],["snake","spit"],["crab","claw"],["bug","claw"],["bug","spit"],["","claw"],["","spit"]],
+  MUT_COL=["#8fbf5a","#a6d36b","#7fae9b","#b995ff","#c98f5a","#d6c25a","#e07aa8"],MUT_HAT=["horns","antenna","fin","",""];
+function mutant(i,pi){let a=(Math.imul(i+1,2654435761)^Math.imul(pi+7,40503))>>>0;const r=()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296},pick=x=>x[Math.floor(r()*x.length)];
+  const[body,wk]=pick(MUT_BODY),look={name:"THE MUTANT",col:pick(MUT_COL),big:1.15,walk:1,beast:1,lumps:1,hat:pick(MUT_HAT)};
+  if(r()<.5)look.eyes=3;
+  if(body){look.body=body;if(body==="dog")Object.assign(look,{ears:r()<.5?"flop":"prick",snout:"dog",snl:22});else if(body==="snake")Object.assign(look,{snout:wk==="spit"?"eel":"wyrm",snl:16,thick:1.2,bw:1.2});
+    else if(body==="crab")Object.assign(look,{bw:1.45,bh:.75,stalks:1,noface:1});else Object.assign(look,{eyes:"bug",claws:"mantis",al:1.6})}
+  else Object.assign(look,{claws:r()<.5?"bone":"crab",al:1.35,talon:14});
+  const pool=MUT_AB,ab=[],ks=new Set();
+  while(ab.length<3){const k=pick(pool),fx=PUP.ABIL[k].k;if(ks.has(fx))continue;ks.add(fx);ab.push(k)}
+  const kinds={bite:"bites",claw:"slashes",spit:"spits acid"},shape={dog:"a dog",snake:"a serpent",crab:"a crab",bug:"a crawler","":"a person"}[body];
+  return{key:"nest",look,wk,ab,does:"This one is shaped like "+shape+", gone wrong, and it "+kinds[wk]+"."}}
+// the creature at a threat on a tile map
+function foeOf(t,i,pi){if(t==="nest")return mutant(i,pi);const F=FOES[t];if(!F)return{key:t,look:{name:String(t).toUpperCase(),col:"#c3ccd8"},wk:"same",ab:[],does:""};
+  return{key:t,look:t==="eels"&&XA()?{...F.look,...LAMP_EELS}:F.look,wk:F.wk,ab:F.ab,does:F.does}}
+// How much sharper each side is in a quick fight, for each creature and each weapon you could bring, so a quick fight
+// comes out at the odds the card shows: your strength against its danger. Measured, not guessed: bots fight each
+// pairing out hundreds of times (tools/ashen-fight-calibrate.mjs). A mutant takes the average for its kind of attack.
+const FOE_CAL=/*CAL*/{"dogs":{"box":-0.37,"sword":-0.02,"gun":0.57,"bow":0.57,"star":0.57},"raiders":{"box":0.02,"sword":-0.33,"gun":0.37,"bow":0.25,"star":0.21},"warden":{"box":-0.06,"sword":-0.88,"gun":-0.29,"bow":-1,"star":-0.33},"crawlers":{"box":-0.25,"sword":0.29,"gun":0.29,"bow":0.21,"star":0.29},"hunter":{"box":0.96,"sword":0.88,"gun":0.18,"bow":-0.18,"star":0.18},"eels":{"box":-0.64,"sword":0.02,"gun":0.61,"bow":-0.18,"star":1.11},"crab":{"box":0.29,"sword":0.29,"gun":-0.21,"bow":-0.64,"star":-0.18},"leech":{"box":-0.33,"sword":-0.02,"gun":0.61,"bow":0.68,"star":0.61},"stalker":{"box":0.21,"sword":0.57,"gun":0.29,"bow":0.25,"star":0.53},"wyrm":{"box":0.21,"sword":0.29,"gun":-0.21,"bow":-0.45,"star":-0.14},"space:cutter":{"gun":0.33},"space:salvage":{"star":0.18},"space:sentinel":{"bow":-1.66}}/*CAL*/;
+function foeCal(F,wk){const c=FOE_CAL[F.key];if(c&&F.key!=="nest")return c[wk]||0;
+  const same=Object.keys(FOES).filter(k=>FOES[k].wk===F.wk&&FOE_CAL[k]);return same.length?same.reduce((s,k)=>s+(FOE_CAL[k][wk]||0),0)/same.length:0}
+// a picture of it for the threat card, drawn by the fight's own code (made once, then kept)
+const PICS={};
+function foePic(F){const pw=F.wk==="same"?(F.key==="raiders"?"gun":"box"):F.wk,key=JSON.stringify(F.look)+pw;if(PICS[key]!==undefined)return PICS[key];let h="";
+  try{const cv=document.createElement("canvas");cv.width=300;cv.height=200;const c=cv.getContext&&cv.getContext("2d");if(c&&cv.toDataURL){PUP.portrait(c,300,200,{big:1,...F.look},pw);h='<img class="foepic" src="'+cv.toDataURL()+'" alt="">'}}catch(e){h=""}
+  return PICS[key]=h}
+// the same picture, small, standing on its marker on the tile map (kept as a canvas, made once)
+const ICONS={};
+function foeIcon(t,i,pi){const F=foeOf(t,i,pi),pw=F.wk==="same"?(F.key==="raiders"?"gun":"box"):F.wk,key=JSON.stringify(F.look)+pw;if(ICONS[key]!==undefined)return ICONS[key];let cv=null;
+  try{cv=document.createElement("canvas");cv.width=150;cv.height=100;const c=cv.getContext&&cv.getContext("2d");if(c)PUP.portrait(c,150,100,{big:1,...F.look},pw);else cv=null}catch(e){cv=null}
+  return ICONS[key]=cv}
+// the weapon a fight is fought with. Fists are always there; the rest are crafted
 const FW={box:{name:"Fists",gear:null},sword:{name:"Salvage Spear",gear:"spear"},gun:{name:"Tack Gun",gear:"tackgun"},bow:{name:"Scrap Bow",gear:"bow"},star:{name:"Saw Stars",gear:"stars"}};
 const fightWeapons=()=>Object.keys(FW).filter(k=>!FW[k].gear||S.gear[FW[k].gear]);
 const fightWeapon=()=>{const a=fightWeapons();return a.includes(S.fw)?S.fw:a[a.length-1]};
-// how strong each side is. A quick fight is bots on both sides, a single balloon each, with the skill gap set so the odds
-// match the old roll (strength P against danger L: P/(P+L)). A fight you play: the rival's skill rises with danger, a
-// stronger squad has spare balloons, bigger threats take two pops, and armour starts every round with a double bubble.
-const FBASE=L=>[.5,.5,1.5,2.5,3][Math.max(0,Math.min(4,L|0))];
-function fightLevels(P,L){const d=1.05*Math.log(Math.max(.25,P)/Math.max(1,L)),b=FBASE(L);let you=b+d/2,foe=b-d/2;
-  if(foe<0){you-=foe;foe=0}if(you>4){foe-=you-4;you=4}return{you:Math.max(0,Math.min(4,you)),foe:Math.max(0,Math.min(4,foe))}}
+// How strong each side is. A quick fight is bots on both sides, a single balloon each, with the skill gap set so the odds
+// match the old roll (strength P against danger L: P/(P+L)); c, the correction above, evens out the creature and the
+// weapon. How much skill a gap in strength is worth depends on the danger (rookies' fights are more of a scramble), and
+// was measured too. A fight you play: the rival's skill rises with danger, a stronger squad has spare balloons, and
+// bigger threats take two pops.
+const FBASE=L=>[.5,.5,1.5,2.5,3][Math.max(0,Math.min(4,L|0))],FSLOPE=[1,1,.45,.4,.28];
+function fightLevels(P,L,c){const d=FSLOPE[Math.max(0,Math.min(4,L|0))]*Math.log(Math.max(.25,P)/Math.max(1,L)),b=FBASE(L);let you=b+d/2-(c||0),foe=b-d/2+(c||0);
+  if(you<0){foe-=you;you=0}if(foe<0){you-=foe;foe=0}if(you>4){foe-=you-4;you=4}if(foe>4){you-=foe-4;foe=4}return{you:Math.max(0,Math.min(4,you)),foe:Math.max(0,Math.min(4,foe))}}
 const fightLives=P=>1+(P>=4?1:0)+(P>=7?1:0),fightPops=L=>L>=3?2:1;
+// ---- abilities: the colony learns them from what it builds, crafts and finds, and from beating things
+// (Claude's first pass, for GPT's content pass). The engine's ABIL says what each one does.
+const hasBld=b=>Object.values(S.bld).includes(b),hasRoom=r=>Object.values(S.ug).some(c=>c&&c.room===r);
+const ABSRC=[["scare","the Greenhouse",()=>hasBld("green")],["scrap","a Scav Camp",()=>hasBld("camp")],["duck","a Shelter",()=>hasBld("shelter")],
+  ["callout","a Radio Tower",()=>hasBld("tower")],["spring","the Garage",()=>hasBld("garage")],["armour","Reinforced Armor",()=>!!S.gear.armor],
+  ["wired","a Generator",()=>hasRoom("gen")],["spare","a Workshop",()=>hasRoom("shop")],["pump","a Water Pump",()=>hasRoom("pump")],
+  ["patch","a Med Bay",()=>hasRoom("med")||!!S.unl.ambulance],["hydro","the Electrolysis Plant",()=>hasRoom("fuel")],
+  ["lens","the Builder Lens",()=>hasArt("lens")],["flash","the Deep Lamp",()=>hasArt("lamp")],["song","the Singing Shell",()=>hasArt("shell")],
+  ["drill","the Ember Heart",()=>hasArt("ember")],["warcry","beating the feral dogs",()=>!!(S.beat&&S.beat.dogs)]];
+const abName=id=>PUP.ABIL[id].name.toLowerCase().replace(/(^|\s)\S/g,m=>m.toUpperCase()),abActive=id=>!PUP.ABIL[id].when;
+const abKnown=()=>ABSRC.filter(r=>r[2]()).map(r=>r[0]),abSrc=id=>(ABSRC.find(r=>r[0]===id)||["",""])[1];
+// the two you bring to a fight: the ones you picked, then the ones learned last
+function abLoadout(){const k=abKnown(),act=k.filter(abActive),order=(Array.isArray(S.abk)?S.abk:[]).filter(id=>act.includes(id));for(const id of act)if(!order.includes(id))order.push(id);
+  const pick=(S.fab||[]).filter(id=>act.includes(id)).slice(0,2);for(let i=order.length-1;i>=0&&pick.length<2;i--)if(!pick.includes(order[i]))pick.push(order[i]);return pick}
+const abBring=()=>abKnown().filter(id=>!abActive(id)).concat(abLoadout());   // what's always on, and the two you bring
+function abToggle(id){if(!abKnown().includes(id)||!abActive(id))return;let f=abLoadout();f=f.includes(id)?f.filter(x=>x!==id):[id].concat(f).slice(0,2);S.fab=f;save()}
+// something new to fight with: say so once, when it's learned
+let abT=0;
+function abTick(dt,quiet){abT-=dt;if(abT<=0){abT=1;abCheck(quiet)}}
+function abCheck(quiet){const k=abKnown();if(!Array.isArray(S.abk)){S.abk=k;return}   // (a save from before abilities: what it has, it already knows)
+  for(const id of k)if(!S.abk.includes(id)){S.abk.push(id);dirty=true;if(quiet)continue;const A=PUP.ABIL[id];
+    say("New ability for fights: "+abName(id)+", from "+abSrc(id)+". "+A.say+(A.when?" (always on).":"."));toast("New ability: "+abName(id)+" · from "+abSrc(id))}}
+// a small picture of an ability, for the panels
+function abChip(id,dim){const A=PUP.ABIL[id];return'<i class="abchip'+(dim?" dim":"")+(A.when?" on":"")+'" style="background:'+A.col+'"></i>'}
+const abList=ids=>ids.map(id=>abChip(id)+abName(id)+(PUP.ABIL[id].when?" <span class=\"dim\">(always on)</span>":"")).join(", ");
+// what the threat card says about the fight to come: how it fights and what it has, and what you bring
+function threatAbHTML(F){const mine=abBring();
+  return"<p>"+(F.does?F.does+" ":"")+(F.ab.length?(F.look.plural?"They have ":"It has ")+abList(F.ab)+".":"")+"</p>"+
+    "<p>"+(mine.length?"You bring "+abList(mine)+".":"Your people have no abilities yet: they learn them from what you build and find.")+"</p>"}
+// choosing the two to bring
+function abPickHTML(){const k=abKnown(),act=k.filter(abActive),on=abLoadout(),pas=k.filter(id=>!abActive(id));
+  return'<div class="meta">Abilities</div><div class="tile-h">Pick two to bring</div><p>Each one can be used once a round, with its button next to FIRE (or Q and E). Learn more by building, crafting and exploring.</p>'+
+    (pas.length?"<p>Always on: "+abList(pas)+".</p>":"")+'<div class="acts">'+act.map(id=>btn("fab:"+id,(on.includes(id)?"✓ ":"")+abName(id),PUP.ABIL[id].say+" · from "+abSrc(id),null,on.includes(id)?"primary":"")).join("")+
+    btn("fab","Done","",null)+"</div>"}
 let FIGHT=null;
 function threatFight(mode){const e=S.exp;if(!e||!CARD||CARD.kind!=="threat")return;const M=xGen(e.i),ms=xMS(e.i),p=M.pois[CARD.pi],th=thOf(p.t),aw=!!e.away;if(th.lvl<=0)return;
   const P=(aw?crewP():squadP()).P;ms.att=ms.att||{};const att=ms.att[CARD.pi]||0;ms.att[CARD.pi]=att+1;
-  const lv=fightLevels(P,th.lvl),seed=(Math.imul(e.i+1,7919)+Math.imul(CARD.pi+1,104729)+Math.imul(att+1,1299709)+(aw?15485863:0))>>>0,wk=fightWeapon(),
-    you={...lookOf(squadPeople()[0])},foe={name:th.name.toUpperCase(),col:"#c3ccd8",hat:"",big:1,...(FOE_LOOK[p.t]||{})};
-  if(mode==="quick"){const g=PUP.quick({weapon:wk,seed,look0:you,look1:foe,ctl0:lv.you,ctl1:lv.foe,needs:[1,1]});threatOutcome(g.over.win===0,null);return}
-  FIGHT={kind:"threat",back:"map",lvYou:lv.you,foe:"the "+th.name.toLowerCase(),you:squadPeople()[0]?squadPeople()[0].name:"Your squad",wk,g:PUP.start({weapon:wk,seed,look0:you,look1:foe,ctl0:"cab",ctl1:lv.foe,needs:[fightPops(th.lvl),fightLives(P)],start:[S.gear.armor?{bubble:1}:null,null]}),done:false};
+  const F=foeOf(p.t,e.i,CARD.pi),wk=fightWeapon(),w1=F.wk==="same"?wk:F.wk,lv=fightLevels(P,th.lvl,foeCal(F,wk)),
+    seed=(Math.imul(e.i+1,7919)+Math.imul(CARD.pi+1,104729)+Math.imul(att+1,1299709)+(aw?15485863:0))>>>0,
+    you={...lookOf(squadPeople()[0])},foe={big:1,...F.look,name:F.look.name||th.name.toUpperCase()},ab0=abBring();
+  if(mode==="quick"){const g=PUP.quick({weapon0:wk,weapon1:w1,seed,look0:you,look1:foe,ctl0:lv.you,ctl1:lv.foe,needs:[1,1],ab0,ab1:F.ab});threatOutcome(g.over.win===0,null);return}
+  FIGHT={kind:"threat",back:"map",lvYou:lv.you,foe:"the "+th.name.toLowerCase(),you:squadPeople()[0]?squadPeople()[0].name:"Your squad",wk,w1,does:F.does,
+    g:PUP.start({weapon0:wk,weapon1:w1,seed,look0:you,look1:foe,ctl0:"cab",ctl1:lv.foe,needs:[fightPops(th.lvl),fightLives(P)],ab0,ab1:F.ab}),done:false};
   fightIn()}
-// the fight is settled: the same results as before for winning and losing
-function threatOutcome(win,g){const e=S.exp;if(!e||!CARD||CARD.kind!=="threat")return;const M=xGen(e.i),ms=xMS(e.i),th=thOf(M.pois[CARD.pi].t),aw=!!e.away,
+// the fight is settled: the same results as before for winning and losing (and beating something teaches you)
+function threatOutcome(win,g){const e=S.exp;if(!e||!CARD||CARD.kind!=="threat")return;const M=xGen(e.i),ms=xMS(e.i),t=M.pois[CARD.pi].t,th=thOf(t),aw=!!e.away,
     score=g?" "+g.wins[0]+"–"+g.wins[1]+".":"",nm=th.name.toLowerCase();
-  if(win){ms.got.push(CARD.pi);if(aw)say(holdMsg("Popped "+nm+score.replace(/\.$/,"")+" and drove them off","scrap",6*th.lvl));else{S.res.scrap+=6*th.lvl;say("Popped "+nm+score+" "+6*th.lvl+" scrap in what they left.")}CARD=null;afterClear()}
+  if(win){S.beat=S.beat||{};S.beat[t]=(S.beat[t]|0)+1;ms.got.push(CARD.pi);if(aw)say(holdMsg("Popped "+nm+score.replace(/\.$/,"")+" and drove them off","scrap",6*th.lvl));else{S.res.scrap+=6*th.lvl;say("Popped "+nm+score+" "+6*th.lvl+" scrap in what they left.")}CARD=null;afterClear()}
   else if(aw){CARD=null;S.x.hurt=XP.hurtSecs*(S.x.crew.some(p=>p.tr==="cautious")?.5:1);endExp("The "+nm+" popped the crew"+score.replace(/\.$/,"")+". They limp back to the ship, hurt but alive.");return}
   else{CARD=null;S.wounded=XC.woundedSecs*(E.squad.some(p=>p.tr==="cautious")?.5:1);endExp("The "+nm+" popped the squad"+score.replace(/\.$/,"")+". They limp home, hurt but alive.");return}
   dirty=true;save()}
-// ---- the fight view: the canvas is the stage, the drawer holds the stick and the button
+// ---- the fight view: the canvas is the stage, the drawer holds the stick, the button and the ability buttons
 const FK={up:0,down:0,left:0,right:0,btn:false},FT={x:0,y:0,id:null,btn:false};
-function fightIn(){FIGHT.t=0;FT.x=FT.y=0;FT.btn=false;for(const k in FK)FK[k]=k==="btn"?false:0;setView("fight")}
+function fightIn(){FIGHT.t=0;FT.x=FT.y=0;FT.btn=false;for(const k in FK)FK[k]=k==="btn"?false:0;fabsBuild();setView("fight")}
 function fightCtl(){const kx=FK.right-FK.left,ky=FK.down-FK.up;let x=kx+FT.x,y=ky+FT.y;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}PUP.CTL.x=x;PUP.CTL.y=y;PUP.CTL.btn=FK.btn||FT.btn}
-function fightTick(dt){const F=FIGHT;if(!F)return;fightCtl();if(!F.done){PUP.run(F.g,dt);F.t+=dt}
+function fightTick(dt){const F=FIGHT;if(!F)return;fightCtl();if(!F.done){PUP.run(F.g,dt);F.t+=dt}fabsSync();
   const g=F.g;if(g.over&&!F.done&&g.t-g.over.t>1.4){F.done=true;fightEnd(g.over.win===0)}}
-function fightEnd(win){const F=FIGHT,g=F.g;FIGHT=null;PUP.CTL.x=PUP.CTL.y=0;PUP.CTL.btn=false;
+function fightEnd(win){const F=FIGHT,g=F.g;FIGHT=null;PUP.CTL.x=PUP.CTL.y=0;PUP.CTL.btn=false;PUP.CTL.q.length=0;
   if(F.kind==="threat"){setView(F.back);threatOutcome(win,g)}else if(F.kind==="space"){setView("stars");spaceOutcome(win,g)}
   toast((win?"Won ":"Lost ")+g.wins[0]+"–"+g.wins[1]+" against "+F.foe+".");dirty=true}
 function fightGiveUp(){const F=FIGHT;if(!F||F.done)return;F.done=true;F.g.over={win:1,t:F.g.t};fightEnd(false)}
+// the abilities a side has in this fight, and whether each is still to use this round
+function fightAbs(f){return f.ab.map(id=>abChip(id,!PUP.ABIL[id].when&&f.abU[id])+abName(id)+(PUP.ABIL[id].when?" <span class=\"dim\">(always on)</span>":f.abU[id]?" <span class=\"dim\">(used)</span>":"")).join(", ")}
 function fightHTML(){const F=FIGHT;if(!F)return"";const g=F.g,A=g.f[0],B=g.f[1],W0=PUP.WPN[F.wk],auto=A.ctl!=="cab";
   return'<div class="meta">'+(F.kind==="space"?"Space battle":"Fight")+" · "+W0.name.toLowerCase()+'</div><div class="tile-h">'+F.you+" against "+F.foe+"</div>"+
     '<p class="fscore">Pops: <b>'+g.wins[0]+"</b> of "+g.needs[0]+" · they need <b>"+(g.needs[1]-g.wins[1])+"</b> more</p>"+
     "<p>"+(auto?"Your puppet is fighting on its own now.":"The stick is your rod: up stands tall and aims high, down ducks, forward leans in. "+W0.tip)+"</p>"+
+    (F.does?"<p>"+F.does+"</p>":"")+
+    (A.ab.length?"<p>Yours: "+fightAbs(A)+".</p>":"")+(B.ab.length?"<p>Theirs: "+fightAbs(B)+".</p>":"")+
     '<div class="acts">'+(auto?"":btn("fauto","Let them fight it out","Your puppet goes on by itself",null))+btn("fquit","Give up","Counts as a loss",null,"warn")+"</div>"}
-// the stick and the button in the drawer (and the keys: arrows or WASD, Space or Enter)
-(()=>{const st=document.getElementById("fstick"),ball=document.getElementById("fball"),b=document.getElementById("fbtn");if(!st||!b)return;
+// the ability buttons in the drawer: one for each ability you can use (once a round), lit while it's ready
+let FABS="";
+function fabsBuild(){const el=document.getElementById("fabs");FABS="";if(!el||!FIGHT)return;const acts=PUP.activeAb(FIGHT.g.f[0]);
+  el.innerHTML=acts.map((id,i)=>'<button class="fab" type="button" data-i="'+i+'" aria-label="Use '+abName(id)+'"><i class="abchip" style="background:'+PUP.ABIL[id].col+'"></i>'+abName(id)+"</button>").join("");
+  el.hidden=!acts.length}
+function fabsSync(){const F=FIGHT,el=document.getElementById("fabs");if(!F||!el)return;const A=F.g.f[0],acts=PUP.activeAb(A),sig=acts.map(id=>A.abU[id]?1:0).join("")+(A.ctl==="cab"?"":"a");
+  if(sig===FABS)return;FABS=sig;el.querySelectorAll(".fab").forEach((b,i)=>{const used=!!A.abU[acts[i]];b.classList.toggle("used",used||A.ctl!=="cab");b.disabled=used||A.ctl!=="cab"})}
+// the stick, the button and the ability buttons (and the keys: arrows or WASD, Space or Enter, Q and E)
+(()=>{const st=document.getElementById("fstick"),ball=document.getElementById("fball"),b=document.getElementById("fbtn"),fabs=document.getElementById("fabs");if(!st||!b)return;
   const move=e=>{const r=st.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-r.left-R)/R,y=(e.clientY-r.top-R)/R;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}FT.x=Math.abs(x)<.12?0:x;FT.y=Math.abs(y)<.12?0:y;ball.style.transform="translate("+(x*R*.55).toFixed(1)+"px,"+(y*R*.55).toFixed(1)+"px)"};
   const end=e=>{if(e.pointerId!==FT.id)return;FT.id=null;FT.x=FT.y=0;ball.style.transform=""};
   st.addEventListener("pointerdown",e=>{e.preventDefault();FT.id=e.pointerId;try{st.setPointerCapture(e.pointerId)}catch(_){}move(e)});
@@ -3533,26 +4346,29 @@ function fightHTML(){const F=FIGHT;if(!F)return"";const g=F.g,A=g.f[0],B=g.f[1],
   const bd=e=>{e.preventDefault();FT.btn=true;b.classList.add("down");try{b.setPointerCapture(e.pointerId)}catch(_){}},bu=()=>{FT.btn=false;b.classList.remove("down")};
   b.addEventListener("pointerdown",bd);["pointerup","pointercancel","lostpointercapture"].forEach(n=>b.addEventListener(n,bu));b.addEventListener("click",e=>e.preventDefault());
   for(const el of[st,b])el.addEventListener("contextmenu",e=>e.preventDefault());
-  const KM={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",w:"up",W:"up",s:"down",S:"down",a:"left",A:"left",d:"right",D:"right"};
-  window.addEventListener("keydown",e=>{if(VIEW!=="fight")return;const k=KM[e.key];if(k){e.preventDefault();FK[k]=1;return}if(e.key===" "||e.key==="Enter"){if(e.target&&e.target.closest&&e.target.closest("button")&&e.target!==b)return;e.preventDefault();FK.btn=true}},true);
+  if(fabs)fabs.addEventListener("pointerdown",e=>{const t=e.target.closest&&e.target.closest(".fab");if(!t||t.disabled)return;e.preventDefault();PUP.CTL.q.push(+t.dataset.i)});
+  const KM={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",w:"up",W:"up",s:"down",S:"down",a:"left",A:"left",d:"right",D:"right"},AK={q:0,Q:0,"1":0,e:1,E:1,"2":1};
+  window.addEventListener("keydown",e=>{if(VIEW!=="fight")return;const k=KM[e.key];if(k){e.preventDefault();FK[k]=1;return}
+    if(AK[e.key]!==undefined){e.preventDefault();if(!e.repeat)PUP.CTL.q.push(AK[e.key]);return}
+    if(e.key===" "||e.key==="Enter"){if(e.target&&e.target.closest&&e.target.closest("button")&&e.target!==b)return;e.preventDefault();FK.btn=true}},true);
   window.addEventListener("keyup",e=>{const k=KM[e.key];if(k){FK[k]=0;return}if(e.key===" "||e.key==="Enter")FK.btn=false},true)})();
 // ---- space battles: on an expedition flight, something can come alongside (Claude's first pass, for GPT's content pass)
 const SPACE_FOES={
-  cutter:{name:"A REPUBLIC CUTTER",title:"A Republic cutter",short:"the Republic cutter",col:"#5d6f9a",hat:"kepi",weapon:"gun",lvl:3,pops:2,hail:"A Republic cutter matches your course and signals: heave to for inspection.",
+  cutter:{name:"A REPUBLIC CUTTER",title:"A Republic cutter",short:"the Republic cutter",col:"#5d6f9a",hat:"kepi",weapon:"gun",lvl:3,pops:2,ab:["deflect","rapid"],hail:"A Republic cutter matches your course and signals: heave to for inspection.",
     pay:{scrap:60},payTxt:"Pay the 'inspection fee'",win:"The cutter limps off. The Republic will remember this ship.",lose:"They board, take half the hold and log the ship."},
-  salvage:{name:"THE SALVAGERS",title:"Salvagers",short:"the salvagers",col:"#e08a3c",hat:"band",weapon:"star",lvl:2,pops:1,plural:1,hail:"A patched-up salvage skiff swings in close, saw-discs spinning on their cables.",
+  salvage:{name:"THE SALVAGERS",title:"Salvagers",short:"the salvagers",col:"#e08a3c",hat:"band",weapon:"star",lvl:2,pops:1,plural:1,ab:["hooks","cover"],hail:"A patched-up salvage skiff swings in close, saw-discs spinning on their cables.",
     steps:10,payTxt:"Throw them rations",win:"The skiff spins away. Its crew drops what they were towing.",lose:"They cut loose a third of the hold and run."},
-  sentinel:{name:"A BUILDER SENTINEL",title:"A Builder sentinel",short:"the Builder sentinel",col:"#9aa1ab",hat:"helmet",weapon:"bow",lvl:4,pops:2,blind:1,hail:"A Builder machine unfolds out of the dark, the same five-sided seam as the Spires. It turns toward the ship.",
+  sentinel:{name:"A BUILDER SENTINEL",title:"A Builder sentinel",short:"the Builder sentinel",col:"#9aa1ab",hat:"helmet",weapon:"bow",lvl:4,pops:2,blind:1,ab:["phase","blight","glock"],hail:"A Builder machine unfolds out of the dark, the same five-sided seam as the Spires. It turns toward the ship.",
     payTxt:"Power down and drift past",drift:20,win:"The sentinel folds up and drifts away. A mark on its hull is a glyph.",lose:"It shears the antenna off and lets you go."}};
 // one chance per leg, from the second trip on: decided once, from the trip and the leg, so a reload changes nothing
 function spaceRoll(x){const leg=(S.xs.trips|0)+":"+x.phase;if(x.encLeg===leg)return;x.encLeg=leg;if((S.xs.trips|0)<1)return;
   const r=h3((S.xs.trips|0)+1,x.phase==="out"?3:5,7331);if(r>.32)return;const k=r<.1&&S.glyphs>=2?"sentinel":r<.2&&republicHere()?"cutter":"salvage";
   x.enc={k,t:0,seed:(Math.imul((S.xs.trips|0)+1,2654435761)+(x.phase==="out"?17:31))>>>0};say(SPACE_FOES[k].hail);dirty=true}
 const spaceP=()=>{const x=S.x;return 1+Math.min(2,x?x.crew.length:1)+(x&&x.crew.some(p=>p.sk==="eng"&&p.lv>=2)?1:0)+(S.gear.armor?1:0)};
-function spaceFight(mode){const x=S.x;if(!x||!x.enc)return;const D=SPACE_FOES[x.enc.k],P=spaceP(),lv=fightLevels(P,D.lvl),att=x.enc.att=(x.enc.att|0)+1,seed=(x.enc.seed+Math.imul(att,1299709))>>>0,
-    you={...lookOf(x.crew[0])},foe={name:D.name,col:D.col,hat:D.hat,big:1,blind:D.blind,plural:D.plural};
-  if(mode==="quick"){const g=PUP.quick({weapon:D.weapon,seed,look0:you,look1:foe,ctl0:lv.you,ctl1:lv.foe,needs:[1,1],skin:"space"});spaceOutcome(g.over.win===0,null);return}
-  FIGHT={kind:"space",back:"stars",lvYou:lv.you,foe:D.short,you:x.crew[0]?x.crew[0].name:"Your crew",wk:D.weapon,g:PUP.start({weapon:D.weapon,seed,look0:you,look1:foe,ctl0:"cab",ctl1:lv.foe,needs:[D.pops,Math.max(1,Math.min(3,x.crew.length))],start:[S.gear.armor?{bubble:1}:null,null],skin:"space"}),done:false};
+function spaceFight(mode){const x=S.x;if(!x||!x.enc)return;const D=SPACE_FOES[x.enc.k],P=spaceP(),lv=fightLevels(P,D.lvl,(FOE_CAL["space:"+x.enc.k]||{})[D.weapon]),att=x.enc.att=(x.enc.att|0)+1,seed=(x.enc.seed+Math.imul(att,1299709))>>>0,
+    you={...lookOf(x.crew[0])},foe={name:D.name,col:D.col,hat:D.hat,big:1,blind:D.blind,plural:D.plural},ab0=abBring();
+  if(mode==="quick"){const g=PUP.quick({weapon:D.weapon,seed,look0:you,look1:foe,ctl0:lv.you,ctl1:lv.foe,needs:[1,1],ab0,ab1:D.ab,skin:"space"});spaceOutcome(g.over.win===0,null);return}
+  FIGHT={kind:"space",back:"stars",lvYou:lv.you,foe:D.short,you:x.crew[0]?x.crew[0].name:"Your crew",wk:D.weapon,g:PUP.start({weapon:D.weapon,seed,look0:you,look1:foe,ctl0:"cab",ctl1:lv.foe,needs:[D.pops,Math.max(1,Math.min(3,x.crew.length))],ab0,ab1:D.ab,skin:"space"}),done:false};
   fightIn()}
 function spaceOutcome(win,g){const x=S.x;if(!x||!x.enc)return;const k=x.enc.k,D=SPACE_FOES[k],sc=g?" ("+g.wins[0]+"–"+g.wins[1]+")":"";x.enc=null;
   if(win){if(k==="sentinel"&&S.glyphs+(x.glyphs|0)<CFG.veh.glyphs){x.glyphs=(x.glyphs|0)+1;say(D.win+sc+" Copied a Builder glyph.")}else say(holdMsg(D.win.replace(/\.$/,"")+sc,"scrap",k==="cutter"?25:30));if(k==="cutter")S.h.susp=Math.min(100,(S.h.susp||0)+4)}
@@ -3563,8 +4379,9 @@ function spaceLoot(f){const x=S.x;if(!x||!x.hold)return;for(const k in x.hold)if
 function spacePay(){const x=S.x;if(!x||!x.enc)return;const D=SPACE_FOES[x.enc.k];
   if(D.pay){if(!afford(D.pay))return;pay(D.pay)}else if(D.steps){if(x.steps<D.steps)return;x.steps-=D.steps}else if(D.drift)x.t=Math.max(0,x.t-D.drift);
   say(D.payTxt+": "+D.short+" lets the ship go.");x.enc=null;dirty=true;save()}
-function spaceHTML(){const x=S.x;if(!x||!x.enc)return"";const D=SPACE_FOES[x.enc.k],can=D.pay?afford(D.pay):D.steps?x.steps>=D.steps:true;
+function spaceHTML(){const x=S.x;if(!x||!x.enc)return"";const D=SPACE_FOES[x.enc.k],can=D.pay?afford(D.pay):D.steps?x.steps>=D.steps:true,mine=abBring();
   return'<div class="meta">Something alongside</div><div class="tile-h">'+D.title+"</div><p>"+D.hail+" The ship holds still until you answer. If nobody does within a minute, the crew fights it out on their own.</p>"+
+    "<p>"+(D.plural?"They have ":"It has ")+abList(D.ab)+"."+(mine.length?" You bring "+abList(mine)+".":"")+"</p>"+
     '<div class="acts">'+btn("sfight","Fight it out","You work the stick",null,"primary")+btn("squick","Quick fight","The crew plays it out",null)+btn("spay",D.payTxt,D.pay?"Costs "+costText(D.pay):D.steps?"Costs "+D.steps+" steps of rations":"Costs "+D.drift+" s of the flight",null,"",!can)+"</div>"}
 function drawFight(dt){if(!FIGHT){setView("surface");return}PUP.draw(ctx,FIGHT.g,W/DPR,H/DPR,DPR,dt)}
 
@@ -3690,6 +4507,7 @@ function doAct(a){
   if(a.startsWith("atl:")){atlAct(a.slice(4));return}
   if(a==="play"){threatFight("play");return}if(a==="fauto"){if(FIGHT)PUP.hand(FIGHT.g,0,FIGHT.lvYou);dirty=true;return}if(a==="fquit"){fightGiveUp();return}
   if(a==="fw"){const ws=fightWeapons();S.fw=ws[(ws.indexOf(fightWeapon())+1)%ws.length];dirty=true;return}
+  if(a==="fab"){if(CARD)CARD.abPick=!CARD.abPick;dirty=true;return}if(a.startsWith("fab:")){abToggle(a.slice(4));dirty=true;return}   // abilities
   if(a==="sfight"){spaceFight("play");return}if(a==="squick"){spaceFight("quick");return}if(a==="spay"){spacePay();return}   // puppet fights
   if(a.startsWith("xd:"))shipAct(a.slice(3));else if(a.startsWith("xc:"))shipAct("c:"+a.slice(3));else if(a==="xr:+")shipAct("r+");else if(a==="xr:-")shipAct("r-");
   else if(a==="xlaunch")launchExp();else if(a==="land")landAt(sel);else if(a==="xexplore"||a==="xwalk")startAwayExp(VIEW==="away"&&S.x&&a==="xwalk"&&sel<0?S.x.site:sel);
@@ -3730,7 +4548,7 @@ function hud(){
   $("clock").innerHTML=(S.world?WORLDS[Math.min(S.world,WORLDS.length-1)].name+" · ":"")+"Day <b>"+day()+"</b> · "+partOfDay()+(S.x?" · "+xShort():"")+(republicHere()&&S.h.secret?" · suspicion <b"+(S.h.susp>=50?' class="hot"':"")+">"+Math.round(S.h.susp)+"</b>":"");
   const al=alertText(),ab=$("alert");if(al){const sig=al.t+al.b.map(x=>x[0]).join();if(ab.dataset.sig!==sig){ab.dataset.sig=sig;ab.innerHTML="<span>"+al.t+"</span>"+al.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+x[1]+"</span></button>").join("")}ab.hidden=false}else ab.hidden=true;
   const tl=VIEW==="map"&&S.exp?xThreatsLeft(S.exp.i):0;
-  if(VIEW==="fight"&&FIGHT){const sig=FIGHT.g.wins.join()+FIGHT.g.f[0].ctl;if(sig!==lastFSig){lastFSig=sig;dirty=true}}
+  if(VIEW==="fight"&&FIGHT){const g=FIGHT.g,sig=g.wins.join()+g.f[0].ctl+g.f.map(f=>Object.keys(f.abU).join("")).join("|");if(sig!==lastFSig){lastFSig=sig;dirty=true}}
   $("legend").textContent=VIEW==="fight"&&FIGHT?(FIGHT.kind==="space"?"Space battle":"Fight")+" · "+PUP.WPN[FIGHT.wk].name.toLowerCase()+" · pop them "+FIGHT.g.needs[0]+"× before they pop you "+FIGHT.g.needs[1]+"×":VIEW==="map"&&S.exp?(S.exp.cave?"In the cave · ":S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
     VIEW==="stars"&&ATL.open?"Library atlas · "+atlSys().star.name+" · "+atlSys().galaxy.name:
     VIEW==="stars"?"The Ashen system"+(S.x?" · "+xShort():"")+" · codex "+S.codex.found.length:
@@ -3788,7 +4606,7 @@ function start(data){
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
       atlas:{chart:chartSystem,page:libPage,names:libNames,code:atlCode,fromCode:atlFromCode,galaxy,tiles:worldTiles,act:a=>{atlAct(a);renderPanel()},ui:()=>ATL,LIB,GLYPHS,SKIND,WKIND,nameOk:libNameOk,hash:libHash,rng:libRng,fix:fixAtlas},
       ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="stars")drawStars(n);else if(VIEW==="fight")drawFight(1/60);else draw(n)},
-      fight:{state:()=>FIGHT,tick:t=>fightTick(t),PUP,lookOf,fightLevels,threatFight,spaceFight,spaceRoll:()=>S.x&&spaceRoll(S.x),SPACE_FOES,FOE_LOOK}}};
+      fight:{state:()=>FIGHT,tick:t=>fightTick(t),PUP,lookOf,fightLevels,threatFight,spaceFight,spaceRoll:()=>S.x&&spaceRoll(S.x),SPACE_FOES,FOES,foeOf,mutant,FOE_CAL,foeCal,abKnown,abBring,abLoadout,abCheck,abToggle,threatAbHTML,foePic,THREAT,ATHREAT}}};
   last=performance.now();requestAnimationFrame(frame);
   const sp=$("splash"),hadSave=!!loadSaved();
   try{if(new URLSearchParams(location.search).get("from")==="archives")$("to-archives").hidden=false}catch(e){}
