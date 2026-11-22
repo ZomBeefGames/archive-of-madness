@@ -46,7 +46,27 @@ test('the Kestrel programme and named people are wired in',()=>{
   assert.match(page,/space:\{scoutDv:2800,rescueDv:3200/);
   assert.match(page,/function rocket\(d,ms\)/);
   assert.match(page,/function reconcile\(\)/);
-  assert.match(page,/!\[5,6,7\]\.includes\(o\.v\)/);   // v5 and v6 saves still load
+  assert.match(page,/!\[5,6,7,8\]\.includes\(o\.v\)/);   // v5, v6 and v7 saves still load
+});
+
+test('expeditions: the ship, the system map and Mirewater are wired in',()=>{
+  assert.match(page,/exped:\{maxTanks:5,maxPods:2/);
+  assert.match(page,/const mission=\(\)=>!S\.k\.scout\?"scout":!S\.k\.lantern\?"rescue":S\.world===0\?"exped":"crew"/);
+  for(const f of ['launchExp','abortExp','tickExp','landAt','startAwayExp','flyHome','landHome','drawStars','awayTiles','awayMap'])
+    assert.match(page,new RegExp('function '+f+'\\('),f);
+  assert.match(page,/<button id="sys" aria-label="System map" hidden>/);
+  assert.match(page,/\["The expedition ship is home",!S\.x\]/);   // the world can't crack with the crew away
+});
+
+test('expedition rocket maths: the default ship reaches Mirewater with a safe margin, a Thud ship cannot',()=>{
+  const base=new Function('return {'+page.match(/parts:\{core:[\s\S]*?thud:\{[^}]*\}\}/)[0]+'}')().parts;
+  const extra=new Function('return {'+page.match(/parts:\{capsule:[\s\S]*?glass:\{[^}]*\}\}/)[0]+'}')().parts;
+  const P=Object.assign({},base,extra),g=9.81,need=+page.match(/mire:\s*\{name:"Mirewater",dv:(\d+)/)[1];
+  const fly=(engine,tanks,pods)=>{const list=['capsule','frame','antenna',...Array(pods).fill('pod'),...tanks,engine];let dry=0,fuel=0;
+    for(const p of list){dry+=P[p].mass;fuel+=P[p].fuel||0}const m0=dry+fuel;return{twr:P[engine].thrust/(m0*g),dv:P[engine].isp*g*Math.log(m0/dry)}};
+  const a=fly('roc',['large','large','large','large'],1);assert.ok(a.twr>1.2&&a.dv>=need*1.05,'default ship: '+Math.round(a.dv));
+  const b=fly('thud',['large','large','large'],0);assert.ok(b.dv<need,'a Thud ship falls short: '+Math.round(b.dv));
+  const c=fly('roc',['glass','glass','glass','glass','glass'],2);assert.ok(c.dv>a.dv+300,'mire-glass tanks go further');
 });
 
 test('rocket maths: the default scout fails, Thud with two large tanks reaches orbit',()=>{
