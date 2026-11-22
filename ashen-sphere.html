@@ -81,6 +81,16 @@ button.act.warn:hover:not(:disabled){border-color:var(--rust)}
 .wl{display:flex;flex-direction:column;gap:4px}
 .wb{font:inherit;text-align:left;background:var(--soot);color:var(--paper);border:1px solid var(--line);border-left:3px solid var(--line);padding:6px 8px;cursor:pointer;display:flex;flex-direction:column;gap:1px;min-width:0}
 .wb span{font-weight:700}.wb small{font-size:11px;color:var(--paper-dim)}.wb.on{border-left-color:var(--lamp)}.wb:hover{border-color:var(--lamp)}
+/* puppet fights: an arcade deck in the drawer (stick left, button right) */
+.fdeck{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 4px;border-bottom:1px solid var(--line)}
+.fdeck[hidden]{display:none}
+.fstick{position:relative;width:104px;height:104px;flex:0 0 104px;border-radius:50%;background:radial-gradient(circle at 50% 45%,#2a221a,#120e0a);border:2px solid var(--line);touch-action:none;cursor:grab}
+.fball{position:absolute;left:30px;top:30px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffd49a,var(--lamp) 45%,#8a5a1c);box-shadow:0 3px 0 #3a2a14;pointer-events:none}
+.fhint{margin:0;font-size:11px;color:var(--paper-dim);text-align:center;line-height:1.5}
+.fbtn{width:84px;height:84px;flex:0 0 84px;border-radius:50%;border:2px solid #5a1622;background:radial-gradient(circle at 40% 35%,#ff9aa8,#e8414f 50%,#8c1f35);color:#fff3e6;font:inherit;font-weight:700;letter-spacing:.08em;touch-action:none;cursor:pointer;box-shadow:0 5px 0 #4a0f1c}
+.fbtn.down{transform:translateY(4px);box-shadow:0 1px 0 #4a0f1c}
+.fscore{font-size:13px}.fscore b{color:var(--lamp);font-size:16px}
+.pface{vertical-align:-5px;margin-right:5px}
 button:disabled{opacity:.42;cursor:not-allowed}
 :focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
 .goal{border-top:1px dashed var(--line);padding-top:8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px}
@@ -153,6 +163,7 @@ button:disabled{opacity:.42;cursor:not-allowed}
       <div class="alert" id="alert" hidden role="status"></div>
     </div>
     <aside class="drawer" id="drawer">
+      <div class="fdeck" id="fdeck" hidden><div class="fstick" id="fstick" role="img" aria-label="The stick: your puppet's rod"><div class="fball" id="fball"></div></div><p class="fhint">Stick: arrows or WASD<br>Button: Space or Enter</p><button class="fbtn" id="fbtn" type="button" aria-label="The button: fire, thrust, throw or punch">FIRE</button></div>
       <div id="panel"></div>
       <div class="goal" id="goal"></div>
       <div class="log" id="log"></div>
@@ -239,11 +250,15 @@ const CFG={
   threatPay:{dogs:{food:8},raiders:{scrap:25},nest:{food:15,water:10},rad:{water:15},warden:{scrap:80,water:20},
     crawlers:{food:10},hunter:{food:15,water:5},eels:{food:10},jelly:{water:10},crab:{scrap:30}},   // (C) caves and seabeds, slice 2
   gear:{   // crafted once at a working Workshop, kept forever
-    spear:  {name:"Salvage Spear",   cost:{scrap:45},        what:"+1 squad strength"},
+    spear:  {name:"Salvage Spear",   cost:{scrap:45},        what:"+1 squad strength, and you can fight with spears"},
     armor:  {name:"Reinforced Armor",cost:{scrap:70,water:5},what:"+1 squad strength"},
     scanner:{name:"Signal Scanner",  cost:{scrap:90,food:5}, what:"Lantern reaches 1 further; spots one threat on arrival"},
     pack:   {name:"Backpacks",       cost:{scrap:35,food:8}, steps:10,what:"+10 steps every trip"},
-    mule:   {name:"Pack Mule",       cost:{scrap:90,food:15},steps:8, what:"+8 steps every trip"}
+    mule:   {name:"Pack Mule",       cost:{scrap:90,food:15},steps:8, what:"+8 steps every trip"},
+    // puppet fights: what you can fight with besides your fists (Claude's first pass)
+    tackgun:{name:"Tack Gun",        cost:{scrap:60},        what:"Fight with rubber-band guns"},
+    bow:    {name:"Scrap Bow",       cost:{scrap:55,food:4}, what:"Fight with bows and arrows"},
+    stars:  {name:"Saw Stars",       cost:{scrap:50},        what:"Fight with throwing stars"}
   },
   wind:{cost:{scrap:60},power:2},
   // Kestrel programme (GPT G-126). Abstract rocketry: TWR = thrust/(mass*g), delta-v = Isp*g*ln(m0/mdry). Masses in tonnes, thrust in kN.
@@ -368,9 +383,9 @@ const pickStarters=()=>{const nb=T[START].n.filter(land).filter(j=>!T[j].pent);
   const w=nb.find(j=>T[j].coast)??nb[0],f=nb.filter(j=>j!==w).sort((a,b)=>(T[b].b==="woods")-(T[a].b==="woods"))[0];return[[w,"still"],[f,"green"]]};
 let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
-  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
+  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:9,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function ser(){return{v:9,fw:S.fw,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
 function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
@@ -381,7 +396,7 @@ function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o
     k:fixK(Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:null,dest:"mire",rations:40,crew:[]},o.k&&typeof o.k==="object"?o.k:{})),
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
     codex:fixCodex(o.codex),x:sanX(o.x),veh:o.veh&&typeof o.veh==="object"?Object.fromEntries(Object.keys(VEH).filter(k=>o.veh[k]).map(k=>[k,1])):{},
-    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
+    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
     h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
 const KEY="ashen-sphere-v9",OLD_KEYS=["ashen-sphere-v8","ashen-sphere-v7","ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
@@ -691,7 +706,7 @@ function newPerson(id){const n=NAMES.length,used=new Set(S.people.concat(S.x?S.x
 function reconcile(){const P=S.people;let added=null;while(P.length<S.pop){const p=newPerson(S.k.nextPid++);P.push(p);added=p}
   while(P.length>S.pop){let ix=-1;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}P.splice(ix<0?P.length-1:ix,1)}return added}
 function leaveOne(){let ix=-1;const P=S.people;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}if(ix<0)ix=P.length-1;const p=P.splice(ix,1)[0];S.pop=P.length;return p}
-const personLine=p=>"<b>"+p.name+"</b> · "+SKILL[p.sk]+" "+p.lv+" · "+TRAIT[p.tr].name;
+const personLine=p=>PUP.faceSVG(lookOf(p),20)+"<b>"+p.name+"</b> · "+SKILL[p.sk]+" "+p.lv+" · "+TRAIT[p.tr].name;
 function jobName(id){if(typeof id==="number")return BLD[S.bld[id]]?BLD[S.bld[id]].name.toLowerCase()+" (tile "+id+")":"a job";
   if(id.startsWith("pad2:"))return"the launch pad (tile "+id.slice(5)+")";const c=S.ug[id.slice(2)];return c&&c.room?ROOM[c.room].name.toLowerCase()+" below":"a job"}
 function workerNote(id){const p=E.who.get(id);if(!p)return"";const need=JOB_SKILL[typeof id==="number"?S.bld[id]:(S.ug[id.slice(2)]||{}).room];
@@ -823,6 +838,7 @@ function tickActive(dt){if(!S||S.h.crack)return;S.h.active+=dt;const a=S.h.activ
   const q=S.h.quota;if(!q.due&&a>=q.next){q.due=true;q.deadline=a+HV.quotaGrace;q.amount=HV.quotaScrap;q.next=a+HV.quotaEvery;toast("The Republic wants its quota: "+q.amount+" scrap within "+HV.quotaGrace+" seconds.");dirty=true}
   if(q.due&&a>=q.deadline){q.due=false;S.h.susp=Math.min(100,S.h.susp+HV.susp.quotaMissed);say("You missed the Republic's quota. They will remember.");dirty=true}}
 function alertText(){if(!S||!S.h||S.h.crack)return null;const I=S.h.insp,a=S.h.active;
+  if(S.x&&S.x.enc&&!FIGHT){const D=SPACE_FOES[S.x.enc.k];return{t:D.title+(D.plural?" are":" is")+" alongside the ship",b:[["sfight","Fight it out"],["squick","Quick fight"]]}}
   if(republicHere()&&I.phase==="warn"){const at=inspTimes().at(I.i);return{t:"Inspectors land in "+Math.max(0,Math.ceil(at-a))+" s",b:[["hide","Hide everything"+(siloDone("floor")||S.h.sealed?"":" ("+HV.hideCost+" scrap)")]]}}
   if(republicHere()&&S.h.quota.due)return{t:"Quota due: "+S.h.quota.amount+" scrap in "+Math.max(0,Math.ceil(S.h.quota.deadline-a))+" s",b:[["quota","Send it"]]};
   if(S.h.detained)return{t:S.h.detained.person.name+" is held for questioning ("+Math.ceil(S.h.detained.left)+" s)",b:[["release","Pay "+HV.releaseCost+" scrap to release"]]};return null}
@@ -878,9 +894,8 @@ function completeJump(){const c=S.h.crack,from=WORLDS[Math.min(S.world,WORLDS.le
 // ---------------------------------------------------------------- cutaway renderer
 let showPeople=false,VIEW="surface",selU=null,GR={cw:1,ch:1,gy:0,maxScroll:0},scrollY=0;
 const col=(a,m=1,al=1)=>"rgba("+(Math.min(255,a[0]*m)|0)+","+(Math.min(255,a[1]*m)|0)+","+(Math.min(255,a[2]*m)|0)+","+al+")";
-function person(x,y,s,seed,now){const bob=reduced?0:Math.abs(Math.sin(now/240+seed))*s*.06;ctx.save();ctx.translate(x,y);ctx.fillStyle="#efe2c4";ctx.strokeStyle="#1a140e";ctx.lineWidth=Math.max(1,s*.09);ctx.lineJoin="round";
-  ctx.beginPath();ctx.moveTo(-s*.2,0);ctx.lineTo(-s*.13,-s*.55-bob);ctx.lineTo(s*.13,-s*.55-bob);ctx.lineTo(s*.2,0);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.beginPath();ctx.arc(0,-s*.72-bob,s*.16,0,6.2832);ctx.fill();ctx.stroke();ctx.restore()}
+// people are balloon-head stick puppets (Stick 'Em Up); a look of their own when we know who it is
+function person(x,y,s,seed,now,look,o){PUP.mini(ctx,x,y,s*1.2,look||ANON[(seed|0)%ANON.length],now/1000,Object.assign({ph:seed|0},o||{}))}
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const skyH=Math.max(54*DPR,H*.13),padB=24*DPR,cw=W/COLS,ch=Math.min(cw*.8,Math.max(28*DPR,(H-skyH-padB)/ROWS)),gy=skyH;
@@ -940,23 +955,24 @@ function drawBelow(now){
   if(firstLocked<ROWS){const y=gy+firstLocked*ch;ctx.strokeStyle="#c0623a";ctx.lineWidth=Math.max(1.5,1.5*DPR);ctx.setLineDash([6*DPR,4*DPR]);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();ctx.setLineDash([]);
     const txt="Rows below need "+rowNeed(firstLocked)+" people",tw=ctx.measureText(txt).width;ctx.fillStyle="#15120e";ctx.fillRect(W-tw-10*DPR,y+2*DPR,tw+8*DPR,ch*.3+8*DPR);ctx.fillStyle="#e07a4f";ctx.fillText(txt,W-tw-6*DPR,y+5*DPR)}
   // people: one in each working room, idle ones wander the open rows
-  let seed=0;for(const id of E.st){if(typeof id!=="string")continue;const[r,c]=id.slice(2).split(",").map(Number);const x=c*cw+cw*(.25+.5*(.5+.5*Math.sin(now/1900+seed*2.1)*(reduced?0:1)));person(x,gy+r*ch+ch-3*DPR,ch*.62,seed,now);seed++}
+  let seed=0;for(const id of E.st){if(typeof id!=="string")continue;const[r,c]=id.slice(2).split(",").map(Number);const x=c*cw+cw*(.25+.5*(.5+.5*Math.sin(now/1900+seed*2.1)*(reduced?0:1)));person(x,gy+r*ch+ch-3*DPR,ch*.62,seed,now,E.who.get(id)?lookOf(E.who.get(id)):null);seed++}
   const spots=Object.keys(S.ug).filter(k=>{const c=S.ug[k];return c.d&&!k.endsWith(","+SHAFT)&&(!c.room||c.room==="bunks")});
-  for(let i=0;i<Math.min(E.idle,8)&&spots.length;i++){const[r,c]=spots[i%spots.length].split(",").map(Number);const x=c*cw+cw*(.2+.6*(.5+.5*Math.sin(now/2600+i*1.7)*(reduced?0:1)));person(x,gy+r*ch+ch-3*DPR,ch*.55,i+20,now)}
+  const idleP=S.people.filter(p=>!E.jobOf.has(p.id)&&!E.squad.includes(p));
+  for(let i=0;i<Math.min(E.idle,8)&&spots.length;i++){const[r,c]=spots[i%spots.length].split(",").map(Number);const x=c*cw+cw*(.2+.6*(.5+.5*Math.sin(now/2600+i*1.7)*(reduced?0:1)));person(x,gy+r*ch+ch-3*DPR,ch*.55,i+20,now,idleP[i]?lookOf(idleP[i]):null)}
   // selection
   if(selU){const[r,c]=selU.split(",").map(Number);ctx.strokeStyle="#e8dcc2";ctx.lineWidth=Math.max(2,2*DPR);ctx.setLineDash([4*DPR,3*DPR]);ctx.strokeRect(c*cw+2*DPR,gy+r*ch+2*DPR,cw-4*DPR,ch-4*DPR);ctx.setLineDash([])}
 }
 // Each globe keeps its own camera (turn, zoom, chosen tile): the home world, and the world the expedition is on.
 let CAMS={surface:null,away:null},CAMV="surface";
-function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v!=="stars"){ATL.open=false;ATL.dial=null}if(v==="map"&&!S.exp)v="surface";
+function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v==="fight"&&!FIGHT)v="surface";if(v!=="stars"){ATL.open=false;ATL.dial=null}if(v==="map"&&!S.exp)v="surface";
   if(v==="away"&&!(S.x&&(S.x.phase==="orbit"||S.x.phase==="landed")))v="surface";if(v==="stars"&&!sysOpen())v="surface";
   if((v==="surface"||v==="away")&&v!==CAMV){CAMS[CAMV]={R,zoom,sel};const c=CAMS[v];
     if(c){R=c.R;zoom=c.zoom;sel=c.sel}else{const f=v==="away"?awayFace():START;R=faceR(T[f].c);zoom=1;sel=f}focus=null;vel=[0,0];selOrb=-1;CAMV=v}
   VIEW=v;if(v==="below"&&!selU)selU="0,"+SHAFT;$("z-in").hidden=$("z-out").hidden=$("home").hidden=v!=="surface"&&v!=="away";$("dive").hidden=v!=="surface"&&v!=="below"||!S.hatch;
-  $("sys").hidden=!sysOpen()||v==="map"||v==="below";
+  $("sys").hidden=!sysOpen()||v==="map"||v==="below"||v==="fight";$("fdeck").hidden=v!=="fight";
   const d=$("dive");d.textContent=v==="below"?"⇧":"⇩";d.setAttribute("aria-label",v==="below"?"Back to the surface":"Go below the bunker");
   const sy=$("sys");sy.textContent=v==="stars"?"◉":"✦";sy.setAttribute("aria-label",v==="stars"?"Back to the planet":"System map");$("home").setAttribute("aria-label",v==="away"?"Turn to your ship":"Turn to your bunker");
-  cv.setAttribute("aria-label",v==="below"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
+  cv.setAttribute("aria-label",v==="fight"?"A puppet fight on a board. The stick works your puppet's rod: up stands tall, down ducks, forward leans in. The button fires.":v==="below"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
     v==="away"?"Another world. Drag to turn it, tap a tile to choose it.":"The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you.");dirty=true}
 
 // ---------------------------------------------------------------- tile maps: every tile is a small map you walk and clear
@@ -1149,10 +1165,7 @@ function evDo(code,e,ms,i){const steps=n=>{if(e.sup>=0){if(e.sup<n)return false;
   }return false}
 function resolve(act){const e=S.exp;if(!e||!CARD)return;const M=xGen(e.i),ms=xMS(e.i),aw=!!e.away;
   if(CARD.kind==="threat"){const p=M.pois[CARD.pi],th=thOf(p.t);
-    if(act==="fight"&&th.lvl>0){const P=(aw?crewP():squadP()).P;ms.att=ms.att||{};const att=ms.att[CARD.pi]||0;ms.att[CARD.pi]=att+1;
-      if(h3(e.i*31+CARD.pi+(aw?7919:0),att,4242)<P/(P+th.lvl)){ms.got.push(CARD.pi);if(aw)say(holdMsg("Drove off the "+th.name.toLowerCase(),"scrap",6*th.lvl));else{S.res.scrap+=6*th.lvl;say("Drove off the "+th.name.toLowerCase()+". "+6*th.lvl+" scrap in what they left.")}CARD=null;afterClear()}
-      else if(aw){CARD=null;S.x.hurt=XP.hurtSecs*(S.x.crew.some(p=>p.tr==="cautious")?.5:1);endExp("The "+th.name.toLowerCase()+" proved too much. The crew limps back to the ship, hurt but alive.");return}
-      else{CARD=null;S.wounded=XC.woundedSecs*(E.squad.some(p=>p.tr==="cautious")?.5:1);endExp("The "+th.name.toLowerCase()+" were too much. The squad limps home, hurt but alive.");return}}
+    if(act==="fight"&&th.lvl>0){threatFight("quick");return}   // a quick fight: Stick 'Em Up, played out by bots on both sides
     else if(act==="pay"&&aw){if(S.x.steps<th.pay)return;S.x.steps-=th.pay;if(e.sup>=0)e.sup=S.x.steps;ms.got.push(CARD.pi);say(th.payTxt+": the "+th.name.toLowerCase()+" is behind you.");CARD=null;afterClear()}
     else if(act==="pay"&&th.pay&&afford(th.pay)){pay(th.pay);ms.got.push(CARD.pi);say(th.payTxt+": the "+th.name.toLowerCase()+" is behind you.");CARD=null;afterClear()}
     else if(act==="back")CARD=null}
@@ -1176,7 +1189,7 @@ function feature(b,x,y,cs,lit){ctx.save();ctx.translate(x,y);const ink="#16110c"
   else{ctx.fillStyle=col(b==="crags"?[104,98,94]:[96,90,80],lit);ctx.beginPath();ctx.moveTo(cs*.12,cs*.85);ctx.lineTo(cs*.22,cs*.4);ctx.lineTo(cs*.5,cs*.18);ctx.lineTo(cs*.8,cs*.35);ctx.lineTo(cs*.9,cs*.85);ctx.closePath();ctx.fill();ctx.stroke()}
   ctx.restore()}
 function poiIcon(p,x,y,cs,done,now){const s=cs*.3,ink="#16110c";
-  if(p.type==="survivor"){person(x,y+cs*.36,cs*.7,7,now);return}
+  if(p.type==="survivor"){person(x,y+cs*.36,cs*.7,7,now,STRANGER,{mood:"worry",f:-1});return}
   if(p.type==="landmark"){glyph("flag",x,y,cs*.42,done?.8:1);return}
   ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.05);ctx.strokeStyle=ink;
   if(p.type==="cache"){ctx.fillStyle="#c9a46a";ctx.fillRect(-s,-s*.8,s*2,s*1.6);ctx.strokeRect(-s,-s*.8,s*2,s*1.6);ctx.beginPath();ctx.moveTo(-s,-s*.8);ctx.lineTo(s,s*.8);ctx.moveTo(s,-s*.8);ctx.lineTo(-s,s*.8);ctx.stroke()}
@@ -1207,7 +1220,7 @@ function drawMap(now){
   ctx.fillStyle="rgba(240,164,58,.6)";for(const k of PATH)ctx.fillRect(ox+(k%MW+.5)*cs-1.5*DPR,oy+(((k/MW)|0)+.5)*cs-1.5*DPR,3*DPR,3*DPR);
   const sx=ox+(e.pos%MW+.5)*cs,sy=oy+(((e.pos/MW)|0)+.5)*cs;
   ctx.globalCompositeOperation="lighter";const lg=ctx.createRadialGradient(sx,sy,0,sx,sy,cs*2.4);lg.addColorStop(0,"rgba(240,164,58,"+(.22+.25*(1-dl)).toFixed(2)+")");lg.addColorStop(1,"rgba(240,164,58,0)");ctx.fillStyle=lg;ctx.fillRect(sx-cs*2.5,sy-cs*2.5,cs*5,cs*5);ctx.globalCompositeOperation="source-over";
-  person(sx-cs*.16,sy+cs*.4,cs*.78,1,now);person(sx+cs*.2,sy+cs*.42,cs*.64,2,now);
+  {const sq=squadPeople(),wk=PATH.length>0;person(sx+cs*.2,sy+cs*.42,cs*.64,2,now,sq[1]?lookOf(sq[1]):null,{walk:wk});person(sx-cs*.16,sy+cs*.4,cs*.78,1,now,lookOf(sq[0]),{walk:wk})}
   if(e.sea){ctx.strokeStyle="rgba(232,220,194,.8)";ctx.lineWidth=Math.max(1.5,cs*.05);ctx.beginPath();ctx.arc(sx,sy+cs*.42,cs*.5,Math.PI,0);ctx.stroke()}   // the diving bell
   if(e.cave){const rx=ox+(M.entry%MW+.5)*cs,ry=oy+((M.entry/MW)|0)*cs;ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,cs*.04);ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx,ry+cs*.8);ctx.stroke()}   // the rope back up
   ctx.strokeStyle="#3a3127";ctx.lineWidth=DPR;ctx.strokeRect(ox+.5,oy+.5,cs*MW-1,cs*MH-1);
@@ -1223,7 +1236,8 @@ function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i)
       let h='<div class="meta">Threat · danger '+th.lvl+'</div><div class="tile-h">'+th.name+"</div><p>"+th.desc+"</p>";
       if(th.lvl>0)h+="<p>"+(aw?"Crew":"Squad")+" strength "+P+" ("+q.base+" from your people"+(q.gear?", "+q.gear+" from gear":"")+(q.morale?", "+q.morale+(aw?" from skill and rest":" from morale"):"")+") against danger "+th.lvl+": "+pct+"% to win. If you lose, the "+(aw?"crew goes back to the ship hurt":"squad comes home hurt")+" and rests for a while. The threat stays. Nobody dies.</p>";
       const payB=aw?btn("pay",th.payTxt,"Costs "+th.pay+" steps of rations · always works",null,th.lvl>0?"":"primary",S.x.steps<th.pay):btn("pay",th.payTxt,"Costs "+costText(th.pay)+" · always works",th.pay,th.lvl>0?"":"primary");
-      h+='<div class="acts">'+(th.lvl>0?btn("fight","Fight",pct+"% to win",null,"primary"):"")+payB+btn("back","Step back","Deal with it later",null)+"</div>";return h}
+      h+='<div class="acts">'+(th.lvl>0?btn("play","Fight it out","You work the stick · "+FW[fightWeapon()].name.toLowerCase(),null,"primary")+btn("fight","Quick fight",pct+"% to win",null):"")+payB+btn("back","Step back","Deal with it later",null)+
+        (th.lvl>0&&fightWeapons().length>1?btn("fw","Weapon: "+FW[fightWeapon()].name,"Tap to switch",null):"")+"</div>";return h}
     if(CARD.kind==="event"&&aw){const ev=AEVENTS[M.pois[CARD.pi].e];return'<div class="meta">Event</div><div class="tile-h">'+ev.title+"</div><p>"+ev.text+'</p><div class="acts">'+
       ev.opts.map((o,j)=>btn("ev:"+o[1],o[0],(o[2]?"Costs "+o[2]+" steps"+(o[3]?" · ":""):"")+(o[3]||(o[1]==="close"?"It stays here for later":"")),null,j===0?"primary":"",o[2]>S.x.steps)).join("")+"</div>"}
     if(CARD.kind==="landmark"&&aw){const c=CODEX[M.pois[CARD.pi].cx];return'<div class="meta">Site · for the codex</div><div class="tile-h">'+c.site.charAt(0).toUpperCase()+c.site.slice(1)+"</div><p>"+c.desc+"</p><p><b>"+c.name+".</b> "+c.txt+" "+(CARD.note||"It goes in the codex when the crew gets home.")+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
@@ -1369,7 +1383,8 @@ function sanX(x){if(!x||typeof x!=="object"||!XWORLDS[x.w]||XWORLDS[x.w].drive||
     hold:{scrap:Math.max(0,+h.scrap||0),water:Math.max(0,+h.water||0),food:Math.max(0,+h.food||0)},cap:Math.max(0,+x.cap||XP.hold.base*XP.hold.unit),
     notes:Array.isArray(x.notes)?x.notes.filter(k=>CODEX[k]):[],site:Number.isInteger(x.site)&&x.site>=0&&x.site<T.length?x.site:-1,hurt:Math.max(0,+x.hurt||0),
     boost:Number.isInteger(x.boost)?x.boost:-1,paid:x.paid&&typeof x.paid==="object"?x.paid:{parts:0,rations:{},fuel:0},
-    veh:VEH[x.veh]?x.veh:"",arts:Array.isArray(x.arts)?x.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,x.glyphs|0)}}
+    veh:VEH[x.veh]?x.veh:"",arts:Array.isArray(x.arts)?x.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,x.glyphs|0),
+    enc:x.enc&&typeof x.enc==="object"&&SPACE_FOES[x.enc.k]?{k:x.enc.k,t:+x.enc.t||0,seed:x.enc.seed>>>0,att:x.enc.att|0}:null,encLeg:typeof x.encLeg==="string"?x.encLeg:""}}
 function holdMsg(what,k,v){const x=S.x,take=Math.min(v,Math.max(0,x.cap-holdUsed()));x.hold[k]+=take;
   return what+(take>=v?": "+v+" "+k+" into the hold.":take>0?": "+take+" "+k+" into the hold, which is now full. You leave "+(v-take)+".":", but the hold is full. You leave the "+v+" "+k+".")}
 function crewP(){const c=S.x?S.x.crew:[],base=Math.min(2,c.length),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0)),scav=c.some(p=>p.sk==="scav"&&p.lv>=2)?1:0,
@@ -1406,7 +1421,10 @@ function abortExp(f,quiet){const x=S.x;S.x=null;if(!x)return;for(const p of x.cr
   for(const k in x.paid.rations||{})S.res[k]+=x.paid.rations[k];S.res.scrap+=Math.floor(f.cost*SP.refund);S.k.tele++;S.xs.built=[];
   const msg="The ship broke apart at Max Q. The escape tower pulled the capsule clear and "+crewNames(x.crew)+" came down on the parachute, shaken but fine. You salvage "+Math.round(SP.refund*100)+"% of the parts, and the telemetry makes your engines 5% better.";
   say(msg);if(!quiet)toast(msg)}
-function tickExp(dt,quiet){const x=S.x;if(x.hurt>0)x.hurt=Math.max(0,x.hurt-dt);if(x.phase!=="out"&&x.phase!=="back")return;x.t+=dt;if(x.t<x.total)return;
+function tickExp(dt,quiet){const x=S.x;if(x.hurt>0)x.hurt=Math.max(0,x.hurt-dt);if(x.phase!=="out"&&x.phase!=="back")return;
+  if(x.enc){if(!(FIGHT&&FIGHT.kind==="space")){x.enc.t+=dt;if(quiet||x.enc.t>60)spaceFight("quick")}if(x.enc)return}   // something alongside: the ship holds still
+  if(x.t>=x.total*.4&&x.encLeg!==(S.xs.trips|0)+":"+x.phase){spaceRoll(x);if(x.enc){if(quiet)spaceFight("quick");if(x.enc)return}}
+  x.t+=dt;if(x.t<x.total)return;
   if(x.phase==="back"){landHome(quiet);return}
   x.phase="orbit";x.t=0;const nm=XWORLDS[x.w].name;say("The ship is in orbit over "+nm+".");
   if(!quiet){if(VIEW==="stars"){setView("away");toast("In orbit over "+nm+". Tap a tile to look at it, then Land here.")}else toast("The ship is in orbit over "+nm+". Open the system map (✦) to choose where to land.")}
@@ -1513,7 +1531,7 @@ function codexHTML(){const f=S.codex.found,a=S.arts,G=CFG.veh.glyphs;let h='<p c
   h+='<p class="meta">Rare artifacts · '+a.length+" of "+Object.keys(ARTS).length+"</p>"+(a.length?'<div class="plist">'+a.map(k=>'<div class="prow ok"><div><b>'+ARTS[k].name+"</b></div><small>"+ARTS[k].txt+"</small></div>").join("")+"</div>"
     :"<p>One-of-a-kind finds in caves and on seabeds. Each one does something.</p>");
   return h+'<p class="meta">Builder glyphs · '+S.glyphs+" of "+G+"</p><p>"+(S.glyphs?"Copied from Builder ruins. ":"Builder ruins in caves and seabeds hold them. ")+"A Builder Gate would need them.</p>"}
-function starsHTML(){const b=sBody;let h='<div class="meta">The Ashen system · one sun · four worlds</div>';
+function starsHTML(){const b=sBody;let h=(S.x&&S.x.enc?spaceHTML():"")+'<div class="meta">The Ashen system · one sun · four worlds</div>';
   if(S.x)h+="<p>The ship is "+xWhere()+".</p>";
   if(b==="home")h+='<div class="tile-h">The Ashen World</div><p>Home. Day '+day()+", "+S.pop+" people at the base"+(S.x?" and "+S.x.crew.length+" away":"")+". Kestrel Station still circles it.</p>"+
     '<div class="acts">'+btn("view:home","Look at the Ashen World","Your base and your land",null,"primary")+"</div>";
@@ -1868,17 +1886,1699 @@ function drawAtlas(now){const C=atlSys();ctx.setTransform(1,0,0,1,0,0);ctx.fillS
   const sw=ws[ATL.w];if(sw){const gr=Math.max(30*DPR,Math.min(W,H)*(wide?.17:.15));drawMiniGlobe(sw,W-gr*(sw.rings?1.85:1.3)-8*DPR,H-gr*1.25-20*DPR,gr,now)}
   ctx.textAlign="left";ctx.textBaseline="alphabetic"}
 
+// ---------------------------------------------------------------- puppet fights: Stick 'Em Up, brought over from the ZomBrains arcade
+// People in Ashen Sphere are popsicle-stick puppets with balloon heads, and conflicts are settled the Stick 'Em Up way:
+// two puppets on rods, and whoever pops the other's balloon takes the round. The fight engine below is Stick 'Em Up's own
+// (builder-agent: artifacts/api-server/src/lib/stickEmUp.ts), kept as close to the original as it can be so the two play the
+// same: the rod (up stands tall and aims high, down ducks, forward leans in), one button, five weapons, shots on strings
+// that reel back, crates of power-ups, and the same rivals' brains. Ashen Sphere adds: the stick comes from this page,
+// each side can need a different number of pops, armour can start a round with a spare balloon, new hats, a space skin
+// with cardboard ships, little puppets for the maps, and quick() to settle a fight bot-vs-bot without anyone at the stick.
+const PUP=(()=>{
+// ===================== helpers =====================
+var TAU = Math.PI * 2;
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+function backOut(t) { t = clamp(t, 0, 1) - 1; return 1 + 2.70158 * t * t * t + 1.70158 * t * t; }
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function gauss(r) { var u = 1 - r(), v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
+// squared distance from a point to a segment; SEGT is where along the segment the nearest point is
+var SEGT = 0;
+function segPt(px, py, ax, ay, bx, by) {
+  var dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy, t = L > 0 ? clamp(((px - ax) * dx + (py - ay) * dy) / L, 0, 1) : 0;
+  var qx = ax + dx * t - px, qy = ay + dy * t - py;
+  SEGT = t; return qx * qx + qy * qy;
+}
+function crosses(ax, ay, bx, by, cx, cy, dx, dy) {
+  var d1 = (dx - cx) * (ay - cy) - (dy - cy) * (ax - cx), d2 = (dx - cx) * (by - cy) - (dy - cy) * (bx - cx);
+  var d3 = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax), d4 = (bx - ax) * (dy - ay) - (by - ay) * (dx - ax);
+  return (d1 > 0) !== (d2 > 0) && (d3 > 0) !== (d4 > 0);
+}
+function segSeg2(ax, ay, bx, by, cx, cy, dx, dy) {
+  if (crosses(ax, ay, bx, by, cx, cy, dx, dy)) return 0;
+  return Math.min(segPt(ax, ay, cx, cy, dx, dy), segPt(bx, by, cx, cy, dx, dy), segPt(cx, cy, ax, ay, bx, by), segPt(dx, dy, ax, ay, bx, by));
+}
+function hexRgb(h) { var x = parseInt(h.slice(1), 16); return [(x >> 16) & 255, (x >> 8) & 255, x & 255]; }
+function mixC(h, t, k) { var a = hexRgb(h); return "rgb(" + Math.round(a[0] + (t - a[0]) * k) + "," + Math.round(a[1] + (t - a[1]) * k) + "," + Math.round(a[2] + (t - a[2]) * k) + ")"; }
+function shades(L) { if (!L.c1) { L.c1 = mixC(L.col, 255, 0.6); L.c3 = mixC(L.col, 0, 0.38); L.c4 = mixC(L.col, 0, 0.6); } return L; }
+
+// ===================== the puppets =====================
+// A toy's units: a puppet stands about 280 tall on a board whose top is y = 0, and x runs toward the other puppet.
+var STEP = 1 / 120, FOOT_Y = 3, NEED = 3, TRADE = 0.08;   // TRADE: two pops this close together are a double pop
+var LS = 60, LT = 60, LO = 82, LN = 14, LU = 46, LF = 44, LA = LU + LF;
+var BRX = 30, BRY = 37;            // the balloon's half width and half height
+var RATE_U = 2.1, RATE_V = 2.5;    // how fast the rod moves the hand (control units a second)
+var SPR_K = 520, SPR_C = 33;       // the rod's spring: the hand lags a little and settles
+var BAL_K = 330, BAL_C = 8.5;      // the balloon wobbles on its neck
+// how shots fly (units a second, and their drop): slow enough to see coming and duck. Every shot is tied to its
+// shooter by a string: it flies out until the string runs out (then swings on it), and once it hits something, or
+// has swung a moment, it reels back to the hand. Until it's back, it's your only shot.
+var TACK_V = 650, TACK_G = 300, STAR_V = 720, STAR_G = 220, ARROW_G = 760;
+var REEL_V = 760, OUT_T = 1.3, TAUT_T = 0.22, STRING = 0.82;   // reel speed, longest flight, swing on a taut string, string per board
+function arrowV(draw) { return 320 + 680 * draw; }
+var WPN = {
+  gun: { k: "gun", name: "GUNS", D: 420, minD: 300, blurb: "Rubber-band pistols, like the toy.",
+    tip: "Tap to fire a tack on a string. It reels back once it hits something or runs out of string, and until it's back it's your only shot. A gun pressed against a balloon pops it too." },
+  sword: { k: "sword", name: "SWORDS", D: 330, minD: 290, blurb: "A pin on the tip. Thrust and clash.",
+    tip: "Tap to thrust: the pin on the tip pops what it's driven into. Two thrusts that meet clash, and whoever gets back in first scores a riposte." },
+  bow: { k: "bow", name: "BOW & ARROW", D: 460, minD: 320, blurb: "Hold to draw. Arrows drop.",
+    tip: "Hold to draw, let go to loose an arrow on a string. A longer draw flies faster and flatter; arrows drop, so aim a little high. One that runs out of string swings down on it." },
+  star: { k: "star", name: "THROWING STARS", D: 420, minD: 300, blurb: "A star on a string. It bounces.",
+    tip: "Tap to throw your star on its string. It bounces off the board once, swings when the string runs out, and knocks the other star back." },
+  box: { k: "box", name: "BOXING", D: 232, minD: 212, blurb: "Three clean punches pop it.",
+    tip: "Gloves don't pop it; three clean punches do. Tap to jab, hold and let go for a haymaker (it counts twice). Pull back to guard." }
+};
+var ORDER = ["gun", "sword", "bow", "star", "box"];
+// a rival's eyes and hands: how long it waits after FIGHT!, how long it takes to notice, how far off its aim is,
+// how fast it moves the rod, how long it holds an aim before firing, how often it dodges what it sees, how keen it
+// is, and its rate of fire. The first rivals are meant to be beaten while you learn the rod.
+var SKILLS = {
+  rookie: { id: "rookie", warm: 1.6, react: 0.65, err: 0.16, speed: 0.5, patience: 0.7, dodge: 0.12, aggro: 0.3, gap: 1 },
+  easy: { id: "easy", warm: 1.1, react: 0.48, err: 0.11, speed: 0.6, patience: 0.55, dodge: 0.25, aggro: 0.4, gap: 0.7 },
+  pro: { id: "pro", warm: 0.7, react: 0.36, err: 0.075, speed: 0.7, patience: 0.42, dodge: 0.42, aggro: 0.5, gap: 0.5 },
+  good: { id: "good", warm: 0.4, react: 0.27, err: 0.05, speed: 0.82, patience: 0.3, dodge: 0.58, aggro: 0.62, gap: 0.36 },
+  champ: { id: "champ", warm: 0.25, react: 0.2, err: 0.035, speed: 0.92, patience: 0.22, dodge: 0.72, aggro: 0.72, gap: 0.28 }
+};
+// The crates that float down between the puppets: whoever touches one first (a hand, a blade, a glove, or a shot that
+// hooks it and reels it in) gets what's inside. t: seconds it lasts (0: until it's used, this round); n: hits it takes;
+// foe: it's done to the other puppet.
+var PUPS = [
+  { k: "dual", name: "DUAL WIELD", t: 9, col: "#ffb547", say: "Two at once" },
+  { k: "auto", name: "AUTO FIRE", t: 8, col: "#ff7a45", say: "Hold the button" },
+  { k: "ui", name: "ULTRA INSTINCT", t: 7, col: "#d8ecff", say: "Your body dodges on its own" },
+  { k: "shield", name: "RIOT SHIELD", t: 14, n: 3, col: "#8fb8d8", say: "Blocks three hits" },
+  { k: "bubble", name: "DOUBLE BUBBLE", t: 0, col: "#9be7ff", say: "A spare balloon inside yours" },
+  { k: "helium", name: "HELIUM", t: 9, col: "#ffe680", say: "Your head floats up out of reach" },
+  { k: "shrink", name: "SHRINK RAY", t: 9, col: "#7cf0c2", say: "A smaller target" },
+  { k: "freeze", name: "FREEZE RAY", t: 2.6, col: "#8ee3ff", say: "Frozen solid", foe: true },
+  { k: "flip", name: "TOPSY-TURVY", t: 6, col: "#d78bff", say: "Their stick is upside down", foe: true },
+  { k: "magnet", name: "MAGNET", t: 8, col: "#ff4d6d", say: "Shots curve to their balloon" },
+  { k: "extendo", name: "EXTENDO", t: 9, col: "#ffd166", say: "Longer reach, longer string" },
+  { k: "drill", name: "DRILL TIPS", t: 8, col: "#f2c14e", say: "Straight through wood and shields" },
+  { k: "decoy", name: "DECOY", t: 0, col: "#c3ccd8", say: "A fake head takes the hit" },
+  { k: "pump", name: "BIG HEAD", t: 8, col: "#ff8fb8", say: "Their balloon, pumped up", foe: true }
+];
+var PUK = {}; PUPS.forEach(function (p) { PUK[p.k] = p; });
+function freshPU() { var p = { shieldN: 0 }; PUPS.forEach(function (q) { p[q.k] = 0; }); return p; }
+
+// ---------- a pose from the rod: hu leans in (0 back, 1 lunging, past 1 the arm stretches), hv stands up (0 crouched) ----------
+var PL = {};
+function poseLocal(hu, hv, o) {
+  hu = clamp(hu, -0.15, 1.4);   // the rod's reach ends here, for a real pose or a rival's guess at one
+  var c = clamp(1 - hv, 0, 1), uu = Math.min(hu, 1), lean = lerp(-0.22, 0.5, uu);
+  var kn = lerp(0.2, 2.1, c), phS = 0.45 * lean + 0.5 * kn, phT = phS - kn, phO = 0.9 * lean + 0.3 * c;
+  o.kx = LS * Math.sin(phS); o.ky = LS * Math.cos(phS);
+  o.px = o.kx + LT * Math.sin(phT); o.py = o.ky + LT * Math.cos(phT);
+  o.sx = o.px + LO * Math.sin(phO); o.sy = o.py + LO * Math.cos(phO);
+  o.nx = o.sx + LN * Math.sin(phO); o.ny = o.sy + LN * Math.cos(phO);
+  o.tilt = phO;
+  var a = lerp(-0.55, 0.6, clamp(hv, -0.12, 1.12)), ext = lerp(0.7, 1, uu) * LA + Math.max(0, hu - 1) * 70;
+  o.aim = a; o.ca = Math.cos(a); o.sa = Math.sin(a);
+  o.hx = o.sx + ext * o.ca; o.hy = o.sy + ext * o.sa;
+  // the elbow bends down
+  var dx = o.hx - o.sx, dy = o.hy - o.sy, d = Math.min(Math.sqrt(dx * dx + dy * dy), LA - 0.01);
+  var b = Math.atan2(dy, dx) - Math.acos(clamp((LU * LU + d * d - LF * LF) / (2 * LU * d), -1, 1));
+  o.ex = o.sx + LU * Math.cos(b); o.ey = o.sy + LU * Math.sin(b);
+  return o;
+}
+// the same pose on the board, for the puppet facing f from its feet at fx; (dx, dy) is where its weapon points
+// and (qx, qy) the weapon's top side
+function poseInto(F, hu, hv, o) {
+  poseLocal(hu, hv, PL);
+  var f = F.f, x0 = F.fx;
+  o.kx = x0 + f * PL.kx; o.ky = FOOT_Y + PL.ky;
+  o.px = x0 + f * PL.px; o.py = FOOT_Y + PL.py;
+  o.sx = x0 + f * PL.sx; o.sy = FOOT_Y + PL.sy;
+  o.nx = x0 + f * PL.nx; o.ny = FOOT_Y + PL.ny;
+  o.ex = x0 + f * PL.ex; o.ey = FOOT_Y + PL.ey;
+  o.hx = x0 + f * PL.hx; o.hy = FOOT_Y + PL.hy;
+  o.dx = f * PL.ca; o.dy = PL.sa; o.qx = -f * PL.sa; o.qy = PL.ca;
+  o.ux = f * Math.sin(PL.tilt * 0.8); o.uy = Math.cos(PL.tilt * 0.8);
+  return o;
+}
+// the weapon's working points: (tx, ty) is the pin, the arrow's tip, the star in hand or the lead glove
+function gear(F, g, o, draw) {
+  var k = g.wk, ext = F.pu.extendo > 0;
+  o.dual = false;
+  if (k === "gun") {
+    o.wax = o.hx + o.qx * 5 - o.dx * 5; o.way = o.hy + o.qy * 5 - o.dy * 5;
+    o.mx = o.hx + o.dx * 40 + o.qx * 5; o.my = o.hy + o.dy * 40 + o.qy * 5;
+    o.tx = o.mx + o.dx * 6; o.ty = o.my + o.dy * 6;
+  } else if (k === "sword") {
+    var bl = ext ? 172 : 118;
+    o.wax = o.hx + o.dx * 6; o.way = o.hy + o.dy * 6;
+    o.mx = o.hx + o.dx * bl; o.my = o.hy + o.dy * bl;
+    o.tx = o.mx + o.dx * 7; o.ty = o.my + o.dy * 7;
+    if (F.pu.dual > 0) {
+      // the second blade rides a little higher
+      var a = 0.34 * F.f, ca = Math.cos(a), sa = Math.sin(a), ex = o.dx * ca - o.dy * sa, ey = o.dx * sa + o.dy * ca;
+      o.dual = true; o.e2x = ex; o.e2y = ey;
+      o.w2x = o.hx + ex * 6; o.w2y = o.hy + ey * 6; o.m2x = o.hx + ex * bl * 0.9; o.m2y = o.hy + ey * bl * 0.9;
+      o.t2x = o.m2x + ex * 7; o.t2y = o.m2y + ey * 7;
+    }
+  } else if (k === "bow") {
+    var ad = 44 - 34 * (draw || 0);
+    o.tx = o.hx + o.dx * ad; o.ty = o.hy + o.dy * ad;
+    o.wax = o.hx + o.qx * 46 - o.dx * 8; o.way = o.hy + o.qy * 46 - o.dy * 8;
+    o.mx = o.hx - o.qx * 46 - o.dx * 8; o.my = o.hy - o.qy * 46 - o.dy * 8;
+  } else if (k === "star") {
+    o.tx = o.hx + o.dx * 12; o.ty = o.hy + o.dy * 12;
+  } else {
+    var gr = ext ? 54 : 8;   // with EXTENDO the glove rides out on a spring
+    o.gx = o.hx + o.dx * gr; o.gy = o.hy + o.dy * gr; o.tx = o.gx; o.ty = o.gy;
+  }
+  return o;
+}
+function setSeg(s, ax, ay, bx, by, r) { s.ax = ax; s.ay = ay; s.bx = bx; s.by = by; s.r = r; }
+// the puppet's pose this step, and the wood that stops shots: legs, body, neck, arm and the weapon
+function pose(g, F) {
+  var P = gear(F, g, poseInto(F, F.hu, F.hv, F.p), F.w.draw), S = F.segs, k = g.wk;
+  setSeg(S[0], F.fx, FOOT_Y, P.kx, P.ky, 5);
+  setSeg(S[1], P.kx, P.ky, P.px, P.py, 5);
+  setSeg(S[2], P.px, P.py, P.sx, P.sy, 6);
+  setSeg(S[3], P.sx, P.sy, P.nx, P.ny, 4);
+  setSeg(S[4], P.sx, P.sy, P.ex, P.ey, 4.5);
+  setSeg(S[5], P.ex, P.ey, P.hx, P.hy, 4.5);
+  F.nseg = 6;
+  // (a bow's thin limb lets arrows past; a gun's body and a blade don't)
+  if (k === "gun" || k === "sword") { setSeg(S[6], P.wax, P.way, P.mx, P.my, k === "gun" ? 5 : 3.5); F.nseg = 7; }
+  else if (k === "box") {
+    // the other glove: at the chest, or up in front of the balloon when guarding (with DUAL WIELD it punches too)
+    var b = F.b;
+    P.ggx = lerp(P.sx + P.dx * 22, b.x + F.f * BRX * 0.95 * F.bs, F.gs); P.ggy = lerp(P.sy - 18, b.y - 6, F.gs);
+    if (F.pu.dual > 0 && F.gs < 0.5) { P.ggx = P.gx - P.dx * 8; P.ggy = P.gy - 17; }
+  }
+  // a RIOT SHIELD is held up in front of the balloon
+  F.shOn = F.pu.shield > 0 && F.pu.shieldN > 0;
+  if (F.shOn) { var bb = F.b, sc = bb.inf * F.look.big * F.bs, x = bb.x + F.f * (BRX * sc + 18); setSeg(F.sh, x, bb.y - BRY * sc - 34, x + F.f * 5, bb.y + BRY * sc + 8, 6); }
+}
+
+// ===================== a fight =====================
+function newFighter(i, look, ctl) {
+  var segs = []; for (var k = 0; k < 8; k++) segs.push({ ax: 0, ay: 0, bx: 0, by: 0, r: 4, part: k });
+  return { i: i, f: i ? -1 : 1, fx: 0, look: shades(look), ctl: ctl, bot: typeof ctl === "number" ? makeBot(skillAt(ctl)) : SKILLS[ctl] ? makeBot(SKILLS[ctl]) : null,
+    u: 0.42, v: 0.62, hu: 0.42, hv: 0.62, vu: 0, vv: 0, sx: 0, sy: 0, btn: false, prev: false, guard: false, gs: 0, parryAt: -9,
+    p: {}, segs: segs, nseg: 6,
+    pu: freshPU(), bs: 1, inner: 1, hl: 0, iframe: 0, uiT: 0, uiU: 0, uiV: 0, uiFx: 0, shOn: false, sh: { ax: 0, ay: 0, bx: 0, by: 0, r: 6 }, dk: { x: 0, y: 0, vy: 0 },
+    b: { x: 0, y: 0, vx: 0, vy: 0, rot: 0, sq: 0, vs: 0, alive: true, inf: 1, pr: 0, hitT: -9 },
+    w: { cd: 0, ammo: 0, rl: 0, draw: 0, drawing: false, act: "", actT: 0, holdT: 0, off: 0, stun: 0, regen: 0, landed: false, clashT: 0 },
+    stat: { shots: 0, pops: 0, blocked: 0, hits: 0, grabs: 0 } };
+}
+// o: { weapon, seed, mode ("arcade", "free", "friend", "demo", "test"), look0, look1, ctl0, ctl1, tier, need, intro, pups }
+// A controller is "cab" (the cabinet), "p2" (player 2's keys or pad), "idle", "script" (tests) or a rival's skill.
+function newMatch(o) {
+  var Wd = WPN[o.weapon];
+  var g = { seed: o.seed >>> 0, r: mulberry((o.seed >>> 0) || 7), mode: o.mode, wk: o.weapon, W: Wd, D: Wd.D, boardHW: Wd.D / 2 + 125,
+    t: 0, pt: 0, rt: 0, phase: "inflate", round: 1, wins: [0, 0], needs: o.needs || [NEED, NEED], start: o.start || null, tier: o.tier || 0, demo: !!o.demo, test: !!o.test,
+    f: [], shots: [], fx: [], ev: [], cap: null, pops: [], popLog: [], over: null, score: 0, nid: 1, closing: false,
+    lastWin: -1, popCam: null, resolved: true, bonus: [], tx: 0, pups: !!o.pups, crate: null, crateT: 0, lastPU: "" };
+  g.crateT = g.pups ? 1.2 + 0.8 * g.r() : 0;
+  g.f.push(newFighter(0, o.look0, o.ctl0)); g.f.push(newFighter(1, o.look1, o.ctl1));
+  resetRound(g);
+  if (o.intro) { g.phase = "intro"; g.f[0].b.inf = g.f[1].b.inf = 1; }
+  return g;
+}
+function resetRound(g) {
+  var i, keep = [];
+  g.D = g.W.D; g.closing = false; g.shots = []; g.pops = []; g.resolved = true; g.cap = null;
+  if (g.crate && g.crate.st === "ride") g.crate = null;   // (a crate still on its way down carries over to the next round)
+  for (i = 0; i < g.fx.length; i++) if (g.fx[i].rest) keep.push(g.fx[i]);
+  g.fx = keep.slice(-50);
+  for (i = 0; i < 2; i++) {
+    var F = g.f[i], w = F.w, b = F.b;
+    F.fx = (i ? 1 : -1) * g.D / 2; F.u = F.hu = 0.42; F.v = F.hv = 0.62; F.vu = F.vv = 0; F.guard = false; F.gs = 0; F.parryAt = -9;
+    w.cd = 0; w.ammo = 0; w.rl = 0; w.draw = 0; w.drawing = false; w.act = ""; w.actT = 0; w.holdT = 0;
+    w.off = 0; w.stun = 0; w.regen = 0; w.landed = false; w.clashT = 0;
+    F.pu = freshPU(); F.bs = 1; F.inner = 1; F.hl = 0; F.iframe = 0; F.uiT = 0; F.uiFx = 0; F.shOn = false;
+    var st0 = g.start && g.start[i]; if (st0) for (var kk in st0) F.pu[kk] = st0[kk];   // (Ashen Sphere: armour starts every round with a spare balloon)
+    pose(g, F);
+    b.alive = true; b.inf = 0; b.pr = 0; b.sq = 0; b.vs = 0; b.hitT = -9; b.x = F.p.nx; b.y = F.p.ny; b.vx = b.vy = 0; b.rot = 0;
+    if (F.bot) botReset(F.bot, g.r);
+  }
+  g.phase = "inflate"; g.pt = 0; g.rt = 0;
+}
+function ev(g, n, i) { g.ev.push({ n: n, i: i }); }
+// a caption across the screen; a small one (what's in a crate) sits at the top, clear of the fight
+function cap(g, text, sub, col, life, small) { g.cap = { text: text, sub: sub || "", col: col || "#ffffff", t: g.t, life: life || 1, small: !!small }; }
+function text(g, x, y, s, col) { g.fx.push({ k: "txt", x: x, y: y, s: s, col: col || "#ffffff", t: 0, life: 1.1 }); }
+function sparks(g, x, y, n) {
+  for (var i = 0; i < n; i++) { var a = g.r() * TAU, sp = 120 + g.r() * 260; g.fx.push({ k: "spark", x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.22 + g.r() * 0.12 }); }
+}
+function ready(g) { g.phase = "ready"; g.pt = 0; cap(g, "ROUND " + g.round, g.wins[0] + " – " + g.wins[1], "#ffffff", 0.85); ev(g, "bell", -1); }
+
+// ---------- one step of the fight ----------
+function simStep(g, dt) {
+  var A = g.f[0], B = g.f[1];
+  g.t += dt; g.pt += dt;
+  if (g.phase === "inflate") {
+    A.b.inf = B.b.inf = Math.max(0.001, backOut(g.pt / 0.9));
+    if (g.pt === dt) ev(g, "inflate", -1);
+    if (g.pt >= 1.05) { A.b.inf = B.b.inf = 1; ready(g); }
+  } else if (g.phase === "ready" && g.pt >= 0.8) { g.phase = "fight"; g.pt = 0; g.rt = 0; cap(g, "FIGHT!", "", "#ffd166", 0.7); ev(g, "go", -1); }
+  if (g.phase !== "intro") {
+    puStep(g, A, dt); puStep(g, B, dt);
+    readCtl(g, A, B, dt); readCtl(g, B, A, dt);
+    if (g.phase === "fight") { if (A.pu.ui > 0) instinct(g, A, B); if (B.pu.ui > 0) instinct(g, B, A); }
+    moveStep(g, A, dt); moveStep(g, B, dt);
+  }
+  pose(g, A); pose(g, B);
+  if (g.phase === "fight") {
+    g.rt += dt; closeIn(g, dt);
+    if (g.wk === "sword") clash(g);
+    weaponStep(g, A, B, dt); weaponStep(g, B, A, dt);
+    if (g.wk === "box") gloveBump(g);
+  } else { calm(A, dt); calm(B, dt); }
+  shotsStep(g, dt);
+  crateStep(g, dt);
+  balloonStep(g, A, dt); balloonStep(g, B, dt);
+  fxStep(g, dt);
+  A.prev = A.btn; B.prev = B.btn;
+  if (g.phase === "pop") {
+    if (!g.resolved && g.pt >= TRADE) resolve(g);
+    if (g.pt >= 1.9) after(g);
+  }
+  if (g.ev.length > 80) g.ev.splice(0, g.ev.length - 80);
+}
+// between rounds the weapons rest: no thrusts, no draws, no wind-ups
+function calm(F, dt) { var w = F.w; w.off = 0; w.act = ""; w.drawing = false; w.draw = 0; w.stun = Math.max(0, w.stun - dt); F.guard = false; F.gs = Math.max(0, F.gs - dt * 4); }
+// a round that drags on slides the two puppets together
+function closeIn(g, dt) {
+  if (g.rt < 22 || g.D <= g.W.minD) return;
+  if (!g.closing) { g.closing = true; cap(g, "CLOSING IN!", "", "#ff9f5a", 1.1); ev(g, "close", -1); }
+  g.D = Math.max(g.W.minD, g.D - 8 * dt); g.f[0].fx = -g.D / 2; g.f[1].fx = g.D / 2;
+}
+
+// ---------- the rod ----------
+function readCtl(g, F, O, dt) {
+  var c = F.ctl;
+  if (c === "cab") { F.sx = clamp(CTL.x, -1, 1) * F.f; F.sy = -clamp(CTL.y, -1, 1); F.btn = !!CTL.btn; }
+  else if (F.bot) botStep(g, F, O, dt);
+  else if (c !== "script") { F.sx = 0; F.sy = 0; F.btn = false; }
+}
+// sx leans in (forward is toward the other puppet) and sy stands up; the hand follows on a spring. FREEZE RAY holds
+// the rod still, TOPSY-TURVY turns the stick upside down, and ULTRA INSTINCT moves it by itself for a moment.
+function moveStep(g, F, dt) {
+  var w = F.w, pu = F.pu, st = w.stun > 0 || pu.freeze > 0, fwd = st ? 0 : clamp(F.sx, -1, 1), up = st ? 0 : clamp(F.sy, -1, 1), fast = 1;
+  if (pu.flip > 0) { fwd = -fwd; up = -up; }
+  if (F.uiT > 0) { F.uiT -= dt; if (!st) { fwd = clamp((F.uiU - F.u) * 12, -1, 1); up = clamp((F.uiV - F.v) * 12, -1, 1); fast = 1.8; } }
+  F.u = clamp(F.u + fwd * RATE_U * fast * dt, 0, 1); F.v = clamp(F.v + up * RATE_V * fast * dt, 0, 1);
+  F.vu +=(SPR_K * (F.u + w.off - F.hu) - SPR_C * F.vu) * dt; F.hu = clamp(F.hu + F.vu * dt, -0.15, 1.4);
+  F.vv += (SPR_K * (F.v - F.hv) - SPR_C * F.vv) * dt; F.hv = clamp(F.hv + F.vv * dt, -0.12, 1.12);
+}
+
+// ---------- the weapons ----------
+function weaponStep(g, F, O, dt) {
+  var w = F.w, down = F.btn && !F.prev, can = w.stun <= 0 && F.pu.freeze <= 0 && F.b.alive, k = g.wk;
+  if (w.cd > 0) w.cd -= dt;
+  if (w.stun > 0) w.stun -= dt;
+  if (w.clashT > 0) w.clashT -= dt;
+  if (k === "gun") gunStep(g, F, O, w, down, can, dt);
+  else if (k === "sword") swordStep(g, F, O, w, down, can, dt);
+  else if (k === "bow") bowStep(g, F, O, w, can, dt);
+  else if (k === "star") starStep(g, F, O, w, down, can, dt);
+  else boxStep(g, F, O, w, down, can, dt);
+}
+// rubber-band pistols: tap fires a tack on a string, and the next shot waits until it's reeled back in; the muzzle
+// carries a pin too. AUTO FIRE fires again the moment it's back, for as long as the button is held.
+function gunStep(g, F, O, w, down, can, dt) {
+  var P = F.p;
+  if ((down || (F.pu.auto > 0 && F.btn)) && can && w.cd <= 0 && !shotOut(g, F)) {
+    w.cd = 0.2; F.stat.shots++;
+    volley(g, F, "tack", P.mx, P.my, TACK_V, TACK_G);
+    F.vv += 1.6; F.vu -= 0.9;
+    ev(g, "gun", F.i);
+  }
+  if (inBalloon(g, O, P.tx, P.ty, 1)) popIt(g, O, F, P.tx, P.ty, "poke");
+}
+// swords: tap thrusts, and the pin on the tip pops a balloon it's driven into; a blade held still only nudges one
+// that bumps against it. DUAL WIELD adds a second blade; AUTO FIRE thrusts again and again while the button is held.
+function swordStep(g, F, O, w, down, can, dt) {
+  var P = F.p, auto = F.pu.auto > 0;
+  if ((down || (auto && F.btn)) && can && w.cd <= 0 && !w.act) { w.act = "thrust"; w.actT = 0; w.cd = auto ? 0.26 : 0.42; F.stat.shots++; ev(g, "whoosh", F.i); }
+  if (w.act === "thrust" && can) { w.actT += dt; w.off = w.actT < 0.15 ? 0.5 : 0; if (w.actT >= 0.3) w.act = ""; }
+  else { w.act = ""; w.off = 0; }
+  if (F.pu.magnet > 0) pull(O, P.tx, P.ty, dt);
+  if (w.clashT > 0.1) return;
+  var thrusting = w.act === "thrust" && w.actT < 0.24;
+  bladeHit(g, F, O, P.wax, P.way, P.tx, P.ty, thrusting);
+  if (P.dual) bladeHit(g, F, O, P.w2x, P.w2y, P.t2x, P.t2y, thrusting && w.act === "thrust");
+}
+// one blade's pin against the other puppet: a riot shield stops a thrust, a decoy takes it, a balloon pops
+function bladeHit(g, F, O, ax, ay, tx, ty, thrusting) {
+  var P = F.p, w = F.w;
+  if (thrusting && !(F.pu.drill > 0) && crossesShield(O, ax, ay, tx, ty, 3)) { shieldHit(g, O); w.act = ""; w.off = 0; F.vu -= 2.2; w.clashT = 0.2; return; }
+  if (thrusting && inDecoy(g, O, tx, ty, 2)) { popDecoy(g, O); return; }
+  if (!inBalloon(g, O, tx, ty, 1)) return;
+  if (thrusting) popIt(g, O, F, tx, ty, g.t - F.parryAt < 0.5 ? "riposte" : "sword");
+  else { O.b.vx += P.dx * 90; O.b.vy += P.dy * 90; O.vu -= 0.35; }
+}
+// MAGNET: a balloon near your pin or glove is drawn onto it
+function pull(O, x, y, dt) {
+  var b = O.b; if (!b.alive) return;
+  var dx = x - b.x, dy = y - b.y, d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 110 && d > 1) { b.vx += dx / d * 900 * dt; b.vy += dy / d * 900 * dt; }
+}
+// two thrusts whose blades meet knock each other aside, and neither tip pops for a moment; whoever gets back in
+// first pops with a riposte. (A blade held still blocks nothing: the puppets stand a little apart on the board, so
+// resting blades pass each other.)
+function clash(g) {
+  var A = g.f[0], B = g.f[1], a = A.p, b = B.p;
+  if (A.w.clashT > 0 || B.w.clashT > 0) return;
+  var ta = A.w.act === "thrust" && A.w.actT < 0.22, tb = B.w.act === "thrust" && B.w.actT < 0.22;
+  if (!ta || !tb || segSeg2(a.wax, a.way, a.mx, a.my, b.wax, b.way, b.mx, b.my) > 49) return;
+  var hi = a.my > b.my ? A : B, lo = hi === A ? B : A, x = (a.mx + b.mx) / 2, y = (a.my + b.my) / 2;
+  A.vu -= 2.6; B.vu -= 2.6; hi.vv += 1.5; lo.vv -= 1.5;
+  A.w.clashT = B.w.clashT = 0.22; A.w.act = B.w.act = ""; A.w.off = B.w.off = 0; A.w.cd = B.w.cd = 0.12;
+  A.parryAt = B.parryAt = g.t;
+  sparks(g, x, y, 8);
+  text(g, x, y + 26, "CLASH!", "#ffd166"); ev(g, "parry", -1);
+}
+// the bow: hold to draw, let go to loose an arrow on a string (the next draw waits for it to come back); a longer
+// draw flies faster and flatter. AUTO FIRE draws twice as fast and looses by itself at full draw.
+function bowStep(g, F, O, w, can, dt) {
+  var auto = F.pu.auto > 0;
+  if (F.btn && can && w.cd <= 0 && !shotOut(g, F)) {
+    if (!w.drawing) { w.drawing = true; w.draw = 0; ev(g, "draw", F.i); }
+    w.draw = Math.min(1, w.draw + dt / (auto ? 0.4 : 0.8));
+  }
+  if (w.drawing && (!F.btn || !can || (auto && w.draw >= 1))) {
+    if (can && w.draw >= 0.12) {
+      var P = gear(F, g, F.p, w.draw);
+      volley(g, F, "arrow", P.tx, P.ty, arrowV(w.draw), ARROW_G);
+      w.cd = 0.3; F.stat.shots++; F.vu -= 0.7; ev(g, "loose", F.i);
+    }
+    w.drawing = false; w.draw = 0;
+  }
+}
+// throwing stars: one star on a string; tap throws it, and the next throw waits for it to come back
+function starStep(g, F, O, w, down, can, dt) {
+  if ((down || (F.pu.auto > 0 && F.btn)) && can && w.cd <= 0 && !shotOut(g, F)) {
+    var P = F.p; w.cd = 0.18; F.stat.shots++;
+    volley(g, F, "star", P.tx, P.ty, STAR_V, STAR_G);
+    F.vu += 1.6; ev(g, "star", F.i);
+  }
+}
+// boxing: a tap jabs, holding winds up a haymaker that goes when the button comes up; pulling back guards
+function boxStep(g, F, O, w, down, can, dt) {
+  if (!can && (w.act === "hold" || w.act === "wind")) { w.act = ""; w.off = 0; }
+  if (F.pu.auto > 0 && F.btn && can && w.cd <= 0 && !w.act) punch(g, F, "jab");   // AUTO FIRE: a stream of jabs
+  else if (down && can && w.cd <= 0 && !w.act) { w.act = "hold"; w.holdT = 0; }
+  if (w.act === "hold") { w.holdT += dt; if (!F.btn) punch(g, F, "jab"); else if (w.holdT >= 0.24) { w.act = "wind"; ev(g, "wind", F.i); } }
+  else if (w.act === "wind") { w.holdT += dt; w.off = -0.08; if (!F.btn || w.holdT > 1.6) punch(g, F, "hay"); }
+  else if (w.act === "jab" || w.act === "hay") {
+    var hay = w.act === "hay", out = hay ? 0.2 : 0.13, end = hay ? 0.44 : 0.27;
+    w.actT += dt; w.off = w.actT < out ? (hay ? 0.72 : 0.55) : 0;
+    if (!w.landed && w.actT > 0.03 && w.actT < out + 0.06) landPunch(g, F, O, hay);
+    // a haymaker that hits nothing swings you off balance
+    if (hay && !w.landed && w.actT >= out + 0.06) { w.landed = true; w.stun = 0.35; text(g, F.p.gx, F.p.gy + 26, "WHIFF", "#d7dde8"); }
+    if (w.actT >= end) { w.act = ""; w.off = 0; w.cd = hay ? 0.25 : 0.08; }
+  } else w.off = 0;
+  F.guard = can && !w.act && F.u < 0.34;
+  F.gs += ((F.guard ? 1 : 0) - F.gs) * Math.min(1, dt * 16);
+  if (F.pu.magnet > 0) pull(O, F.p.gx, F.p.gy, dt);
+}
+function punch(g, F, kind) { var w = F.w; w.act = kind; w.actT = 0; w.landed = false; F.stat.shots++; ev(g, kind === "hay" ? "swing" : "jab", F.i); }
+// Rock, paper, scissors with gloves: the guard stops a jab; a haymaker knocks the guard aside (no dent, but it's
+// open for a moment); a jab that lands while they wind up stops the haymaker.
+function landPunch(g, F, O, hay) {
+  var P = F.p, w = F.w, gx = P.gx, gy = P.gy, q = O.p, drill = F.pu.drill > 0;
+  if (!drill && crossesShield(O, P.hx, P.hy, gx, gy, 12)) { w.landed = true; F.vu -= 2; shieldHit(g, O); return; }
+  if (inDecoy(g, O, gx, gy, 10)) { w.landed = true; popDecoy(g, O); return; }
+  if (!drill && O.gs > 0.6) {
+    var dx = gx - q.ggx, dy = gy - q.ggy;
+    if (dx * dx + dy * dy < 27 * 27) {
+      w.landed = true; F.vu -= 2.2; O.vu -= hay ? 2.4 : 1.1; O.stat.blocked++;
+      if (hay) { O.w.stun = Math.max(O.w.stun, 0.4); O.gs = 0; text(g, q.ggx, q.ggy + 30, "GUARD BROKEN!", "#ffd166"); ev(g, "hay", O.i); }
+      else { text(g, q.ggx, q.ggy + 30, "BLOCKED", "#d7dde8"); ev(g, "block", O.i); }
+      return;
+    }
+  }
+  if (!inBalloon(g, O, gx, gy, 12)) return;
+  var b = O.b, ow = O.w;
+  w.landed = true; F.stat.hits++;
+  b.pr += (hay ? 2 : 1) + (F.pu.dual > 0 ? 1 : 0); b.hitT = g.t; b.vs -= hay ? 9 : 5.5; b.vx += F.f * (hay ? 260 : 150); b.vy += 40;
+  if (ow.act === "hold" || ow.act === "wind") { ow.act = ""; ow.off = 0; if (b.pr < 3) text(g, b.x, b.y + 74, "INTERRUPTED!", "#9cc7ff"); }
+  // the first punch to land wins the exchange: one thrown after it and still on its way is knocked off line
+  else if ((ow.act === "jab" || ow.act === "hay") && !ow.landed && ow.actT < w.actT) { ow.landed = true; ow.off = 0; }
+  ow.stun = Math.max(ow.stun, hay ? 0.5 : 0.22); O.vu -= hay ? 2.2 : 1.2; F.vu -= 0.6;
+  ev(g, hay ? "hay" : "punch", O.i);
+  if (b.pr >= 3) popIt(g, O, F, gx, gy, hay ? "ko" : "box");
+  else if (hay) text(g, b.x, b.y + 52, "HAYMAKER!", "#ffd166");
+}
+// two punches meeting in the middle knock both back (a glove held still lets a punch past: that's the guard's job)
+function gloveBump(g) {
+  var A = g.f[0], B = g.f[1], a = A.p, b = B.p, dx = a.gx - b.gx, dy = a.gy - b.gy;
+  if (A.w.clashT > 0 || B.w.clashT > 0 || dx * dx + dy * dy > 30 * 30) return;
+  if (!(A.w.act === "jab" || A.w.act === "hay") || !(B.w.act === "jab" || B.w.act === "hay") || A.w.landed || B.w.landed) return;
+  // the punch thrown first goes through; only two thrown together bump
+  var lead = A.w.actT - B.w.actT;
+  if (lead > 0.04) { B.w.landed = true; B.w.off = 0; return; }
+  if (lead < -0.04) { A.w.landed = true; A.w.off = 0; return; }
+  A.vu -= 1.6; B.vu -= 1.6; A.w.clashT = B.w.clashT = 0.25; A.w.landed = B.w.landed = true; ev(g, "block", -1);
+}
+
+// ---------- shots on strings: tacks, arrows and stars ----------
+var AN = { x: 0, y: 0 };
+// where a puppet's string is tied: the gun's muzzle, or the hand
+function anchor(g, F) { var P = F.p; if (g.wk === "gun") { AN.x = P.mx; AN.y = P.my; } else { AN.x = P.hx + P.dx * 6; AN.y = P.hy + P.dy * 6; } return AN; }
+function shotOut(g, F) { for (var i = 0; i < g.shots.length; i++) if (g.shots[i].o === F.i && !g.shots[i].dead) return true; return false; }
+function shoot(g, F, k, x, y, vx, vy, gr) {
+  g.shots.push({ id: g.nid++, k: k, o: F.i, x: x, y: y, vx: vx, vy: vy, gr: gr, r: k === "star" ? 9 : k === "tack" ? 4 : 3, t: 0, rot: 0, vr: k === "star" ? 24 * F.f : 0,
+    bounce: 0, dead: false, st: "out", L: g.D * STRING * (F.pu.extendo > 0 ? 1.4 : 1), taut: 0, tw: 0 });
+}
+// one shot, or two in a V with DUAL WIELD; EXTENDO sends them faster
+function volley(g, F, k, x, y, sp, gr) {
+  var P = F.p, n = F.pu.dual > 0 ? 2 : 1, i;
+  if (F.pu.extendo > 0) sp *= 1.3;
+  for (i = 0; i < n; i++) {
+    var a = n === 1 ? 0 : i ? 0.1 : -0.1, ca = Math.cos(a), sa = Math.sin(a);
+    shoot(g, F, k, x, y, (P.dx * ca - P.dy * sa) * sp, (P.dx * sa + P.dy * ca) * sp, gr);
+  }
+}
+function shotsStep(g, dt) {
+  var L = g.shots, i, j, s;
+  for (i = 0; i < L.length; i++) {
+    s = L[i]; if (s.dead) continue;
+    var Fo = g.f[s.o], sp = s.st === "out" ? Math.abs(s.vx) + Math.abs(s.vy) : REEL_V * 3, n = Math.max(1, Math.ceil(sp * dt / 6)), h = dt / n;
+    for (j = 0; j < n && !s.dead; j++) {
+      var A = anchor(g, Fo);   // the string's end moves with the puppet
+      if (s.st !== "out") { reelIn(g, s, Fo, A, h); continue; }
+      flyOut(g, s, Fo, A, h);
+      hitTest(g, s);
+      if (s.st === "out" && (s.taut > TAUT_T || s.t > OUT_T)) reel(g, s);
+    }
+  }
+  // two stars on their strings knock each other back
+  for (i = 0; i < L.length; i++) {
+    var a = L[i]; if (a.dead || a.k !== "star" || a.st !== "out") continue;
+    for (j = i + 1; j < L.length; j++) {
+      var c = L[j]; if (c.dead || c.k !== "star" || c.o === a.o || c.st !== "out") continue;
+      var rr = a.r + c.r, ddx = a.x - c.x, ddy = a.y - c.y;
+      if (ddx * ddx + ddy * ddy < rr * rr) { reel(g, a); reel(g, c); sparks(g, (a.x + c.x) / 2, (a.y + c.y) / 2, 8); text(g, a.x, a.y + 26, "CLINK!", "#e6ecf5"); ev(g, "clink", -1); break; }
+    }
+  }
+  var out = []; for (i = 0; i < L.length; i++) if (!L[i].dead) out.push(L[i]);
+  g.shots = out;
+}
+// out on the string: gravity (and a MAGNET's pull) until the string runs out, then it swings on it
+function flyOut(g, s, Fo, A, h) {
+  if (Fo.pu.magnet > 0) {
+    var O = g.f[1 - s.o];
+    if (O.b.alive) { var mx = O.b.x - s.x, my = O.b.y - s.y, md = Math.sqrt(mx * mx + my * my) || 1; s.vx += mx / md * 1500 * h; s.vy += my / md * 1500 * h; }
+  }
+  s.vy -= s.gr * h; s.x += s.vx * h; s.y += s.vy * h; s.t += h; s.rot += s.vr * h;
+  var dx = s.x - A.x, dy = s.y - A.y, d = Math.sqrt(dx * dx + dy * dy);
+  if (d > s.L) {
+    var nx = dx / d, ny = dy / d, vr = s.vx * nx + s.vy * ny;
+    s.x = A.x + nx * s.L; s.y = A.y + ny * s.L;
+    if (vr > 0) { s.vx -= nx * vr; s.vy -= ny * vr; }
+    s.taut += h; if (!s.tw) { s.tw = 1; ev(g, "twang", s.o); }
+  }
+}
+function reel(g, s) { if (s.st === "out") { s.st = "reel"; ev(g, "reel", s.o); } }
+// reeling in: straight back to the hand (faster with AUTO FIRE); it can't hurt anyone on the way
+function reelIn(g, s, Fo, A, h) {
+  var dx = A.x - s.x, dy = A.y - s.y, d = Math.sqrt(dx * dx + dy * dy), v = REEL_V * (Fo.pu.auto > 0 ? 3 : 1);
+  s.t += h; s.rot += s.vr * h * 0.5;
+  if (d <= v * h + 6) { s.dead = true; return; }
+  s.x += dx / d * v * h; s.y += dy / d * v * h; s.vx = dx / d * v; s.vy = dy / d * v;
+}
+// what a shot on its way out runs into: a crate (hooked and reeled in), a decoy, a riot shield, the balloon, wood
+// (DRILL TIPS go straight through shields and wood), or the board
+function hitTest(g, s) {
+  var O = g.f[1 - s.o], F = g.f[s.o], drill = F.pu.drill > 0, pad = s.k === "star" ? 5 : 1.5, c = g.crate, i;
+  if (c && c.st !== "ride" && g.phase === "fight" && Math.abs(s.x - c.x) < 17 + s.r && Math.abs(s.y - c.y) < 17 + s.r) { takeCrate(g, F, c, s); reel(g, s); return; }
+  if (inDecoy(g, O, s.x, s.y, pad)) { popDecoy(g, O); reel(g, s); return; }
+  if (!drill && O.shOn && segPt(s.x, s.y, O.sh.ax, O.sh.ay, O.sh.bx, O.sh.by) < (6 + s.r) * (6 + s.r)) { shieldHit(g, O); reel(g, s); return; }
+  if (inBalloon(g, O, s.x, s.y, pad)) {
+    popIt(g, O, F, s.x, s.y, s.taut > 0 ? "swing" : s.k === "star" ? (s.bounce ? "bank" : "star") : s.k);
+    reel(g, s); return;
+  }
+  if (!drill) for (i = 0; i < O.nseg; i++) {
+    var q = O.segs[i], rr = q.r + s.r * 0.6;
+    if (segPt(s.x, s.y, q.ax, q.ay, q.bx, q.by) < rr * rr) { O.stat.blocked++; text(g, s.x, s.y + 24, "BLOCKED", "#d7dde8"); sparks(g, s.x, s.y, 3); ev(g, "thunk", -1); reel(g, s); return; }
+  }
+  if (s.y <= 0 && Math.abs(s.x) < g.boardHW) {
+    if (s.k === "star" && !s.bounce) { s.y = 0.5; s.vy = Math.abs(s.vy) * 0.55; s.vx *= 0.85; s.bounce = 1; ev(g, "clink", -1); return; }
+    s.y = 0.5; s.vx = s.vy = 0; ev(g, "thunk", -1); reel(g, s);
+  }
+}
+
+// ---------- crates: they float down between the puppets ----------
+// One at a time, a little while into a round, on a small balloon. Touch it (a hand, a blade, a glove) or hook it with
+// a shot to get what's inside. One that lands sits on the board a few seconds and goes.
+function crateStep(g, dt) {
+  if (!g.pups) return;
+  var c = g.crate, i;
+  if (!c) {
+    // the wait for the next one runs while the balloons blow up and the round starts too, so quick rounds get crates
+    if (g.phase !== "fight" && g.phase !== "ready" && g.phase !== "inflate") return;
+    g.crateT -= dt;
+    if (g.crateT > 0) return;
+    var k = PUPS[Math.floor(g.r() * PUPS.length)].k;
+    if (k === g.lastPU) k = PUPS[(PUPS.indexOf(PUK[k]) + 1 + Math.floor(g.r() * (PUPS.length - 1))) % PUPS.length].k;
+    g.lastPU = k;
+    g.crate = { id: g.nid++, k: k, x: (g.r() * 2 - 1) * Math.min(g.D * 0.22, 95), y: 325, t: 0, st: "fall", sw: g.r() * TAU, rider: 0 };
+    ev(g, "crate", -1);
+    return;
+  }
+  c.t += dt;
+  if (c.st === "fall") { c.y -= 55 * dt; c.x += Math.sin(c.t * 1.6 + c.sw) * 14 * dt; if (c.y <= 16) { c.y = 16; c.st = "land"; c.t = 0; } }
+  else if (c.st === "land") { if (c.t > 5) { sparks(g, c.x, c.y, 6); g.crate = null; g.crateT = 2 + g.r() * 2; return; } }
+  else {
+    // riding back to its new owner on the string
+    var s = null; for (i = 0; i < g.shots.length; i++) if (g.shots[i].id === c.rider) s = g.shots[i];
+    if (!s) { g.crate = null; return; }
+    c.x = s.x; c.y = s.y; return;
+  }
+  if (g.phase === "fight") for (i = 0; i < 2; i++) if (touches(g, g.f[i], c)) { takeCrate(g, g.f[i], c, null); return; }
+}
+// does a puppet's hand, blade or glove touch the crate?
+function touches(g, F, c) {
+  var P = F.p, k = g.wk, R = 22;
+  if (k === "sword") return segPt(c.x, c.y, P.wax, P.way, P.tx, P.ty) < R * R || (P.dual && segPt(c.x, c.y, P.w2x, P.w2y, P.t2x, P.t2y) < R * R);
+  if (k === "box") { var dx = c.x - P.gx, dy = c.y - P.gy, ex = c.x - P.ggx, ey = c.y - P.ggy; return dx * dx + dy * dy < 30 * 30 || ex * ex + ey * ey < 28 * 28; }
+  var hx = c.x - P.hx, hy = c.y - P.hy, tx = c.x - P.tx, ty = c.y - P.ty;
+  return hx * hx + hy * hy < R * R || tx * tx + ty * ty < R * R;
+}
+function takeCrate(g, F, c, s) {
+  grant(g, F, c.k);
+  if (s) { c.st = "ride"; c.rider = s.id; } else { sparks(g, c.x, c.y, 8); g.crate = null; }
+  g.crateT = 2.5 + g.r() * 2;
+}
+// what's in the crate goes to whoever got it, or (FREEZE RAY, TOPSY-TURVY, BIG HEAD) to the other puppet
+function grant(g, F, k) {
+  var P = PUK[k], O = g.f[1 - F.i], T = P.foe ? O : F, b = F.b;
+  if (k === "shield") { T.pu.shield = P.t; T.pu.shieldN = P.n; }
+  else if (k === "bubble" || k === "decoy") T.pu[k] = 1;
+  else T.pu[k] = P.t;
+  if (k === "decoy") { T.dk.x = T.fx + T.f * 100; T.dk.y = T.b.y; T.dk.vy = 0; }
+  if (k === "freeze") { O.w.act = ""; O.w.off = 0; O.w.drawing = false; O.w.draw = 0; }
+  F.stat.grabs++;
+  cap(g, P.name + "!", (P.foe ? O.look.name : F.look.name) + " · " + P.say.toUpperCase(), P.col, 1.6, true);
+  text(g, b.x, b.y + 64, P.name, P.col);
+  ev(g, k === "freeze" ? "freeze" : "power", F.i);
+  if (g.mode === "arcade" && F.i === 0) { g.score += 100 * (g.tier || 1); g.bonus.push({ n: 100 * (g.tier || 1), why: "CRATE" }); }
+}
+// ---------- what the crates do ----------
+function puStep(g, F, dt) {
+  var p = F.pu, k;
+  for (k in p) if (k !== "bubble" && k !== "decoy" && k !== "shieldN" && p[k] > 0) p[k] = Math.max(0, p[k] - dt);
+  if (p.shield <= 0) p.shieldN = 0;
+  if (F.iframe > 0) F.iframe -= dt;
+  if (F.uiFx > 0) F.uiFx -= dt;
+  F.bs += ((p.shrink > 0 ? 0.62 : 1) * (p.pump > 0 ? 1.45 : 1) * F.inner - F.bs) * Math.min(1, dt * 5);
+  F.hl += ((p.helium > 0 ? 1 : 0) - F.hl) * Math.min(1, dt * 3);
+  // the DECOY stands in front, bobbing at the height of the head it's covering for
+  if (p.decoy > 0) { var d = F.dk; d.x = F.fx + F.f * 100; d.vy += (240 * (F.b.y - 6 - d.y) - 8 * d.vy) * dt; d.y += d.vy * dt; }
+}
+// ULTRA INSTINCT: the body sees it coming. A shot headed for the balloon gets ducked (or stood over), and a thrust
+// or punch that would land gets a quick step back.
+function instinct(g, F, O) {
+  if (F.uiT > 0 || F.pu.freeze > 0) return;
+  var b = F.b, i, s;
+  for (i = 0; i < g.shots.length; i++) {
+    s = g.shots[i]; if (s.o === F.i || s.st !== "out") continue;
+    var tt = (b.x - s.x) / (s.vx || 1e-6); if (tt <= 0 || tt > 0.6) continue;
+    var yy = s.y + s.vy * tt - 0.5 * s.gr * tt * tt;
+    if (Math.abs(yy - b.y) < BRY * F.bs + 16) {
+      var down = yy >= b.y; if ((down && F.v < 0.15) || (!down && F.v > 0.85)) down = !down;
+      F.uiV = clamp(F.v + (down ? -0.6 : 0.6), 0, 1); F.uiU = F.u; F.uiT = 0.32; F.uiFx = 0.4; ev(g, "swish", F.i); return;
+    }
+  }
+  var oa = O.w.act;
+  if (oa === "thrust" || oa === "jab" || oa === "hay" || oa === "wind") {
+    gear(O, g, poseInto(O, O.u + (g.wk === "box" ? (oa === "jab" ? 0.55 : 0.72) : 0.5), O.hv, HP), 0);
+    if (ellQ(F, HP.tx, HP.ty, 14) <= 1.15) { F.uiU = Math.max(0, F.u - 0.6); F.uiV = F.v; F.uiT = 0.35; F.uiFx = 0.4; ev(g, "swish", F.i); }
+  }
+}
+// RIOT SHIELD
+function crossesShield(F, ax, ay, bx, by, r) { var h = F.sh; return F.shOn && segSeg2(ax, ay, bx, by, h.ax, h.ay, h.bx, h.by) < (r + 6) * (r + 6); }
+function shieldHit(g, F) {
+  var h = F.sh, y = (h.ay + h.by) / 2;
+  F.pu.shieldN--; F.stat.blocked++; sparks(g, h.ax, y, 6);
+  if (F.pu.shieldN <= 0) { F.pu.shield = 0; F.shOn = false; text(g, h.ax, y + 70, "SHIELD BROKEN!", "#8fb8d8"); ev(g, "shatter", F.i); }
+  else { text(g, h.ax, y + 70, "SHIELD ×" + F.pu.shieldN, "#cfe3f3"); ev(g, "block", F.i); }
+}
+// DECOY
+function inDecoy(g, F, x, y, pad) {
+  if (!(F.pu.decoy > 0) || g.phase !== "fight") return false;
+  var d = F.dk, dx = (x - d.x) / (BRX * 0.9 + pad), dy = (y - d.y) / (BRY * 0.9 + pad);
+  return dx * dx + dy * dy <= 1;
+}
+function popDecoy(g, F) {
+  var d = F.dk; F.pu.decoy = 0;
+  shreds(g, d.x, d.y, F.look.c1, "#9aa3b0", 10); g.fx.push({ k: "ring", x: d.x, y: d.y, t: 0, life: 0.3 });
+  text(g, d.x, d.y + 56, "DECOY!", "#d7dde8"); ev(g, "decoy", F.i);
+}
+
+// ---------- the balloons ----------
+// how far a point is into the balloon: under 1 is inside (pad grows the balloon a little)
+function ellQ(F, x, y, pad) {
+  var b = F.b, sc = Math.max(0.05, b.inf * F.look.big * F.bs), rx = BRX * sc * (1 + b.sq) + pad, ry = BRY * sc * (1 - b.sq) + pad;
+  var c = Math.cos(b.rot), s = Math.sin(b.rot), dx = x - b.x, dy = y - b.y, lx = dx * c - dy * s, ly = dx * s + dy * c;
+  return Math.sqrt(lx * lx / (rx * rx) + ly * ly / (ry * ry));
+}
+function inBalloon(g, F, x, y, pad) {
+  var b = F.b;
+  if (!b.alive || b.inf < 0.7 || F.iframe > 0) return false;
+  if (g.phase !== "fight" && !(g.phase === "pop" && g.pt <= TRADE)) return false;
+  return ellQ(F, x, y, pad) <= 1;
+}
+function balloonStep(g, F, dt) {
+  var b = F.b, P = F.p;
+  if (!b.alive) return;
+  var sc = b.inf * F.look.big * F.bs, tx = P.nx + P.ux * BRY * 0.92 * sc, ty = P.ny + P.uy * BRY * 0.92 * sc, hl = F.hl;
+  // HELIUM: the balloon floats up off the neck on a string and drifts about
+  if (hl > 0.01) { tx += (Math.sin(g.t * 1.3 + F.i * 2) * 22 - P.ux * BRY * 0.92 * sc) * hl; ty += (78 + Math.sin(g.t * 2.1) * 6) * hl; }
+  b.vx += (BAL_K * (tx - b.x) - BAL_C * b.vx) * dt; b.vy += (BAL_K * (ty - b.y) - BAL_C * b.vy) * dt;
+  b.x += b.vx * dt; b.y += b.vy * dt;
+  var dx = b.x - tx, dy = b.y - ty, d = Math.sqrt(dx * dx + dy * dy), mx = 18 * Math.max(0.3, sc) + 30 * hl;
+  if (d > mx) { b.x = tx + dx / d * mx; b.y = ty + dy / d * mx; }
+  b.rot = Math.atan2(b.x - P.nx, b.y - P.ny);
+  b.vs += (-200 * b.sq - 9 * b.vs) * dt; b.sq = clamp(b.sq + b.vs * dt, -0.35, 0.35);
+  if (b.pr > 0 && g.t - b.hitT > 1.6) b.pr = Math.max(0, b.pr - 0.5 * dt);
+}
+function shreds(g, x, y, c1, c2, n) {
+  for (var i = 0; i < n; i++) {
+    var a = g.r() * TAU, sp = 120 + g.r() * 320;
+    g.fx.push({ k: "shred", x: x + Math.cos(a) * 18, y: y + Math.sin(a) * 22, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 120, a: g.r() * TAU, va: (g.r() - 0.5) * 24, s: 4 + g.r() * 7, col: i % 3 ? c1 : c2, t: 0, rest: false });
+  }
+}
+function popIt(g, O, by, x, y, how) {
+  var b = O.b, L = O.look;
+  if (!b.alive || O.iframe > 0) return;
+  if (O.pu.bubble > 0) {
+    // DOUBLE BUBBLE: the outer balloon goes, and the one inside it is still there
+    O.pu.bubble = 0; O.inner = 0.86; O.iframe = 0.5;
+    shreds(g, b.x, b.y, L.c1, "#e8f6ff", 10); g.fx.push({ k: "ring", x: b.x, y: b.y, t: 0, life: 0.3 });
+    text(g, b.x, b.y + 62, "SAVED BY THE BUBBLE!", "#9be7ff"); ev(g, "bubble", O.i);
+    return;
+  }
+  var q = ellQ(O, x, y, 0);
+  b.alive = false; by.stat.pops++;
+  g.pops.push({ who: O.i, by: by.i, how: how, bull: q < 0.45, x: x, y: y, rt: g.rt });
+  shreds(g, b.x, b.y, L.col, L.c3, 16);
+  g.fx.push({ k: "ring", x: b.x, y: b.y, t: 0, life: 0.35 });
+  g.popCam = { x: b.x, y: b.y, t: g.t };
+  ev(g, "pop", O.i);
+  if (g.phase === "fight") { g.phase = "pop"; g.pt = 0; g.resolved = false; }
+}
+// a moment after the first pop the round is settled: a pop in that moment is a trade (a double pop)
+function resolve(g) {
+  g.resolved = true;
+  var a = !g.f[0].b.alive, b = !g.f[1].b.alive, i;
+  if (a && b) { g.lastWin = -1; g.popLog.push({ win: -1, how: "double", rt: g.rt, bull: false }); cap(g, "DOUBLE POP!", "Nobody scores", "#ffffff", 1.4); return; }
+  var w = a ? 1 : 0, Wf = g.f[w], p = g.pops[0];
+  for (i = 0; i < g.pops.length; i++) if (g.pops[i].by === w) p = g.pops[i];
+  g.wins[w]++; g.lastWin = w; g.popLog.push({ win: w, how: p.how, rt: p.rt, bull: p.bull });
+  var done = g.wins[w] >= g.needs[w], who = w === 0 && g.f[0].ctl === "cab" ? "YOU WIN!" : Wf.look.name + (Wf.look.plural ? " WIN!" : " WINS!");
+  cap(g, done ? who : "POP!", g.wins[0] + " – " + g.wins[1], Wf.look.c1, done ? 1.8 : 1.2);
+  scoreRound(g, w, p, done);
+}
+function after(g) {
+  if (g.lastWin >= 0 && g.wins[g.lastWin] >= g.needs[g.lastWin]) { g.over = { win: g.lastWin, t: g.t }; g.phase = "over"; g.pt = 0; ev(g, g.lastWin === 0 || g.mode === "friend" ? "win" : "lose", g.lastWin); return; }
+  g.round++; resetRound(g);
+}
+function scoreRound() {}
+// ---------- bits flying about ----------
+function fxStep(g, dt) {
+  var L = g.fx, out = [], i, p, nrest = 0;
+  for (i = L.length - 1; i >= 0; i--) {
+    p = L[i];
+    if (p.k === "shred") {
+      if (!p.rest) {
+        p.vy -= 700 * dt; p.vx *= 1 - 2.2 * dt; p.vy = Math.max(p.vy, -230);
+        p.x += p.vx * dt; p.y += p.vy * dt; p.a += p.va * dt;
+        var fl = Math.abs(p.x) < g.boardHW ? 1 : -16;
+        if (p.y <= fl) { p.y = fl; p.rest = true; }
+      }
+      if (p.rest && ++nrest > 70) continue;
+      out.push(p);
+    } else if (p.k === "spark") { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 600 * dt; if (p.t < p.life) out.push(p); }
+    else { p.t += dt; if (p.t < p.life) out.push(p); }
+  }
+  out.reverse(); g.fx = out;
+}
+
+// ===================== the rivals' brains =====================
+// A rival works its puppet with the same stick and button you have. It looks every so often (sharper rivals look
+// more often), aims by trying rod positions against where it saw your balloon, dodges what it sees coming, keeps its
+// distance with a blade or gloves, and presses the button when it likes its aim.
+var HP = {}, LB = { x: 0, y: 0, vx: 0, vy: 0, gr: 0 };
+function makeBot(sk) { return { sk: sk, next: 0, gu: 0.42, gv: 0.62, tx: 0, ty: 0, steady: 0, until: 0, mode: "", seen: {}, press: false, hold: 0, last: -9, want: 0.85, pat: sk.patience, counter: 0 }; }
+function botReset(B, r) { B.j = r ? r() : 0.5; B.next = 0; B.gu = 0.42; B.gv = 0.62; B.steady = 0; B.until = 0; B.mode = ""; B.seen = {}; B.press = false; B.hold = 0; B.last = -9; B.pat = B.sk.patience; B.counter = 0; }
+// where a shot from this rod position would start and how it would fly
+function launch(g, F, hu, hv, draw) {
+  gear(F, g, poseInto(F, hu, hv, HP), draw);
+  var k = g.wk, sp = k === "gun" ? TACK_V : k === "star" ? STAR_V : arrowV(draw);
+  LB.x = k === "gun" ? HP.mx : HP.tx; LB.y = k === "gun" ? HP.my : HP.ty;
+  LB.vx = HP.dx * sp; LB.vy = HP.dy * sp; LB.gr = k === "gun" ? TACK_G : k === "star" ? STAR_G : ARROW_G;
+  return LB;
+}
+// how high above (or below) the target a shot passes when it gets there
+function missAt(L, tx, ty) {
+  if (Math.abs(L.vx) < 1) return 9999;
+  var t = (tx - L.x) / L.vx; if (t <= 0) return 9999;
+  return L.y + L.vy * t - 0.5 * L.gr * t * t - ty;
+}
+function botStep(g, F, O, dt) {
+  var B = F.bot, sk = B.sk;
+  if (g.phase !== "fight") { B.gu = 0.42; B.gv = 0.62; B.press = false; B.hold = 0; B.steady = 0; B.go = false; B.next = g.t + sk.warm + sk.react * (0.3 + 0.7 * B.j); }
+  else {
+    if (g.shots.length && g.wk !== "sword" && g.wk !== "box") dodge(g, F, O, B);
+    if (g.t >= B.next) { botThink(g, F, O, B); B.go = true; }
+    // (nothing until it has had its first look this round: no firing at where last round left it aiming)
+    if (B.go) {
+      if (g.wk === "sword") swordAct(g, F, O, B, dt);
+      else if (g.wk === "box") boxAct(g, F, O, B, dt);
+      else rangedAct(g, F, O, B, dt);
+    }
+  }
+  F.sx = clamp((B.gu - F.u) * 9, -1, 1) * sk.speed;
+  F.sy = clamp((B.gv - F.v) * 9, -1, 1) * sk.speed;
+  F.btn = B.press;
+}
+function botThink(g, F, O, B) {
+  var sk = B.sk, r = g.r, c = g.crate;
+  B.next = g.t + sk.react * (0.7 + 0.6 * r());
+  B.tx = O.b.x; B.ty = O.b.y + gauss(r) * sk.err * g.D * 0.45;
+  // a crate is worth going after (a keen rival more often): each one gets sized up once, then shot at or reached
+  // for whenever it can be
+  B.crate = false;
+  if (c && c.st !== "ride") { if (B.cid !== c.id) { B.cid = c.id; B.cgo = r() < 0.3 + 0.6 * sk.aggro; } B.crate = B.cgo; }
+  if (!B.crate && O.pu.decoy > 0 && r() < 0.5) { B.tx = O.dk.x; B.ty = O.dk.y; }
+  if (g.t < B.until) return;
+  if (g.wk === "sword" || g.wk === "box") meleeThink(g, F, O, B); else rangedThink(g, F, O, B);
+}
+// anything coming my way? A rival sees a shot once it has been flying a moment, decides once whether to duck it,
+// and ducks (or stands) out of its path.
+function dodge(g, F, O, B) {
+  var sk = B.sk, r = g.r, i, s;
+  for (i = 0; i < g.shots.length; i++) {
+    s = g.shots[i]; if (s.o === F.i || s.dead || s.st !== "out" || s.t < sk.react * 0.6) continue;
+    if (B.seen[s.id] === undefined) B.seen[s.id] = r() < sk.dodge;
+    if (!B.seen[s.id]) continue;
+    var tt = (F.b.x - s.x) / (s.vx || 1e-6); if (tt <= 0.02 || tt > 0.9) continue;
+    var yy = s.y + s.vy * tt - 0.5 * s.gr * tt * tt;
+    if (Math.abs(yy - F.b.y) < BRY + 14) {
+      var down = yy >= F.b.y; if ((down && F.v < 0.12) || (!down && F.v > 0.88)) down = !down;
+      B.gv = clamp(F.v + (down ? -0.65 : 0.65), 0, 1); B.until = g.t + 0.42; B.mode = "dodge"; B.seen[s.id] = false;
+      return true;
+    }
+  }
+  return false;
+}
+function rangedThink(g, F, O, B) {
+  var sk = B.sk, r = g.r, v;
+  B.mode = "aim"; B.pat = sk.patience * (0.5 + r());
+  B.gu = clamp(0.3 + 0.3 * sk.aggro + 0.12 * gauss(r), 0.05, 0.85);
+  if (g.wk === "bow") B.want = clamp(0.72 + 0.28 * r(), 0.5, 1);
+  if (B.crate && crateAim(g, F, B)) return;
+  var best = 1e9, bv = F.v;
+  for (v = 0; v <= 1.0001; v += 0.04) {
+    var m = Math.abs(missAt(launch(g, F, B.gu, v, g.wk === "bow" ? B.want : 0), B.tx, B.ty));
+    if (m < best) { best = m; bv = v; }
+  }
+  B.gv = bv;
+}
+function rangedAct(g, F, O, B, dt) {
+  var sk = B.sk, w = F.w, k = g.wk, draw = k === "bow" ? Math.max(w.draw, B.want) : 0;
+  var m = Math.abs(missAt(launch(g, F, F.hu, F.hv, draw), B.tx, B.ty)), aimed = m < BRY * 0.7;
+  B.steady = aimed ? B.steady + dt : 0;
+  if (k === "bow") {
+    if (!w.drawing) B.press = aimed && B.steady >= B.pat * 0.5 && w.cd <= 0 && !shotOut(g, F);
+    else B.press = !(w.draw >= B.want && (aimed || w.draw >= 1));
+    return;
+  }
+  if (B.press) { B.press = false; return; }   // a tap: down one step, up the next
+  if (aimed && B.steady >= B.pat && w.cd <= 0 && !shotOut(g, F) && g.t - B.last >= sk.gap) { B.press = true; B.last = g.t; }
+}
+// going after a crate with a ranged weapon: close enough to touch, reach for it; otherwise shoot where it's headed
+function crateAim(g, F, B) {
+  var c = g.crate, u, v, bd = 1e9, bu = F.u, bw = F.v;
+  for (u = 0; u <= 1.4001; u += 0.1) for (v = 0; v <= 1.0001; v += 0.1) {
+    gear(F, g, poseInto(F, u, v, HP), 0);
+    var d = Math.min(dist2(HP.hx, HP.hy, c.x, c.y), dist2(HP.tx, HP.ty, c.x, c.y)); if (d < bd) { bd = d; bu = u; bw = v; }
+  }
+  if (bd < 18 * 18) { B.gu = bu; B.gv = bw; B.mode = "crate"; return true; }
+  var lead = c.st === "fall" ? 55 * (B.pat * 0.6 + Math.abs(c.x - F.p.hx) / 650) : 0, tx = c.x, ty = Math.max(16, c.y - lead), best = 1e9, gu = B.gu, gv = F.v;
+  for (u = 0.1; u <= 1.0001; u += 0.3) for (v = 0; v <= 1.0001; v += 0.04) {
+    var m = Math.abs(missAt(launch(g, F, u, v, g.wk === "bow" ? B.want : 0), tx, ty));
+    if (m < best) { best = m; gu = u; gv = v; }
+  }
+  if (best > 12) return false;   // can't get a shot at it from here: go for the balloon instead
+  B.tx = tx; B.ty = ty; B.gu = gu; B.gv = gv; return true;
+}
+function dist2(ax, ay, bx, by) { return (ax - bx) * (ax - bx) + (ay - by) * (ay - by); }
+// a blade or a glove: line it up with the balloon, hover just out of reach, and back off when they come at you
+function meleeThink(g, F, O, B) {
+  var sk = B.sk, r = g.r, k = g.wk, ext = k === "box" ? 0.55 : 0.5, v, u, oa = O.w.act;
+  if (oa && r() < sk.dodge) {
+    if (k === "sword") {
+      // thrust back to parry, or just get out of reach
+      if (oa === "thrust" && O.w.actT < 0.12 && r() < 0.55) B.counter = g.t + 0.12;
+      B.gu = Math.max(0, F.u - 0.5); B.until = g.t + 0.3 + 0.2 * r(); B.mode = "back"; return;
+    }
+    // a wind-up gets jabbed if a jab reaches (or else a step back out of range), a jab gets the guard, and a
+    // haymaker on its way gets a step back
+    gear(F, g, poseInto(F, F.hu + 0.55, F.hv, HP), 0);
+    if ((oa === "wind" || oa === "hold") && ellQ(O, HP.gx, HP.gy, 16) <= 1) { B.counter = g.t + 0.15; B.until = g.t + 0.2; B.mode = "counter"; return; }
+    B.gu = oa === "jab" ? 0.1 : 0; B.until = g.t + 0.3 + 0.2 * r(); B.mode = "guard"; return;
+  }
+  if (B.crate) {
+    // reach for it once it's in reach (a blade's whole length counts, a glove its fist)
+    var c = g.crate, bd = 1e9, bu = F.u, bw = F.v, cy = c.y - (c.st === "fall" ? 55 * 0.25 : 0);
+    for (u = 0; u <= 1.0001; u += 0.1) for (v = 0; v <= 1.0001; v += 0.1) {
+      gear(F, g, poseInto(F, u, v, HP), 0);
+      var cd = k === "sword" ? segPt(c.x, cy, HP.wax, HP.way, HP.tx, HP.ty) : dist2(HP.gx, HP.gy, c.x, cy); if (cd < bd) { bd = cd; bu = u; bw = v; }
+    }
+    if (bd < 26 * 26) { B.gu = bu; B.gv = bw; B.mode = "crate"; return; }
+  }
+  var best = 1e9, bv = F.v;
+  for (v = 0; v <= 1.0001; v += 0.05) {
+    gear(F, g, poseInto(F, clamp(F.u + ext, 0, 1.4), v, HP), 0);
+    var e = Math.abs(HP.ty - B.ty); if (e < best) { best = e; bv = v; }
+  }
+  B.gv = bv;
+  var ru = 1;
+  for (u = 0; u <= 1.0001; u += 0.05) {
+    gear(F, g, poseInto(F, u + ext, bv, HP), 0);
+    if (F.f * (HP.tx - (B.tx - F.f * BRX * 0.7)) >= 0) { ru = u; break; }
+  }
+  B.gu = r() < sk.aggro ? ru : Math.max(0, ru - 0.18 - 0.1 * r());
+  B.mode = "fence";
+}
+// thrust when the tip would land; a parried (stunned) fencer gets the riposte at once
+function swordAct(g, F, O, B, dt) {
+  var sk = B.sk, w = F.w, open = O.w.stun > 0.12;
+  if (B.press) { B.press = false; return; }
+  if (B.counter > g.t && w.cd <= 0 && w.stun <= 0 && !w.act) { B.counter = 0; B.press = true; B.last = g.t; return; }
+  if (open && g.t >= B.until) { B.gu = clamp(F.u + 0.25, 0, 1); }
+  if (w.cd > 0 || w.stun > 0 || w.act || (!open && g.t - B.last < sk.gap)) return;
+  gear(F, g, poseInto(F, F.hu + 0.5, F.hv, HP), 0);
+  var q = ellQ(O, HP.tx, HP.ty, 6);
+  if (q <= 1 || (q < 1.5 && g.r() < sk.aggro * 1.5 * dt)) { B.press = true; B.last = g.t; }
+}
+// jab when it would land; a haymaker on a rocked boxer, and now and then one into a guard to knock it aside
+function boxAct(g, F, O, B, dt) {
+  var sk = B.sk, w = F.w;
+  if (B.hold > 0) { B.hold -= dt; B.press = B.hold > 0; return; }
+  if (B.press) { B.press = false; return; }
+  if (w.cd > 0 || w.stun > 0 || w.act) return;
+  gear(F, g, poseInto(F, F.hu + 0.55, F.hv, HP), 0);
+  var reach = ellQ(O, HP.gx, HP.gy, 16) <= 1;
+  if (B.counter > g.t && reach) { B.counter = 0; B.press = true; B.last = g.t; return; }
+  if (!reach || g.t - B.last < sk.gap) return;
+  if (g.r() > dt * (6 + 10 * sk.aggro)) return;   // not every boxer swings the instant it can
+  var guarded = O.gs > 0.6, rocked = O.w.stun > 0.1 || O.b.pr >= 1.6;
+  if (guarded && g.r() > sk.aggro * 0.8) { B.last = g.t; return; }
+  B.press = true; B.last = g.t;
+  if ((rocked || guarded) && g.r() < 0.65) B.hold = 0.32;
+}
+var DISPLAY = "Impact, Haettenschweiler, \"Arial Narrow Bold\", \"Roboto Condensed\", \"Arial Black\", sans-serif";
+var MONO = "ui-monospace, \"SF Mono\", Menlo, Consolas, \"Roboto Mono\", monospace";
+var WOOD = "#ecd7ad", WOOD2 = "#d6bc8b", WOOD_E = "#a7834f", PINC = "#6a5232", METAL = "#d5dae2", METAL_E = "#7d8594";
+var SLOW = 0, SHAKE = 0;
+function toWorld(c) { c.setTransform(W.dpr * V.s, 0, 0, -W.dpr * V.s, W.dpr * V.ox, W.dpr * V.oy); }
+function toScreen(c) { c.setTransform(W.dpr, 0, 0, W.dpr, 0, 0); }
+function SX(x) { return V.ox + V.s * x; }
+function SY(y) { return V.oy - V.s * y; }
+// the camera frames the two puppets, and leans in on a pop
+function fitView(g, dt) {
+  var hw = g.D / 2 + (W.w < W.h ? 115 : 160) + (SKIN === "space" ? 45 : 0), top = 350, bot = -40, s0 = Math.min(W.w / (2 * hw), W.h / (top - bot));
+  var tz = 1, tx = 0, ty = (top + bot) / 2, pc = g.popCam;
+  if (pc && g.t - pc.t < 1.25 && g.phase !== "inflate") { tz = 1.16; tx = pc.x * 0.3; ty = lerp(ty, pc.y, 0.3); }
+  var k = 1 - Math.exp(-(dt || 0.016) * 5);
+  CAM.z += (tz - CAM.z) * k; CAM.x += (tx - CAM.x) * k; CAM.y += (ty - CAM.y) * k;
+  V.s = s0 * CAM.z; V.ox = W.w / 2 - V.s * CAM.x; V.oy = W.h / 2 + V.s * CAM.y;
+  if (SHAKE > 0) { var a = SHAKE * 26 * V.s; V.ox += Math.sin(g.t * 97) * a; V.oy += Math.cos(g.t * 83) * a; }
+}
+// ---------- the set: a cloth backdrop under a spotlight, a varnished table and the plywood board ----------
+function backdrop(c) {
+  var w = W.w, h = W.h, gr = c.createLinearGradient(0, 0, 0, h), i;
+  gr.addColorStop(0, "#2a2c33"); gr.addColorStop(0.55, "#18191e"); gr.addColorStop(1, "#0e0e11");
+  c.fillStyle = gr; c.fillRect(0, 0, w, h);
+  for (i = 0; i < 9; i++) {
+    var x = (i + 0.5) / 9 * w + Math.sin(i * 2.3) * w * 0.03, fw = w / 9 * 1.1, fg = c.createLinearGradient(x - fw / 2, 0, x + fw / 2, 0);
+    fg.addColorStop(0, "rgba(0,0,0,0)"); fg.addColorStop(0.5, i % 2 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.16)"); fg.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = fg; c.fillRect(x - fw / 2, 0, fw, h);
+  }
+  var cx = SX(0), cy = SY(250), rad = Math.max(w, h) * 0.8, sp = c.createRadialGradient(cx, cy, 0, cx, cy, rad);
+  sp.addColorStop(0, "rgba(255,236,210,0.15)"); sp.addColorStop(0.45, "rgba(255,236,210,0.05)"); sp.addColorStop(1, "rgba(255,236,210,0)");
+  c.fillStyle = sp; c.fillRect(0, 0, w, h);
+}
+function table(c) {
+  var x0 = -V.ox / V.s - 60, x1 = (W.w - V.ox) / V.s + 60, yb = (V.oy - W.h) / V.s - 60, top = 64, i;
+  var gr = c.createLinearGradient(0, top, 0, Math.min(yb, top - 200));
+  gr.addColorStop(0, "#56310f"); gr.addColorStop(0.15, "#8a531f"); gr.addColorStop(0.55, "#b8742d"); gr.addColorStop(1, "#d69847");
+  c.fillStyle = gr; c.fillRect(x0, yb, x1 - x0, top - yb);
+  c.strokeStyle = "rgba(70,34,8,0.16)"; c.lineWidth = 1.5;
+  for (i = 0; i < 11; i++) {
+    var y = top - (i + 0.6) * (top - yb) / 11;
+    c.beginPath(); c.moveTo(x0, y); c.bezierCurveTo(x0 + (x1 - x0) * 0.3, y + 7 * Math.sin(i * 1.3), x0 + (x1 - x0) * 0.62, y - 8 * Math.cos(i * 1.7), x1, y + 3); c.stroke();
+  }
+  var sh = c.createLinearGradient(0, top, 0, top - 90);
+  sh.addColorStop(0, "rgba(255,226,180,0.3)"); sh.addColorStop(1, "rgba(255,226,180,0)");
+  c.fillStyle = sh; c.fillRect(x0, top - 90, x1 - x0, 90);
+  c.fillStyle = "rgba(255,212,150,0.4)"; c.fillRect(x0, top - 1.6, x1 - x0, 1.6);
+}
+function board(c, g) {
+  var hw = g.boardHW, x0 = -hw, x1 = hw;
+  c.fillStyle = "rgba(20,8,0,0.35)"; c.beginPath(); c.ellipse(0, -16, hw + 20, 10, 0, 0, TAU); c.fill();
+  c.fillStyle = "#f0e9dd"; c.strokeStyle = "rgba(90,70,50,.5)"; c.lineWidth = 1;
+  [x0 + 60, x1 - 60].forEach(function (x) { c.beginPath(); c.ellipse(x, -12, 24, 6, 0, 0, TAU); c.fill(); c.stroke(); });
+  c.fillStyle = "#caa979"; c.fillRect(x0, -9, x1 - x0, 9);
+  c.fillStyle = "#e9d2a7"; c.beginPath(); c.moveTo(x0, 0); c.lineTo(x1, 0); c.lineTo(x1 - 7, 7); c.lineTo(x0 + 7, 7); c.closePath(); c.fill();
+  c.strokeStyle = "rgba(120,86,40,.45)"; c.lineWidth = 1; c.beginPath(); c.moveTo(x0, 0); c.lineTo(x1, 0); c.stroke();
+  c.strokeStyle = "rgba(150,110,60,.25)"; c.beginPath(); c.moveTo(x0 + 20, -4); c.lineTo(x1 - 30, -5); c.stroke();
+}
+// ---------- the puppets ----------
+function stick(c, ax, ay, bx, by, w, col) {
+  c.lineCap = "round"; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by);
+  c.strokeStyle = WOOD_E; c.lineWidth = w + 2.4; c.stroke();
+  c.strokeStyle = col; c.lineWidth = w; c.stroke();
+}
+function pin(c, x, y) { c.fillStyle = PINC; c.beginPath(); c.arc(x, y, 2.3, 0, TAU); c.fill(); }
+var KN = { x: 0, y: 0 };
+function kneeFor(ax, ay, px, py, f) {
+  var dx = px - ax, dy = py - ay, d = Math.min(Math.sqrt(dx * dx + dy * dy), LS + LT - 0.5);
+  var a = Math.acos(clamp((LS * LS + d * d - LT * LT) / (2 * LS * d), -1, 1)), ang = Math.atan2(dy, dx) - f * a;
+  KN.x = ax + LS * Math.cos(ang); KN.y = ay + LS * Math.sin(ang); return KN;
+}
+function figures(c, g, refl) {
+  var i;
+  for (i = 0; i < 2; i++) { body(c, g, g.f[i]); if (SKIN === "space" && !refl) ship(c, g, g.f[i]); }
+  for (i = 0; i < 2; i++) decoy(c, g, g.f[i], refl);
+  for (i = 0; i < 2; i++) balloon(c, g, g.f[i], refl);
+  for (i = 0; i < 2; i++) weapon(c, g, g.f[i]);
+  if (!refl) { for (i = 0; i < 2; i++) effects(c, g, g.f[i]); sights(c, g); }
+}
+// where a shot would go: a few bright dots ahead of your gun, star or drawn bow, and fainter red ones for a rival's
+function sights(c, g) {
+  if (g.wk === "sword" || g.wk === "box" || g.phase !== "fight") return;
+  for (var i = 0; i < 2; i++) {
+    var F = g.f[i], w = F.w, human = F.ctl === "cab" || F.ctl === "p2", j;
+    if (!F.b.alive || w.stun > 0) continue;
+    if (g.wk === "bow" ? !w.drawing : shotOut(g, F)) continue;
+    var L = launch(g, F, F.hu, F.hv, g.wk === "bow" ? Math.max(0.12, w.draw) : 0), T = g.wk === "bow" ? 0.3 : 0.2, n = 8;
+    c.fillStyle = human ? "rgba(255,244,214,0.6)" : "rgba(255,110,110,0.3)";
+    for (j = 1; j <= n; j++) {
+      var t = T * j / n, r = (human ? 2.6 : 2.1) * (1 - j / (n + 4));
+      c.beginPath(); c.arc(L.x + L.vx * t, L.y + L.vy * t - 0.5 * L.gr * t * t, r, 0, TAU); c.fill();
+    }
+  }
+}
+function body(c, g, F) {
+  var P = F.p, f = F.f, bx = F.fx - f * 17, kk = kneeFor(bx, FOOT_Y, P.px, P.py, f), kx = kk.x, ky = kk.y;
+  // the far leg, a shade darker (in space the legs are inside the ship)
+  var sp = SKIN === "space";
+  if (!sp) { stick(c, bx - f * 7, FOOT_Y, bx + f * 15, FOOT_Y, 7, WOOD2);
+  stick(c, bx, FOOT_Y, kx, ky, 10, WOOD2); stick(c, kx, ky, P.px, P.py, 10, WOOD2); }
+  // the rod runs off the board to the player's hand
+  var rx = (P.ex + P.hx) / 2, ry = (P.ey + P.hy) / 2;
+  stick(c, rx, ry, F.fx - f * 1200, lerp(ry, 200, 0.6), 8, "#dcbf8f");
+  // the near leg, the body, the neck and the arm
+  if (!sp) { stick(c, F.fx - f * 7, FOOT_Y, F.fx + f * 15, FOOT_Y, 7, WOOD);
+  stick(c, F.fx, FOOT_Y, P.kx, P.ky, 10, WOOD); stick(c, P.kx, P.ky, P.px, P.py, 10, WOOD); }
+  stick(c, P.px, P.py, P.sx, P.sy, 13, WOOD);
+  stick(c, P.sx, P.sy, P.nx, P.ny, 7, WOOD);
+  stick(c, P.sx, P.sy, P.ex, P.ey, 9, WOOD); stick(c, P.ex, P.ey, P.hx, P.hy, 9, WOOD);
+  pin(c, kx, ky); pin(c, P.kx, P.ky); pin(c, P.px, P.py); pin(c, P.sx, P.sy); pin(c, P.ex, P.ey); pin(c, rx, ry);
+}
+// the face looks at the other puppet: a frown while it aims, wide eyes when something is coming, a grin when it scores
+function moodOf(g, F) {
+  var O = g.f[1 - F.i], i, s;
+  if (g.phase === "pop" || g.phase === "over" || (g.phase === "inflate" && g.round > 1)) { if (g.lastWin === F.i) return "grin"; }
+  if (F.w.stun > 0) return "dizzy";
+  if (F.b.pr >= 1) return "worry";
+  for (i = 0; i < g.shots.length; i++) { s = g.shots[i]; if (s.o !== F.i && Math.abs(s.x - F.b.x) < 170) return "worry"; }
+  if (O.w.act === "thrust" || O.w.act === "jab" || O.w.act === "hay") return "worry";
+  if (F.w.drawing || F.w.act === "wind" || F.btn) return "mad";
+  return "";
+}
+function balloon(c, g, F, refl) {
+  var b = F.b, L = F.look, P = F.p;
+  if (!b.alive) {
+    // the knot is all that's left
+    c.fillStyle = L.c3; c.beginPath(); c.moveTo(P.nx - 4, P.ny); c.lineTo(P.nx + 4, P.ny); c.lineTo(P.nx + 7, P.ny + 9); c.lineTo(P.nx + 1, P.ny + 6); c.lineTo(P.nx - 5, P.ny + 11); c.closePath(); c.fill();
+    return;
+  }
+  var sc = b.inf * L.big * F.bs; if (sc < 0.03) return;
+  var rx = BRX * sc * (1 + b.sq), ry = BRY * sc * (1 - b.sq);
+  if (F.hl > 0.05) {
+    // HELIUM: a string from the neck up to the knot
+    var kx = b.x - Math.sin(b.rot) * ry, ky = b.y - Math.cos(b.rot) * ry;
+    c.strokeStyle = "rgba(240,232,214,0.85)"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(P.nx, P.ny); c.quadraticCurveTo(P.nx + (kx - P.nx) * 0.2 + 8, (P.ny + ky) / 2, kx, ky); c.stroke();
+  }
+  if (!refl && F.pu.ui > 0) {
+    // ULTRA INSTINCT: a silver aura
+    var ar = ry * 1.9, au = c.createRadialGradient(b.x, b.y, ry * 0.6, b.x, b.y, ar);
+    au.addColorStop(0, "rgba(220,240,255,0)"); au.addColorStop(0.55, "rgba(220,240,255," + (0.3 + 0.12 * Math.sin(g.t * 9)) + ")"); au.addColorStop(1, "rgba(220,240,255,0)");
+    c.fillStyle = au; c.beginPath(); c.arc(b.x, b.y, ar, 0, TAU); c.fill();
+    if (F.uiFx > 0) { c.save(); c.globalAlpha = F.uiFx; c.translate(b.x - F.f * 22, b.y); c.rotate(-b.rot); egg(c, rx, ry); c.fillStyle = "rgba(220,240,255,0.5)"; c.fill(); c.restore(); }
+  }
+  c.save(); c.translate(b.x, b.y); c.rotate(-b.rot);
+  egg(c, rx, ry);
+  var gr = c.createRadialGradient(-rx * 0.32, ry * 0.38, 1, -rx * 0.1, ry * 0.1, ry * 1.5);
+  gr.addColorStop(0, L.c1); gr.addColorStop(0.4, L.col); gr.addColorStop(1, L.c4);
+  c.fillStyle = gr; c.fill();
+  c.fillStyle = L.c3; c.beginPath(); c.moveTo(-4 * sc, -ry - 4 * sc); c.lineTo(4 * sc, -ry - 4 * sc); c.lineTo(0, -ry + 1.5); c.closePath(); c.fill();
+  c.fillStyle = "rgba(255,255,255,0.5)"; c.beginPath(); c.ellipse(-rx * 0.42, ry * 0.42, rx * 0.15, ry * 0.24, 0.55, 0, TAU); c.fill();
+  // DOUBLE BUBBLE: the spare shows through
+  if (F.pu.bubble > 0) { egg(c, rx * 0.74, ry * 0.74); c.strokeStyle = "rgba(255,255,255,0.7)"; c.lineWidth = 1.6; c.setLineDash([4, 3]); c.stroke(); c.setLineDash([]); }
+  if (!refl && sc > 0.4) { face(c, g, F, rx, ry, sc); hat(c, g, F, rx, ry, sc); }
+  if (!refl && g.wk === "box" && b.pr > 0.05) {
+    for (var i = 0; i < 3; i++) { var full = clamp(b.pr - i, 0, 1); c.fillStyle = full > 0 ? "rgba(255,93,115," + (0.35 + 0.65 * full) + ")" : "rgba(255,255,255,0.18)"; c.beginPath(); c.arc((i - 1) * 9, ry + 12 + (L.hat ? 18 : 0), 3.4, 0, TAU); c.fill(); }
+  }
+  c.restore();
+}
+// a balloon's egg shape around (0, 0), knot down
+function egg(c, rx, ry) {
+  c.beginPath(); c.moveTo(0, ry);
+  c.bezierCurveTo(rx * 0.56, ry, rx, ry * 0.52, rx, ry * 0.06);
+  c.bezierCurveTo(rx, -ry * 0.5, rx * 0.5, -ry * 0.98, 0, -ry);
+  c.bezierCurveTo(-rx * 0.5, -ry * 0.98, -rx, -ry * 0.5, -rx, ry * 0.06);
+  c.bezierCurveTo(-rx, ry * 0.52, -rx * 0.56, ry, 0, ry);
+}
+// the DECOY: a fake head on its own stick, in front, with a sillier face
+function decoy(c, g, F, refl) {
+  if (!(F.pu.decoy > 0)) return;
+  var d = F.dk, L = F.look, rx = BRX * 0.9, ry = BRY * 0.9;
+  stick(c, d.x, FOOT_Y, d.x, d.y - ry, 6, WOOD2); stick(c, d.x - 12, FOOT_Y, d.x + 12, FOOT_Y, 6, WOOD2);
+  c.save(); c.translate(d.x, d.y); c.rotate(Math.sin(g.t * 3) * 0.08);
+  egg(c, rx, ry); var gr = c.createRadialGradient(-rx * 0.3, ry * 0.35, 1, 0, 0, ry * 1.5);
+  gr.addColorStop(0, L.c1); gr.addColorStop(0.45, L.col); gr.addColorStop(1, L.c4); c.fillStyle = gr; c.fill();
+  if (!refl) {
+    c.fillStyle = "#fff"; c.strokeStyle = "#1d1512"; c.lineWidth = 1.4;
+    [-1, 1].forEach(function (s) { c.beginPath(); c.arc(s * 7, 6, 5, 0, TAU); c.fill(); c.stroke(); c.fillStyle = "#1d1512"; c.beginPath(); c.arc(s * 7 - s * 2, 5, 2, 0, TAU); c.fill(); c.fillStyle = "#fff"; });
+    c.beginPath(); c.moveTo(-8, -10); c.quadraticCurveTo(-3, -14, 0, -10); c.quadraticCurveTo(3, -6, 8, -10); c.stroke();
+  }
+  c.restore();
+}
+function face(c, g, F, rx, ry, sc) {
+  var m = moodOf(g, F), fx = (F.f > 0 ? 1 : -1) * rx * 0.24, ex = rx * 0.2, ey = ry * 0.14, ink = "#1d1512";
+  c.fillStyle = ink; c.strokeStyle = ink; c.lineCap = "round"; c.lineWidth = 1.8 * sc;
+  if (m === "dizzy") {
+    [-1, 1].forEach(function (s) { var x = fx + s * ex, y = ey; c.beginPath(); c.moveTo(x - 3 * sc, y - 3 * sc); c.lineTo(x + 3 * sc, y + 3 * sc); c.moveTo(x - 3 * sc, y + 3 * sc); c.lineTo(x + 3 * sc, y - 3 * sc); c.stroke(); });
+  } else {
+    var big = m === "worry" ? 1.35 : 1;
+    if (F.look.blind) { c.beginPath(); c.moveTo(fx - ex - 3 * sc, ey); c.lineTo(fx + ex + 3 * sc, ey); c.stroke(); }   // (no eyes: it hunts by sound)
+    else { [-1, 1].forEach(function (s) { c.beginPath(); c.ellipse(fx + s * ex, ey, 2.7 * sc * big, 3.8 * sc * big, 0, 0, TAU); c.fill(); });
+    c.fillStyle = "rgba(255,255,255,.8)"; [-1, 1].forEach(function (s) { c.beginPath(); c.arc(fx + s * ex + 0.9 * sc, ey + 1.4 * sc, 0.9 * sc, 0, TAU); c.fill(); }); }
+    if (m === "mad") { [-1, 1].forEach(function (s) { var x = fx + s * ex; c.beginPath(); c.moveTo(x - 4 * sc * s * -1, ey + 7.5 * sc); c.lineTo(x + 4 * sc * s * -1, ey + 5 * sc); c.stroke(); }); }
+    if (m === "worry") { [-1, 1].forEach(function (s) { var x = fx + s * ex; c.beginPath(); c.moveTo(x - 4 * sc, ey + 7 * sc - s * 1.5 * sc); c.lineTo(x + 4 * sc, ey + 7 * sc + s * 1.5 * sc); c.stroke(); }); }
+  }
+  c.beginPath();
+  if (m === "grin") { c.arc(fx, -ry * 0.18, rx * 0.22, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); }
+  else if (m === "worry" || m === "dizzy") { c.ellipse(fx, -ry * 0.3, 2.6 * sc, 3.4 * sc, 0, 0, TAU); c.fill(); }
+  else { c.moveTo(fx - rx * 0.16, -ry * 0.3); c.lineTo(fx + rx * 0.16, -ry * (m === "mad" ? 0.34 : 0.28)); c.stroke(); }
+  if (F.look.hat === "cowboy") { c.lineWidth = 2.6 * sc; c.strokeStyle = "#6d6f74"; c.beginPath(); c.moveTo(fx - rx * 0.3, -ry * 0.12); c.quadraticCurveTo(fx, -ry * 0.04, fx + rx * 0.3, -ry * 0.12); c.stroke(); }
+}
+function hat(c, g, F, rx, ry, sc) {
+  var h = F.look.hat, f = F.f > 0 ? 1 : -1;
+  if (h === "cowboy") {
+    c.fillStyle = "#6b4122"; c.beginPath(); c.ellipse(0, ry * 0.82, rx * 1.22, 4.5 * sc, 0, 0, TAU); c.fill();
+    c.beginPath(); c.moveTo(-rx * 0.55, ry * 0.82); c.bezierCurveTo(-rx * 0.6, ry * 1.5, -rx * 0.2, ry * 1.38, 0, ry * 1.25); c.bezierCurveTo(rx * 0.2, ry * 1.38, rx * 0.6, ry * 1.5, rx * 0.55, ry * 0.82); c.closePath(); c.fill();
+    c.fillStyle = "#2e1b0e"; c.fillRect(-rx * 0.56, ry * 0.84, rx * 1.12, 3.4 * sc);
+  } else if (h === "ribbon") {
+    c.save(); c.translate(-f * rx * 0.42, ry * 0.8); c.fillStyle = "#ff2f78";
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(-11 * sc, 7 * sc); c.lineTo(-11 * sc, -6 * sc); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(11 * sc, 7 * sc); c.lineTo(11 * sc, -6 * sc); c.closePath(); c.fill();
+    c.fillStyle = "#c21557"; c.beginPath(); c.arc(0, 0, 3.4 * sc, 0, TAU); c.fill(); c.restore();
+  } else if (h === "cap") {
+    c.fillStyle = "#2f7a3b"; c.beginPath(); c.moveTo(-rx * 0.85, ry * 0.55); c.quadraticCurveTo(0, ry * 0.8, rx * 0.85, ry * 0.6); c.lineTo(-f * rx * 1.15, ry * 1.32); c.closePath(); c.fill();
+    c.strokeStyle = "#e8414f"; c.lineWidth = 2.4 * sc; c.beginPath(); c.moveTo(-f * rx * 0.1, ry * 0.75); c.quadraticCurveTo(-f * rx * 0.5, ry * 1.25, -f * rx * 1.05, ry * 1.5); c.stroke();
+  } else if (h === "band") {
+    c.strokeStyle = "#1b1622"; c.lineWidth = 6 * sc; c.beginPath(); c.moveTo(-rx * 0.98, ry * 0.42); c.quadraticCurveTo(0, ry * 0.56, rx * 0.98, ry * 0.42); c.stroke();
+    var wv = Math.sin(g.t * 9) * 4 * sc; c.lineWidth = 4 * sc; c.beginPath(); c.moveTo(-f * rx * 0.95, ry * 0.44); c.quadraticCurveTo(-f * rx * 1.4, ry * 0.5 + wv, -f * rx * 1.8, ry * 0.3 - wv); c.moveTo(-f * rx * 0.95, ry * 0.4); c.quadraticCurveTo(-f * rx * 1.35, ry * 0.2 - wv, -f * rx * 1.7, ry * 0.05 + wv); c.stroke();
+  } else if (h === "crown") {
+    c.fillStyle = "#ffcf3d"; c.strokeStyle = "#a8780e"; c.lineWidth = 1.4 * sc;
+    c.beginPath(); c.moveTo(-rx * 0.5, ry * 0.86); c.lineTo(-rx * 0.55, ry * 1.32); c.lineTo(-rx * 0.22, ry * 1.1); c.lineTo(0, ry * 1.42); c.lineTo(rx * 0.22, ry * 1.1); c.lineTo(rx * 0.55, ry * 1.32); c.lineTo(rx * 0.5, ry * 0.86); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = "#e8414f"; c.beginPath(); c.arc(0, ry * 1.02, 2.6 * sc, 0, TAU); c.fill();
+  } else if (h === "hard") {   // Ashen Sphere: an engineer's hard hat
+    c.fillStyle = "#f2c230"; c.strokeStyle = "#9c7612"; c.lineWidth = 1.4 * sc;
+    c.beginPath(); c.arc(0, ry * 0.8, rx * 0.78, 0, Math.PI); c.closePath(); c.fill(); c.stroke();
+    c.fillRect(-rx * 1.02, ry * 0.74, rx * 2.04, 4.5 * sc); c.strokeRect(-rx * 1.02, ry * 0.74, rx * 2.04, 4.5 * sc);
+    c.beginPath(); c.moveTo(0, ry * 0.8); c.lineTo(0, ry * 0.8 + rx * 0.78); c.stroke();
+  } else if (h === "straw") {   // a grower's straw hat
+    c.fillStyle = "#e8cf7a"; c.strokeStyle = "#a88a3a"; c.lineWidth = 1.2 * sc;
+    c.beginPath(); c.ellipse(0, ry * 0.84, rx * 1.42, 5 * sc, 0, 0, TAU); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-rx * 0.6, ry * 0.86); c.lineTo(-rx * 0.5, ry * 1.32); c.quadraticCurveTo(0, ry * 1.42, rx * 0.5, ry * 1.32); c.lineTo(rx * 0.6, ry * 0.86); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = "#8a5a2b"; c.fillRect(-rx * 0.6, ry * 0.88, rx * 1.2, 3.2 * sc);
+  } else if (h === "ears") {   // dogs and stalkers
+    c.fillStyle = F.look.c3 || "#5a4632";
+    [-1, 1].forEach(function (s) { c.beginPath(); c.moveTo(s * rx * 0.28, ry * 0.86); c.lineTo(s * rx * 0.7, ry * 1.5); c.lineTo(s * rx * 0.92, ry * 0.6); c.closePath(); c.fill(); });
+  } else if (h === "horns") {
+    c.strokeStyle = "#e8e0c8"; c.lineCap = "round"; c.lineWidth = 5 * sc;
+    [-1, 1].forEach(function (s) { c.beginPath(); c.moveTo(s * rx * 0.42, ry * 0.82); c.quadraticCurveTo(s * rx * 1.1, ry * 1.05, s * rx * 1.05, ry * 1.5); c.stroke(); });
+  } else if (h === "helmet") {   // welded armour: the Spire Warden, a Builder sentinel
+    c.fillStyle = "#9aa1ab"; c.strokeStyle = "#4d535c"; c.lineWidth = 1.6 * sc;
+    c.beginPath(); c.arc(0, ry * 0.18, rx * 1.04, 0.1, Math.PI - 0.1); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = "#2a2d33"; c.fillRect(-rx * 0.8, ry * 0.3, rx * 1.6, 5 * sc);
+    c.fillStyle = "#cfd5dd"; [-0.6, -0.2, 0.2, 0.6].forEach(function (k) { c.beginPath(); c.arc(k * rx, ry * 0.72, 1.6 * sc, 0, TAU); c.fill(); });
+  } else if (h === "antenna") {
+    c.strokeStyle = "#3a3127"; c.lineWidth = 1.8 * sc; c.fillStyle = F.look.c3 || "#8a7a60";
+    [-1, 1].forEach(function (s) { c.beginPath(); c.moveTo(s * rx * 0.25, ry * 0.92); c.quadraticCurveTo(s * rx * 0.5, ry * 1.6, s * rx * 0.85, ry * 1.7); c.stroke(); c.beginPath(); c.arc(s * rx * 0.85, ry * 1.7, 3 * sc, 0, TAU); c.fill(); });
+  } else if (h === "fin") {
+    c.fillStyle = F.look.c3 || "#3f7a5e"; c.beginPath(); c.moveTo(-rx * 0.5, ry * 0.8); c.quadraticCurveTo(-rx * 0.1, ry * 1.7, rx * 0.5, ry * 1.4); c.lineTo(rx * 0.35, ry * 0.86); c.closePath(); c.fill();
+  } else if (h === "kepi") {   // the Republic's peaked cap
+    c.fillStyle = "#2d3a5a"; c.strokeStyle = "#151b2c"; c.lineWidth = 1.4 * sc;
+    c.beginPath(); c.moveTo(-rx * 0.7, ry * 0.8); c.lineTo(-rx * 0.62, ry * 1.34); c.lineTo(rx * 0.62, ry * 1.34); c.lineTo(rx * 0.7, ry * 0.8); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = "#111"; c.beginPath(); c.moveTo(f * rx * 0.1, ry * 0.82); c.lineTo(f * rx * 1.05, ry * 0.72); c.lineTo(f * rx * 0.95, ry * 0.86); c.closePath(); c.fill();
+    c.fillStyle = "#e8414f"; c.beginPath(); c.arc(f * rx * 0.2, ry * 1.08, 3.2 * sc, 0, TAU); c.fill();
+  }
+}
+// ---------- the weapons ----------
+function inHand(c, F, P) { c.translate(P.hx, P.hy); c.rotate(Math.atan2(P.dy, P.dx)); if (F.f < 0) c.scale(1, -1); }
+function weapon(c, g, F) {
+  var P = F.p, w = F.w, k = g.wk, home = !shotOut(g, F), two = F.pu.dual > 0;
+  c.save();
+  if (k === "gun") {
+    inHand(c, F, P);
+    if (two) { c.save(); c.translate(-4, -15); pistol(c, home); c.restore(); }
+    pistol(c, home);
+    if (F.pu.magnet > 0) horseshoe(c, -6, -26);
+  } else if (k === "sword") {
+    inHand(c, F, P);
+    var bl = F.pu.extendo > 0 ? 172 : 118;
+    if (two) { c.save(); c.rotate(0.34); blade(c, bl * 0.9); c.restore(); }
+    blade(c, bl);
+    if (F.pu.magnet > 0) horseshoe(c, -6, -22);
+  } else if (k === "bow") {
+    inHand(c, F, P);
+    var nk = -14 - 34 * w.draw;
+    c.strokeStyle = "#f3e6cc"; c.lineWidth = 1; c.beginPath(); c.moveTo(-8, 46); c.lineTo(nk, 0); c.lineTo(-8, -46); c.stroke();
+    c.lineCap = "round"; c.strokeStyle = "#8a6233"; c.lineWidth = 6; c.beginPath(); c.moveTo(-8, 46); c.quadraticCurveTo(20, 0, -8, -46); c.stroke();
+    c.strokeStyle = "#cfa86e"; c.lineWidth = 4; c.stroke();
+    if (home && (w.cd <= 0 || w.drawing)) { arrowShape(c, nk + 58, 0, 58); if (two) arrowShape(c, nk + 56, 7, 56); }
+    if (F.pu.magnet > 0) horseshoe(c, -18, -30);
+  } else if (k === "star") {
+    if (home) { starShape(c, P.tx, P.ty, 8, g.t * 2 * F.f); if (two) starShape(c, P.tx - P.dx * 6, P.ty + 12, 8, -g.t * 2 * F.f); }
+    if (F.pu.magnet > 0) { inHand(c, F, P); horseshoe(c, -8, -22); }
+  } else {
+    if (F.pu.extendo > 0) {
+      // the glove rides out on a spring
+      c.strokeStyle = "#c9ced6"; c.lineWidth = 2; c.beginPath(); c.moveTo(P.hx, P.hy);
+      for (var i = 1; i <= 8; i++) { var t = i / 9, z = (i % 2 ? 6 : -6); c.lineTo(P.hx + (P.gx - P.hx) * t + P.qx * z, P.hy + (P.gy - P.hy) * t + P.qy * z); }
+      c.lineTo(P.gx, P.gy); c.stroke();
+    }
+    glove(c, P.ggx, P.ggy, 13, F, -0.3);
+    glove(c, P.gx, P.gy, 15, F, 0);
+  }
+  c.restore();
+  if (F.pu.drill > 0 && (k === "sword" || k === "box" || home)) drillGlow(c, g, k === "gun" ? P.mx : P.tx, k === "gun" ? P.my : P.ty);
+  if (k === "sword" && two && F.pu.drill > 0) drillGlow(c, g, P.t2x, P.t2y);
+}
+// drawn along +x from the hand, the top of the gun at +y
+function pistol(c, home) {
+  c.lineJoin = "round"; c.fillStyle = "#f2eee5"; c.strokeStyle = "#9d978a"; c.lineWidth = 1.3;
+  c.beginPath(); c.moveTo(-8, 1); c.lineTo(41, 1); c.lineTo(41, 10); c.lineTo(-8, 10); c.closePath(); c.fill(); c.stroke();
+  c.beginPath(); c.moveTo(-8, 2); c.lineTo(4, 2); c.lineTo(-1, -16); c.lineTo(-11, -14); c.closePath(); c.fill(); c.stroke();
+  c.beginPath(); c.moveTo(4, 1); c.quadraticCurveTo(9, -7, 2, -8); c.stroke();
+  if (home) { c.strokeStyle = "#e8414f"; c.lineWidth = 1.6; c.beginPath(); c.moveTo(-6, 10.8); c.lineTo(39, 10.8); c.stroke(); }
+  c.strokeStyle = "#c9ced6"; c.lineWidth = 1.6; c.lineCap = "round"; c.beginPath(); c.moveTo(41, 5.5); c.lineTo(47, 5.5); c.stroke();
+}
+function blade(c, bl) {
+  c.lineCap = "round";
+  c.strokeStyle = "#a7834f"; c.lineWidth = 6.5; c.beginPath(); c.moveTo(-12, 0); c.lineTo(5, 0); c.stroke();
+  c.strokeStyle = "#ecd7ad"; c.lineWidth = 4.5; c.stroke();
+  c.lineCap = "butt"; c.strokeStyle = "#9d978a"; c.lineWidth = 9.4; c.beginPath(); c.moveTo(8, 0); c.lineTo(bl - 2, 0); c.stroke();
+  c.strokeStyle = "#f4f1ea"; c.lineWidth = 7; c.stroke();
+  c.fillStyle = "#f4f1ea"; c.beginPath(); c.arc(bl - 2, 0, 3.5, -Math.PI / 2, Math.PI / 2); c.fill();
+  c.strokeStyle = "rgba(160,150,135,.6)"; c.lineWidth = 1; c.beginPath(); c.moveTo(12, 0); c.lineTo(bl - 8, 0); c.stroke();
+  c.lineCap = "round"; c.strokeStyle = WOOD_E; c.lineWidth = 7.5; c.beginPath(); c.moveTo(6, -13); c.lineTo(6, 13); c.stroke();
+  c.strokeStyle = WOOD; c.lineWidth = 5.5; c.stroke();
+  c.strokeStyle = "#c9ced6"; c.lineWidth = 1.6; c.beginPath(); c.moveTo(bl + 1, 0); c.lineTo(bl + 8, 0); c.stroke();
+}
+// MAGNET: a little horseshoe on the weapon
+function horseshoe(c, x, y) {
+  c.save(); c.translate(x, y); c.lineCap = "butt";
+  c.strokeStyle = "#e8414f"; c.lineWidth = 4.5; c.beginPath(); c.arc(0, 0, 6, Math.PI, TAU); c.stroke();
+  c.beginPath(); c.moveTo(-6, 0); c.lineTo(-6, -5); c.moveTo(6, 0); c.lineTo(6, -5); c.stroke();
+  c.strokeStyle = "#e6ecf5"; c.beginPath(); c.moveTo(-6, -5); c.lineTo(-6, -9); c.moveTo(6, -5); c.lineTo(6, -9); c.stroke();
+  c.restore();
+}
+// DRILL TIPS: a spinning gold ring at the point
+function drillGlow(c, g, x, y) {
+  c.save(); c.translate(x, y); c.rotate(g.t * 14);
+  c.strokeStyle = "rgba(242,193,78,0.95)"; c.lineWidth = 2; c.setLineDash([4, 3]); c.beginPath(); c.arc(0, 0, 8, 0, TAU); c.stroke(); c.setLineDash([]);
+  c.restore();
+}
+// what the crates do, drawn on the puppet
+function effects(c, g, F) {
+  var P = F.p, b = F.b, pu = F.pu, i;
+  if (F.shOn) {
+    // a clear riot shield strapped to the shoulder, with a light for every hit it has left
+    var h = F.sh, x = (h.ax + h.bx) / 2, ht = h.by - h.ay;
+    c.save(); c.lineCap = "round";
+    c.strokeStyle = "#2a3038"; c.lineWidth = 3.5; c.beginPath(); c.moveTo(P.sx, P.sy + 4); c.lineTo(x - F.f * 6, h.ay + 22); c.stroke();
+    c.fillStyle = "rgba(170,205,235,0.34)"; c.strokeStyle = "#2a3038"; c.lineWidth = 3;
+    rrect(c, x - 10, h.ay, 20, ht, 7); c.fill(); c.stroke();
+    c.fillStyle = "rgba(30,36,46,0.88)"; c.fillRect(x - 10, h.by - 30, 20, 10);
+    c.fillStyle = "rgba(255,255,255,0.5)"; c.fillRect(x - 6, h.ay + 12, 3, ht - 50);
+    for (i = 0; i < pu.shieldN; i++) { c.fillStyle = "#9be7ff"; c.beginPath(); c.arc(x + 2, h.ay + 14 + i * 11, 2.6, 0, TAU); c.fill(); }
+    c.restore();
+  }
+  if (pu.freeze > 0) {
+    // FREEZE RAY: a block of ice around the whole puppet
+    var top = b.alive ? b.y + BRY * F.bs + 8 : P.ny + 12, x0 = Math.min(F.fx - 30, P.hx - 16, b.x - 40), x1 = Math.max(F.fx + 30, P.hx + 16, b.x + 40);
+    c.save(); c.fillStyle = "rgba(150,220,255,0.32)"; c.strokeStyle = "rgba(225,247,255,0.9)"; c.lineWidth = 2;
+    rrect(c, x0, 2, x1 - x0, top - 2, 8); c.fill(); c.stroke();
+    c.strokeStyle = "rgba(255,255,255,0.65)"; c.beginPath(); c.moveTo(x0 + 8, top - 16); c.lineTo(x0 + 24, top - 42); c.moveTo(x1 - 14, 34); c.lineTo(x1 - 4, 14); c.stroke();
+    c.restore();
+  }
+  if (pu.flip > 0 && b.alive) {
+    // TOPSY-TURVY: a spiral over the head
+    var cx = b.x, cy = b.y + BRY * F.bs + 28, a;
+    c.save(); c.strokeStyle = "#d78bff"; c.lineWidth = 2.2; c.beginPath();
+    for (a = 0; a < 10; a += 0.3) { var r = 2 + a * 1.3, an = a + g.t * 6; c.lineTo(cx + Math.cos(an) * r, cy + Math.sin(an) * r * 0.55); }
+    c.stroke(); c.restore();
+  }
+}
+function arrowShape(c, tx, ty, len) {
+  // drawn along +x with its tip at (tx, ty)
+  c.lineCap = "butt"; c.strokeStyle = "#b89664"; c.lineWidth = 3; c.beginPath(); c.moveTo(tx - len, ty); c.lineTo(tx - 4, ty); c.stroke();
+  c.fillStyle = "#e8414f"; c.beginPath(); c.moveTo(tx - len, ty); c.lineTo(tx - len + 13, ty); c.lineTo(tx - len + 4, ty + 6); c.closePath(); c.fill();
+  c.beginPath(); c.moveTo(tx - len, ty); c.lineTo(tx - len + 13, ty); c.lineTo(tx - len + 4, ty - 6); c.closePath(); c.fill();
+  c.strokeStyle = "#c9ced6"; c.lineWidth = 1.6; c.beginPath(); c.moveTo(tx - 5, ty); c.lineTo(tx + 2, ty); c.stroke();
+}
+function starShape(c, x, y, r, rot) {
+  c.save(); c.translate(x, y); c.rotate(rot);
+  c.fillStyle = METAL; c.strokeStyle = METAL_E; c.lineWidth = 1.2; c.lineJoin = "round";
+  c.beginPath();
+  for (var i = 0; i < 8; i++) { var a = i * Math.PI / 4, rr = i % 2 ? r * 0.34 : r; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = "#2a2d33"; c.beginPath(); c.arc(0, 0, r * 0.22, 0, TAU); c.fill();
+  c.restore();
+}
+function glove(c, x, y, r, F, tilt) {
+  var col = F.look.c3, dk = F.look.c4;
+  c.save(); c.translate(x, y); c.rotate(Math.atan2(F.p.dy, F.p.dx) + tilt * F.f); if (F.f < 0) c.scale(1, -1);
+  c.fillStyle = "#f3e6cc"; c.strokeStyle = "#9d978a"; c.lineWidth = 1; c.beginPath(); c.rect(-r - 7, -r * 0.55, 9, r * 1.1); c.fill(); c.stroke();
+  c.fillStyle = col; c.strokeStyle = dk; c.lineWidth = 1.6;
+  c.beginPath(); c.ellipse(0, 0, r, r * 0.88, 0, 0, TAU); c.fill(); c.stroke();
+  c.beginPath(); c.ellipse(-r * 0.2, r * 0.72, r * 0.42, r * 0.3, -0.3, 0, TAU); c.fill(); c.stroke();
+  c.fillStyle = "rgba(255,255,255,.3)"; c.beginPath(); c.ellipse(r * 0.2, r * 0.32, r * 0.35, r * 0.2, -0.3, 0, TAU); c.fill();
+  c.restore();
+}
+// ---------- shots on their strings, and bits ----------
+function shotsDraw(c, g) {
+  for (var i = 0; i < g.shots.length; i++) {
+    var s = g.shots[i], F = g.f[s.o], A = anchor(g, F), ax = A.x, ay = A.y, dx = s.x - ax, dy = s.y - ay, d = Math.sqrt(dx * dx + dy * dy) || 1;
+    // it points the way it flies, and away from the hand while it's reeled in by its tail
+    var ang = s.st === "out" ? Math.atan2(s.vy, s.vx) : Math.atan2(dy, dx), back = s.k === "arrow" ? 54 : s.k === "tack" ? 8 : 0;
+    var ex = s.x - Math.cos(ang) * back, ey = s.y - Math.sin(ang) * back, sag = s.st === "out" ? Math.max(0, s.L - d) * 0.3 : 0;
+    c.strokeStyle = "rgba(240,232,214,0.8)"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(ax, ay); c.quadraticCurveTo((ax + ex) / 2, (ay + ey) / 2 - sag, ex, ey); c.stroke();
+    if (F.pu.magnet > 0 && s.st === "out") { c.fillStyle = "rgba(255,77,109,0.35)"; c.beginPath(); c.arc(s.x, s.y, 11, 0, TAU); c.fill(); }
+    if (F.pu.drill > 0 && s.st === "out") drillGlow(c, g, s.x, s.y);
+    if (s.k === "star") { starShape(c, s.x, s.y, 9, s.rot); continue; }
+    c.save(); c.translate(s.x, s.y); c.rotate(ang);
+    if (s.k === "arrow") arrowShape(c, 0, 0, 56);
+    else tackShape(c);
+    c.restore();
+  }
+}
+function tackShape(c) {
+  c.strokeStyle = "#c9ced6"; c.lineWidth = 1.6; c.lineCap = "round"; c.beginPath(); c.moveTo(-6, 0); c.lineTo(3, 0); c.stroke();
+  c.fillStyle = "#e8414f"; c.beginPath(); c.ellipse(-7, 0, 2.2, 4.4, 0, 0, TAU); c.fill();
+}
+function litter(c, g) {
+  for (var i = 0; i < g.fx.length; i++) {
+    var p = g.fx[i];
+    if (p.k !== "shred") continue;
+    c.save(); c.translate(p.x, p.y); c.rotate(p.a); c.fillStyle = p.col;
+    c.beginPath(); c.moveTo(-p.s, -p.s * 0.4); c.lineTo(p.s * 0.6, -p.s * 0.6); c.lineTo(p.s, p.s * 0.3); c.lineTo(-p.s * 0.3, p.s * 0.55); c.closePath(); c.fill();
+    c.restore();
+  }
+}
+function rrect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+// ---------- crates ----------
+// drawn on the screen (not the board), so the label reads the right way up
+function crates(c, g) {
+  var cr = g.crate; if (!cr) return;
+  if (cr.st === "land" && cr.t > 3.6 && Math.floor(cr.t * 8) % 2 === 0) return;   // about to go: it blinks
+  var P = PUK[cr.k], x = SX(cr.x), y = SY(cr.y), s = (cr.st === "ride" ? 11 : 16) * V.s, lw = Math.max(1, 1.6 * V.s);
+  c.save(); c.lineJoin = "round";
+  if (cr.st === "fall") {
+    // the little balloon it hangs from
+    var by = y - s * 3.2, gr = c.createRadialGradient(x - s * 0.3, by - s * 0.35, 1, x, by, s * 1.2);
+    gr.addColorStop(0, "#ffffff"); gr.addColorStop(0.35, P.col); gr.addColorStop(1, mixC(P.col, 0, 0.45));
+    c.strokeStyle = "rgba(240,230,210,0.85)"; c.lineWidth = Math.max(1, V.s); c.beginPath(); c.moveTo(x - s * 0.8, y - s); c.lineTo(x, by + s * 0.9); c.lineTo(x + s * 0.8, y - s); c.stroke();
+    c.fillStyle = gr; c.beginPath(); c.ellipse(x, by, s * 0.78, s * 0.95, 0, 0, TAU); c.fill();
+  }
+  c.fillStyle = "#b8874b"; c.strokeStyle = "#5e3d1c"; c.lineWidth = lw;
+  rrect(c, x - s, y - s, s * 2, s * 2, s * 0.25); c.fill(); c.stroke();
+  c.strokeStyle = "rgba(94,61,28,0.55)"; c.beginPath(); c.moveTo(x - s, y - s * 0.4); c.lineTo(x + s, y - s * 0.4); c.moveTo(x - s, y + s * 0.4); c.lineTo(x + s, y + s * 0.4); c.stroke();
+  c.fillStyle = P.col; c.strokeStyle = "#2b1d10"; c.beginPath(); c.arc(x, y, s * 0.8, 0, TAU); c.fill(); c.stroke();
+  puIcon(c, cr.k, x, y, s * 0.62);
+  if (cr.st !== "ride") {
+    var fs = Math.round(clamp(V.s * 12, 9, 14));
+    c.font = "800 " + fs + "px " + MONO; c.textAlign = "center"; c.textBaseline = "top"; c.lineWidth = 3; c.strokeStyle = "rgba(15,10,6,0.85)";
+    c.strokeText(P.name, x, y + s * 1.25); c.fillStyle = P.col; c.fillText(P.name, x, y + s * 1.25);
+  }
+  c.restore();
+}
+// each crate's picture, in a 20 x 20 box around (x, y), y down
+function puIcon(c, k, x, y, s) {
+  c.save(); c.translate(x, y); c.scale(s / 10, s / 10);
+  c.lineCap = "round"; c.lineJoin = "round"; c.strokeStyle = "#1b1410"; c.fillStyle = "#1b1410"; c.lineWidth = 2.2;
+  var i;
+  if (k === "dual") { c.beginPath(); c.moveTo(-7, 7); c.lineTo(6, -7); c.moveTo(7, 7); c.lineTo(-6, -7); c.stroke(); c.lineWidth = 3; c.beginPath(); c.moveTo(-8, 2); c.lineTo(-3, 7); c.moveTo(8, 2); c.lineTo(3, 7); c.stroke(); }
+  else if (k === "auto") { for (i = 0; i < 3; i++) { c.beginPath(); c.moveTo(-8 + i * 6, -6); c.lineTo(-3 + i * 6, 0); c.lineTo(-8 + i * 6, 6); c.stroke(); } }
+  else if (k === "ui") { c.beginPath(); c.moveTo(-9, 0); c.quadraticCurveTo(0, -9, 9, 0); c.quadraticCurveTo(0, 9, -9, 0); c.stroke(); c.beginPath(); c.arc(0, 0, 3, 0, TAU); c.fill(); }
+  else if (k === "shield") { c.beginPath(); c.moveTo(-7, -8); c.lineTo(7, -8); c.lineTo(7, 1); c.quadraticCurveTo(6, 7, 0, 9); c.quadraticCurveTo(-6, 7, -7, 1); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(-3.5, -3); c.lineTo(3.5, -3); c.stroke(); }
+  else if (k === "bubble") { c.beginPath(); c.arc(0, 0, 8.5, 0, TAU); c.stroke(); c.beginPath(); c.arc(0, 0, 4.2, 0, TAU); c.stroke(); }
+  else if (k === "helium") { c.beginPath(); c.ellipse(0, -2, 6.5, 7.5, 0, 0, TAU); c.stroke(); c.beginPath(); c.moveTo(0, 5.5); c.quadraticCurveTo(-3, 8, 0, 10); c.stroke(); c.font = "900 7px " + MONO; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("He", 0, -1.5); }
+  else if (k === "shrink") { c.beginPath(); c.arc(0, 0, 2.6, 0, TAU); c.fill(); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (q) { c.beginPath(); c.moveTo(q[0] * 9, q[1] * 9); c.lineTo(q[0] * 4.5, q[1] * 4.5); c.moveTo(q[0] * 4.5, q[1] * 7.5); c.lineTo(q[0] * 4.5, q[1] * 4.5); c.lineTo(q[0] * 7.5, q[1] * 4.5); c.stroke(); }); }
+  else if (k === "freeze") { for (i = 0; i < 3; i++) { c.save(); c.rotate(i * Math.PI / 3); c.beginPath(); c.moveTo(0, -9); c.lineTo(0, 9); c.moveTo(-3, -8); c.lineTo(0, -5.5); c.lineTo(3, -8); c.moveTo(-3, 8); c.lineTo(0, 5.5); c.lineTo(3, 8); c.stroke(); c.restore(); } }
+  else if (k === "flip") { c.beginPath(); c.arc(0, 0, 7, Math.PI * 0.15, Math.PI * 1.05); c.stroke(); c.beginPath(); c.moveTo(-9, -1); c.lineTo(-7, 3); c.lineTo(-4, 0); c.stroke(); c.beginPath(); c.arc(0, 0, 7, Math.PI * 1.15, Math.PI * 2.05); c.stroke(); c.beginPath(); c.moveTo(9, 1); c.lineTo(7, -3); c.lineTo(4, 0); c.stroke(); }
+  else if (k === "magnet") { c.lineCap = "butt"; c.lineWidth = 4.5; c.beginPath(); c.arc(0, 1, 6, 0, Math.PI); c.moveTo(-6, 1); c.lineTo(-6, -4); c.moveTo(6, 1); c.lineTo(6, -4); c.stroke(); c.strokeStyle = "#ffffff"; c.beginPath(); c.moveTo(-6, -4); c.lineTo(-6, -9); c.moveTo(6, -4); c.lineTo(6, -9); c.stroke(); }
+  else if (k === "extendo") { c.beginPath(); c.moveTo(-9, 0); c.lineTo(9, 0); c.moveTo(-5, -4); c.lineTo(-9, 0); c.lineTo(-5, 4); c.moveTo(5, -4); c.lineTo(9, 0); c.lineTo(5, 4); c.stroke(); }
+  else if (k === "drill") { c.beginPath(); c.moveTo(-8, -6); c.lineTo(9, 0); c.lineTo(-8, 6); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(-4, -5); c.lineTo(-1, 4); c.moveTo(1, -3.5); c.lineTo(4, 2.5); c.stroke(); }
+  else if (k === "decoy") { c.beginPath(); c.ellipse(0, -1, 7, 8.5, 0, 0, TAU); c.stroke(); c.font = "900 10px " + MONO; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("?", 0, 0); }
+  else if (k === "pump") { c.beginPath(); c.ellipse(-2, 0, 6.5, 8, 0, 0, TAU); c.stroke(); c.beginPath(); c.moveTo(6, -6); c.lineTo(10, -6); c.moveTo(8, -8); c.lineTo(8, -4); c.stroke(); }
+  c.restore();
+}
+function sparksDraw(c, g) {
+  for (var i = 0; i < g.fx.length; i++) {
+    var p = g.fx[i], k = p.t / p.life;
+    if (p.k === "spark") { c.strokeStyle = "rgba(255,226,140," + (1 - k) + ")"; c.lineWidth = 2; c.lineCap = "round"; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); c.stroke(); }
+    else if (p.k === "ring") { c.strokeStyle = "rgba(255,255,255," + (1 - k) * 0.9 + ")"; c.lineWidth = 4 * (1 - k) + 1; c.beginPath(); c.arc(p.x, p.y, 14 + 70 * k, 0, TAU); c.stroke(); }
+  }
+}
+// ---------- words on the screen ----------
+function texts(c, g) {
+  c.textAlign = "center"; c.textBaseline = "middle"; c.lineJoin = "round";
+  for (var i = 0; i < g.fx.length; i++) {
+    var p = g.fx[i]; if (p.k !== "txt") continue;
+    var k = p.t / p.life, x = SX(p.x), y = SY(p.y) - 34 * k, fs = Math.round(clamp(V.s * 20, 11, 22));
+    c.globalAlpha = clamp((1 - k) * 2, 0, 1);
+    c.font = "italic 900 " + fs + "px " + DISPLAY; c.lineWidth = 4; c.strokeStyle = "rgba(15,10,6,.85)"; c.strokeText(p.s, x, y);
+    c.fillStyle = p.col; c.fillText(p.s, x, y);
+  }
+  c.globalAlpha = 1;
+}
+function captions(c, g) {
+  var cp = g.cap; if (!cp) return;
+  var age = g.t - cp.t; if (age < 0 || age > cp.life) return;
+  var k = age < 0.2 ? backOut(age / 0.2) : 1, a = age > cp.life - 0.25 ? (cp.life - age) / 0.25 : 1;
+  var sm = cp.small, fs = sm ? Math.round(clamp(Math.min(W.w * 0.045, W.h * 0.075), 18, 40)) : Math.round(clamp(Math.min(W.w * 0.1, W.h * 0.2), 30, 92)), x = W.w / 2, y = sm ? fs * 0.75 + 6 : W.h * 0.3;
+  c.save(); c.globalAlpha = clamp(a, 0, 1); c.translate(x, y); c.scale(k, k);
+  c.textAlign = "center"; c.textBaseline = "middle"; c.lineJoin = "round";
+  c.font = "italic 900 " + fs + "px " + DISPLAY; c.lineWidth = Math.max(5, fs * 0.14); c.strokeStyle = "rgba(14,9,6,.92)"; c.strokeText(cp.text, 0, 0);
+  c.fillStyle = cp.col; c.fillText(cp.text, 0, 0);
+  if (cp.sub) { var f2 = Math.round(fs * (sm ? 0.42 : 0.34)), sy = fs * (sm ? 0.8 : 0.72); c.font = "800 " + f2 + "px " + MONO; c.lineWidth = 4; c.strokeText(cp.sub, 0, sy); c.fillStyle = "#f6efe4"; c.fillText(cp.sub, 0, sy); }
+  c.restore();
+}
+// ===================== Ashen Sphere's side: the view, the skins, the cardboard ships, the little puppets =====================
+var CTL = { x: 0, y: 0, btn: false };   // the stick (x right, y down, -1..1) and the button, set by the game
+var W = { ctx: null, w: 1, h: 1, dpr: 1 }, V = { s: 1, ox: 0, oy: 0 }, CAM = { z: 1, x: 0, y: 155 };
+var CUR = null, SKIN = "board", ACC = 0, REDUCED = false;
+// the same fight, drawn as a toy on a table (board) or as cardboard ships against a painted sky (space)
+function drawWorld(dt) {
+  var c = W.ctx, g = CUR; if (!c || !g) return;
+  fitView(g, dt);
+  toScreen(c);
+  if (SKIN === "space") spaceBackdrop(c, g); else backdrop(c);
+  toWorld(c);
+  if (SKIN === "space") planet(c, g);
+  else {
+    table(c);
+    // the puppets show in the varnish
+    c.save(); c.beginPath(); c.rect(-4000, -4009, 8000, 4000); c.clip();
+    c.transform(1, 0, 0, -1, 0, -18); c.globalAlpha = 0.16;
+    figures(c, g, true);
+    c.restore();
+    board(c, g);
+  }
+  litter(c, g);
+  figures(c, g, false);
+  shotsDraw(c, g);
+  sparksDraw(c, g);
+  toScreen(c);
+  if (SKIN !== "space") ash(c, g);
+  crates(c, g);
+  texts(c, g);
+  captions(c, g);
+}
+// ash drifts down over the table, as it does everywhere on the Ashen World
+function ash(c, g) {
+  var n = 26, i, w = W.w, h = W.h;
+  c.fillStyle = "rgba(205,196,182,0.35)";
+  for (i = 0; i < n; i++) {
+    var sx = (i * 0.618034) % 1, sp = 14 + (i * 37 % 23), y = ((g.t * sp + i * 97) % (h + 20)) - 10, x = sx * w + Math.sin(g.t * 0.7 + i) * 12;
+    c.fillRect(x, y, 1.6 + (i % 3) * 0.6, 1.6 + (i % 3) * 0.6);
+  }
+}
+// space: a painted sky on cloth, a ringed planet and the stars, under the same spotlight
+var SKY = null;
+function spaceBackdrop(c, g) {
+  var w = W.w, h = W.h, gr = c.createLinearGradient(0, 0, 0, h), i;
+  gr.addColorStop(0, "#0b1026"); gr.addColorStop(0.6, "#120f22"); gr.addColorStop(1, "#07060c");
+  c.fillStyle = gr; c.fillRect(0, 0, w, h);
+  if (!SKY) { var r = mulberry(4242); SKY = []; for (i = 0; i < 150; i++) SKY.push([r(), r(), r(), r() * TAU]); }
+  for (i = 0; i < SKY.length; i++) {
+    var s = SKY[i], a = 0.35 + 0.45 * s[2] + (REDUCED ? 0 : 0.2 * Math.sin(g.t * 2 + s[3]));
+    c.fillStyle = "rgba(240,232,214," + clamp(a, 0, 1).toFixed(2) + ")"; var z = s[2] > 0.9 ? 2.2 : 1.3; c.fillRect(s[0] * w, s[1] * h * 0.8, z, z);
+  }
+  // a painted planet with a ring, top left, and the cloth's folds over everything
+  var px = w * 0.2, py = h * 0.24, pr = Math.min(w, h) * 0.12;
+  c.save(); c.strokeStyle = "rgba(214,180,128,0.55)"; c.lineWidth = Math.max(2, pr * 0.08); c.beginPath(); c.ellipse(px, py, pr * 1.9, pr * 0.45, -0.32, Math.PI, TAU); c.stroke();
+  var pg = c.createRadialGradient(px - pr * 0.35, py - pr * 0.35, pr * 0.1, px, py, pr);
+  pg.addColorStop(0, "#e7c48a"); pg.addColorStop(0.6, "#b07a45"); pg.addColorStop(1, "#4a2c18");
+  c.fillStyle = pg; c.beginPath(); c.arc(px, py, pr, 0, TAU); c.fill();
+  c.strokeStyle = "rgba(90,55,25,0.45)"; c.lineWidth = Math.max(1, pr * 0.05);
+  for (i = -2; i <= 2; i++) { c.beginPath(); c.ellipse(px, py + i * pr * 0.3, pr * Math.sqrt(1 - Math.pow(i * 0.3, 2)), pr * 0.08, 0, 0, TAU); c.stroke(); }
+  c.strokeStyle = "rgba(214,180,128,0.55)"; c.lineWidth = Math.max(2, pr * 0.08); c.beginPath(); c.ellipse(px, py, pr * 1.9, pr * 0.45, -0.32, 0, Math.PI); c.stroke();
+  c.restore();
+  for (i = 0; i < 9; i++) {
+    var x = (i + 0.5) / 9 * w + Math.sin(i * 2.3) * w * 0.03, fw = w / 9 * 1.1, fg = c.createLinearGradient(x - fw / 2, 0, x + fw / 2, 0);
+    fg.addColorStop(0, "rgba(0,0,0,0)"); fg.addColorStop(0.5, i % 2 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.18)"); fg.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = fg; c.fillRect(x - fw / 2, 0, fw, h);
+  }
+  var cx = SX(0), cy = SY(250), rad = Math.max(w, h) * 0.8, sp = c.createRadialGradient(cx, cy, 0, cx, cy, rad);
+  sp.addColorStop(0, "rgba(180,200,255,0.10)"); sp.addColorStop(1, "rgba(180,200,255,0)");
+  c.fillStyle = sp; c.fillRect(0, 0, w, h);
+}
+// the floor of space: the curve of a cardboard moon below the ships (shots that miss land on it)
+function planet(c, g) {
+  var R = 2600;
+  c.fillStyle = "#6f6458"; c.beginPath(); c.arc(0, -R, R, 0, TAU); c.fill();
+  c.strokeStyle = "#a89a86"; c.lineWidth = 3; c.beginPath(); c.arc(0, -R, R, Math.PI * 0.42, Math.PI * 0.58); c.stroke();
+  c.fillStyle = "rgba(40,32,26,0.5)";
+  [[-260, -14, 26], [-90, -26, 14], [140, -12, 20], [300, -30, 30], [30, -44, 9]].forEach(function (k) { c.beginPath(); c.ellipse(k[0], k[1], k[2], k[2] * 0.3, 0, 0, TAU); c.fill(); });
+}
+// a cardboard rocket around the puppet's hips: the legs are inside, the pilot sticks out of the cockpit
+function ship(c, g, F) {
+  var P = F.p, f = F.f, L = F.look, x = P.px - f * 4, y = P.py - 30, fl = 16 + (REDUCED ? 0 : 7 * Math.sin(g.t * 31 + F.i * 2));
+  c.save(); c.translate(x, y); c.scale(f, 1); c.lineJoin = "round";
+  c.fillStyle = "rgba(255,186,80,0.9)"; c.beginPath(); c.moveTo(-84, 9); c.lineTo(-84 - fl * 1.8, 0); c.lineTo(-84, -9); c.closePath(); c.fill();
+  c.fillStyle = "rgba(255,240,200,0.9)"; c.beginPath(); c.moveTo(-84, 4); c.lineTo(-84 - fl, 0); c.lineTo(-84, -4); c.closePath(); c.fill();
+  c.fillStyle = "#b8874b"; c.strokeStyle = "#5e3d1c"; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(-70, 18); c.lineTo(-100, 44); c.lineTo(-58, 22); c.closePath(); c.fill(); c.stroke();
+  c.beginPath(); c.moveTo(-70, -18); c.lineTo(-100, -44); c.lineTo(-58, -22); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = "#d8b07a";
+  c.beginPath(); c.moveTo(-86, -24); c.lineTo(50, -24); c.quadraticCurveTo(104, -20, 118, 0); c.quadraticCurveTo(104, 20, 50, 24); c.lineTo(-86, 24); c.closePath(); c.fill(); c.stroke();
+  c.strokeStyle = "rgba(94,61,28,0.35)"; c.lineWidth = 1.5;
+  for (var i = -70; i < 50; i += 16) { c.beginPath(); c.moveTo(i, -24); c.lineTo(i, 24); c.stroke(); }
+  c.fillStyle = L.col; c.strokeStyle = "#5e3d1c"; c.lineWidth = 2; c.beginPath(); c.moveTo(104, -12); c.quadraticCurveTo(118, 0, 104, 12); c.lineTo(96, 12); c.lineTo(96, -12); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = "#1d1512"; c.beginPath(); c.arc(64, 0, 8, 0, TAU); c.fill(); c.strokeStyle = "#e9d2a7"; c.lineWidth = 2.5; c.stroke();
+  c.fillStyle = "rgba(160,200,230,0.6)"; c.beginPath(); c.arc(62, 2, 4, 0, TAU); c.fill();
+  c.fillStyle = L.c3; c.fillRect(-60, -6, 34, 12);
+  c.fillStyle = "#3a2a18"; c.beginPath(); c.ellipse(4, 24, 16, 5, 0, 0, TAU); c.fill();   // the cockpit hole the pilot sits in
+  c.restore();
+}
+// ---------- the little puppets: people on the maps, in the bunker and on the ship (screen space, y down) ----------
+// (x, y) is where the feet stand, s the height in pixels; o: { f: facing, walk, ph (phase), mood, weapon }
+function mini(c, x, y, s, look, t, o) {
+  o = o || {}; var L = shades(look), f = o.f || 1, k = s / 280, ph = o.ph || 0;
+  var sw = o.walk && !REDUCED ? Math.sin(t * 8 + ph) : 0, bob = o.walk && !REDUCED ? Math.abs(sw) * 8 * k : (REDUCED ? 0 : Math.sin(t * 2 + ph) * 2 * k);
+  var hipX = x, hipY = y - 116 * k - bob, shX = x + f * 6 * k, shY = y - 196 * k - bob, nkY = shY - 14 * k;
+  var lw = Math.max(1.6, 9 * k);
+  var line = function (ax, ay, bx, by, w, col) { c.lineCap = "round"; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.strokeStyle = WOOD_E; c.lineWidth = w + Math.max(1, 2.2 * k); c.stroke(); c.strokeStyle = col; c.lineWidth = w; c.stroke(); };
+  line(x - f * (10 - sw * 14) * k, y, hipX, hipY, lw, WOOD2);
+  line(x + f * (12 + sw * 14) * k, y, hipX, hipY, lw, WOOD);
+  line(hipX, hipY, shX, shY, lw * 1.3, WOOD);
+  line(shX, shY, shX, nkY, lw * 0.8, WOOD);
+  var hx = shX + f * 46 * k, hy = shY + (o.weapon ? 14 : 36) * k;
+  line(shX, shY, shX + f * 26 * k, shY + 26 * k, lw * 0.9, WOOD); line(shX + f * 26 * k, shY + 26 * k, hx, hy, lw * 0.9, WOOD);
+  if (o.weapon === "sword") { c.strokeStyle = "#f4f1ea"; c.lineWidth = Math.max(1.2, 6 * k); c.beginPath(); c.moveTo(hx, hy); c.lineTo(hx + f * 90 * k, hy - 40 * k); c.stroke(); }
+  // the balloon, a little bigger than in a fight so a face still reads at map size
+  var bs = clamp(2.2 - s / 150, 1.18, 1.9), rx = BRX * k * bs, ry = BRY * k * bs, bx = shX + f * 4 * k, by = nkY - ry * 0.92 + (REDUCED ? 0 : Math.sin(t * 2.6 + ph) * 1.5 * k);
+  c.save(); c.translate(bx, by); c.scale(1, -1);
+  egg(c, rx, ry);
+  var gr = c.createRadialGradient(-rx * 0.32, ry * 0.38, 1, -rx * 0.1, ry * 0.1, ry * 1.5);
+  gr.addColorStop(0, L.c1); gr.addColorStop(0.4, L.col); gr.addColorStop(1, L.c4); c.fillStyle = gr; c.fill();
+  c.fillStyle = L.c3; c.beginPath(); c.moveTo(-4 * k * bs, -ry - 4 * k * bs); c.lineTo(4 * k * bs, -ry - 4 * k * bs); c.lineTo(0, -ry + 1); c.closePath(); c.fill();
+  c.fillStyle = "rgba(255,255,255,0.5)"; c.beginPath(); c.ellipse(-rx * 0.42, ry * 0.42, rx * 0.15, ry * 0.24, 0.55, 0, TAU); c.fill();
+  var sc = k * bs, FF = { look: L, f: f, b: { pr: 0 }, w: {}, btn: false, i: 0 };
+  if (s >= 22) { miniFace(c, rx, ry, sc, o.mood || "", f, L); hat(c, { t: t }, FF, rx, ry, sc); }
+  c.restore();
+}
+function miniFace(c, rx, ry, sc, m, f, L) {
+  var fx = (f > 0 ? 1 : -1) * rx * 0.24, ex = rx * 0.2, ey = ry * 0.14, ink = "#1d1512";
+  c.fillStyle = ink; c.strokeStyle = ink; c.lineCap = "round"; c.lineWidth = Math.max(0.8, 1.8 * sc);
+  if (L.blind) { c.beginPath(); c.moveTo(fx - ex - 3 * sc, ey); c.lineTo(fx + ex + 3 * sc, ey); c.stroke(); }
+  else { var big = m === "worry" ? 1.35 : 1; [-1, 1].forEach(function (s) { c.beginPath(); c.ellipse(fx + s * ex, ey, Math.max(0.7, 2.7 * sc * big), Math.max(0.9, 3.8 * sc * big), 0, 0, TAU); c.fill(); }); }
+  c.beginPath();
+  if (m === "grin") { c.arc(fx, -ry * 0.18, rx * 0.22, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); }
+  else if (m === "worry" || m === "hurt") { c.ellipse(fx, -ry * 0.3, Math.max(0.7, 2.6 * sc), Math.max(0.9, 3.4 * sc), 0, 0, TAU); c.fill(); }
+  else { c.moveTo(fx - rx * 0.16, -ry * 0.3); c.lineTo(fx + rx * 0.16, -ry * 0.28); c.stroke(); }
+}
+// a balloon face for a list, as a small SVG (the people panel uses it)
+function faceSVG(look, size) {
+  var L = shades(look), s = size || 22;
+  return '<svg class="pface" width="' + s + '" height="' + s + '" viewBox="-16 -18 32 36" aria-hidden="true"><defs><radialGradient id="pf' + L.col.slice(1) + '" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="' + L.c1 + '"/><stop offset=".45" stop-color="' + L.col +
+    '"/><stop offset="1" stop-color="' + L.c4 + '"/></radialGradient></defs><path d="M0 15C7 15 13 8 13 -1C13 -10 7 -16 0 -16C-7 -16 -13 -10 -13 -1C-13 8 -7 15 0 15Z" fill="url(#pf' + L.col.slice(1) + ')"/>' +
+    (L.blind ? '<path d="M-6 -2H6" stroke="#1d1512" stroke-width="1.6" stroke-linecap="round"/>' : '<ellipse cx="-3" cy="-3" rx="1.4" ry="2" fill="#1d1512"/><ellipse cx="4" cy="-3" rx="1.4" ry="2" fill="#1d1512"/>') +
+    '<path d="M-3 5H4" stroke="#1d1512" stroke-width="1.4" stroke-linecap="round"/><path d="M-2 15L2 15L0 18Z" fill="' + L.c3 + '"/></svg>';
+}
+// ---------- the game's way in ----------
+// o: { weapon, seed, look0, look1, ctl0 ("cab" or a skill), ctl1 (a skill), needs: [pops you need, pops they need], start: [pu0, pu1], pups, skin }
+function start(o) {
+  var g = newMatch({ weapon: o.weapon, seed: o.seed, mode: "fight", look0: o.look0, look1: o.look1, ctl0: o.ctl0, ctl1: o.ctl1, needs: o.needs, start: o.start, pups: o.pups !== false });
+  g.skin = o.skin || "board"; ACC = 0; CAM.z = 1; CAM.x = 0; CAM.y = 155; SLOW = 0; SHAKE = 0;
+  return g;
+}
+// real time: fixed steps of 1/120 s, slowed a moment after a pop
+function run(g, dt) {
+  var sdt = dt; if (SLOW > 0) { SLOW -= dt; sdt = dt * 0.3; }
+  ACC += sdt; var n = 0;
+  while (ACC >= STEP && n < 16) { simStep(g, STEP); ACC -= STEP; n++; }
+  if (n >= 16) ACC = 0;
+  for (var i = 0; i < g.ev.length; i++) if (g.ev[i].n === "pop") { SLOW = 0.42; SHAKE = 0.3; }
+  g.ev = [];
+  if (SHAKE > 0) SHAKE = Math.max(0, SHAKE - dt);
+}
+// both puppets worked by bots, as fast as it will go: the same fight, settled without anyone at the stick
+function quick(o, maxT) {
+  var g = start(o), lim = maxT || 200;
+  while (!g.over && g.t < lim) { simStep(g, STEP); if (g.ev.length > 40) g.ev = []; }
+  if (!g.over) g.over = { win: g.wins[0] >= g.wins[1] ? (g.wins[0] > g.wins[1] ? 0 : (g.r() < 0.5 ? 0 : 1)) : 1, t: g.t, timeout: true };
+  return g;
+}
+function draw(c, g, w, h, dpr, dt) { W.ctx = c; W.w = w; W.h = h; W.dpr = dpr; CUR = g; SKIN = g.skin || "board"; drawWorld(dt); }
+// a player who lets go of the stick: their puppet goes on by itself
+// a rival's skill anywhere between ROOKIE (0) and CHAMP (4), blended from the two it falls between
+var SKL = ["rookie", "easy", "pro", "good", "champ"];
+function skillAt(x) { x = clamp(x, 0, 4); var i = Math.min(3, Math.floor(x)), t = x - i, a = SKILLS[SKL[i]], b = SKILLS[SKL[i + 1]], o = { id: "s" + x.toFixed(2) }, k;
+  for (k in a) if (k !== "id") o[k] = lerp(a[k], b[k], t); return o; }
+function hand(g, i, skill) { var F = g.f[i]; F.ctl = skill; F.bot = typeof skill === "number" ? makeBot(skillAt(skill)) : SKILLS[skill] ? makeBot(SKILLS[skill]) : null; if (F.bot) botReset(F.bot, g.r); }
+return { skillAt: skillAt, start: start, run: run, quick: quick, draw: draw, mini: mini, faceSVG: faceSVG, hand: hand, CTL: CTL, WPN: WPN, ORDER: ORDER, SKILLS: SKILLS, PUPS: PUPS,
+  set reduced(v) { REDUCED = !!v; } };
+})();
+PUP.reduced=reduced;
+// ---- people are puppets: a balloon colour of their own, and a hat that says what they do
+const BALLOONS=["#7fb2ff","#ff8fb8","#86d98f","#b995ff","#ffb547","#ff7a45","#9be7ff","#f2c14e","#7cf0c2","#ff5f52","#d78bff","#c3ccd8"],SKILL_HAT={eng:"hard",scav:"band",grow:"straw"},LOOKS=new Map();
+function lookOf(p){if(!p)return{name:"SQUAD",col:"#7fb2ff",hat:"",big:1};const nm=String(p.name||"").toUpperCase();let L=LOOKS.get(p.id);
+  if(!L||L.name!==nm){L={name:nm,col:BALLOONS[(Math.imul((p.id|0)+1,2654435761)>>>0)%BALLOONS.length],hat:SKILL_HAT[p.sk]||"",big:1};LOOKS.set(p.id,L)}return L}
+const STRANGER={name:"SURVIVOR",col:"#c3ccd8",hat:"",big:1};
+// who is out there: the squad on your land, the crew on another world
+const squadPeople=()=>S.exp&&S.exp.away&&S.x?S.x.crew:(E&&E.squad&&E.squad.length?E.squad:S.people.slice(0,2));
+// the threats, as rival puppets (Claude's first pass, for GPT's content pass)
+const FOE_LOOK={
+  dogs:{name:"THE DOGS",col:"#9b7b55",hat:"ears",plural:1},raiders:{name:"THE RAIDERS",col:"#c45a3c",hat:"band",plural:1},nest:{name:"THE MUTANT",col:"#8fbf5a",hat:"horns",big:1.15},
+  warden:{name:"THE WARDEN",col:"#8c8f96",hat:"helmet",big:1.25},crawlers:{name:"THE CRAWLERS",col:"#d9d2c3",hat:"antenna",plural:1},hunter:{name:"THE HUNTER",col:"#cbbfa8",hat:"",blind:1},
+  eels:{name:"THE EELS",col:"#9fe0c0",hat:"fin",plural:1},crab:{name:"THE CRAB",col:"#d4673a",hat:"horns",big:1.1},
+  leech:{name:"THE LEECHES",col:"#4a5a44",hat:"",blind:1,plural:1},stalker:{name:"THE STALKER",col:"#e3e0d0",hat:"ears"},wyrm:{name:"THE WYRM",col:"#6b5a3c",hat:"horns",big:1.2}};
+// the weapon a fight is fought with: both puppets use the same one, as in Stick 'Em Up. Fists are always there; the rest are crafted
+const FW={box:{name:"Fists",gear:null},sword:{name:"Salvage Spear",gear:"spear"},gun:{name:"Tack Gun",gear:"tackgun"},bow:{name:"Scrap Bow",gear:"bow"},star:{name:"Saw Stars",gear:"stars"}};
+const fightWeapons=()=>Object.keys(FW).filter(k=>!FW[k].gear||S.gear[FW[k].gear]);
+const fightWeapon=()=>{const a=fightWeapons();return a.includes(S.fw)?S.fw:a[a.length-1]};
+// how strong each side is. A quick fight is bots on both sides, a single balloon each, with the skill gap set so the odds
+// match the old roll (strength P against danger L: P/(P+L)). A fight you play: the rival's skill rises with danger, a
+// stronger squad has spare balloons, bigger threats take two pops, and armour starts every round with a double bubble.
+const FBASE=L=>[.5,.5,1.5,2.5,3][Math.max(0,Math.min(4,L|0))];
+function fightLevels(P,L){const d=1.05*Math.log(Math.max(.25,P)/Math.max(1,L)),b=FBASE(L);let you=b+d/2,foe=b-d/2;
+  if(foe<0){you-=foe;foe=0}if(you>4){foe-=you-4;you=4}return{you:Math.max(0,Math.min(4,you)),foe:Math.max(0,Math.min(4,foe))}}
+const fightLives=P=>1+(P>=4?1:0)+(P>=7?1:0),fightPops=L=>L>=3?2:1;
+let FIGHT=null;
+function threatFight(mode){const e=S.exp;if(!e||!CARD||CARD.kind!=="threat")return;const M=xGen(e.i),ms=xMS(e.i),p=M.pois[CARD.pi],th=thOf(p.t),aw=!!e.away;if(th.lvl<=0)return;
+  const P=(aw?crewP():squadP()).P;ms.att=ms.att||{};const att=ms.att[CARD.pi]||0;ms.att[CARD.pi]=att+1;
+  const lv=fightLevels(P,th.lvl),seed=(Math.imul(e.i+1,7919)+Math.imul(CARD.pi+1,104729)+Math.imul(att+1,1299709)+(aw?15485863:0))>>>0,wk=fightWeapon(),
+    you={...lookOf(squadPeople()[0])},foe={name:th.name.toUpperCase(),col:"#c3ccd8",hat:"",big:1,...(FOE_LOOK[p.t]||{})};
+  if(mode==="quick"){const g=PUP.quick({weapon:wk,seed,look0:you,look1:foe,ctl0:lv.you,ctl1:lv.foe,needs:[1,1]});threatOutcome(g.over.win===0,null);return}
+  FIGHT={kind:"threat",back:"map",lvYou:lv.you,foe:"the "+th.name.toLowerCase(),you:squadPeople()[0]?squadPeople()[0].name:"Your squad",wk,g:PUP.start({weapon:wk,seed,look0:you,look1:foe,ctl0:"cab",ctl1:lv.foe,needs:[fightPops(th.lvl),fightLives(P)],start:[S.gear.armor?{bubble:1}:null,null]}),done:false};
+  fightIn()}
+// the fight is settled: the same results as before for winning and losing
+function threatOutcome(win,g){const e=S.exp;if(!e||!CARD||CARD.kind!=="threat")return;const M=xGen(e.i),ms=xMS(e.i),th=thOf(M.pois[CARD.pi].t),aw=!!e.away,
+    score=g?" "+g.wins[0]+"–"+g.wins[1]+".":"",nm=th.name.toLowerCase();
+  if(win){ms.got.push(CARD.pi);if(aw)say(holdMsg("Popped "+nm+score.replace(/\.$/,"")+" and drove them off","scrap",6*th.lvl));else{S.res.scrap+=6*th.lvl;say("Popped "+nm+score+" "+6*th.lvl+" scrap in what they left.")}CARD=null;afterClear()}
+  else if(aw){CARD=null;S.x.hurt=XP.hurtSecs*(S.x.crew.some(p=>p.tr==="cautious")?.5:1);endExp("The "+nm+" popped the crew"+score.replace(/\.$/,"")+". They limp back to the ship, hurt but alive.");return}
+  else{CARD=null;S.wounded=XC.woundedSecs*(E.squad.some(p=>p.tr==="cautious")?.5:1);endExp("The "+nm+" popped the squad"+score.replace(/\.$/,"")+". They limp home, hurt but alive.");return}
+  dirty=true;save()}
+// ---- the fight view: the canvas is the stage, the drawer holds the stick and the button
+const FK={up:0,down:0,left:0,right:0,btn:false},FT={x:0,y:0,id:null,btn:false};
+function fightIn(){FIGHT.t=0;FT.x=FT.y=0;FT.btn=false;for(const k in FK)FK[k]=k==="btn"?false:0;setView("fight")}
+function fightCtl(){const kx=FK.right-FK.left,ky=FK.down-FK.up;let x=kx+FT.x,y=ky+FT.y;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}PUP.CTL.x=x;PUP.CTL.y=y;PUP.CTL.btn=FK.btn||FT.btn}
+function fightTick(dt){const F=FIGHT;if(!F)return;fightCtl();if(!F.done){PUP.run(F.g,dt);F.t+=dt}
+  const g=F.g;if(g.over&&!F.done&&g.t-g.over.t>1.4){F.done=true;fightEnd(g.over.win===0)}}
+function fightEnd(win){const F=FIGHT,g=F.g;FIGHT=null;PUP.CTL.x=PUP.CTL.y=0;PUP.CTL.btn=false;
+  if(F.kind==="threat"){setView(F.back);threatOutcome(win,g)}else if(F.kind==="space"){setView("stars");spaceOutcome(win,g)}
+  toast((win?"Won ":"Lost ")+g.wins[0]+"–"+g.wins[1]+" against "+F.foe+".");dirty=true}
+function fightGiveUp(){const F=FIGHT;if(!F||F.done)return;F.done=true;F.g.over={win:1,t:F.g.t};fightEnd(false)}
+function fightHTML(){const F=FIGHT;if(!F)return"";const g=F.g,A=g.f[0],B=g.f[1],W0=PUP.WPN[F.wk],auto=A.ctl!=="cab";
+  return'<div class="meta">'+(F.kind==="space"?"Space battle":"Fight")+" · "+W0.name.toLowerCase()+'</div><div class="tile-h">'+F.you+" against "+F.foe+"</div>"+
+    '<p class="fscore">Pops: <b>'+g.wins[0]+"</b> of "+g.needs[0]+" · they need <b>"+(g.needs[1]-g.wins[1])+"</b> more</p>"+
+    "<p>"+(auto?"Your puppet is fighting on its own now.":"The stick is your rod: up stands tall and aims high, down ducks, forward leans in. "+W0.tip)+"</p>"+
+    '<div class="acts">'+(auto?"":btn("fauto","Let them fight it out","Your puppet goes on by itself",null))+btn("fquit","Give up","Counts as a loss",null,"warn")+"</div>"}
+// the stick and the button in the drawer (and the keys: arrows or WASD, Space or Enter)
+(()=>{const st=document.getElementById("fstick"),ball=document.getElementById("fball"),b=document.getElementById("fbtn");if(!st||!b)return;
+  const move=e=>{const r=st.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-r.left-R)/R,y=(e.clientY-r.top-R)/R;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}FT.x=Math.abs(x)<.12?0:x;FT.y=Math.abs(y)<.12?0:y;ball.style.transform="translate("+(x*R*.55).toFixed(1)+"px,"+(y*R*.55).toFixed(1)+"px)"};
+  const end=e=>{if(e.pointerId!==FT.id)return;FT.id=null;FT.x=FT.y=0;ball.style.transform=""};
+  st.addEventListener("pointerdown",e=>{e.preventDefault();FT.id=e.pointerId;try{st.setPointerCapture(e.pointerId)}catch(_){}move(e)});
+  st.addEventListener("pointermove",e=>{if(e.pointerId===FT.id)move(e)});["pointerup","pointercancel","lostpointercapture"].forEach(n=>st.addEventListener(n,end));
+  const bd=e=>{e.preventDefault();FT.btn=true;b.classList.add("down");try{b.setPointerCapture(e.pointerId)}catch(_){}},bu=()=>{FT.btn=false;b.classList.remove("down")};
+  b.addEventListener("pointerdown",bd);["pointerup","pointercancel","lostpointercapture"].forEach(n=>b.addEventListener(n,bu));b.addEventListener("click",e=>e.preventDefault());
+  for(const el of[st,b])el.addEventListener("contextmenu",e=>e.preventDefault());
+  const KM={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",w:"up",W:"up",s:"down",S:"down",a:"left",A:"left",d:"right",D:"right"};
+  window.addEventListener("keydown",e=>{if(VIEW!=="fight")return;const k=KM[e.key];if(k){e.preventDefault();FK[k]=1;return}if(e.key===" "||e.key==="Enter"){if(e.target&&e.target.closest&&e.target.closest("button")&&e.target!==b)return;e.preventDefault();FK.btn=true}},true);
+  window.addEventListener("keyup",e=>{const k=KM[e.key];if(k){FK[k]=0;return}if(e.key===" "||e.key==="Enter")FK.btn=false},true)})();
+// ---- space battles: on an expedition flight, something can come alongside (Claude's first pass, for GPT's content pass)
+const SPACE_FOES={
+  cutter:{name:"A REPUBLIC CUTTER",title:"A Republic cutter",short:"the Republic cutter",col:"#5d6f9a",hat:"kepi",weapon:"gun",lvl:3,pops:2,hail:"A Republic cutter matches your course and signals: heave to for inspection.",
+    pay:{scrap:60},payTxt:"Pay the 'inspection fee'",win:"The cutter limps off. The Republic will remember this ship.",lose:"They board, take half the hold and log the ship."},
+  salvage:{name:"THE SALVAGERS",title:"Salvagers",short:"the salvagers",col:"#e08a3c",hat:"band",weapon:"star",lvl:2,pops:1,plural:1,hail:"A patched-up salvage skiff swings in close, saw-discs spinning on their cables.",
+    steps:10,payTxt:"Throw them rations",win:"The skiff spins away. Its crew drops what they were towing.",lose:"They cut loose a third of the hold and run."},
+  sentinel:{name:"A BUILDER SENTINEL",title:"A Builder sentinel",short:"the Builder sentinel",col:"#9aa1ab",hat:"helmet",weapon:"bow",lvl:4,pops:2,blind:1,hail:"A Builder machine unfolds out of the dark, the same five-sided seam as the Spires. It turns toward the ship.",
+    payTxt:"Power down and drift past",drift:20,win:"The sentinel folds up and drifts away. A mark on its hull is a glyph.",lose:"It shears the antenna off and lets you go."}};
+// one chance per leg, from the second trip on: decided once, from the trip and the leg, so a reload changes nothing
+function spaceRoll(x){const leg=(S.xs.trips|0)+":"+x.phase;if(x.encLeg===leg)return;x.encLeg=leg;if((S.xs.trips|0)<1)return;
+  const r=h3((S.xs.trips|0)+1,x.phase==="out"?3:5,7331);if(r>.32)return;const k=r<.1&&S.glyphs>=2?"sentinel":r<.2&&republicHere()?"cutter":"salvage";
+  x.enc={k,t:0,seed:(Math.imul((S.xs.trips|0)+1,2654435761)+(x.phase==="out"?17:31))>>>0};say(SPACE_FOES[k].hail);dirty=true}
+const spaceP=()=>{const x=S.x;return 1+Math.min(2,x?x.crew.length:1)+(x&&x.crew.some(p=>p.sk==="eng"&&p.lv>=2)?1:0)+(S.gear.armor?1:0)};
+function spaceFight(mode){const x=S.x;if(!x||!x.enc)return;const D=SPACE_FOES[x.enc.k],P=spaceP(),lv=fightLevels(P,D.lvl),att=x.enc.att=(x.enc.att|0)+1,seed=(x.enc.seed+Math.imul(att,1299709))>>>0,
+    you={...lookOf(x.crew[0])},foe={name:D.name,col:D.col,hat:D.hat,big:1,blind:D.blind,plural:D.plural};
+  if(mode==="quick"){const g=PUP.quick({weapon:D.weapon,seed,look0:you,look1:foe,ctl0:lv.you,ctl1:lv.foe,needs:[1,1],skin:"space"});spaceOutcome(g.over.win===0,null);return}
+  FIGHT={kind:"space",back:"stars",lvYou:lv.you,foe:D.short,you:x.crew[0]?x.crew[0].name:"Your crew",wk:D.weapon,g:PUP.start({weapon:D.weapon,seed,look0:you,look1:foe,ctl0:"cab",ctl1:lv.foe,needs:[D.pops,Math.max(1,Math.min(3,x.crew.length))],start:[S.gear.armor?{bubble:1}:null,null],skin:"space"}),done:false};
+  fightIn()}
+function spaceOutcome(win,g){const x=S.x;if(!x||!x.enc)return;const k=x.enc.k,D=SPACE_FOES[k],sc=g?" ("+g.wins[0]+"–"+g.wins[1]+")":"";x.enc=null;
+  if(win){if(k==="sentinel"&&S.glyphs+(x.glyphs|0)<CFG.veh.glyphs){x.glyphs=(x.glyphs|0)+1;say(D.win+sc+" Copied a Builder glyph.")}else say(holdMsg(D.win.replace(/\.$/,"")+sc,"scrap",k==="cutter"?25:30));if(k==="cutter")S.h.susp=Math.min(100,(S.h.susp||0)+4)}
+  else{if(k==="sentinel")x.hurt=Math.max(x.hurt|0,XP.hurtSecs);else spaceLoot(k==="cutter"?.5:1/3);if(k==="cutter")S.h.susp=Math.min(100,(S.h.susp||0)+8);say(D.lose+sc)}
+  dirty=true;save()}
+// a share of what's in the hold is lost
+function spaceLoot(f){const x=S.x;if(!x||!x.hold)return;for(const k in x.hold)if(typeof x.hold[k]==="number")x.hold[k]=Math.floor(x.hold[k]*(1-f))}
+function spacePay(){const x=S.x;if(!x||!x.enc)return;const D=SPACE_FOES[x.enc.k];
+  if(D.pay){if(!afford(D.pay))return;pay(D.pay)}else if(D.steps){if(x.steps<D.steps)return;x.steps-=D.steps}else if(D.drift)x.t=Math.max(0,x.t-D.drift);
+  say(D.payTxt+": "+D.short+" lets the ship go.");x.enc=null;dirty=true;save()}
+function spaceHTML(){const x=S.x;if(!x||!x.enc)return"";const D=SPACE_FOES[x.enc.k],can=D.pay?afford(D.pay):D.steps?x.steps>=D.steps:true;
+  return'<div class="meta">Something alongside</div><div class="tile-h">'+D.title+"</div><p>"+D.hail+" The ship holds still until you answer. If nobody does within a minute, the crew fights it out on their own.</p>"+
+    '<div class="acts">'+btn("sfight","Fight it out","You work the stick",null,"primary")+btn("squick","Quick fight","The crew plays it out",null)+btn("spay",D.payTxt,D.pay?"Costs "+costText(D.pay):D.steps?"Costs "+D.steps+" steps of rations":"Costs "+D.drift+" s of the flight",null,"",!can)+"</div>"}
+function drawFight(dt){if(!FIGHT){setView("surface");return}PUP.draw(ctx,FIGHT.g,W/DPR,H/DPR,DPR,dt)}
+
 // ---------------------------------------------------------------- input
 const ptrs=new Map();let downX=0,downY=0,moved=false,pinch=0;
 const pd=()=>{const p=[...ptrs.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)};
 cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===1){downX=e.clientX;downY=e.clientY;moved=false;vel=[0,0]}if(ptrs.size===2)pinch=pd();focus=null;lastTouch=performance.now()});
-cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;lastTouch=performance.now();
+cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW==="fight")return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;lastTouch=performance.now();
   if(VIEW==="map"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(VIEW==="below"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY-dy*DPR));return}
   if(VIEW==="stars"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(ptrs.size===1){if(Math.hypot(e.clientX-downX,e.clientY-downY)>6)moved=true;if(moved){spin(dx,dy);vel=[dx,dy]}}
   else if(ptrs.size===2){moved=true;const d=pd();if(pinch)zoom=Math.max(.7,Math.min(3,zoom*d/pinch));pinch=d;vel=[0,0]}});
-const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;
+const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;if(VIEW==="fight")return;
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="map"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<MW&&y<MH){const p=pathTo(y*MW+x);if(p)PATH=p}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="below"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
@@ -1891,8 +3591,9 @@ const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.si
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b=cv.getBoundingClientRect();const i=pick((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);if(i>=0){sel=i;dirty=true}}
   if(reduced)vel=[0,0]};
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
-cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(3,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
+cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars"||VIEW==="fight")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(3,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
 cv.addEventListener("keydown",e=>{
+  if(VIEW==="fight")return;
   if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-MW,ArrowDown:MW}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
     if(n>=0&&n<MW*MH&&!((mv===1&&p%MW===MW-1)||(mv===-1&&p%MW===0))){const q=pathTo(n);if(q)PATH=q}}return}
   if(VIEW==="stars"&&ATL.open){const n=atlSys().worlds.length,mv={ArrowLeft:-1,ArrowRight:1}[e.key];if(mv){e.preventDefault();ATL.w=(ATL.w+mv+n)%n;dirty=true}
@@ -1977,7 +3678,7 @@ function renderPanel(){
   // a new subject (view, tile, card, world) starts at the top of the drawer; the same subject keeps its scroll
   const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:""].join("|");
   if(subj!==lastSubject){lastSubject=subj;const d=$("drawer");if(d)d.scrollTop=0}
-  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="map"&&S.exp?mapHTML():showPeople?peopleHTML():VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
+  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?peopleHTML():VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
   $("goal").innerHTML=g?"<span>Goal: "+g.text+"</span><b>"+Math.min(g.p()[0],g.p()[1])+" / "+g.p()[1]+"</b>":"<span>Every goal met. The world remembers your lights.</span><b>✓</b>";
@@ -1987,6 +3688,9 @@ function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;doAct(b.dataset.act);renderPanel()});
 function doAct(a){
   if(a.startsWith("atl:")){atlAct(a.slice(4));return}
+  if(a==="play"){threatFight("play");return}if(a==="fauto"){if(FIGHT)PUP.hand(FIGHT.g,0,FIGHT.lvYou);dirty=true;return}if(a==="fquit"){fightGiveUp();return}
+  if(a==="fw"){const ws=fightWeapons();S.fw=ws[(ws.indexOf(fightWeapon())+1)%ws.length];dirty=true;return}
+  if(a==="sfight"){spaceFight("play");return}if(a==="squick"){spaceFight("quick");return}if(a==="spay"){spacePay();return}   // puppet fights
   if(a.startsWith("xd:"))shipAct(a.slice(3));else if(a.startsWith("xc:"))shipAct("c:"+a.slice(3));else if(a==="xr:+")shipAct("r+");else if(a==="xr:-")shipAct("r-");
   else if(a==="xlaunch")launchExp();else if(a==="land")landAt(sel);else if(a==="xexplore"||a==="xwalk")startAwayExp(VIEW==="away"&&S.x&&a==="xwalk"&&sel<0?S.x.site:sel);
   else if(a==="flyhome")flyHome();else if(a.startsWith("dump:"))dumpHold(a.slice(5));
@@ -2010,23 +3714,24 @@ bindReset();
 
 const fmt=v=>v>=1e4?(v/1e3).toFixed(1)+"k":Math.floor(v).toString();
 const rate=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(2)+"/s";
-let lastPop=-1,wasDigging=false,lastPadSig="";
+let lastPop=-1,wasDigging=false,lastPadSig="",lastFSig="";
 document.getElementById("alert").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b)return;const a=b.dataset.act;
-  if(a==="hide")hideAll();else if(a==="quota")payQuota();else if(a==="release")releaseDetained();$("alert").dataset.sig="";hud()});
+  if(a==="hide")hideAll();else if(a==="quota")payQuota();else if(a==="release")releaseDetained();else doAct(a);$("alert").dataset.sig="";dirty=true;hud()});
 document.getElementById("people-chip").onclick=()=>{showPeople=!showPeople;dirty=true};
 function hud(){
   $("r-scrap").textContent=fmt(S.res.scrap);$("r-water").textContent=fmt(S.res.water);$("r-food").textContent=fmt(S.res.food);
   for(const[k,v]of[["scrap",E.sc],["water",E.wa],["food",E.fo]]){const el=$("d-"+k),have=S.res[k];
     let txt=rate(v);if(v<0&&have>0){const s=have/-v;txt+=" · "+(s>=3600?Math.floor(s/3600)+"h":s>=60?Math.floor(s/60)+"m":Math.ceil(s)+"s")+" left"}else if(v<0)txt="empty";else if(have>=E.store-.5)txt="full · "+E.store;
     el.textContent=txt;el.className=v<0?"neg":""}
-  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below";
+  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight";
   $("r-pop").textContent=S.pop+" / "+E.cap;
   const unstaffed=E.needStaff-E.st.size,dp=$("d-pop");dp.textContent=S.exp&&!S.exp.away?XC.squad+" out exploring":S.wounded>0?"squad resting":unstaffed>0?unstaffed+" job"+(unstaffed>1?"s":"")+" empty":
     S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";dp.className=unstaffed>0?"neg":"";
   $("clock").innerHTML=(S.world?WORLDS[Math.min(S.world,WORLDS.length-1)].name+" · ":"")+"Day <b>"+day()+"</b> · "+partOfDay()+(S.x?" · "+xShort():"")+(republicHere()&&S.h.secret?" · suspicion <b"+(S.h.susp>=50?' class="hot"':"")+">"+Math.round(S.h.susp)+"</b>":"");
   const al=alertText(),ab=$("alert");if(al){const sig=al.t+al.b.map(x=>x[0]).join();if(ab.dataset.sig!==sig){ab.dataset.sig=sig;ab.innerHTML="<span>"+al.t+"</span>"+al.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+x[1]+"</span></button>").join("")}ab.hidden=false}else ab.hidden=true;
   const tl=VIEW==="map"&&S.exp?xThreatsLeft(S.exp.i):0;
-  $("legend").textContent=VIEW==="map"&&S.exp?(S.exp.cave?"In the cave · ":S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
+  if(VIEW==="fight"&&FIGHT){const sig=FIGHT.g.wins.join()+FIGHT.g.f[0].ctl;if(sig!==lastFSig){lastFSig=sig;dirty=true}}
+  $("legend").textContent=VIEW==="fight"&&FIGHT?(FIGHT.kind==="space"?"Space battle":"Fight")+" · "+PUP.WPN[FIGHT.wk].name.toLowerCase()+" · pop them "+FIGHT.g.needs[0]+"× before they pop you "+FIGHT.g.needs[1]+"×":VIEW==="map"&&S.exp?(S.exp.cave?"In the cave · ":S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
     VIEW==="stars"&&ATL.open?"Library atlas · "+atlSys().star.name+" · "+atlSys().galaxy.name:
     VIEW==="stars"?"The Ashen system"+(S.x?" · "+xShort():"")+" · codex "+S.codex.found.length:
     VIEW==="away"&&S.x?(S.x.phase==="orbit"?"In orbit over "+XWORLDS[S.x.w].name+" · tap a tile to land":XWORLDS[S.x.w].name+" · "+S.x.steps+" steps of rations · hold "+Math.floor(holdUsed())+"/"+S.x.cap):VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand:S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
@@ -2051,13 +3756,14 @@ function frame(now){
   if(gap>1)catchUp(gap);else{if(!S.h.crack)step(gap);if(!document.hidden)tickActive(gap);tickCrack(gap)}
   if(VIEW==="map"){stepT+=Math.min(gap,.5);while(stepT>.13){stepT-=.13;stepOnce()}}
   else if(VIEW==="below"||VIEW==="stars"){}
+  else if(VIEW==="fight")fightTick(gap);
   else if(focus!==null){const p=applyM(R,T[focus].c),ax=cross(p,[0,0,1]),s=Math.hypot(ax[0],ax[1],ax[2]);
     if(s<1e-3&&p[2]>0)focus=null;else{const ang=Math.atan2(s,p[2]);R=orthonorm(mul(rot(s<1e-6?[0,1,0]:norm(ax),ang*Math.min(1,gap*6)),R))}}
   else if(ptrs.size===0&&!reduced){
     if(Math.abs(vel[0])+Math.abs(vel[1])>.05){spin(vel[0],vel[1]);vel[0]*=.92;vel[1]*=.92}
     else if(now-lastTouch>6000)R=orthonorm(mul(rot([0,1,0],gap*.05),R));
   }
-  if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="stars")drawStars(now);else draw(now);
+  if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="stars")drawStars(now);else if(VIEW==="fight")drawFight(gap);else draw(now);
   hudT+=gap;if(hudT>.25){hudT=0;hud()}
   if(dirty){dirty=false;renderPanel()}
   saveT+=gap;if(saveT>5){saveT=0;save()}
@@ -2081,7 +3787,8 @@ function start(data){
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
       atlas:{chart:chartSystem,page:libPage,names:libNames,code:atlCode,fromCode:atlFromCode,galaxy,tiles:worldTiles,act:a=>{atlAct(a);renderPanel()},ui:()=>ATL,LIB,GLYPHS,SKIND,WKIND,nameOk:libNameOk,hash:libHash,rng:libRng,fix:fixAtlas},
-      ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="stars")drawStars(n);else draw(n)}}};
+      ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="stars")drawStars(n);else if(VIEW==="fight")drawFight(1/60);else draw(n)},
+      fight:{state:()=>FIGHT,tick:t=>fightTick(t),PUP,lookOf,fightLevels,threatFight,spaceFight,spaceRoll:()=>S.x&&spaceRoll(S.x),SPACE_FOES,FOE_LOOK}}};
   last=performance.now();requestAnimationFrame(frame);
   const sp=$("splash"),hadSave=!!loadSaved();
   try{if(new URLSearchParams(location.search).get("from")==="archives")$("to-archives").hidden=false}catch(e){}

@@ -37,6 +37,7 @@ export function boot(storage = new Map()) {
     setTimeout: () => 0, clearTimeout: noop,
     performance: { now: () => 1000 }, location: { search: '' }, URLSearchParams, devicePixelRatio: 1,
     console, Math, JSON, Date, Map, Set, Array, Object, Number, String, Boolean, Error, Proxy,
+    addEventListener: noop, removeEventListener: noop,   // (the fight keys listen on the window)
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
