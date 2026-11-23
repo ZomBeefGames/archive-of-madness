@@ -484,9 +484,9 @@ function econ(){
   // (4) powered rooms below by priority (water/bunks, food, workshop, the rest). A room that can't get
   // power or a worker pauses; its worker stays free. People out on a squad don't work.
   const SF=CFG.surface,U=S.unl;let sc=CFG.bunker.scrap,wa=0,fo=0,cap=CFG.bunker.cap,store=CFG.store,towers=0,need=0,dem=0,gens=0,med=false,radio=false;
-  let free=Math.max(0,S.pop-(S.exp&&!S.exp.away?XC.squad:0)),pw=S.hatch?CFG.bunker.power+(U.vent?1:0):0;
+  let free=Math.max(0,S.pop-(S.exp&&!S.exp.away?XC.squad:0)-tideDryN()),pw=S.hatch?CFG.bunker.power+(U.vent?1:0):0;
   const st=new Set(),on=new Set(),paused=new Map(),pend=[];
-  const ART=k=>!!(S.arts&&S.arts.includes(k)),grow=ART("seed")?1.2:1;   // rare artifacts found and brought home (slice 2)
+  const ART=k=>!!(S.arts&&S.arts.includes(k)),grow=(ART("seed")?1.2:1)*(U.tidegarden?1.25:1);   // rare artifacts found and brought home (slice 2)
   const genSup=RC.gen.supply+(U.geo?1:0)+(ART("ember")?1:0)+(hasBp("gen2")?2:0),powOf=room=>room==="hydro"?RC.hydro.power+(U.coldhydro?.5:0):RC[room].power;
   const jobs=[],take=id=>{need++;if(free>0){free--;st.add(id);jobs.push(id);return true}return false};
   const order=S.order.map((id,ix)=>[id,ix]),ugRoom=id=>typeof id==="string"&&S.ug[id.slice(2)]?S.ug[id.slice(2)].room:null;
@@ -507,12 +507,12 @@ function econ(){
   let siloRunning=false;const sj=S.h.silo.job;
   if(sj&&S.h.silo.power&&!S.h.sealed&&!sj.stashed&&!S.h.crack){const sp=HV.silo.find(p=>p.key===sj.key);if(free>=sp.workers&&pw-dem>=sp.power-1e-9){free-=sp.workers;dem+=sp.power;siloRunning=true}}
   // people: the squad goes out first (scavengers preferred), then each job gets the best-matching free person
-  const pool=S.people.slice(),squad=[],who=new Map(),jobOf=new Map(),bonus=new Map();
+  const pool=S.people.filter(p=>!(p.kin==="tide"&&S.res.water<TIDE.dry)),squad=[],who=new Map(),jobOf=new Map(),bonus=new Map();
   if(S.exp&&!S.exp.away){pool.sort((a,b)=>((b.sk==="scav")*b.lv-(a.sk==="scav")*a.lv)||a.id-b.id);for(let j=0;j<XC.squad&&pool.length;j++)squad.push(pool.shift());pool.sort((a,b)=>a.id-b.id)}
   const org=S.people.some(p=>p.tr==="organizer"&&!squad.includes(p));
   for(const id of jobs){if(!pool.length)break;const need=JOB_SKILL[typeof id==="number"?S.bld[id]:id.startsWith("pad2:")?"pad":ugRoom(id)];
     let bi=0,bs=-1;pool.forEach((p,j)=>{const sc=(p.sk===need?p.lv:0)*10+(p.tr==="tinkerer"?1:0);if(sc>bs){bs=sc;bi=j}});
-    const p=pool.splice(bi,1)[0];who.set(id,p);jobOf.set(p.id,id);bonus.set(id,1+(p.sk===need?.1*p.lv:0)+(p.tr==="tinkerer"?.1:0)+(org?.05:0))}
+    const p=pool.splice(bi,1)[0];who.set(id,p);jobOf.set(p.id,id);bonus.set(id,1+(p.sk===need?.1*p.lv:0)+(p.tr==="tinkerer"?.1:0)+(org?.05:0)+(p.kin==="tide"&&need==="grow"?TIDE.growBonus:0))}
   const pb=id=>bonus.get(id)||1;
   let fuelRate=0;const tanks=Object.values(S.bld).filter(b=>b==="tank").length,fuelCap=tanks*CFG.space.tankCap;
   for(const k in S.bld){const id=+k,b=S.bld[k];
@@ -530,7 +530,7 @@ function econ(){
     else if(room==="pump")wa+=(cell.f==="aquifer"?RC.pump.aquifer:RC.pump.water)*m*(U.filters?1.25:1)*(hasBp("deeppump")?1.5:1);else if(room==="algae"){fo+=RC.algae.food*m*grow*pm*(hasBp("vats")?2:1);wa-=RC.algae.water}else if(room==="med")med=true;else if(room==="radio")radio=true;else if(room==="lab")rsr+=.5*m}
   if(dem>0)sc-=RC.gen.burn*gens*(hasBp("gen2")?.7:1);
   const eat=EAT*S.pop,frozen=nFrz*(hasBp("seals")?350:RC.freezer.keep),spoil=Math.max(0,S.res.food-TEMP.cellar-frozen)*TEMP.spoil*(hasBp("preserve")?.5:1);
-  return{rsRate:smartRate()*(1+rsr),labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1),fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
+  return{rsRate:smartRate()*(1+rsr),labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1)-tideHome().length*EAT*TIDE.drink,fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
 }
 let E;
 function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
@@ -545,7 +545,7 @@ function step(dt,quiet){
   if(E.fuelRate)S.k.fuel=Math.min(E.fuelCap,S.k.fuel+E.fuelRate*dt);
   if(E.siloRunning&&S.h.silo.job){S.h.silo.job.left-=dt;if(S.h.silo.job.left<=0){const k=S.h.silo.job.key;S.h.silo.parts[k]=true;S.h.silo.job=null;if(!quiet)say("Fitted: "+HV.silo.find(p=>p.key===k).name.toLowerCase()+".");dirty=true}}
   if(S.k.flight){S.k.flight.t+=dt;if(S.k.flight.t>=CFG.space.flightSecs)resolveFlight(quiet);else if(!quiet)dirty=true}
-  if(S.x)tickExp(dt,quiet);
+  if(S.x)tickExp(dt,quiet);tickTide(dt,quiet);
   if(!S.k.ping&&towerOn()&&spiresOwned()>=1){S.k.ping=true;if(!quiet){say("The radio tower picks up a weak, repeating ping from orbit: Kestrel Station is calling for help.");toast("Kestrel Station is calling. Tap the station in orbit to see what it will take to reach it.")}}
   if(S.wounded>0)S.wounded=Math.max(0,S.wounded-dt*(1+(E.med?1:0)+(S.unl.ambulance?1:0))*(hasBp("medics")?2:1));
   if(S.dig){S.dig.left-=dt;if(S.dig.left<=0){const k=S.dig.k;S.dig=null;finishDig(k,quiet)}}
@@ -665,7 +665,7 @@ function draw(now){
   const cx=W/2,cy=H/2,r=radius();
   // which planet: home, or the world the expedition is on (same 642-tile geometry, its own land and state)
   const AW=VIEW==="away"&&!!S.x,TT=AW?awayTiles(S.x.w):T,XWD=AW?xw(S.x.w):null,SEEN=AW?{has:()=>true}:S.seen,OWN=AW?{has:i=>!!XWD.charted[i]}:S.owned,
-    BLDS=AW?(S.x.site>=0?{[S.x.site]:"ship"}:{}):S.bld,MP=AW?XWD.maps:S.maps,LMOF=AW?(i=>{const s=aSite(S.x.w,i);return s&&s.got?s:null}):landmarkOf;
+    BLDS=AW?tideBlds():S.bld,MP=AW?XWD.maps:S.maps,LMOF=AW?(i=>{const s=aSite(S.x.w,i);return s&&s.got?s:null}):landmarkOf;
   // stars
   for(const s of stars){const a=.25+.35*s.s+(reduced?0:.15*Math.sin(now/900+s.p));ctx.fillStyle="rgba(232,220,194,"+a.toFixed(3)+")";const z=(s.s>.92?2:1)*DPR;ctx.fillRect(s.x*W,s.y*H,z,z)}
   // ash haze around the rim
@@ -709,9 +709,9 @@ function draw(now){
     if(BLDS[i])obs.push([z,BLDS[i],x,y,s,a,dl,i,1]);else if(T[i].pent&&SEEN.has(i))obs.push([z,"spire",x,y,s*.9,a,dl,i,OWN.has(i)?1:.8]);
     else if(MP[i]&&OWN.has(i)&&LMOF(i))obs.push([z,"flag",x,y,s,a,dl,i,1]);
     else if(MP[i]&&!OWN.has(i)){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(x,y,Math.max(1.5*DPR,s*.22),0,6.2832);ctx.fill()}}
-  if(!AW)walkers(vis,cx,cy,r,tr,now,obs);   // people out on your tiles (the WALK block)
-  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs){if(o[1]==="_w")drawWalker(o,now);else if(o[1]==="_f")wkFire(o,now);else model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
-  if(!AW)walkAfter(now,cx,cy,r,tr)}
+  walkers(vis,cx,cy,r,tr,now,obs,AW);   // people out on your tiles (the WALK block)
+  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs){if(o[1]==="_w")drawWalker(o,now);else if(o[1]==="_f")wkFire(o,now);else if(o[1]==="village"||o[1]==="outpost")tideModel(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7]);else model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
+  walkAfter(now,cx,cy,r,tr)}
   drawOrbits(true,cx,cy,r,now);if(!AW)drawFlight(cx,cy,r,now);
   if(ck){const p=applyM(R,T[START].c),a=1+Math.max(0,cp-.35)*1.4,x=cx+p[0]*r*a,y=cy-p[1]*r*a;if(p[2]>-.2){ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.arc(x,y,5*DPR,0,6.2832);ctx.fill();ctx.stroke()}
     if(cp>.8){ctx.fillStyle="rgba(255,236,200,"+((cp-.8)*5).toFixed(2)+")";ctx.fillRect(0,0,W,H)}}
@@ -793,7 +793,7 @@ function newPerson(id){const n=NAMES.length,used=new Set(S.people.concat(S.x?S.x
 function reconcile(){const P=S.people;let added=null;while(P.length<S.pop){const p=newPerson(S.k.nextPid++);P.push(p);added=p}
   while(P.length>S.pop){let ix=-1;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"&&!(P[j].iq>0)){ix=j;break}if(ix<0)for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}P.splice(ix<0?P.length-1:ix,1)}return added}
 function leaveOne(){let ix=-1;const P=S.people;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"&&!(P[j].iq>0)){ix=j;break}if(ix<0)for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}if(ix<0)ix=P.length-1;const p=P.splice(ix,1)[0];S.pop=P.length;return p}
-const personLine=p=>PUP.faceSVG(lookOf(p),20)+"<b>"+p.name+"</b> · "+SKILL[p.sk]+" "+p.lv+" · "+TRAIT[p.tr].name;
+const personLine=p=>PUP.faceSVG(lookOf(p),20)+"<b>"+p.name+"</b> · "+SKILL[p.sk]+" "+p.lv+" · "+TRAIT[p.tr].name+(p.kin==="tide"?" · Tidefolk":"");
 function jobName(id){if(typeof id==="number")return BLD[S.bld[id]]?BLD[S.bld[id]].name.toLowerCase()+" (tile "+id+")":"a job";
   if(id.startsWith("pad2:"))return"the launch pad (tile "+id.slice(5)+")";const c=S.ug[id.slice(2)];return c&&c.room?ROOM[c.room].name.toLowerCase()+" below":"a job"}
 function workerNote(id){const p=E.who.get(id);if(!p)return"";const need=JOB_SKILL[typeof id==="number"?S.bld[id]:(S.ug[id.slice(2)]||{}).room];
@@ -851,7 +851,7 @@ function stagesHTML(){return'<div class="plist">'+kestrelStages().map(s=>'<div c
 function padHTML(){const ms=mission();let h="";
   if(S.k.flight){const f=S.k.flight;return'<p class="meta">T+'+Math.floor(f.t)+" s</p><p><b>"+flightStage(f)+"</b></p><p>Watch the planet: the rocket is climbing out of the pad.</p>"}
   if(ms==="crew")return"<p>Lantern-2 is back and Kestrel is waking up. A crewed ascent comes next: capsule, life support, docking.</p>";
-  if(ms==="exped")return expHTML();
+  if(ms==="exped")return tideRouteHTML()+expHTML();
   if(!hasFuelChain())h+="<p><b>No fuel yet.</b> Fit an Electrolysis Plant in the bunker and build a Fuel Tank on the surface.</p>";
   const d=S.k.design,r=rocket(d,ms),P=SP.parts;
   h+="<p>Mission: <b>"+(ms==="scout"?"Kestrel Scout: put a probe in orbit":"Rescue: carry a repair arm up to Lantern-2")+"</b>."+(S.k.tele?" Telemetry from "+S.k.tele+" lost rocket"+(S.k.tele>1?"s":"")+" makes engines "+5*Math.min(4,S.k.tele)+"% better.":"")+"</p>";
@@ -1417,6 +1417,9 @@ function wkSteps(m,B,night){const i=m.i,h=k=>h3(i,k,97+m.slot*13+(m.p.id|0)%7),s
     case"idle":{const sp=[[-.74,.62],[-.1,.88],[.68,.72],[.38,.4],[-.44,.42],[.22,.66]],a=sp[(m.slot+(h(4)*6|0))%6],b=sp[(m.slot*2+1+(h(5)*6|0))%6];
       const seat=WK_SEATS[m.slot%6],fs=seat[0]<WK_PIT[0]?1:-1;
       return[[go*1.3,a,b,"","",0],[3+3*h(6),b,b,h(7)<.3?"wave":"","",h(8)<.5?-1:1],[go*1.2,b,seat,"","",0],[6+5*h(9),seat,seat,"sit","",fs],[go*1.2,seat,a,"","",0],[2+2*h(10),a,a,"","",h(11)<.5?-1:1]]}
+    case"tide":{const A=awayTiles("mire"),sea=T[i].n.find(j=>A[j].b==="msea"),Wt=sea!==undefined&&B?wkToward(i,sea,B,.8):[side*.7,.76],D=[[-.62,.5],[.02,.8],[.6,.56]][m.slot%3],Hm=[[-.2,.86],[.5,.82],[-.5,.72]][m.slot%3];   // a Tidefolk day: fish at the water, carry it up, talk
+      return[[go,D,Wt,"","",0],[4,Wt,Wt,"fill","",Wt[0]>=D[0]?1:-1],[go,Wt,D,"carry","food",0],[2.6,D,D,m.slot===0?"wave":"","",side],[go*.8,D,Hm,"","",0],[2.2,Hm,Hm,"","",-side],[go*.8,Hm,D,"","",0]]}
+    case"crew":{const a=[-.56,.7],b=[.56,.72],c=[.02,.9];return[[go,a,b,"","",0],[2.5,b,b,"point","",1],[go,b,c,"","",0],[2,c,c,"","",-1],[go,c,a,"","",0],[2,a,a,"radio","",-1]]}
     case"squad":{const L=[],K=6;for(let q=0;q<K;q++){const t0=q/K*6.2832,t1=(q+1)/K*6.2832;L.push([go,[.74*Math.cos(t0),.1+.58*Math.sin(t0)],[.74*Math.cos(t1),.1+.58*Math.sin(t1)],q===0&&m.slot===0?"point":"","",0])}return L}
     default:{const A=[.34,.58],Cq=[-.4,.66];return[[4,A,A,"hammer","",-1],[go,A,Cq,"","",0],[3,Cq,Cq,"","",1],[go,Cq,A,"","",0]]}}}
 // where one person is right now: a tile-local spot (with what they are doing), or a point on the walk home
@@ -1442,10 +1445,10 @@ function wkTrip(path,x,act,item,m,stop,back){const k=Math.min(path.length-2,Math
   return{w,dir:back?[-d[0],-d[1],-d[2]]:d,act,item,walk:!stop,f:0}}
 // called from draw(): put everyone visible into the same far-to-near list as the buildings
 let WK_SHOWN=[];
-function walkers(vis,cx,cy,r,tr,now,obs){WK_SHOWN=[];if(!E||!S.people.length)return;
+function walkers(vis,cx,cy,r,tr,now,obs,AW){WK_SHOWN=[];if(!E)return;const list=AW?wkAway():wkCrew();if(!list.length)return;   // (away: the Tidefolk village and the crew by the ship)
   const V=new Map();for(let v=0;v<vis.length;v+=3)V.set(vis[v],v);
   const t=now/1000,rx=[R[0],R[1],R[2]],ry=[R[3],R[4],R[5]],rz=[R[6],R[7],R[8]],BS=new Map();
-  for(const m of wkCrew()){const vi=V.get(m.i);
+  for(const m of list){const vi=V.get(m.i);
     const night=vis.length&&vi!==undefined?vis[vi+2]<.3:sunAt(S.t)&&dot(T[m.i].c,sunAt(S.t))<-.05;
     let B=BS.get(m.i);if(B===undefined){B=vi!==undefined?wkBasis(T[m.i].c):null;BS.set(m.i,B)}
     const P=wkWhere(m,B,night,t);let w,tz,dl;
@@ -1456,7 +1459,7 @@ function walkers(vis,cx,cy,r,tr,now,obs){WK_SHOWN=[];if(!E||!S.people.length)ret
     let f=P.f;if(!f&&P.dir){const dx=wkDot(rx,P.dir);f=dx>=0?1:-1}if(!f)f=1;
     const zt=vi!==undefined&&!P.w?vis[vi+1]:tz,key=zt+(P.w?0:(y-(cy-wkDot(ry,T[m.i].c)*r)-tr*.2)/r*.02);
     const o=[key,"_w",x,y,s,gLean(nx),dl,m.i,1,{m,act:P.act,item:P.item,f,walk:P.walk}];obs.push(o);WK_SHOWN.push(o)}
-  const vs=V.get(START),idle=WK_SHOWN.find(o=>o[9].m.job==="idle");
+  const vs=AW?undefined:V.get(START),idle=WK_SHOWN.find(o=>o[9].m.job==="idle");
   if(vs!==undefined&&idle){const B=wkBasis(T[START].c);if(B){const c=T[START].c,k=WK.rho,u=WK_PIT[0],v=WK_PIT[1];let w=[c[0]+k*(u*B[0][0]+v*B[1][0]),c[1]+k*(u*B[0][1]+v*B[1][1]),c[2]+k*(u*B[0][2]+v*B[1][2])];
     const l=Math.hypot(w[0],w[1],w[2]);w=[w[0]/l,w[1]/l,w[2]/l];const nx=wkDot(rx,w),x=cx+nx*r,y=cy-wkDot(ry,w)*r;
     obs.push([vis[vs+1]+(y-(cy-wkDot(ry,T[START].c)*r)-tr*.2)/r*.02-1e-5,"_f",x,y,idle[4]*.5,gLean(nx),vis[vs+2],START,1,null])}}}
@@ -1483,10 +1486,148 @@ function walkAfter(now,cx,cy,r,tr){if(!WK_SHOWN.length)return;const t=now/1000;
     const g=ctx.createRadialGradient(x,y,0,x,y,rr);g.addColorStop(0,"rgba(255,190,110,"+a.toFixed(3)+")");g.addColorStop(1,"rgba(255,190,110,0)");ctx.fillStyle=g;ctx.fillRect(x-rr,y-rr,rr*2,rr*2)}
   ctx.globalCompositeOperation="source-over";
   if(sel<0)return;const fs=Math.max(9*DPR,Math.min(13*DPR,tr*.18));ctx.font="600 "+Math.round(fs)+"px ui-monospace,Menlo,monospace";ctx.textAlign="center";ctx.textBaseline="bottom";ctx.lineJoin="round";
-  for(const o of WK_SHOWN){if(o[7]!==sel||o[4]<WK.tiny*DPR)continue;const nm=String(o[9].m.p.name||"");if(!nm)continue;const x=o[2],y=o[3]-o[4]*1.12;
+  const boxes=[];
+  for(const o of WK_SHOWN){if(o[7]!==sel||o[4]<WK.tiny*DPR)continue;const nm=String(o[9].m.p.name||"");if(!nm)continue;const x=o[2],tw=ctx.measureText(nm).width/2+2*DPR;let y=o[3]-o[4]*1.12;
+    for(let n=0;n<4&&boxes.some(b=>Math.abs(b[0]-x)<b[2]+tw&&Math.abs(b[1]-y)<fs);n++)y-=fs;boxes.push([x,y,tw]);
     ctx.lineWidth=Math.max(2,fs*.3);ctx.strokeStyle="rgba(14,11,8,.85)";ctx.strokeText(nm,x,y);ctx.fillStyle="#efe2c4";ctx.fillText(nm,x,y)}
   ctx.textAlign="start";ctx.textBaseline="alphabetic"}
 // ==== WALK (end) ====
+// ==== TIDE (start) ====
+// Slice 3, first contact and the first route. The Tidefolk live in a stilt village on a reed shore of Mirewater.
+// Gifts left by their tracks lead you there; at the village you trade from the ship's hold (they have no metal and
+// want it), they come to trust you (wary, curious, friendly, kin), teach you tide gardening, and a grower may come
+// home with you (they drink double water and stop work when water runs low, but grow food half again as fast).
+// Build an outpost on Mirewater and it gathers on its own; a hauler (a second, uncrewed ship) flies the route home
+// and back by itself, carrying the outpost's stock and, if you like, scrap out to trade with the Tidefolk for food.
+// State: S.xw.mire.tide, S.xw.mire.out and S.xs.haul, all saved with the rest and read through tideOf/outOf/haulOf.
+const TIDE={gift:5,deal:15,dealGet:26,dealStep:8,recipe:30,trustDeal:.34,trustGift:.75,dry:20,drink:1,growBonus:.5,
+  out:{cost:40,cap:150,tideFood:.06,rate:{reeds:{water:.15},spore:{food:.12},shell:{scrap:.12},bog:{water:.08,scrap:.06},spire:{scrap:.15}}},
+  haul:{cost:250,fuel:30,cap:60,load:6,dock:8,give:20},
+  names:["Ush","Kelle","Oru","Tamsa","Wenn","Ilo","Sava","Brin","Aym","Teo"],words:["wary","curious","friendly","kin"]};
+const TIDE_LOOK={name:"TIDEFOLK",col:"#5cc0a8",hat:"fin",big:1};
+const TIDE_TXT=["Tall, thin people with webbed hands and gills along the neck watch from stilt houses over the black water. Nobody comes down. A gift might help.",
+  "The Tidefolk come down to the water's edge to look at you. They talk in clicks and hand signs, and they want metal: they have none at all.",
+  "Children run along the walkways to see the crew. The elders trade freely now, and their growers are curious about your world.",
+  "They call your crew by name, in clicks. Your people are welcome here, and so is anything you send."];
+const tideWord=t=>TIDE.words[Math.min(3,Math.floor(t))];
+const R3=["scrap","water","food"],stockTxt=o=>{const p=R3.filter(k=>o[k]>=1).map(k=>Math.floor(o[k])+" "+k);return p.length?p.join(", "):"nothing yet"};
+// where they live: three steps from the likeliest landing ground, on a reed or shell shore
+let TIDE_I=null;
+function tideTile(){if(TIDE_I!==null)return TIDE_I;const A=awayTiles("mire");let hub=0,hs=-1;
+  A.forEach((t,i)=>{if(t.b==="msea"||t.pent||Math.abs(t.c[1])>.6)return;let s=0;for(const j of ring([i],2))if(A[j].b!=="msea")s++;if(s>hs){hs=s;hub=i}});
+  const d2=ring([hub],2),d3=[...ring([hub],3)].filter(i=>!d2.has(i)),ok=i=>A[i].b!=="msea"&&!A[i].pent;
+  let pick=d3.filter(i=>ok(i)&&(A[i].b==="reeds"||A[i].b==="shell")&&A[i].coast);if(!pick.length)pick=d3.filter(i=>ok(i)&&A[i].coast);if(!pick.length)pick=d3.filter(ok);if(!pick.length)pick=[hub];
+  pick.sort((a,b)=>h3(a,7,13)-h3(b,7,13));return TIDE_I=pick[0]}
+function tideOf(){const w=xw("mire");let t=w.tide;if(!t||typeof t!=="object")t=w.tide={};t.met=!!t.met;t.seen=!!t.seen;t.trust=Math.max(0,Math.min(3,+t.trust||0));t.deals|=0;t.joined|=0;return t}
+function outOf(){const w=xw("mire"),o=w.out;if(!o||typeof o!=="object"||!Number.isInteger(o.i)||o.i<0||o.i>=T.length){if(w.out)delete w.out;return null}
+  if(!o.stock||typeof o.stock!=="object")o.stock={};for(const k of R3)o.stock[k]=Math.max(0,+o.stock[k]||0);return o}
+function haulOf(){const h=S.xs&&S.xs.haul;if(!h||typeof h!=="object"||!h.built)return null;if(!["home","out","there","back"].includes(h.phase))h.phase="home";h.t=Math.max(0,+h.t||0);
+  if(!h.cargo||typeof h.cargo!=="object")h.cargo={};for(const k of R3)h.cargo[k]=Math.max(0,+h.cargo[k]||0);h.goods=Math.max(0,+h.goods||0);h.trips|=0;h.trade=h.trade!==false;h.note=typeof h.note==="string"?h.note:"";return h}
+const tideHome=()=>S.people.filter(p=>p.kin==="tide");
+const tideDryN=()=>S.res&&S.res.water<TIDE.dry?tideHome().length:0;   // econ: a dry Tidefolk doesn't work
+function tidePerson(){const id=S.k.nextPid++,used=new Set(S.people.concat(S.x?S.x.crew:[]).map(p=>p.name));
+  const name=TIDE.names.find(n=>!used.has(n))||TIDE.names[id%TIDE.names.length]+" "+String.fromCharCode(65+id%26)+".";
+  return{id,name,sk:"grow",lv:3,tr:Object.keys(TRAIT)[h3(id,2,61)*4|0],kin:"tide"}}
+// first contact: gifts by the tracks, then the village itself
+function tideGiftMsg(key){if(key!=="mire")return"You leave a ration pack on a flat stone by the tracks. By morning it is gone.";const t=tideOf();
+  if(!t.met){const first=!t.seen;t.seen=true;return first?"You leave a ration pack on a flat stone. By morning it is gone, and a string of green glass beads lies in its place. The webbed prints lead off toward a reed shore: a village is marked on your map.":"Another gift taken in the night. Glass beads again, and the prints lead to the same reed shore."}
+  return"You leave a ration pack by the tracks. The Tidefolk will know who it is from."}
+function tideMeet(){const t=tideOf(),w=xw("mire");if(t.met)return;t.met=true;t.seen=true;t.trust=Math.max(t.trust,Math.min(1.5,(w.gifts|0)*.75));
+  say(t.trust>=1?"First contact. The Tidefolk come down from their stilt houses to meet you. They know your gifts.":"First contact. Tall, webbed people watch you from stilt houses over the black water. Nobody comes down.")}
+function tideCardHTML(){const t=tideOf(),x=S.x;if(!x)return"";const L=Math.floor(t.trust),get=TIDE.dealGet+TIDE.dealStep*L,full=x.cap-holdUsed()<XP.hold.unit,haveT=x.crew.some(p=>p.kin==="tide");
+  let h='<div class="meta">The Tidefolk · '+tideWord(t.trust)+'</div><div class="tile-h">Stilt houses over the black water</div><p>'+TIDE_TXT[Math.min(3,L)]+"</p>";
+  const a=[btn("tf:gift","Leave a gift",TIDE.gift+" steps of rations"+(t.trust<1?" · they might come down":" · they like you a little more"),null,t.trust<1?"primary":"",x.steps<TIDE.gift)];
+  if(t.trust>=1){a.push(btn("tf:food","Trade "+TIDE.deal+" scrap for "+get+" food","From the hold · "+Math.floor(x.hold.scrap)+" scrap aboard",null,"primary",x.hold.scrap<TIDE.deal),btn("tf:water","Trade "+TIDE.deal+" scrap for "+get+" water","From the hold",null,"",x.hold.scrap<TIDE.deal))}
+  if(t.trust>=2&&!S.codex.found.includes("tidegarden")&&!x.notes.includes("tidegarden"))a.push(btn("tf:recipe","Learn tide gardening",TIDE.recipe+" scrap from the hold · food grows 25% faster at home",null,"",x.hold.scrap<TIDE.recipe));
+  if(t.trust>=2)a.push(btn("tf:join","Ask a grower to come with you",haveT?"One is already aboard":full?"No room in the hold: leave something behind":"They ride home in the hold (one slot) · they need lots of water at your base",null,"",full||haveT));
+  else if(t.trust>=1)h+='<p class="meta">Trade with them or bring more gifts and they will trust you more. Friendly Tidefolk teach, and their growers travel.</p>';
+  a.push(btn("ok","Keep exploring","",null,""));return h+'<div class="acts">'+a.join("")+"</div>"}
+// the outpost: one per world for now, on charted land or where the ship stands
+function tideYield(i){const b=awayTiles("mire")[i].b,R=TIDE.out.rate[b]||{scrap:.08},p=Object.keys(R);return p.join(" and ")+(tideOf().trust>=1?", plus food the Tidefolk bring":"")}
+function tideOutHTML(i){const x=S.x;if(!x||x.w!=="mire"||x.phase!=="landed")return"";const o=outOf(),A=awayTiles("mire");
+  if(o&&o.i===i)return'<p><b>Your outpost.</b> It gathers '+tideYield(i)+". In stock: "+stockTxt(o.stock)+". "+(haulOf()?"The hauler collects it.":"Build a hauler at your launch pad and it comes home on its own.")+'</p><div class="acts">'+btn("tf:collect","Load the stock into the hold","What fits",null,"",holdUsed()>=x.cap||!R3.some(k=>o.stock[k]>=1))+"</div>";
+  if(o||i===tideTile()||A[i].b==="msea"||A[i].pent)return"";
+  return"<p>An outpost here would gather "+tideYield(i)+' while you are away.</p><div class="acts">'+btn("tf:outpost","Build an outpost",TIDE.out.cost+" scrap from the hold",null,"",x.hold.scrap<TIDE.out.cost)+"</div>"}
+function tideTileNote(i){if(!S.x||S.x.w!=="mire")return"";const t=tideOf();if(i===tideTile()&&(t.seen||t.met))return"<p><b>The Tidefolk village.</b> "+(t.met?"They are "+tideWord(t.trust)+". Walk in to trade.":"Webbed tracks lead here.")+"</p>";
+  const o=outOf();return o&&o.i===i?"<p><b>Your outpost</b> stands here.</p>":""}
+// the trade route: a hauler that flies to the outpost and back by itself
+function haulWhere(h){const tr=XWORLDS.mire.travel,left=Math.max(0,Math.ceil(tr-h.t));
+  return h.phase==="out"?"on its way to Mirewater, "+left+" s out":h.phase==="there"?"docked at your outpost, loading":h.phase==="back"?"on its way home, "+left+" s out":h.note==="fuel"?"on the pad, waiting for "+TIDE.haul.fuel+" fuel":h.note==="nopost"?"on the pad: there's no outpost to fly to":"on the pad, loading"}
+function tideRouteHTML(){if(S.world!==0)return"";const o=outOf(),h=haulOf(),t=tideOf();if(!o&&!h)return"";let s='<p class="meta">Trade route · Mirewater</p>';
+  if(!h)return s+"<p>Your outpost on Mirewater has "+stockTxt(o.stock)+' waiting. A hauler is a second ship, small and uncrewed, that flies there and back on its own.</p><div class="acts">'+btn("tf:haul","Build a hauler",TIDE.haul.cost+" scrap · then "+TIDE.haul.fuel+" fuel a trip",null,"primary",S.res.scrap<TIDE.haul.cost||padTile()<0)+"</div>";
+  s+="<p>The hauler is "+haulWhere(h)+". "+h.trips+" trip"+(h.trips===1?"":"s")+" so far."+(o?" At the outpost: "+stockTxt(o.stock)+".":"")+(R3.some(k=>h.cargo[k]>=1)?" Aboard: "+stockTxt(h.cargo)+".":"")+"</p>";
+  if(t.met)s+='<div class="acts">'+btn("tf:trade","Trade with the Tidefolk: "+(h.trade?"on":"off"),h.trade?TIDE.haul.give+" scrap out each trip, food back":"Tap to send scrap out for food",null,"")+"</div>";
+  return s}
+function tideStarsNote(){const t=tideOf(),o=outOf(),h=haulOf(),p=[];if(t.met)p.push("The Tidefolk are "+tideWord(t.trust)+".");else if(t.seen)p.push("Someone lives on a reed shore here.");
+  if(o)p.push("Your outpost has "+stockTxt(o.stock)+".");if(h)p.push("The hauler is "+haulWhere(h)+".");return p.length?"<p>"+p.join(" ")+"</p>":""}
+function tideAct(c){const x=S.x,t=tideOf();
+  if(c==="haul"){if(haulOf()||!outOf()||padTile()<0||S.res.scrap<TIDE.haul.cost)return;S.res.scrap-=TIDE.haul.cost;S.xs.haul={built:true,phase:"home",t:0,cargo:{},trips:0,trade:true};say("A hauler stands on the pad: small, uncrewed, and built for one route. It flies to your Mirewater outpost and back by itself.");dirty=true;save();return}
+  if(c==="trade"){const h=haulOf();if(h){h.trade=!h.trade;dirty=true;save()}return}
+  if(!x||x.w!=="mire")return;
+  if(c==="outpost"){const i=sel,w=xw("mire"),A=awayTiles("mire");if(x.phase!=="landed"||outOf()||i<0||A[i].b==="msea"||A[i].pent||i===tideTile()||!(w.charted[i]||i===x.site)||x.hold.scrap<TIDE.out.cost)return;
+    x.hold.scrap-=TIDE.out.cost;w.out={i,at:S.t,stock:{scrap:0,water:0,food:0}};say("The crew raises an outpost: a dome, a mast and a still. It gathers "+tideYield(i)+" from now on.");dirty=true;save();return}
+  if(c==="collect"){const o=outOf();if(!o)return;const got=[];for(const k of R3){const v=Math.floor(o.stock[k]);if(v<1)continue;const room=Math.max(0,x.cap-holdUsed()),take=Math.min(v,room);if(take<1)continue;x.hold[k]+=take;o.stock[k]-=take;got.push(take+" "+k)}
+    say(got.length?"Loaded from the outpost: "+got.join(", ")+".":"The hold is full.");dirty=true;save();return}
+  if(!CARD||CARD.kind!=="village")return;const e=S.exp,L=Math.floor(t.trust),get=TIDE.dealGet+TIDE.dealStep*L;
+  if(c==="gift"){if(x.steps<TIDE.gift)return;x.steps-=TIDE.gift;if(e&&e.sup>=0)e.sup=x.steps;xw("mire").gifts++;const was=t.trust;t.trust=Math.min(3,t.trust<1?Math.max(1,t.trust+TIDE.trustGift):t.trust+TIDE.trustGift*.5);
+    say(was<1?"You set a ration pack on the walkway and step back. A tall figure wades out, takes it, and beckons you up.":"They take the gift and press a cold, smooth stone into your hand.")}
+  else if(c==="food"||c==="water"){if(t.trust<1||x.hold.scrap<TIDE.deal)return;x.hold.scrap-=TIDE.deal;say(holdMsg("Traded "+TIDE.deal+" scrap",c,get));t.trust=Math.min(3,t.trust+TIDE.trustDeal);t.deals++}
+  else if(c==="recipe"){if(t.trust<2||x.hold.scrap<TIDE.recipe||x.notes.includes("tidegarden")||S.codex.found.includes("tidegarden"))return;x.hold.scrap-=TIDE.recipe;x.notes.push("tidegarden");say("An old grower shows the crew how they raise food on floating mats of reed, with no soil at all. It goes in the codex when you are home.")}
+  else if(c==="join"){if(t.trust<2||x.cap-holdUsed()<XP.hold.unit||x.crew.some(p=>p.kin==="tide"))return;const p=tidePerson();x.crew.push(p);x.cap-=XP.hold.unit;t.joined++;say(p.name+", a Tidefolk grower, curls up in the cargo hold for the ride. At the base they will need lots of water.")}
+  dirty=true;save()}
+// the clock: the outpost gathers, the hauler flies its route, and a dry Tidefolk is noticed
+function tickTide(dt,quiet){if(S.world!==0)return;const o=outOf();
+  if(o){const b=awayTiles("mire")[o.i].b,R=TIDE.out.rate[b]||{scrap:.08},cap=TIDE.out.cap,tot=()=>o.stock.scrap+o.stock.water+o.stock.food;
+    for(const k in R)o.stock[k]+=R[k]*dt;if(tideOf().trust>=1)o.stock.food+=TIDE.out.tideFood*dt;const s=tot();if(s>cap)for(const k of R3)o.stock[k]*=cap/s}
+  if(tideHome().length){const dry=S.res.water<TIDE.dry;if(dry&&!S.k.tideDry){S.k.tideDry=true;if(!quiet)say("The Tidefolk are drying out. They stop work until the base has water to spare.")}else if(!dry&&S.k.tideDry)S.k.tideDry=false}
+  const h=haulOf();if(!h)return;h.t+=dt;const tr=XWORLDS.mire.travel;
+  if(h.phase==="home"){if(h.t<TIDE.haul.load)return;if(!o){h.note="nopost";return}if(S.k.fuel<TIDE.haul.fuel){h.note="fuel";return}
+    S.k.fuel-=TIDE.haul.fuel;h.goods=0;if(h.trade&&tideOf().met&&S.res.scrap>=TIDE.haul.give){S.res.scrap-=TIDE.haul.give;h.goods=TIDE.haul.give}h.phase="out";h.t=0;h.note="";dirty=true}
+  else if(h.phase==="out"){if(h.t>=tr){h.phase="there";h.t=0}}
+  else if(h.phase==="there"){if(h.t<TIDE.haul.dock)return;let room=TIDE.haul.cap;
+    if(h.goods>0){const t=tideOf(),get=Math.min(room,TIDE.dealGet+TIDE.dealStep*Math.floor(t.trust));h.cargo.food+=get;room-=get;t.trust=Math.min(3,t.trust+.1);t.deals++;h.goods=0}
+    if(o&&room>0){const s=o.stock.scrap+o.stock.water+o.stock.food,f=s>room?room/s:1;for(const k of R3){const v=o.stock[k]*f;h.cargo[k]+=v;o.stock[k]-=v}}
+    h.phase="back";h.t=0}
+  else if(h.phase==="back"){if(h.t<tr)return;const store=E?E.store:CFG.store,got=[];for(const k of R3){const v=Math.floor(h.cargo[k]);if(v>0){S.res[k]=Math.min(store,S.res[k]+v);got.push(v+" "+k)}h.cargo[k]=0}
+    h.trips++;h.phase="home";h.t=0;if(!quiet)say("The hauler is home from Mirewater"+(got.length?" with "+got.join(", "):", empty")+".");dirty=true}}
+// on the Mirewater globe: the ship, your outpost, and the village once you know where it is
+function tideBlds(){const x=S.x,o={};if(!x)return o;if(x.site>=0)o[x.site]="ship";if(x.w==="mire"){const p=outOf(),t=tideOf();if(p&&!o[p.i])o[p.i]="outpost";if(t.seen||t.met)o[tideTile()]="village"}return o}
+// people on the Mirewater globe: villagers about their day, and the crew by the ship while it waits
+function wkAway(){const x=S.x,out=[];if(!x||x.w!=="mire")return out;const t=tideOf();
+  if(t.seen||t.met)for(let k=0;k<3;k++)out.push({p:{id:990001+k,name:TIDE.names[k],kin:"tide"},i:tideTile(),job:"tide",slot:k});
+  if(x.phase==="landed"&&x.site>=0&&!S.exp)x.crew.forEach((p,k)=>out.push({p,i:x.site,job:"crew",slot:k}));return out}
+function tideModel(type,x,y,s,a,lx,dl,now,i){ctx.save();ctx.translate(x,y);ctx.rotate(a);const D=.42+.58*dl,night=dl<.4,F=c=>col(c,D);if(type==="village")s*=1.3;
+  ctx.lineJoin="round";ctx.lineCap="round";ctx.lineWidth=Math.max(.8,s*.08);ctx.strokeStyle=INK;
+  ctx.fillStyle="rgba(8,6,4,"+(.28*D).toFixed(2)+")";ctx.beginPath();ctx.ellipse(0,s*.42,s*1.05,s*.24,0,0,6.2832);ctx.fill();
+  if(type==="village"){ctx.fillStyle=F([40,92,96]);ctx.beginPath();ctx.ellipse(0,s*.44,s*1.15,s*.2,0,0,6.2832);ctx.fill();   // black water under the houses
+    for(const[hx,hy,hs]of[[-.58,.02,.78],[.08,-.16,1],[.64,.06,.72]]){const w=s*.42*hs,h=s*.4*hs,X=hx*s,Y=hy*s;
+      ctx.beginPath();ctx.moveTo(X-w*.6,Y+h*.12);ctx.lineTo(X-w*.6,s*.46);ctx.moveTo(X+w*.6,Y+h*.12);ctx.lineTo(X+w*.6,s*.46);ctx.stroke();
+      ctx.fillStyle=F([158,134,98]);ctx.fillRect(X-w*.8,Y-h*.55,w*1.6,h*.68);ctx.strokeRect(X-w*.8,Y-h*.55,w*1.6,h*.68);
+      ctx.fillStyle=F([118,156,104]);ctx.beginPath();ctx.moveTo(X-w,Y-h*.5);ctx.lineTo(X,Y-h*1.4);ctx.lineTo(X+w,Y-h*.5);ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.fillStyle=night?"#ffcf7a":F([60,52,42]);ctx.fillRect(X-w*.18,Y-h*.4,w*.36,h*.3)}
+    ctx.strokeStyle=F([112,92,68]);ctx.lineWidth=Math.max(1,s*.07);ctx.beginPath();ctx.moveTo(-s*.58,s*.16);ctx.lineTo(s*.64,s*.2);ctx.stroke();
+    if(night){ctx.globalCompositeOperation="lighter";const g=ctx.createRadialGradient(0,-s*.1,0,0,-s*.1,s*1.5);g.addColorStop(0,"rgba(255,190,110,.42)");g.addColorStop(1,"rgba(255,190,110,0)");ctx.fillStyle=g;ctx.fillRect(-s*1.5,-s*1.6,s*3,s*3);ctx.globalCompositeOperation="source-over"}}
+  else{ctx.beginPath();ctx.moveTo(-s*.7,s*.45);ctx.arc(0,s*.45,s*.7,Math.PI,0);ctx.closePath();ctx.fillStyle=F([176,184,170]);ctx.fill();ctx.stroke();   // a dome, a mast, crates
+    ctx.beginPath();ctx.moveTo(s*.5,s*.1);ctx.lineTo(s*.62,-s*1.2);ctx.stroke();ctx.fillStyle=(reduced||Math.floor(now/800)%2)?"#ff5a40":"#6a2a20";ctx.beginPath();ctx.arc(s*.62,-s*1.22,Math.max(1.2,s*.09),0,6.2832);ctx.fill();
+    ctx.fillStyle=F([138,108,72]);ctx.fillRect(-s*1.05,s*.12,s*.36,s*.32);ctx.strokeRect(-s*1.05,s*.12,s*.36,s*.32);
+    ctx.fillStyle=night?"#ffcf7a":F([70,78,80]);ctx.fillRect(-s*.14,s*.12,s*.28,s*.33)}
+  ctx.restore()}
+// the village on a tile map: houses on stilts, and one of them standing by
+function tideIcon(x,y,cs,now){const s=cs*.44;ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.05);ctx.strokeStyle=INK;
+  ctx.fillStyle="#2c5c60";ctx.fillRect(-s*1.4,s*.55,s*2.8,s*.4);
+  for(const X of[-s*.65,s*.6]){ctx.beginPath();ctx.moveTo(X-s*.35,s*.05);ctx.lineTo(X-s*.35,s*.9);ctx.moveTo(X+s*.35,s*.05);ctx.lineTo(X+s*.35,s*.9);ctx.stroke();
+    ctx.fillStyle="#9e8662";ctx.fillRect(X-s*.5,-s*.4,s,s*.5);ctx.strokeRect(X-s*.5,-s*.4,s,s*.5);ctx.fillStyle="#76a068";ctx.beginPath();ctx.moveTo(X-s*.62,-s*.38);ctx.lineTo(X,-s*1);ctx.lineTo(X+s*.62,-s*.38);ctx.closePath();ctx.fill();ctx.stroke()}
+  ctx.restore();person(x+cs*.1,y+cs*.5,cs*.62,3,now,TIDE_LOOK,{f:-1,act:"wave"})}
+// the hauler on the system map: its own path, a little wider than the expedition ship's
+function tideHaulDraw(P,cx,cy,Rm,now){const h=haulOf();if(!h||!P.mire||!P.home)return;let p,a=0;
+  if(h.phase==="out"||h.phase==="back"){const[A,B]=h.phase==="out"?[P.home,P.mire]:[P.mire,P.home],mx=(A[0]+B[0])/2,my=(A[1]+B[1])/2,dx=mx-cx,dy=my-cy,dl=Math.hypot(dx,dy)||1,C=[mx+dx/dl*Rm*.24,my+dy/dl*Rm*.24],
+      q=s=>[(1-s)*(1-s)*A[0]+2*(1-s)*s*C[0]+s*s*B[0],(1-s)*(1-s)*A[1]+2*(1-s)*s*C[1]+s*s*B[1]],u=Math.min(1,h.t/XWORLDS.mire.travel);
+    ctx.strokeStyle="rgba(92,192,168,.3)";ctx.lineWidth=DPR;ctx.setLineDash([2*DPR,4*DPR]);ctx.beginPath();for(let j=0;j<=24;j++){const z=q(j/24);j?ctx.lineTo(z[0],z[1]):ctx.moveTo(z[0],z[1])}ctx.stroke();ctx.setLineDash([]);
+    ctx.strokeStyle="rgba(92,192,168,.8)";ctx.lineWidth=1.5*DPR;ctx.beginPath();for(let j=0;j<=8;j++){const z=q(Math.max(0,u-j*.012));j?ctx.lineTo(z[0],z[1]):ctx.moveTo(z[0],z[1])}ctx.stroke();
+    p=q(u);const p2=q(Math.min(1,u+.01));a=Math.atan2(p2[1]-p[1],p2[0]-p[0])}
+  else{const k=h.phase==="there"?"mire":"home",b=BODIES.find(b=>b.key===k),r=Math.max(5*DPR,b.s*Rm)+14*DPR,w=reduced?.8:now/2100+1;p=[P[k][0]+Math.cos(w)*r,P[k][1]+Math.sin(w)*r*.7];a=w+Math.PI/2}
+  const s=5*DPR;ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(a);ctx.fillStyle="#5cc0a8";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.rect(-s,-s*.6,s*2,s*1.2);ctx.fill();ctx.stroke();ctx.restore()}
+// ==== TIDE (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const skyH=Math.max(54*DPR,H*.13),padB=24*DPR,cw=W/COLS,ch=Math.min(cw*.8,Math.max(28*DPR,(H-skyH-padB)/ROWS)),gy=skyH;
@@ -1718,6 +1859,7 @@ function meet(pi){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[pi],aw=!!e.away
     PATH=[];CARD={kind:"ruin",note};say("Copied a Builder glyph from a ruin.")}
   else if(p.type==="survivor"){S.pop++;ms.got.push(pi);say(S.pop>E.cap?"A survivor joins you. You're over your beds now, so nobody new will come until you build more.":"A survivor hiding in a cellar joins you.")}
   else if(p.type==="event"){PATH=[];CARD={kind:"event",pi}}
+  else if(p.type==="village"){PATH=[];CARD={kind:"village",pi};tideMeet()}   // never "got": you can come back to trade
   else if(p.type==="landmark"&&aw){ms.got.push(pi);const note=noteCodex(p.cx);PATH=[];CARD={kind:"landmark",pi,note};say("Found "+CODEX[p.cx].site+".")}
   else if(p.type==="landmark"){ms.got.push(pi);const L=LM_BY_NAME[p.lm],note=applyLandmark(e.i,L);PATH=[];CARD={kind:"landmark",pi,note};say("Found a landmark: "+L.name+".")}
   dirty=true}
@@ -1778,6 +1920,7 @@ function feature(b,x,y,cs,lit,g){g=g||ctx;g.save();g.translate(x,y);const ink="#
   g.restore()}
 function poiIcon(p,x,y,cs,done,now,ix){const s=cs*.3,ink="#16110c";
   if(p.type==="survivor"){person(x,y+cs*.36,cs*.7,7,now,STRANGER,{mood:"worry",f:-1});return}
+  if(p.type==="village"){tideIcon(x,y,cs,now);return}
   if(p.type==="landmark"){glyph("flag",x,y,cs*.42,done?.8:1);return}
   ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.05);ctx.strokeStyle=ink;
   if(p.type==="cache"){ctx.fillStyle="#c9a46a";ctx.fillRect(-s,-s*.8,s*2,s*1.6);ctx.strokeRect(-s,-s*.8,s*2,s*1.6);ctx.beginPath();ctx.moveTo(-s,-s*.8);ctx.lineTo(s,s*.8);ctx.moveTo(s,-s*.8);ctx.lineTo(-s,s*.8);ctx.stroke()}
@@ -1829,7 +1972,7 @@ function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i)
       const payB=aw?btn("pay",th.payTxt,"Costs "+th.pay+" steps of rations · always works",null,th.lvl>0?"":"primary",S.x.steps<th.pay):btn("pay",th.payTxt,"Costs "+costText(th.pay)+" · always works",th.pay,th.lvl>0?"":"primary");
       h+='<div class="acts">'+(th.lvl>0?btn("play","Fight it out","You work the stick · "+FW[fightWeapon()].name.toLowerCase(),null,"primary")+btn("fight","Quick fight",pct+"% to win",null):"")+payB+btn("back","Step back","Deal with it later",null)+
         (th.lvl>0&&fightWeapons().length>1?btn("fw","Weapon: "+FW[fightWeapon()].name,"Tap to switch",null):"")+(th.lvl>0&&abKnown().some(abActive)?btn("fab","Abilities","Pick the two you bring",null):"")+"</div>";return h}
-    if(CARD.kind==="event"&&aw){const ev=AEVENTS[M.pois[CARD.pi].e];return'<div class="meta">Event</div><div class="tile-h">'+ev.title+"</div><p>"+ev.text+'</p><div class="acts">'+
+    if(CARD.kind==="village")return tideCardHTML();if(CARD.kind==="event"&&aw){const ev=AEVENTS[M.pois[CARD.pi].e];return'<div class="meta">Event</div><div class="tile-h">'+ev.title+"</div><p>"+ev.text+'</p><div class="acts">'+
       ev.opts.map((o,j)=>btn("ev:"+o[1],o[0],(o[2]?"Costs "+o[2]+" steps"+(o[3]?" · ":""):"")+(o[3]||(o[1]==="close"?"It stays here for later":"")),null,j===0?"primary":"",o[2]>S.x.steps)).join("")+"</div>"}
     if(CARD.kind==="landmark"&&aw){const c=CODEX[M.pois[CARD.pi].cx];return'<div class="meta">Site · for the codex</div><div class="tile-h">'+c.site.charAt(0).toUpperCase()+c.site.slice(1)+"</div><p>"+c.desc+"</p><p><b>"+c.name+".</b> "+c.txt+" "+(CARD.note||"It goes in the codex when the crew gets home.")+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
     if(CARD.kind==="cleared"&&aw)return'<div class="tile-h">Charted</div><p>Every threat here is gone. Walking charted land costs no rations, so pick up what\'s left whenever you like.</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+btn("leave","Back to the ship","",null)+"</div>";
@@ -1900,6 +2043,8 @@ const AEVENTS={
 const AEV_KEYS=Object.keys(AEVENTS);
 // The codex only grows. Entries are learned out there and take effect when the crew gets home.
 const CODEX={
+  tidegarden:{name:"Tide gardens",w:"mire",site:"the Tidefolk village",desc:"Floating mats of woven reed on the black water, thick with green.",
+            txt:"Greenhouses, hydroponics and algae vats grow 25% more food: the Tidefolk way of growing without soil."},
   algae:   {name:"Algae vats",w:"mire",site:"the Drowned Hydro Station",desc:"A pumping station half under the black water. Its tanks are still green: the algae never died.",
             txt:"A new room below: the Algae Vat makes food from water and power, with nobody working it."},
   catalyst:{name:"Marsh-gas catalyst",w:"mire",site:"the Gas-Well Rig",desc:"A drilling rig over a gas well, still hissing. In the control room, a binder of recipes.",txt:"Electrolysis Plants make 50% more rocket fuel."},
@@ -1936,6 +2081,7 @@ function awayMap(key,i){const id=key+":"+i;if(AMAPS.has(id))return AMAPS.get(id)
     if(R()<.35)add("pack");
     if(R()<.6)add("event",{e:AEV_KEYS[R()*AEV_KEYS.length|0]});
     if(R()<(b==="spire"?1:.55)){const fam=A_LM[b];add("landmark",{cx:fam[R()*fam.length|0]})}
+    if(key==="mire"&&i===tideTile())add("village");   // slice 3: the Tidefolk live here
   }
   const m=addCaveMouth({g,pois,entry},i,b,key);AMAPS.set(id,m);return m}
 function aMapState(key,i){const w=xw(key);let ms=w.maps[i];if(!ms){const M=awayMap(key,i);ms=w.maps[i]={rev:"0".repeat(MW*MH),got:[],att:{}};
@@ -2053,7 +2199,7 @@ function aEvDo(code,e,ms,i){const x=S.x,steps=n=>{if(x.steps<n)return false;x.st
     case"pool_fill":say(holdMsg("Filled the water tanks","water",20));return true;
     case"pool_rest":more(6);say("Clean water and a rest: 6 more steps.");return true;
     case"tracks_follow":if(!steps(5))return false;ms.rev="1".repeat(MW*MH);say("The tracks wander all over this tile. Now it's all on your map.");return true;
-    case"tracks_gift":if(!steps(5))return false;xw(x.w).gifts++;say("You leave a ration pack on a flat stone by the tracks. By morning it is gone.");return true;
+    case"tracks_gift":if(!steps(5))return false;xw(x.w).gifts++;say(tideGiftMsg(x.w));return true;
   }return false}
 function xWhere(){const x=S.x,nm=XWORLDS[x.w].name,left=Math.max(0,Math.ceil(x.total-x.t));
   return x.phase==="ascent"?"climbing to orbit":x.phase==="out"?"on its way to "+nm+", "+left+" s out":x.phase==="orbit"?"in orbit over "+nm+", waiting for you to choose a landing site":
@@ -2092,22 +2238,22 @@ function shipHTML(){const x=S.x,D=XWORLDS[x.w],u=holdUsed();
     (x.arts.length||x.glyphs?'<div class="prow"><div><b>Finds</b> · '+(x.arts.length+x.glyphs)+"</div><small>"+x.arts.map(k=>ARTS[k].name).concat(x.glyphs?[x.glyphs+" glyph"+(x.glyphs>1?"s":"")]:[]).join(" · ")+". They come home with the crew.</small></div>":"")+"</div>";
   h+='<div class="acts">'+btn("xwalk","Walk the landing site","Free",null,"",x.hurt>0)+btn("flyhome","Fly home",D.travel+" s back to the Ashen World",null,"primary")+"</div>";
   if(u)h+='<div class="acts">'+["scrap","water","food"].filter(k=>x.hold[k]>0).map(k=>btn("dump:"+k,"Leave "+Math.min(XP.hold.unit,Math.floor(x.hold[k]))+" "+k,"Make room in the hold",null)).join("")+"</div>";
-  return h}
+  return h+tideOutHTML(x.site)}
 function awayHTML(){const x=S.x,D=XWORLDS[x.w],A=awayTiles(x.w),w=xw(x.w);
   const nc=Object.keys(w.charted).length;let h='<div class="row"><button class="linkbtn" data-act="sys">← System map</button><span class="meta">'+D.name+" · "+nc+" tile"+(nc===1?"":"s")+" charted</span></div>";
   if(x.phase!=="orbit"&&x.phase!=="landed")return h+"<p>The ship is "+xWhere()+".</p>";
   if(sel<0)return h+'<div class="tile-h">'+D.name+"</div><p>"+D.desc+"</p>";
   const t=A[sel],bi=ABIOME[t.b],chart=!!w.charted[sel];
   h+='<div class="meta">Tile '+sel+" · "+(t.pent?"five sides":"six sides")+" · "+latlon(t.c)+(t.coast?" · shore":"")+"</div>";
-  if(x.phase==="orbit"){h+='<div class="tile-h">'+bi.name+"</div><p>"+bi.desc+"</p>";
+  if(x.phase==="orbit"){h+=tideTileNote(sel);h+='<div class="tile-h">'+bi.name+"</div><p>"+bi.desc+"</p>";
     if(t.b==="msea")return h+"<p>You can't land on water. Tap a tile of land.</p>";if(t.pent)return h+"<p>Its warden would be waiting at the door. Land nearby and walk in.</p>";
     const s=w.maps[sel]?null:aSite(x.w,sel);
     return h+(s?"<p>Kestrel's old survey marks a site here.</p>":"")+'<div class="acts">'+btn("land","Land here","The crew starts from this tile",null,"primary")+"</div>"+'<p class="meta">Tap another tile to look before you land.</p>'}
   if(sel===x.site)return h+shipHTML();
   h+='<div class="tile-h">'+bi.name+"</div><p>"+bi.desc+"</p>";
-  if(t.b==="msea"&&x.veh!=="bell")return h+"<p>With the diving bell aboard, the crew could go down there.</p>";
+  h+=tideTileNote(sel);if(t.b==="msea"&&x.veh!=="bell")return h+"<p>With the diving bell aboard, the crew could go down there.</p>";
   const s=t.b==="msea"?null:aSite(x.w,sel);
-  if(chart)return h+"<p>Charted. Walking it costs no rations."+(s&&s.got?" You've been to "+CODEX[s.cx].site+" here.":"")+"</p>"+'<div class="acts">'+btn("xwalk","Walk this tile","Free on charted land",null,"",x.hurt>0)+"</div>";
+  if(chart)return h+tideOutHTML(sel)+"<p>Charted. Walking it costs no rations."+(s&&s.got?" You've been to "+CODEX[s.cx].site+" here.":"")+"</p>"+'<div class="acts">'+btn("xwalk","Walk this tile","Free on charted land",null,"",x.hurt>0)+"</div>";
   if(!reachAway(x.w,sel,x.veh))return h+"<p>Out of reach from what you've charted. Clear the tiles between first"+(x.veh==="skimmer"?".":", or bring the skimmer to fly over one.")+"</p>";
   const tl=aThreats(x.w,sel);
   h+="<p>"+(w.maps[sel]?Math.round(aExplored(x.w,sel)*100)+"% explored. "+tl+" threat"+(tl===1?"":"s")+" left. ":"The crew thinks there "+(tl===1?"is 1 threat":"are "+tl+" threats")+" out there. ")+
@@ -2129,6 +2275,7 @@ function starsHTML(){const b=sBody;let h=(S.x&&S.x.enc?spaceHTML():"")+'<div cla
   else{const D=XWORLDS[b],w=S.xw&&S.xw[b];h+='<div class="tile-h">'+D.name+"</div><p>"+D.desc+"</p>";
     if(D.drive)h+="<p><b>Out of reach.</b> No rocket you can build carries enough fuel there and back. The Spires are Builder engines; maybe the Builders made smaller ones.</p>";
     else{const nc=w&&w.charted?Object.keys(w.charted).length:0;h+='<p class="meta">'+D.dv+" m/s there and back · "+D.travel+" s each way"+(w&&w.visits?" · visited "+w.visits+" time"+(w.visits>1?"s":""):"")+(nc?" · "+nc+" tile"+(nc===1?"":"s")+" charted":"")+"</p>";
+      if(b==="mire")h+=tideStarsNote();
       const here=S.x&&S.x.w===b&&(S.x.phase==="orbit"||S.x.phase==="landed");
       if(here)h+='<div class="acts">'+btn("view:away",S.x.phase==="orbit"?"Choose a landing site":"Go to the crew",S.x.phase==="orbit"?"The ship is waiting in orbit":"On the ground on "+D.name,null,"primary")+"</div>";
       else if(!S.x)h+="<p>Plan a trip at your launch pad.</p>"}}
@@ -2160,6 +2307,7 @@ function drawStars(now){if(ATL.open)return drawAtlas(now);
     if(b.key==="home"){const a2=reduced?0:now/2600;ctx.fillStyle="#efe2c4";ctx.fillRect(bx+Math.cos(a2)*rad*1.7-1.5*DPR,by+Math.sin(a2)*rad*1.7-1.5*DPR,3*DPR,3*DPR)}
     if(b.key===sBody){ctx.strokeStyle="#e8dcc2";ctx.setLineDash([3*DPR,3*DPR]);ctx.lineWidth=1.5*DPR;ctx.beginPath();ctx.arc(bx,by,rad+5*DPR,0,6.2832);ctx.stroke();ctx.setLineDash([])}
     const far=b.key!=="home"&&XWORLDS[b.key].drive;ctx.fillStyle=far?"rgba(169,157,134,.75)":"rgba(232,220,194,.92)";ctx.fillText(bodyName(b.key).replace(/^the /,""),bx,by+rad+7*DPR)}
+  tideHaulDraw(P,cx,cy,Rm,now);
   if(P.ship){const[sx,sy,sa]=P.ship,s=5*DPR;ctx.save();ctx.translate(sx,sy);ctx.rotate(sa);ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;
     ctx.beginPath();ctx.moveTo(s*1.4,0);ctx.lineTo(-s*.8,s*.75);ctx.lineTo(-s*.4,0);ctx.lineTo(-s*.8,-s*.75);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
   ctx.textAlign="left";ctx.textBaseline="alphabetic"}
@@ -4842,7 +4990,8 @@ PUP.reduced=reduced;
 // ---- people are puppets: a balloon colour of their own, and a hat that says what they do
 const BALLOONS=["#7fb2ff","#ff8fb8","#86d98f","#b995ff","#ffb547","#ff7a45","#9be7ff","#f2c14e","#7cf0c2","#ff5f52","#d78bff","#c3ccd8"],SKILL_HAT={eng:"hard",scav:"band",grow:"straw"},LOOKS=new Map();
 function lookOf(p){if(!p)return{name:"SQUAD",col:"#7fb2ff",hat:"",big:1};const nm=String(p.name||"").toUpperCase(),br=Math.min(5,p.iq|0);let L=LOOKS.get(p.id);   // brain: how smart (a bigger head)
-  if(!L||L.name!==nm||(L.brain|0)!==br){L={name:nm,col:BALLOONS[(Math.imul((p.id|0)+1,2654435761)>>>0)%BALLOONS.length],hat:SKILL_HAT[p.sk]||"",big:1,brain:br};LOOKS.set(p.id,L)}return L}
+  const td=p.kin==="tide";   // a Tidefolk (slice 3): sea-green, with a fin crest
+  if(!L||L.name!==nm||(L.brain|0)!==br||!!L.tide!==td){L={name:nm,col:td?"#5cc0a8":BALLOONS[(Math.imul((p.id|0)+1,2654435761)>>>0)%BALLOONS.length],hat:td?"fin":SKILL_HAT[p.sk]||"",big:1,brain:br,tide:td};LOOKS.set(p.id,L)}return L}
 const STRANGER={name:"SURVIVOR",col:"#c3ccd8",hat:"",big:1};
 // someone we can't name (the digger, a job with nobody in it yet, a lone squad's empty second place): a plain puppet
 // in one of the balloon colours. person() falls back to these, so they have to live here, in the block update.py swaps in.
@@ -5165,7 +5314,7 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;doAct(b.dataset.act);renderPanel()});
 function doAct(a){
-  if(a.startsWith("atl:")){atlAct(a.slice(4));return}
+  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}
   if(a==="play"){threatFight("play");return}if(a==="fauto"){if(FIGHT)PUP.hand(FIGHT.g,0,FIGHT.lvYou);dirty=true;return}if(a==="fquit"){fightGiveUp();return}
   if(a==="fw"){const ws=fightWeapons();S.fw=ws[(ws.indexOf(fightWeapon())+1)%ws.length];dirty=true;return}
   if(a==="fab"){if(CARD)CARD.abPick=!CARD.abPick;dirty=true;return}if(a.startsWith("fab:")){abToggle(a.slice(4));dirty=true;return}   // abilities
@@ -5267,7 +5416,7 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
