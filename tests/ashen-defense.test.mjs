@@ -92,3 +92,25 @@ test('defenses and raids survive a save, and older saves load without them', () 
   delete save.dfs; delete save.raid; const b3 = boot(new Map([['ashen-sphere-v9', JSON.stringify({ ...save, saved: Date.now() })]]));
   assert.ok(!b3.dev.S().raid || !b3.dev.S().raid.cur); assert.doesNotThrow(() => b3.dev.draw()); b3.dev.def.tick(1); assert.ok(b3.dev.S().raid.on, 'an older colony this size gets raids from now on');
 });
+
+test('the defenses list opens on a bare tile with nothing researched (it used to break the panel)', () => {
+  const b = boot(); readyBase(b.dev); const { dev } = b, S = dev.S(), T = dev.home(); S.bp = [];
+  const more = [...new Set([...S.owned].flatMap(i => T[i].n))].filter(j => T[j].b !== 'sea' && !T[j].pent && !S.owned.has(j));
+  for (const j of more) { if (S.owned.size >= 9) break; S.owned.add(j) } dev.run(0.01);
+  const i = dev.def.border().find(j => !S.dfs || !S.dfs[j]); dev.setView('surface');
+  assert.doesNotThrow(() => dev.def.open(i)); const p = text(dev.panel());
+  assert.match(p, /Build a palisade/); assert.match(p, /Blueprints open more: Auto Turret \(Auto Turrets\), Pillbox \(Poured Concrete\)/); assert.doesNotMatch(p, /undefined/);
+  rich(S); dev.act('df:b:wall'); assert.equal(S.dfs[i].wall, 1, 'and the buttons build');
+});
+
+test('looking at a raid from the map never strands the squad: the alert and the walk buttons take you back', () => {
+  const { dev, S, T } = base(10); const j = T.findIndex((t, k) => t.b !== 'sea' && !t.pent && !S.owned.has(k) && t.n.some(n => S.owned.has(n)));
+  dev.setView('surface'); dev.orbit.tileSel(j); dev.act('explore'); assert.equal(dev.view(), 'map', 'the squad is out exploring'); assert.ok(S.exp);
+  const i = dev.def.border()[0]; dev.def.tick(0.001); const R = S.raid; R.on = true;
+  R.cur = { i, from: T[i].n.find(k => T[k].b !== 'sea' && !S.owned.has(k)), foe: 'raiders', lvl: 1, left: 30, total: 40, phase: 'coming', wait: 30, seed: 7, att: 0, mined: false };
+  assert.ok(!dev.def.alert().b.some(b => b[0] === 'df:sqback'), 'on the map: no need');
+  dev.act('df:look'); assert.equal(dev.view(), 'surface', 'Show me turns to the tile'); assert.ok(S.exp, 'the squad is still out');
+  assert.ok(dev.def.alert().b.some(b => b[0] === 'df:sqback'), 'the raid alert offers the way back'); dev.act('df:sqback'); assert.equal(dev.view(), 'map');
+  dev.act('df:look'); R.cur = null; assert.equal(dev.def.alertNow().b[0][0], 'df:sqback', 'with no raid on, the bar still offers it');
+  dev.orbit.tileSel(i); dev.act('walk'); assert.equal(dev.view(), 'map', 'walking any tile takes you back to the squad too');
+});
