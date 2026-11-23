@@ -119,3 +119,25 @@ test('every blueprint changes what it says it does', () => {
   assert.equal(t1.sup, t0.sup + 6, 'Light Packs: six more steps');
   assert.equal(t1.paid, t0.paid - 2, 'Field Rations: two less water');
 });
+
+test('the Ark branch, Builder Alloys, Field Medics and Combat Drills do what they say', () => {
+  const { dev } = boot(); readyBase(dev); const S = dev.S();
+  const p0 = dev.fn.squadP().P; S.bp.push('drills');
+  assert.equal(dev.fn.squadP().P, p0 + 1, 'Combat Drills: +1 squad strength'); S.bp.pop();
+  S.wounded = 20; dev.run(2); const w0 = 20 - S.wounded;
+  S.wounded = 20; S.bp.push('medics'); dev.run(2);
+  assert.ok(Math.abs((20 - S.wounded) - 2 * w0) < 1e-6, 'Field Medics: the squad recovers twice as fast'); S.bp.pop(); S.wounded = 0;
+  dev.setView('below'); S.ug['0,6'] = { d: 1 }; dev.run(0.01);
+  const price = () => { dev.selU('0,6'); return JSON.parse(dev.panel().match(/data-act="room:pump" data-cost='([^']+)'/)[1]).scrap; };
+  const c0 = price(); S.bp.push('alloys');
+  assert.equal(price(), Math.ceil(c0 * 0.8), 'Builder Alloys: a room costs 20% less scrap'); S.bp.pop();
+  S.ug['0,4'] = { d: 1 }; dev.run(0.01);
+  const siloPrice = () => { dev.selU('0,4'); return +dev.panel().match(/(\d+) scrap · \d+ workers/)[1]; };
+  const s0 = siloPrice(); S.bp.push('frames'); const s1 = siloPrice();
+  assert.ok(s1 < s0 && s1 >= Math.floor(s0 * 0.75) - 1, 'Ark Frames: silo parts cost a quarter less');
+  // Spire Fitting: the same silo part, fitted with and without it
+  const fit = withBp => { const b = boot(); readyBase(b.dev); const T = b.dev.S(); T.ug['0,4'] = { d: 1 }; T.res.scrap = 2000; if (withBp) T.bp.push('crews'); b.dev.run(0.01); b.dev.act('silo:floor'); return T.h.silo.job && T.h.silo.job.total; };
+  const t0 = fit(false), t1 = fit(true);
+  assert.ok(t0 > 0, 'a silo part is being fitted');
+  assert.ok(Math.abs(t1 - t0 * 0.6) < 1e-9, 'Spire Fitting: fitted 40% faster');
+});

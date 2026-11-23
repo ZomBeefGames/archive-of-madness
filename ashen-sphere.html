@@ -381,7 +381,7 @@ const TEMP={day:6,night:-14,lat:-12,earth:11,seep:.2,gen:2.5,person:.12,plant:1,
 function outsideTemp(){const dl=smooth(-.12,.3,dot(sunAt(S.t),T[START].c));return TEMP.night+(TEMP.day-TEMP.night)*dl+TEMP.lat*Math.abs(T[START].c[1])}
 // ---- research: a Lab works on one blueprint at a time (1 research point a second per working lab; more with an engineer
 // and labs side by side). Blueprints are upgrades in five branches, each kept forever. A first pass, for GPT's content pass.
-const BRANCHES=["Power","Heat","Food & Water","Scrap","Exploration"];
+const BRANCHES=["Power","Heat","Food & Water","Scrap","Exploration","Ark"];
 const BP={
   turbine: {br:"Power",tier:1,name:"Steam Turbine",what:"Furnaces drive turbines: each adds 3 power to the bunker's grid, burning flat out while it does",cost:{scrap:120},pts:50},
   capbank: {br:"Power",tier:1,name:"Capacitor Bank",what:"+2 power to the bunker",cost:{scrap:100},pts:40},
@@ -402,7 +402,13 @@ const BP={
   smelter: {br:"Scrap",tier:2,name:"Furnace Smelter",what:"Furnaces melt down what they burn: half of it comes back as scrap",cost:{scrap:140},pts:90,needs:["tools"]},
   packs:   {br:"Exploration",tier:1,name:"Light Packs",what:"+6 steps of supplies on tile expeditions",cost:{scrap:90},pts:40},
   rations: {br:"Exploration",tier:1,name:"Field Rations",what:"Exploring a tile costs 2 less food and 2 less water",cost:{scrap:80,food:10},pts:35},
-  maps:    {br:"Exploration",tier:3,name:"Builder Maps",what:"Read the land the way the Builders drew it: see one cell further on tile maps",cost:{scrap:200},pts:160,needs:["packs"]}
+  maps:    {br:"Exploration",tier:3,name:"Builder Maps",what:"Read the land the way the Builders drew it: see one cell further on tile maps",cost:{scrap:200},pts:160,needs:["packs"]},
+  alloys:  {br:"Scrap",tier:3,name:"Builder Alloys",what:"Metal the way the Builders made it: rooms and buildings cost 20% less scrap",cost:{scrap:220},pts:170,needs:["smelter"]},
+  medics:  {br:"Exploration",tier:1,name:"Field Medics",what:"The squad recovers from a fight twice as fast",cost:{scrap:70,food:10},pts:35},
+  drills:  {br:"Exploration",tier:2,name:"Combat Drills",what:"+1 squad strength in fights",cost:{scrap:150,food:20},pts:90,needs:["medics"]},
+  quiet:   {br:"Ark",tier:1,name:"Quiet Work",what:"Inspections find less: suspicion rises a quarter slower",cost:{scrap:90},pts:40},
+  frames:  {br:"Ark",tier:2,name:"Ark Frames",what:"Silo parts cost a quarter less",cost:{scrap:160},pts:100,needs:["quiet"]},
+  crews:   {br:"Ark",tier:3,name:"Spire Fitting",what:"Fit silo parts the way the Builders raised the Spires: 40% faster",cost:{scrap:240,water:40},pts:200,needs:["frames"]}
 };
 // smart people: they do the research. You start with one; every Spire you claim teaches someone (they come back smarter,
 // with a bigger head). Each level researches faster and can work on harder blueprints.
@@ -424,7 +430,7 @@ function labHTML(){const r=S.rs,rate=E.rsRate||0;
       return btn("bp:"+k,B.name+(B.tier>1?" \u00b7 "+["","","advanced","Builder"][B.tier]:""),B.what+" · "+(ready?costText(B.cost)+" · "+B.pts+" research":(mind?"needs someone "+IQNAME[B.tier]:"")+(mind&&need.length?", and ":"")+(need.length?"needs "+need.map(n=>BP[n].name).join(", "):"")),ready&&!r?B.cost:null,"",!ready||!!r)}).join("")+"</div>"}
   return h}
 function smartHTML(inRs){const sm=S.people.filter(p=>smartOf(p)>0).sort((a,b)=>smartOf(b)-smartOf(a)),left=(S.k.lessons|0)-(S.k.taught|0);
-  let h="<p>Research: <b>"+(E.rsRate||0).toFixed(1)+" a second</b> from "+(sm.length?sm.map(p=>p.name+" ("+IQNAME[smartOf(p)]+")").join(", "):"nobody")+(E.labBoost?", +"+Math.round(E.labBoost*100)+"% from labs":"")+". "+(S.rs?"Working on "+BP[S.rs.id].name+".":"Nothing being researched.")+"</p>"+(inRs?"":'<div class="acts">'+btn("rs","Blueprints","Research upgrades, in five branches",null,"primary")+"</div>");
+  let h="<p>Research: <b>"+(E.rsRate||0).toFixed(1)+" a second</b> from "+(sm.length?sm.map(p=>p.name+" ("+IQNAME[smartOf(p)]+")").join(", "):"nobody")+(E.labBoost?", +"+Math.round(E.labBoost*100)+"% from labs":"")+". "+(S.rs?"Working on "+BP[S.rs.id].name+".":"Nothing being researched.")+"</p>"+(inRs?"":'<div class="acts">'+btn("rs","Blueprints","Research upgrades, in six branches",null,"primary")+"</div>");
   if(left>0&&inRs)h+="<p><b>A Spire can teach someone.</b> Choose who in your People list.</p>";
   else if(left>0)h+="<p><b>A Spire can teach someone"+(left>1?" ("+left+" lessons waiting)":"")+".</b> Pick who studies it: they come back smarter, with a bigger head, and research faster.</p><div class=\"acts\">"+
     S.people.slice().sort((a,b)=>smartOf(b)-smartOf(a)).map(p=>btn("teach:"+p.id,p.name,IQNAME[smartOf(p)]+" \u2192 "+IQNAME[Math.min(5,Math.max(1,smartOf(p))+1)],null,"")).join("")+"</div>";
@@ -541,12 +547,12 @@ function step(dt,quiet){
   if(S.k.flight){S.k.flight.t+=dt;if(S.k.flight.t>=CFG.space.flightSecs)resolveFlight(quiet);else if(!quiet)dirty=true}
   if(S.x)tickExp(dt,quiet);
   if(!S.k.ping&&towerOn()&&spiresOwned()>=1){S.k.ping=true;if(!quiet){say("The radio tower picks up a weak, repeating ping from orbit: Kestrel Station is calling for help.");toast("Kestrel Station is calling. Tap the station in orbit to see what it will take to reach it.")}}
-  if(S.wounded>0)S.wounded=Math.max(0,S.wounded-dt*(1+(E.med?1:0)+(S.unl.ambulance?1:0)));
+  if(S.wounded>0)S.wounded=Math.max(0,S.wounded-dt*(1+(E.med?1:0)+(S.unl.ambulance?1:0))*(hasBp("medics")?2:1));
   if(S.dig){S.dig.left-=dt;if(S.dig.left<=0){const k=S.dig.k;S.dig=null;finishDig(k,quiet)}}
   if(dry){S.starve+=dt;if(S.starve>=CFG.leaveAfter*(E.med?2:1)){S.starve=0;if(S.pop>1){const gone=leaveOne();if(!quiet)say(gone.name+" left to look for "+(S.res.water<=0?"water":"food")+".");dirty=true}}}else S.starve=0;
   checkGoal(quiet);
 }
-function cost(b){const n=Object.values(S.bld).filter(x=>x===b).length,c={};for(const k in BLD[b].cost)c[k]=Math.ceil(BLD[b].cost[k]*Math.pow(CFG.sameKindScale,n));return c}
+function cost(b){const n=Object.values(S.bld).filter(x=>x===b).length,c={};for(const k in BLD[b].cost)c[k]=Math.ceil(BLD[b].cost[k]*Math.pow(CFG.sameKindScale,n));if(hasBp("alloys")&&c.scrap)c.scrap=Math.ceil(c.scrap*.8);return c}
 function craft(g){if(S.gear[g]||!CFG.gear[g])return;const ok=[...E.on].some(id=>S.ug[id.slice(2)]&&S.ug[id.slice(2)].room==="shop");if(!ok||!afford(CFG.gear[g].cost))return;pay(CFG.gear[g].cost);S.gear[g]=1;say("Crafted "+CFG.gear[g].name.toLowerCase()+".");dirty=true;save()}
 function openHatch(free,quiet){if(S.hatch)return;if(!free){if(!afford(CFG.hatch.cost))return;pay(CFG.hatch.cost)}
   S.hatch=true;const L=SHAFT-1,Rr=SHAFT+1;S.ug={["0,"+SHAFT]:{d:1},["0,"+L]:{d:1,room:"bunks"},["0,"+Rr]:{d:1}};S.order.push("u:0,"+L);
@@ -578,7 +584,7 @@ function finishDig(k,quiet){const[r,c]=k.split(",").map(Number);let f=FIND(r,c);
   else if(f==="relic"){S.relics++;S.pop++;if(!quiet)say("A sealed vault. Someone inside was still asleep, and now they're one of you.")}
   else if(!quiet)say(c===SHAFT?"The shaft reaches row "+(r+1)+".":"Dug out a space in the "+stratum(r).name.toLowerCase()+".");
   dirty=true}
-function ugCost(b,k){const r=k?+k.split(",")[0]:0,n=Object.values(S.ug).filter(x=>x.room===b).length;return{scrap:Math.max(0,Math.ceil((RC[b].cost+CFG.roomPerRow*(r+1))*Math.pow(CFG.roomScale,n))-(b==="shop"&&S.cnt.techdisc>0?15:0))}}
+function ugCost(b,k){const r=k?+k.split(",")[0]:0,n=Object.values(S.ug).filter(x=>x.room===b).length;return{scrap:Math.ceil(Math.max(0,Math.ceil((RC[b].cost+CFG.roomPerRow*(r+1))*Math.pow(CFG.roomScale,n))-(b==="shop"&&S.cnt.techdisc>0?15:0))*(hasBp("alloys")?.8:1))}}
 function buildRoom(k,b){const cell=S.ug[k];if(!cell||!cell.d||cell.room||k.endsWith(","+SHAFT))return;const c=ugCost(b,k);if(!afford(c))return;pay(c);cell.room=b;if(b==="shop"&&S.cnt.techdisc>0)S.cnt.techdisc--;S.order.push("u:"+k);E=econ();say("Fitted out "+ROOM[b].name.toLowerCase()+" below.");dirty=true;save()}
 function ugRaze(k){const cell=S.ug[k];if(!cell||!cell.room)return;const b=cell.room;delete cell.room;S.order=S.order.filter(x=>x!=="u:"+k);const c=ugCost(b,k);for(const x in c)S.res[x]+=Math.floor(c[x]/CFG.roomScale*.5);say("Stripped the "+ROOM[b].name.toLowerCase()+" for parts.");dirty=true;save()}
 function raze(i){const b=S.bld[i];if(!b||b==="bunker")return;delete S.bld[i];S.order=S.order.filter(x=>x!==i);const c=cost(b);for(const k in c)S.res[k]+=Math.floor(c[k]/1.2*.5);say("Tore down the "+BLD[b].name.toLowerCase()+" for parts.");dirty=true;save()}
@@ -873,7 +879,7 @@ function drawFlight(cx,cy,r,now){const f=S.k.flight;if(!f||f.pad<0)return;const 
 // ---------------------------------------------------------------- Planet Harvester, slice 1: the secret, the silo, the Republic, the first jump
 // Numbers: GPT's first pass (inbox G-131), costs x CFG.harvest.costScale. Design: the Planet Harvester doc.
 const HV=CFG.harvest;
-const siloCost=p=>{const c={};for(const k in p.cost)c[k]=Math.ceil(p.cost[k]*HV.costScale);return c};
+const siloCost=p=>{const c={};for(const k in p.cost)c[k]=Math.ceil(p.cost[k]*HV.costScale*(hasBp("frames")?.75:1));return c};
 const siloDone=k=>!!S.h.silo.parts[k];
 const siloNext=()=>HV.silo.find(p=>!siloDone(p.key));
 const siloComplete=()=>HV.silo.every(p=>siloDone(p.key));
@@ -884,7 +890,7 @@ function inspTimes(){return HV.inspections.map((m,i)=>(m+(h3(S.world+3,i,55)*2-1
 function siloBlock(p){if(!S.h.secret)return"You don't know what to build yet.";if(p.row>=0&&!isDug(p.row,SHAFT))return"Dig the shaft down to row "+(p.row+1)+" first.";
   if(S.h.silo.job)return"Another part is being fitted.";if(!afford(siloCost(p)))return null;return null}
 function startSilo(key){const p=HV.silo.find(x=>x.key===key);if(!p||siloDone(key)||siloBlock(p))return;const c=siloCost(p);if(!afford(c))return;pay(c);
-  S.h.silo.job={key,left:p.secs,total:p.secs,stashed:false};S.h.silo.power=true;S.h.sealed=false;say("Started fitting the "+p.name.toLowerCase()+" in the silo.");dirty=true;save()}
+  {const sec=p.secs*(hasBp("crews")?.6:1);S.h.silo.job={key,left:sec,total:sec,stashed:false}}S.h.silo.power=true;S.h.sealed=false;say("Started fitting the "+p.name.toLowerCase()+" in the silo.");dirty=true;save()}
 function hideAll(){if(!S.h.silo.parts.floor){if(!S.h.sealed){if(S.res.scrap<HV.hideCost)return;S.res.scrap-=HV.hideCost}}S.h.sealed=true;S.h.silo.power=false;if(S.h.silo.job)S.h.silo.job.stashed=true;
   say("Hatch sealed, silo dark, parts stashed. Up top it looks like an ordinary colony.");dirty=true;save()}
 function resumeSilo(){S.h.sealed=false;S.h.silo.power=true;if(S.h.silo.job)S.h.silo.job.stashed=false;say("Back to work in the silo.");dirty=true;save()}
@@ -898,7 +904,7 @@ function evidence(){const ev=[],X=HV.susp;if(!S.h.secret)return ev;
   if(S.h.silo.job&&!S.h.silo.job.stashed)ev.push(["Ship parts are lying in sight",X.crate]);
   const surf=Object.keys(S.bld).filter(k=>BLD[S.bld[k]]&&BLD[S.bld[k]].staff&&!E.st.has(+k)).length;if(surf)ev.push([surf+" surface job"+(surf>1?"s":"")+" left empty",Math.min(X.workerMax,surf*X.worker)]);
   if(S.k.fuel>50)ev.push(["The fuel tanks smell of rocket fuel",X.fuel]);return ev}
-function inspect(){const ev=evidence(),add=ev.reduce((a,e)=>a+e[1],0),X=HV.susp;S.h.susp=Math.min(100,S.h.susp+add);let out=[];
+function inspect(){const ev=evidence(),add=ev.reduce((a,e)=>a+e[1],0),X=HV.susp;S.h.susp=Math.min(100,S.h.susp+add*(hasBp("quiet")?.75:1));let out=[];
   if(S.h.susp>=X.raid){out.push("They open an investigation: a "+HV.raidFine+" scrap fine");S.res.scrap=Math.max(0,S.res.scrap-HV.raidFine);S.h.susp=80}
   if(S.h.susp>=X.detain&&!S.h.detained&&S.people.length>2){const pool=S.people.filter(p=>!E.jobOf.has(p.id));const p=(pool.length?pool:S.people).at(-1);
     S.people.splice(S.people.indexOf(p),1);S.pop=S.people.length;S.h.detained={person:p,left:HV.detainSecs};out.push(p.name+" is taken in for questioning")}
@@ -1534,7 +1540,7 @@ function reveal(ms,k,rad){const x0=k%MW,y0=(k/MW)|0,r=ms.rev.split("");
 // sight: daylight, the lookout and the scanner on the surface; caves and seabeds are dark (slice 2: the skimmer, the Builder Lens and the Deep Lamp)
 const sightR=i=>{const e=S.exp,deep=!!(e&&(e.cave||e.sea));
   return(hasBp("maps")?1:0)+(deep?1+(hasArt("lamp")?1:0):(smooth(-.12,.3,dot(sunAt(S.t),T[i].c))>.4?2:1)+(S.unl.lookout?1:0)+(skimOn()?1:0))+(S.gear.scanner?1:0)+(hasArt("lens")?1:0)};
-function squadP(){const base=Math.min(2,1+Math.floor(S.pop/8)),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0))+(crawlOn()&&!(S.exp&&(S.exp.cave||S.exp.sea))?1:0),morale=E&&(E.med||E.radio)?1:0;return{P:base+gear+morale,base,gear,morale}}
+function squadP(){const base=Math.min(2,1+Math.floor(S.pop/8)),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0))+(crawlOn()&&!(S.exp&&(S.exp.cave||S.exp.sea))?1:0),morale=E&&(E.med||E.radio)?1:0;return{P:base+gear+morale+(hasBp("drills")?1:0),base,gear,morale}}
 const tripSteps=()=>XC.steps+(hasBp("packs")?6:0)+(S.k.lantern?4:0)+(S.gear.pack?CFG.gear.pack.steps:0)+(S.gear.mule?CFG.gear.mule.steps:0)+(S.cnt.watch>0?6:0)-(S.cnt.decon>0?5:0);
 function sendBlock(){if(S.wounded>0)return"The squad is still recovering ("+Math.ceil(S.wounded)+" s).";if(S.pop<=XC.squad)return"You need more than "+XC.squad+" people to send a squad.";return null}
 let PATH=[],CARD=null,stepT=0,GM={cs:1,ox:0,oy:0};
