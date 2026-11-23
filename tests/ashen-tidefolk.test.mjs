@@ -22,7 +22,7 @@ function landed() {
 function walkIn(dev, S, v) {
   S.xw.mire.charted[v] = 1; dev.sel(v); dev.act('xwalk');
   assert.ok(S.exp && S.exp.i === v && S.exp.away, 'the crew walks the village tile');
-  dev.mapState().rev = '1'.repeat(99);   // seen it all
+  dev.mapState().rev = '1'.repeat(dev.mapState().rev.length);   // seen it all
   const M = dev.map(), k = M.pois.find(p => p.type === 'village').k;
   assert.ok(dev.path(k), 'a path to the village'); return dev.walk();
 }

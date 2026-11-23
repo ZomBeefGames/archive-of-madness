@@ -38,7 +38,7 @@ test('every room, building, spire and kind of ground draws, by day and by night,
     S.res = { scrap: 400, water: 400, food: 400 }; S.wounded = 0;
     dev.setView('surface'); dev.sel(j); dev.act('explore');
     if (!dev.map()) continue;
-    dev.mapState().rev = '1'.repeat(99);
+    dev.mapState().rev = '1'.repeat(dev.mapState().rev.length);
     assert.doesNotThrow(() => dev.draw(), 'the ' + b + ' map draws'); frame(t += 400);
   }
   assert.deepEqual([...A.bugs], [], 'no part of a frame hit a bug');

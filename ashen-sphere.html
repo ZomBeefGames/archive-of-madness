@@ -463,8 +463,8 @@ let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
   seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},bp:[],rs:null,h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:9,wear:S.wear,mats:S.mats,inside:S.inside,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
-function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
+function ser(){return{v:9,cbs:S.cbs,wear:S.wear,mats:S.mats,inside:S.inside,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function deser(o){MAPS.clear();AMAPS.clear();CMAPS.clear();if(typeof PMAPS!=="undefined")PMAPS.clear();if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
     owned:new Set(o.owned.filter(ok)),bld:o.bld||{},order:(o.order||[]).filter(i=>ok(i)||(typeof i==="string"&&i.startsWith("u:"))),goal:(o.goal|0)+((o.v|0)<8&&(o.goal|0)>=15?1:0),grow:+o.grow||0,starve:+o.starve||0,
@@ -474,7 +474,7 @@ function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o
     k:fixK(Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:null,dest:"mire",rations:40,crew:[]},o.k&&typeof o.k==="object"?o.k:{})),
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
     codex:fixCodex(o.codex),x:sanX(o.x),veh:o.veh&&typeof o.veh==="object"?Object.fromEntries(Object.keys(VEH).filter(k=>o.veh[k]).map(k=>[k,1])):{},
-    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,wear:o.wear&&typeof o.wear==="object"?o.wear:{},mats:o.mats&&typeof o.mats==="object"?o.mats:{},inside:o.inside&&typeof o.inside==="object"?o.inside:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
+    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,cbs:o.cbs&&typeof o.cbs==="object"?o.cbs:{},wear:o.wear&&typeof o.wear==="object"?o.wear:{},mats:o.mats&&typeof o.mats==="object"?o.mats:{},inside:o.inside&&typeof o.inside==="object"?o.inside:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
     h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
 const KEY="ashen-sphere-v9",OLD_KEYS=["ashen-sphere-v8","ashen-sphere-v7","ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
@@ -530,15 +530,15 @@ function econ(){
     if(room==="fuel"){if(S.k.fuel<fuelCap){fuelRate+=CFG.space.plant.fuel*m*(U.catalyst?1.5:1);wa-=CFG.space.plant.water}continue}
     if(room==="bunks")cap+=RC.bunks.cap;else if(room==="hydro")fo+=RC.hydro.food*m*(U.coldhydro?1.15:1)*grow*pmH;else if(room==="shop")sc+=RC.shop.scrap*m*(U.archive?1.1:1)*(hasBp("tools")?1.25:1);
     else if(room==="pump")wa+=(cell.f==="aquifer"?RC.pump.aquifer:RC.pump.water)*m*(U.filters?1.25:1)*(hasBp("deeppump")?1.5:1);else if(room==="algae"){fo+=RC.algae.food*m*grow*pm*(hasBp("vats")?2:1);wa-=RC.algae.water}else if(room==="med")med=true;else if(room==="radio")radio=true;else if(room==="lab")rsr+=.5*m}
-  if(dem>0)sc-=RC.gen.burn*gens*(hasBp("gen2")?.7:1);
+  if(dem>0)sc-=RC.gen.burn*gens*(hasBp("gen2")?.7:1);const CBX=cbEcon(genSup,grow);sc+=CBX.sc;wa+=CBX.wa;fo+=CBX.fo;store+=CBX.store;
   const eat=EAT*S.pop,frozen=nFrz*(hasBp("seals")?350:RC.freezer.keep),spoil=Math.max(0,S.res.food-TEMP.cellar-frozen)*TEMP.spoil*(hasBp("preserve")?.5:1);
-  return{rsRate:smartRate()*(1+rsr),labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1)-tideHome().length*EAT*TIDE.drink,fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
+  return{cbx:CBX.info,rsRate:smartRate()*(1+rsr),labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1)-tideHome().length*EAT*TIDE.drink,fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
 }
 let E;
 function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
 function step(dt,quiet){
   reconcile();if(!S.k.smart0&&S.people.length){S.people[0].iq=Math.max(1,S.people[0].iq|0);S.k.smart0=true}E=econ();
-  S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);mineTick(dt,quiet);
+  S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);mineTick(dt,quiet);cbTick(dt,quiet);
   S.res.scrap+=E.sc*dt;S.res.water+=E.wa*dt;S.res.food+=E.fo*dt;
   const dry=S.res.water<=0||S.res.food<=0;
   for(const k of["scrap","water","food"])S.res[k]=Math.max(0,Math.min(E.store,S.res[k]));
@@ -711,8 +711,8 @@ function draw(now){
     if(BLDS[i])obs.push([z,BLDS[i],x,y,s,a,dl,i,1]);else if(T[i].pent&&SEEN.has(i))obs.push([z,"spire",x,y,s*.9,a,dl,i,OWN.has(i)?1:.8]);
     else if(MP[i]&&OWN.has(i)&&LMOF(i))obs.push([z,"flag",x,y,s,a,dl,i,1]);
     else if(MP[i]&&!OWN.has(i)){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(x,y,Math.max(1.5*DPR,s*.22),0,6.2832);ctx.fill()}}
-  walkers(vis,cx,cy,r,tr,now,obs,AW);   // people out on your tiles (the WALK block)
-  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs){if(o[1]==="_w")drawWalker(o,now);else if(o[1]==="_f")wkFire(o,now);else if(o[1]==="village"||o[1]==="outpost")tideModel(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7]);else model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
+  walkers(vis,cx,cy,r,tr,now,obs,AW);if(!AW)cbMarks(vis,cx,cy,r,tr,obs);   // people out on your tiles (the WALK block)
+  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs){if(o[1]==="_w")drawWalker(o,now);else if(o[1]==="_cb")cbMark(o,now);else if(o[1]==="_f")wkFire(o,now);else if(o[1]==="village"||o[1]==="outpost")tideModel(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7]);else model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
   walkAfter(now,cx,cy,r,tr)}
   drawOrbits(true,cx,cy,r,now);if(!AW)drawFlight(cx,cy,r,now);
   if(ck){const p=applyM(R,T[START].c),a=1+Math.max(0,cp-.35)*1.4,x=cx+p[0]*r*a,y=cy-p[1]*r*a;if(p[2]>-.2){ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.arc(x,y,5*DPR,0,6.2832);ctx.fill();ctx.stroke()}
@@ -779,7 +779,7 @@ function orbitHTML(){const o=ORBITERS[selOrb];const h0=dot(norm(orbPos(o,S.t)),s
 function doSurvey(){const towerOn=Object.keys(S.bld).some(k=>S.bld[k]==="tower"&&E.st.has(+k));if(!towerOn||(S.cnt.survDay||0)>=day())return;
   const front=[];for(const i of S.owned)for(const j of T[i].n)if(land(j)&&!S.owned.has(j)&&explored(j)<1)front.push(j);
   if(!front.length){say("Argus-3 has nothing new to show near you.");return}
-  const j=front[Math.floor(h3(day(),7,11)*front.length)];S.seen.add(j);mapState(j).rev="1".repeat(MW*MH);S.cnt.survDay=day();
+  const j=front[Math.floor(h3(day(),7,11)*front.length)];S.seen.add(j);revealAll(mapState(j));S.cnt.survDay=day();
   say("Argus-3 sends down a survey. Tile "+j+" is charted.");sel=j;selOrb=-1;dirty=true;save()}
 
 // ---------------------------------------------------------------- people: named colonists (GPT G-126 brief)
@@ -800,7 +800,7 @@ function jobName(id){if(typeof id==="number")return BLD[S.bld[id]]?BLD[S.bld[id]
   if(id.startsWith("pad2:"))return"the launch pad (tile "+id.slice(5)+")";const c=S.ug[id.slice(2)];return c&&c.room?ROOM[c.room].name.toLowerCase()+" below":"a job"}
 function workerNote(id){const p=E.who.get(id);if(!p)return"";const need=JOB_SKILL[typeof id==="number"?S.bld[id]:(S.ug[id.slice(2)]||{}).room];
   const pct=Math.round((E.bonus.get(id)-1)*100);return" "+p.name+" works here ("+SKILL[p.sk]+" "+p.lv+(p.sk===need?", the right skill":"")+")"+(pct?": +"+pct+"%":"")+"."}
-function peopleHTML(){const P=S.people;let h='<div class="meta">'+P.length+" people · "+E.st.size+" working · "+E.idle+" resting"+(S.exp&&!S.exp.away?" · "+XC.squad+" exploring":"")+(S.x?" · "+S.x.crew.length+" on the expedition":"")+'</div><div class="tile-h">Your people</div>'+smartHTML()+'<div class="plist">';
+function peopleHTML(){const P=S.people;let h='<div class="meta">'+P.length+" people · "+E.st.size+" working · "+E.idle+" resting"+(S.exp&&!S.exp.away?" · "+XC.squad+" exploring":"")+(S.x?" · "+S.x.crew.length+" on the expedition":"")+(S.cbs&&cbPeople()?" · "+cbPeople()+" in cave bunkers":"")+'</div><div class="tile-h">Your people</div>'+smartHTML()+'<div class="plist">';
   for(const p of P){const job=E.jobOf.get(p.id),sq=E.squad.includes(p);
     h+='<div class="prow"><div>'+personLine(p)+'</div><small>'+(smartOf(p)?IQNAME[smartOf(p)]+" · ":"")+(sq?"out with the squad":job!==undefined?"works the "+jobName(job):"resting")+" · "+TRAIT[p.tr].txt+"</small></div>"}
   if(S.x)for(const p of S.x.crew)h+='<div class="prow"><div>'+personLine(p)+'</div><small>on the expedition to '+XWORLDS[S.x.w].name+" · "+TRAIT[p.tr].txt+"</small></div>";
@@ -1331,7 +1331,7 @@ function mapGround(g,b,x,y,cs,base,lit,i,k){const L=lit*(.975+h3(i,k,3)*.05),dk=
   else sp(4,dk,.035)}
 function mapObstacle(g,b,x,y,cs,lit,i,k,base){const sh=()=>{g.fillStyle="rgba(8,6,4,.28)";g.beginPath();g.ellipse(x+cs*.52,y+cs*.86,cs*.36,cs*.1,0,0,6.2832);g.fill()};
   if(b==="woods"){sh();g.fillStyle=col([88,116,56],lit*.95);for(let q=0;q<3;q++){g.beginPath();g.ellipse(x+cs*(.38+q*.12),y+cs*.86,cs*.1,cs*.05,0,0,6.2832);g.fill()}
-    paintTree(g,x+cs*(.45+.1*h3(i,k,1)),y+cs*.88,cs*(k<MW?.95:1.55+.35*h3(i,k,2)),i*131+k,col([30,24,20],.8+.4*lit),Math.max(1.5,cs*.075));
+    paintTree(g,x+cs*(.45+.1*h3(i,k,1)),y+cs*.88,cs*(k<PW?.95:1.55+.35*h3(i,k,2)),i*131+k,col([30,24,20],.8+.4*lit),Math.max(1.5,cs*.075));
     g.strokeStyle=col([30,24,20],.8+.4*lit);g.lineWidth=Math.max(1,cs*.04);g.beginPath();g.moveTo(x+cs*.47,y+cs*.86);g.lineTo(x+cs*.34,y+cs*.93);g.moveTo(x+cs*.53,y+cs*.86);g.lineTo(x+cs*.66,y+cs*.94);g.stroke();return true}
   if(b==="ruins"||b==="spire"){sh();const w0=x+cs*.12,w1=x+cs*.88,top=y+cs*(.12+.1*h3(i,k,1)),bot=y+cs*.86,c0=[92,80,70],dk=col(c0,lit*.75),lt=col(c0,lit*1.15);
     g.fillStyle=lt;g.strokeStyle=INK;g.lineWidth=Math.max(1,cs*.03);g.beginPath();g.moveTo(w0,bot);g.lineTo(w0,top+cs*.1);g.lineTo(x+cs*.3,top);g.lineTo(x+cs*.42,top+cs*.16);g.lineTo(x+cs*.58,top+cs*.04);g.lineTo(x+cs*.7,top+cs*.24);g.lineTo(w1,top+cs*.18);g.lineTo(w1,bot);g.closePath();g.fill();
@@ -1356,17 +1356,17 @@ function mapRubble(g,x,y,cs,base,lit,i,k){for(let q=0;q<6;q++){const px=x+cs*(.1
     g.fillStyle=col(base,lit*1.25);g.fillRect(px-r*.4,py-r*.7,r,Math.max(1,r*.25))}}
 // the land (ground, rubble, what stands in the way) is painted for every cell, once per map and light; the fog on top is
 // its own picture, the only one repainted as cells are revealed (dark cells, and a soft edge where they meet open ground)
-function paintLand(g,i,M,b,base,lit,cs){if(typeof b==="string"&&b.startsWith("place:")){placePaint(g,M,b.slice(6),lit,cs,i);return}const N=MW*MH;
-  for(let k=0;k<N;k++)mapGround(g,b,(k%MW)*cs,((k/MW)|0)*cs,cs,base,lit,i,k);
-  for(let k=0;k<N;k++){const x=(k%MW)*cs,y=((k/MW)|0)*cs;
+function paintLand(g,i,M,b,base,lit,cs){if(typeof b==="string"&&b.startsWith("place:")){placePaint(g,M,b.slice(6).split("@")[0],lit,cs,i);return}const W0=mw(M),N=W0*mh(M);PW=W0;
+  for(let k=0;k<N;k++)mapGround(g,b,(k%W0)*cs,((k/W0)|0)*cs,cs,base,lit,i,k);paintTerrain(g,M,b,base,lit,cs,i);
+  for(let k=0;k<N;k++){const x=(k%W0)*cs,y=((k/W0)|0)*cs;
     if(M.g[k]===2)mapRubble(g,x,y,cs,base,lit,i,k);
     if(M.g[k]===1&&!mapObstacle(g,b,x,y,cs,lit,i,k,base))feature(b,x,y,cs,lit,g)}}
-function drawFog(ox,oy,i,ms,cs){const N=MW*MH,A=[.5,.32,.18,.07],d=cs*.09,E=[[],[],[],[]];   // live, in a few batched calls, so revealing a cell costs nothing
-  ctx.fillStyle="#15120e";ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1")ctx.rect(ox+(k%MW)*cs,oy+((k/MW)|0)*cs,cs+1,cs+1);ctx.fill();
-  ctx.fillStyle="rgba(232,220,194,.025)";ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1"){const x=ox+(k%MW)*cs,y=oy+((k/MW)|0)*cs,ex=x+cs*h3(i,k,1),ey=y+cs*h3(i,k,2);ctx.moveTo(ex+cs*.5,ey);ctx.ellipse(ex,ey,cs*.5,cs*.3,0,0,6.2832)}ctx.fill();
-  ctx.strokeStyle="rgba(232,220,194,.05)";ctx.lineWidth=DPR;ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1"){const x=ox+(k%MW)*cs,y=oy+((k/MW)|0)*cs;ctx.moveTo(x,y+cs);ctx.lineTo(x+cs,y)}ctx.stroke();
-  for(let k=0;k<N;k++){if(ms.rev[k]!=="1")continue;const cx=k%MW,cy=(k/MW)|0,x=ox+cx*cs,y=oy+cy*cs;
-    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy;if(nx<0||ny<0||nx>=MW||ny>=MH||ms.rev[ny*MW+nx]==="1")continue;
+function drawFog(ox,oy,i,ms,cs){const FW=ms.w||MW,N=ms.rev.length,FH=(N/FW)|0,A=[.5,.32,.18,.07],d=cs*.09,E=[[],[],[],[]];   // live, in a few batched calls, so revealing a cell costs nothing
+  ctx.fillStyle="#15120e";ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1")ctx.rect(ox+(k%FW)*cs,oy+((k/FW)|0)*cs,cs+1,cs+1);ctx.fill();
+  ctx.fillStyle="rgba(232,220,194,.025)";ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1"){const x=ox+(k%FW)*cs,y=oy+((k/FW)|0)*cs,ex=x+cs*h3(i,k,1),ey=y+cs*h3(i,k,2);ctx.moveTo(ex+cs*.5,ey);ctx.ellipse(ex,ey,cs*.5,cs*.3,0,0,6.2832)}ctx.fill();
+  ctx.strokeStyle="rgba(232,220,194,.05)";ctx.lineWidth=DPR;ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1"){const x=ox+(k%FW)*cs,y=oy+((k/FW)|0)*cs;ctx.moveTo(x,y+cs);ctx.lineTo(x+cs,y)}ctx.stroke();
+  for(let k=0;k<N;k++){if(ms.rev[k]!=="1")continue;const cx=k%FW,cy=(k/FW)|0,x=ox+cx*cs,y=oy+cy*cs;
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy;if(nx<0||ny<0||nx>=FW||ny>=FH||ms.rev[ny*FW+nx]==="1")continue;
       for(let q=0;q<4;q++)E[q].push(dx?[dx>0?x+cs-d*(q+1):x+d*q,y,d,cs]:[x,dy>0?y+cs-d*(q+1):y+d*q,cs,d])}}
   for(let q=0;q<4;q++){if(!E[q].length)continue;ctx.fillStyle="rgba(21,18,14,"+A[q]+")";ctx.beginPath();for(const r of E[q])ctx.rect(r[0],r[1],r[2],r[3]);ctx.fill()}}
 // ==== GFX (end) ====
@@ -1685,13 +1685,13 @@ const COLONY_LOGS=["Day 212. The well went bad and nobody would say it first. We
 // which building a tile has (if any): fixed by the tile, so a door is always where you left it
 function placeKind(i,b,key){const A=PLACE_AT[b];if(!A||h3(i,6007+(key?13:0),331)>=A[0])return null;const L=A[1];return L[h3(i,6011+(key?13:0),337)*L.length|0]}
 function addPlace(m,i,b,key){const kind=placeKind(i,b,key);if(!kind)return m;
-  const seen=new Set([m.entry]),q=[m.entry],taken=new Set(m.pois.map(p=>p.k)),cand=[];
-  while(q.length){const k=q.shift(),x=k%MW,y=(k/MW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=MW||ny>=MH)continue;const n=ny*MW+nx;
-    if(seen.has(n)||m.g[n]===1)continue;seen.add(n);q.push(n);if(!taken.has(n)&&ny<MH-2)cand.push(n)}}
+  const W0=m.w||MW,H0=m.h||MH,seen=new Set([m.entry]),q=[m.entry],taken=new Set(m.pois.map(p=>p.k)),cand=[];
+  while(q.length){const k=q.shift(),x=k%W0,y=(k/W0)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W0||ny>=H0)continue;const n=ny*W0+nx;
+    if(seen.has(n)||m.g[n]===1||m.g[n]===3)continue;seen.add(n);q.push(n);if(!taken.has(n)&&ny<H0-2)cand.push(n)}}
   if(cand.length)m.pois.push({k:cand[h3(i,6029+(key?7:0),17)*cand.length|0],type:"place",kind});return m}
-// the inside: walls everywhere, then a plan carved out of them
+// the inside, as it was before floors (old saves' ground floors keep it): walls everywhere, then a plan carved out of them
 const PMAPS=new Map();
-function placeMap(i,key,kind){if(!PLACES[kind])return caveMap(i,key);const id=(key||"home")+":"+i+":"+kind;if(PMAPS.has(id))return PMAPS.get(id);
+function placeMapOld(i,key,kind){if(!PLACES[kind])return caveMap(i,key);const id=(key||"home")+":"+i+":"+kind;if(PMAPS.has(id))return PMAPS.get(id);
   const P=PLACES[kind],R=rng(i*130363+(key?XWORLDS[key].seed:SEED)+P.seed*977),g=new Array(MW*MH).fill(1),ex=MW>>1,ey=MH-1,entry=ey*MW+ex,at=(x,y)=>y*MW+x;
   const open=(x0,y0,x1,y1,v)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(x>=0&&y>=0&&x<MW&&y<MH)g[at(x,y)]=v||0};
   const rails=[],chan=[];
@@ -1719,9 +1719,111 @@ function placeMap(i,key,kind){if(!PLACES[kind])return caveMap(i,key);const id=(k
     if(type==="artifact")o.art=pickArt(R,"cave",key);add(type,o)}}
   if(key&&kind==="colony")add("garden",{amt:10+(R()*10|0),label:"a hydroponics tray"});
   const c={g,pois,entry,rails,chan,kind};PMAPS.set(id,c);return c}
-function placeState(i,key,kind){kind=kind||(S.exp&&S.exp.cave&&S.exp.cave.kind)||"";const id=i+":"+kind,box=key?(xw(key).inside||(xw(key).inside={})):(S.inside||(S.inside={}));let ms=box[id];   // by tile and kind
-  if(!ms||typeof ms!=="object"||typeof ms.rev!=="string"||!Array.isArray(ms.got))ms=box[id]={rev:"0".repeat(MW*MH),got:[],att:{}};return ms}
-function enterPlace(kind){const e=S.exp;if(!e||e.cave||e.sea||!PLACES[kind])return;e.cave={pos:e.pos,kind};const C=xGen(e.i),ms=xMS(e.i);e.pos=C.entry;reveal(ms,C.entry,sightR(e.i));PATH=[];CARD=null;
+// ---- floors: a basement, the ground floor and upstairs, by kind, joined by stairs; one hidden room in each building
+const PFLOORS={hospital:[-1,0,1],police:[-1,0],fire:[0,1],market:[-1,0],garage:[-1,0],datacenter:[-1,0],subway:[-1,0],station:[0,1],sewer:[0],homes:[-1,0],colony:[-1,0]};
+const PFNAME={hospital:{"-1":"the morgue",0:"the ground floor",1:"the wards upstairs"},police:{"-1":"the cells and the armoury",0:"the front offices"},fire:{0:"the engine bays",1:"the bunk room upstairs"},
+  market:{"-1":"the stock room below",0:"the shop floor"},garage:{"-1":"the cellar under the pit",0:"the bays"},datacenter:{"-1":"the server vault below",0:"the halls"},subway:{"-1":"the lower tunnels",0:"the platforms"},
+  station:{0:"the ticket hall",1:"the offices upstairs"},sewer:{0:"the tunnels"},homes:{"-1":"a cellar under one of the houses",0:"the street"},colony:{"-1":"the bunker under the domes",0:"the domes"}};
+const PRIZE_AT={hospital:1,police:-1,garage:-1,datacenter:-1,colony:-1};   // the prize's floor, if not the ground floor
+const PSIZE={hospital:[15,11],police:[13,10],fire:[13,10],market:[15,11],garage:[13,10],datacenter:[13,10],subway:[15,10],station:[15,11],sewer:[15,10],homes:[15,11],colony:[13,11]};
+const PBASE={hospital:"rooms",police:"rooms",datacenter:"hall",colony:"rooms",subway:"tunnel"};
+const placeBox=key=>key?(xw(key).inside||(xw(key).inside={})):(S.inside||(S.inside={}));
+const placeId=(i,kind,fl)=>i+":"+kind+(fl?":"+fl:"");
+const placeLegacy=(i,key,kind)=>{const st=S&&(key?S.xw&&S.xw[key]&&S.xw[key].inside:S.inside);const ms=st&&st[placeId(i,kind,0)];return!!(ms&&typeof ms.rev==="string"&&!ms.w)};
+const pfName=(kind,fl)=>(PFNAME[kind]||{})[fl]||(fl>0?"upstairs":fl<0?"the basement":"the ground floor");
+const capFirst=t=>t.charAt(0).toUpperCase()+t.slice(1);
+function placeMap(i,key,kind,fl){fl=fl|0;if(!PLACES[kind])return caveMap(i,key);const id=(key||"home")+":"+i+":"+kind+"@"+fl;if(PMAPS.has(id))return PMAPS.get(id);
+  const M=fl===0&&placeLegacy(i,key,kind)?withStairs(placeMapOld(i,key,kind),i,kind):placeFloor(i,key,kind,fl);PMAPS.set(id,M);return M}
+// stairs for an old ground floor: added after its finds, so what it already has keeps its place in the save
+function withStairs(M,i,kind){if(M.stairs)return M;const fls=PFLOORS[kind]||[0],w=M.w||MW,h=M.h||MH,taken=new Set([M.entry,...M.pois.map(p=>p.k)]),cells=[];
+  const seen=new Set([M.entry]),q=[M.entry];while(q.length){const k=q.shift(),x=k%w,y=(k/w)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=w||ny>=h)continue;const n=ny*w+nx;
+    if(seen.has(n)||M.g[n]===1)continue;seen.add(n);q.push(n);if(M.g[n]===0&&!taken.has(n))cells.push(n)}}
+  M.stairs={};M.fl=0;const walk=new Set(),best=f=>{const k=cells.filter(k=>!taken.has(k)).sort((a,b)=>f(a)-f(b)).find(k=>noCut(M.g,w,h,M.entry,walk,k));if(k!==undefined)walk.add(k);return k};
+  if(fls.includes(1)){const k=best(c=>c%w+1.5*((c/w)|0));if(k!==undefined){taken.add(k);M.stairs.up=k;M.pois.push({k,type:"stairs",dir:1})}}
+  if(fls.includes(-1)){const k=best(c=>(w-1-c%w)+1.5*((c/w)|0));if(k!==undefined){taken.add(k);M.stairs.down=k;M.pois.push({k,type:"stairs",dir:-1})}}
+  return M}
+function placeFloor(i,key,kind,fl){const P=PLACES[kind],[w,h]=PSIZE[kind]||[13,10],R=rng(i*130363+(key?XWORLDS[key].seed:SEED)+P.seed*977+(fl+3)*7919),g=new Array(w*h).fill(1),ex=w>>1,entry=(h-1)*w+ex,at=(x,y)=>y*w+x,
+    plan=fl===0?P.plan:fl<0?(PBASE[kind]||"cellar"):"rooms",fls=PFLOORS[kind]||[0];
+  const open=(x0,y0,x1,y1,v)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(x>=0&&y>=0&&x<w&&y<h)g[at(x,y)]=v||0};
+  const rails=[],chan=[],hid=fls[h3(i*7+(key?3:0),P.seed,911)*fls.length|0],wantHid=fl===hid||h3(i*11+(key?5:0),P.seed+fl,913)<.35;let secret=null;
+  const side=R()<.5,xa=side?3:1,xb=side?w-2:w-4;
+  if(plan==="rooms"){const hy=h>>1,slots=[];open(ex,1,ex,h-1);open(1,hy,w-2,hy);   // a spine up from the way in, a hall across, rooms off them
+    for(const[xa,xb]of[[1,ex-2],[ex+2,w-2]])for(const[ya,yb,top]of[[1,hy-2,true],[hy+2,h-2,false]])for(let x0=xa;x0<=xb;){const rw=Math.min(3,xb-x0+1);if(rw<2)break;
+      if(R()>.08)slots.push({x0,x1:x0+rw-1,ya,yb,top,dx:x0+(R()*rw|0),side:R()<.4&&(x0+rw-1===ex-2||x0===ex+2)?[x0+rw-1===ex-2?ex-1:ex+1,ya+(R()*(yb-ya+1)|0)]:null});x0+=rw+1}
+    const sealed=wantHid&&slots.length>1?R()*slots.length|0:-1;   // one room someone walled up: no door, a crack where the door was
+    slots.forEach((r,j)=>{open(r.x0,r.ya,r.x1,r.yb);const door=at(r.dx,r.top?hy-1:hy+1);
+      if(j===sealed){const cells=[];for(let y=r.ya;y<=r.yb;y++)for(let x=r.x0;x<=r.x1;x++)cells.push(at(x,y));secret={wall:door,cells};return}
+      g[door]=0;if(r.side)g[at(r.side[0],r.side[1])]=0})}
+  else if(plan==="hall"){open(xa,1,xb,h-2);open(ex,h-1,ex,h-1);   // an open hall with rows of shelves (or racks), a solid wall down one side
+    for(let y=2;y<=h-3;y+=2){const gaps=[xa+(R()*3|0),xb-(R()*3|0),ex];for(let x=xa+1;x<=xb-1;x++)if(!gaps.includes(x))g[at(x,y)]=1}
+    if(P.rails&&fl===0){open(1,1,w-2,1);rails.push(1)}}
+  else if(plan==="tunnel"){const ys=[2,h-4];for(const y of ys){open(0,y,w-1,y);if(P.rails)rails.push(y)}open(ex,h-4,ex,h-1);   // long tunnels and the passages between them
+    for(const x of[1+(R()*4|0),w-2-(R()*4|0),ex+(R()<.5?-3:3)])open(x,2,x,h-4);
+    if(P.water)for(const y of ys)for(let x=0;x<w;x++)if(x!==ex&&R()<.5){g[at(x,y)]=2;chan.push(at(x,y))}}
+  else if(plan==="street"){const hy=h>>1;open(0,hy,w-1,hy);open(ex,0,ex,h-1);for(const x of[2,w-3])open(x,0,x,h-2);   // streets, houses and yards
+    for(let k=0;k<w*h;k++)if(g[k]===1&&R()<.3&&((k/w)|0)<h-1)g[k]=2}
+  else{open(xa,1,xb,h-2);open(ex,h-1,ex,h-1);for(let y=2;y<=h-3;y+=3)for(let x=xa+1;x<=xb-1;x+=3)if(x!==ex)g[at(x,y)]=1}   // a cellar: pillars holding up the floor above
+  g[entry]=0;
+  for(let k=0;k<w*h;k++)if(g[k]===0&&k!==entry&&!rails.includes((k/w)|0)&&R()<(plan==="street"?.03:.06))g[k]=2;
+  const reach=()=>{const seen=new Set([entry]),q=[entry],c=[];while(q.length){const k=q.shift(),x=k%w,y=(k/w)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=w||ny>=h)continue;const n=at(nx,ny);
+    if(seen.has(n)||g[n]===1)continue;seen.add(n);q.push(n);if(g[n]===0&&ny<h-1)c.push(n)}}return c};
+  const pois=[],taken=new Set([entry]),stairs={},cells=reach(),walk=new Set([entry]),best=f=>{const k=cells.filter(k=>!taken.has(k)).sort((a,b)=>f(a)-f(b)).find(k=>noCut(g,w,h,entry,walk,k));if(k!==undefined)walk.add(k);return k};
+  // stairs: the way you came, at the bottom; on the ground floor, up at the top left and down at the top right
+  if(fl>0){stairs.down=entry;pois.push({k:entry,type:"stairs",dir:-1})}else if(fl<0){stairs.up=entry;pois.push({k:entry,type:"stairs",dir:1})}
+  else{if(fls.includes(1)){const k=best(c=>c%w+1.5*((c/w)|0));if(k!==undefined){taken.add(k);stairs.up=k;pois.push({k,type:"stairs",dir:1})}}
+    if(fls.includes(-1)){const k=best(c=>(w-1-c%w)+1.5*((c/w)|0));if(k!==undefined){taken.add(k);stairs.down=k;pois.push({k,type:"stairs",dir:-1})}}}
+  // a hidden room: a walled-up room behind a cracked wall (the crack is on the wall), with a stash in it
+  if(wantHid&&!secret){const cand=cells.filter(k=>!taken.has(k)&&g[k]===0);for(let j=cand.length-1;j>0;j--){const r=R()*(j+1)|0;[cand[j],cand[r]]=[cand[r],cand[j]]}
+    outer:for(const C of cand){const cx=C%w,cy=(C/w)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,-1],[0,1]]){const Wx=cx+dx,Wy=cy+dy;if(Wx<1||Wy<1||Wx>w-2||Wy>h-2||g[at(Wx,Wy)]!==1)continue;
+      for(const D of[2,1])for(const sg of[1,-1]){const px=dy?sg:0,py=dx?sg:0,room=[];for(let d=1;d<=D;d++)for(const o of[0,1])room.push([Wx+dx*d+px*o,Wy+dy*d+py*o]);
+      if(room.some(([x,y])=>x<1||y<1||x>w-2||y>h-2||g[at(x,y)]!==1))continue;
+      const inR=(x,y)=>room.some(([a,b])=>a===x&&b===y)||(x===Wx&&y===Wy);
+      if(room.some(([x,y])=>[[1,0],[-1,0],[0,1],[0,-1]].some(([ax,ay])=>{const nx=x+ax,ny=y+ay;return!inR(nx,ny)&&nx>=0&&ny>=0&&nx<w&&ny<h&&g[at(nx,ny)]!==1})))continue;
+      for(const[x,y]of room)g[at(x,y)]=0;secret={wall:at(Wx,Wy),cells:room.map(([x,y])=>at(x,y))};break outer}}}}
+  if(secret){const ks=Object.keys(MATS),sk=secret.cells[secret.cells.length-1];pois.push({k:secret.wall,type:"crack"});pois.push({k:sk,type:"cache",amt:10+(R()*12|0),mul:3,label:"a hidden stash",mat:ks[R()*ks.length|0],mn:4,stash:true});taken.add(sk)}
+  // threats and finds, on floor you can reach from the way in; the prize on its own floor
+  const free=cells.filter(k=>!taken.has(k));for(let j=free.length-1;j>0;j--){const r=R()*(j+1)|0;[free[j],free[r]]=[free[r],free[j]]}
+  const take=()=>free.pop(),add=(type,extra)=>{const k=take();if(k!==undefined)pois.push(Object.assign({k,type},extra||{}))};
+  const thr=key?["stalker","leech"]:fl<0?["crawlers"].concat(P.thr):P.thr,nT=fl===0?1+(R()*2|0):1;for(let n=0;n<nT;n++)add("threat",{t:thr[R()*thr.length|0]});
+  const prizeFl=fls.includes(PRIZE_AT[kind])?PRIZE_AT[kind]:0,oldGround=fl!==0&&placeLegacy(i,key,kind);
+  for(const[type,n,extra]of P.loot){if(type==="survivor"&&(key||fl!==0))continue;const prize=!!PLACE_FX[type];if(prize&&(fl!==prizeFl||oldGround))continue;
+    const cnt=prize?1:fl===0?(n>=1?n:(R()<n?1:0)):(n>=1?Math.max(1,n>>1):(R()<n/2?1:0));for(let c=0;c<cnt;c++){const o=Object.assign({},extra||{});
+      if(type==="cache"||type==="spring"||type==="garden"){o.amt=Math.round((8+(R()*14|0))*(o.mul||1));if(type==="cache")o.mul=2;else delete o.mul}
+      if(type==="artifact")o.art=pickArt(R,"cave",key);add(type,o)}}
+  if(key&&kind==="colony"&&fl===0)add("garden",{amt:10+(R()*10|0),label:"a hydroponics tray"});
+  const M={g,pois,entry,rails,chan,kind,w,h,fl,stairs,secret,floorCol:fl<0?P.floor.map(v=>v*.7|0):P.floor,style:fl<0&&plan==="cellar"?"stone":P.style};
+  const st=placeBox(key)[placeId(i,kind,fl)];if(secret&&st&&st.att&&st.att.secret)g[secret.wall]=0;   // a wall you broke stays broken
+  return M}
+function placeState(i,key,kind,fl){kind=kind||(S.exp&&S.exp.cave&&S.exp.cave.kind)||"";if(fl===undefined)fl=S.exp&&S.exp.cave?S.exp.cave.fl|0:0;const id=placeId(i,kind,fl),box=placeBox(key);let ms=box[id];   // by tile, kind and floor
+  if(!ms||typeof ms!=="object"||typeof ms.rev!=="string"||!Array.isArray(ms.got)){const M=placeMap(i,key,kind,fl);ms=box[id]={rev:"0".repeat(mw(M)*mh(M)),got:[],att:{}};if(M.w)ms.w=M.w}return ms}
+// going up and down: you come out at the other floor's stairs
+function floorGo(dir){const e=S.exp;if(!e||!e.cave||!e.cave.kind)return;const kind=e.cave.kind,fl=(e.cave.fl|0)+dir;if(!(PFLOORS[kind]||[0]).includes(fl))return;
+  e.cave.fl=fl;const M=xGen(e.i),ms=xMS(e.i),st=M.stairs||{},at=fl===0?(dir<0?st.up:st.down):M.entry;e.pos=at!==undefined?at:M.entry;reveal(ms,e.pos,sightR(e.i));PATH=[];CARD=null;
+  say((e.away?"The crew":"The squad")+(dir>0?" climbs up to ":" goes down to ")+pfName(kind,fl)+".");dirty=true;save()}
+const crackAt=(M,ms,k)=>{if(!M.secret||M.secret.wall!==k||M.g[k]!==1)return-1;const ix=M.pois.findIndex(p=>p.type==="crack"&&p.k===k);return ix>=0&&!(ms&&ms.got.includes(ix))?ix:-1};
+function placeAct(a){const e=S.exp;if(!e||!e.cave)return;const M=xGen(e.i),ms=xMS(e.i);
+  if(a==="back"){CARD=null}
+  else if(a==="go"){const p=CARD&&CARD.kind==="stairs"?M.pois[CARD.pi]:null;floorGo(p?p.dir:(e.cave.fl|0)>0?-1:1);return}
+  else if(a==="break"&&CARD&&CARD.kind==="crack"&&M.secret){if(!tpSteps(e,3))return;if(!ms.att||typeof ms.att!=="object")ms.att={};ms.att.secret=1;M.g[M.secret.wall]=0;ms.got.push(CARD.pi);reveal(ms,M.secret.wall,1);CARD=null;
+    say("The plaster gives way. Behind it is a room someone walled up.")}
+  else return;dirty=true;save()}
+function placeStairsHTML(p){const e=S.exp,kind=e.cave.kind,to=(e.cave.fl|0)+p.dir,nm=pfName(kind,to);
+  return'<div class="meta">Stairs '+(p.dir>0?"up":"down")+'</div><div class="tile-h">'+capFirst(nm)+"</div><p>"+(p.dir>0?"A stairwell going up.":"Stairs going down into the dark.")+" Each floor has its own threats and finds.</p>"+
+    '<div class="acts">'+btn("pl:go",p.dir>0?"Go up":"Go down","To "+nm,null,"primary")+btn("pl:back","Not now","The stairs stay here",null)+"</div>"}
+function placeCrackHTML(){const e=S.exp,st=e.sup>=0?" · 3 steps":"";
+  return'<div class="meta">A cracked wall</div><div class="tile-h">A draft through the wall</div><p>Cold air blows through a crack in the plaster. There is a room on the other side, and no door to it.</p>'+
+    '<div class="acts">'+btn("pl:break","Break through","See what was walled up"+st,null,"primary",e.sup>=0&&e.sup<3)+btn("pl:back","Leave it","It stays here",null)+"</div>"}
+// a wall you broke through, drawn over the painted land
+function placeOverlay(ox,oy,M,cs){if(!M.secret||M.g[M.secret.wall]!==0)return;const w=mw(M),k=M.secret.wall,x=ox+(k%w)*cs,y=oy+((k/w)|0)*cs,F=M.floorCol||[90,84,76];
+  ctx.fillStyle=col(F,.75);ctx.fillRect(x,y,cs,cs);ctx.fillStyle=col(F,.5);for(let q=0;q<5;q++){const a=h3(k,q,3),b=h3(k,q,5),r=cs*(.06+.05*h3(k,q,7));ctx.beginPath();ctx.arc(x+cs*(.15+.7*a),y+cs*(.2+.65*b),r,0,6.2832);ctx.fill()}}
+function placeFloorIcon(p,x,y,cs){const s=cs*.32;ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.04);ctx.strokeStyle=INK;
+  if(p.type==="stairs"){ctx.fillStyle="#cfc6b2";for(let q=0;q<3;q++){const hh=s*(.6+.5*q);ctx.fillRect(-s*1.1+q*s*.73,s*.9-hh,s*.73,hh);ctx.strokeRect(-s*1.1+q*s*.73,s*.9-hh,s*.73,hh)}
+    ctx.fillStyle=p.dir>0?"#f0a43a":"#7fb2ff";ctx.beginPath();if(p.dir>0){ctx.moveTo(-s*.2,-s*1.25);ctx.lineTo(s*.45,-s*.65);ctx.lineTo(-s*.85,-s*.65)}else{ctx.moveTo(-s*.2,-s*.4);ctx.lineTo(s*.45,-s*1);ctx.lineTo(-s*.85,-s*1)}ctx.closePath();ctx.fill();ctx.stroke()}
+  else if(p.type==="crack"){ctx.fillStyle="#d8d0bc";ctx.fillRect(-s*.9,-s*1.1,s*1.8,s*2.2);ctx.strokeRect(-s*.9,-s*1.1,s*1.8,s*2.2);ctx.strokeStyle="#2a2119";ctx.lineWidth=Math.max(1,cs*.05);
+    ctx.beginPath();ctx.moveTo(-s*.1,-s*1.1);ctx.lineTo(s*.25,-s*.5);ctx.lineTo(-s*.2,-s*.05);ctx.lineTo(s*.2,s*.45);ctx.lineTo(-s*.05,s*1.1);ctx.stroke();
+    ctx.strokeStyle="rgba(200,230,255,.8)";ctx.lineWidth=Math.max(1,cs*.03);ctx.beginPath();for(const yy of[-.5,.2]){ctx.moveTo(s*.5,s*yy);ctx.quadraticCurveTo(s*.9,s*(yy-.15),s*1.3,s*yy)}ctx.stroke()}
+  ctx.restore()}
+function enterPlace(kind){const e=S.exp;if(!e||e.cave||e.sea||!PLACES[kind])return;e.cave={pos:e.pos,kind,fl:0};const C=xGen(e.i),ms=xMS(e.i);e.pos=C.entry;reveal(ms,C.entry,sightR(e.i));PATH=[];CARD=null;
   say((e.away?"The crew":"The squad")+" goes into the "+PLACES[kind].name.toLowerCase()+".");dirty=true;save()}
 // each building's prize
 const PLACE_FX={
@@ -1747,11 +1849,12 @@ function placeDoorHTML(p){const P=PLACES[p.kind],aw=!!(S.exp&&S.exp.away),own=xO
   return'<div class="meta">'+(down?"A way down":"A building")+'</div><div class="tile-h">'+(aw&&p.kind==="colony"?"Kestrel's lost colony":P.door)+"</div><p>"+(aw&&p.kind==="colony"?"Prefab domes sinking into the bog, a Kestrel flag gone grey. The colony the station sent, and never heard from again.":P.desc)+"</p><p>Inside it is dark: you see less. Walking in there uses the same "+(aw?"rations":"supplies")+(own?" (none, on your own land)":"")+".</p>"+
     '<div class="acts">'+btn("enter",down?"Climb down":"Go in","Its threats and finds are its own",null,"primary")+btn("back","Not now","It stays here",null)+"</div>"}
 function placeFindHTML(){return'<div class="meta">Found inside</div><div class="tile-h">'+CARD.title+"</div><p>"+CARD.text+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
-function placeInsideHTML(e,i,M,sup,tl,q,aw){const P=PLACES[e.cave.kind],nm=aw&&e.cave.kind==="colony"?"Kestrel's lost colony":"the "+P.name.toLowerCase();
-  return'<div class="meta">Tile '+i+" · inside "+nm+" · "+Math.round(xExplored(i)*100)+"% explored</div>"+'<div class="tile-h">Inside '+nm+"</div>"+
-    "<p>"+P.inside+" "+sup+" "+(tl?tl+" threat"+(tl>1?"s":"")+" left.":"No threats left.")+(aw?" Hold "+holdUsed()+" / "+S.x.cap+".":"")+" "+(aw?"Crew":"Squad")+" strength "+q.P+".</p>"+
-    '<p class="meta">◆ threat · ▣ cache · drop = water · leaves = food · the red-and-white box = what this place is worth coming for</p>'+
-    '<div class="acts">'+btn("upcave",P.plan==="tunnel"?"Climb back up":"Go back outside","Back to the doorway",null)+"</div>"}
+function placeInsideHTML(e,i,M,sup,tl,q,aw){const kind=e.cave.kind,P=PLACES[kind],nm=aw&&kind==="colony"?"Kestrel's lost colony":"the "+P.name.toLowerCase(),fl=e.cave.fl|0,fls=PFLOORS[kind]||[0];
+  const where=fl===0?(fls.length>1?" Stairs go "+[fls.includes(1)?"up to "+pfName(kind,1):"",fls.includes(-1)?"down to "+pfName(kind,-1):""].filter(Boolean).join(" and ")+".":""):"";
+  return'<div class="meta">Tile '+i+" · "+nm+(fl?" · "+pfName(kind,fl):"")+" · "+Math.round(xExplored(i)*100)+"% explored</div>"+'<div class="tile-h">'+(fl?capFirst(pfName(kind,fl)):"Inside "+nm)+"</div>"+
+    "<p>"+(fl?"":P.inside+" ")+sup+" "+(tl?tl+" threat"+(tl>1?"s":"")+" left on this floor.":"No threats left on this floor.")+(aw?" Hold "+holdUsed()+" / "+S.x.cap+".":"")+" "+(aw?"Crew":"Squad")+" strength "+q.P+"."+where+"</p>"+
+    '<p class="meta">◆ threat · ▣ cache · drop = water · leaves = food · steps = stairs · cracked plaster = a hidden room · the red-and-white box = what this place is worth coming for</p>'+
+    '<div class="acts">'+(fl?btn("pl:go",fl>0?"Back down the stairs":"Back up the stairs","To "+pfName(kind,fl>0?fl-1:fl+1),null):"")+btn("upcave",P.plan==="tunnel"?"Climb back up":"Go back outside","Back to the doorway",null)+"</div>"}
 // how they look: the door on the tile map, the prizes, and the inside (painted once per light, like the land)
 function placeIcon(kind,x,y,cs,now){const s=cs*.36,P=PLACES[kind];ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.045);ctx.strokeStyle=INK;ctx.lineJoin="round";
   const wall=col(P.wall,1.15),door="#1c1612";
@@ -1780,7 +1883,7 @@ function placePrize(type,x,y,cs){const s=cs*.28;ctx.save();ctx.translate(x,y);ct
     survey:()=>{ctx.strokeStyle="#d33a2c";ctx.lineWidth=Math.max(1,s*.14);ctx.beginPath();ctx.moveTo(-s*.6,s*.4);ctx.lineTo(-s*.1,-s*.3);ctx.lineTo(s*.25,s*.2);ctx.lineTo(s*.65,-s*.45);ctx.stroke()},
     log:()=>{ctx.fillStyle="#7a5a3a";ctx.fillRect(-s*.55,-s*.6,s*1.1,s*1.2);ctx.fillStyle="#f4f0e6";ctx.fillRect(-s*.4,-s*.4,s*.8,s*.12);ctx.fillRect(-s*.4,-s*.1,s*.8,s*.12)}};
   (ic[type]||ic.meds)();ctx.restore()}
-function placePaint(g,M,kind,lit,cs,i){const P=PLACES[kind],L=lit,C=(a,m)=>col(a,(m||1)*L),F=P.floor,Wc=P.wall,N=MW*MH,hh=(k,s)=>h3(i*131+k,s,7);
+function placePaint(g,M,kind,lit,cs,i){const P=Object.assign({},PLACES[kind],{style:M.style||PLACES[kind].style}),L=lit,C=(a,m)=>col(a,(m||1)*L),F=M.floorCol||P.floor,Wc=M.fl<0?P.wall.map(v=>v*.75|0):P.wall,MW=mw(M),MH=mh(M),N=MW*MH,hh=(k,s)=>h3(i*131+k,s,7);
   for(let k=0;k<N;k++){const x=(k%MW)*cs,y=((k/MW)|0)*cs,h=hh(k,3);g.fillStyle=C(F,.9+.14*h);g.fillRect(x,y,cs,cs);
     g.strokeStyle=C(F,.72);g.lineWidth=Math.max(1,cs*.02);
     if(P.style==="tile"){g.beginPath();g.moveTo(x,y+cs/2);g.lineTo(x+cs,y+cs/2);g.moveTo(x+cs/2,y);g.lineTo(x+cs/2,y+cs);g.stroke()}
@@ -1811,7 +1914,7 @@ function placePaint(g,M,kind,lit,cs,i){const P=PLACES[kind],L=lit,C=(a,m)=>col(a
         g.fillStyle=C([30,28,26]);for(const xx of[.28,.72]){g.beginPath();g.arc(x+cs*xx,y+cs*.52,cs*.08,0,6.2832);g.fill()}}
       else if(kind==="colony"){g.fillStyle=C([150,160,150]);g.fillRect(x+cs*.14,y+cs*.06,cs*.72,cs*.24);g.strokeRect(x+cs*.14,y+cs*.06,cs*.72,cs*.24)}
       else if(kind==="station"){g.fillStyle=C([120,86,56]);g.fillRect(x+cs*.12,y+cs*.14,cs*.76,cs*.12);g.fillRect(x+cs*.18,y+cs*.26,cs*.06,cs*.18);g.fillRect(x+cs*.76,y+cs*.26,cs*.06,cs*.18)}}}}
-function placeExit(ox,oy,M,cs){const x=ox+(M.entry%MW)*cs,y=oy+((M.entry/MW)|0)*cs;ctx.fillStyle="rgba(255,214,140,.22)";ctx.fillRect(x+cs*.18,y+cs*.55,cs*.64,cs*.45);
+function placeExit(ox,oy,M,cs){if(M.fl)return;const w=mw(M),x=ox+(M.entry%w)*cs,y=oy+((M.entry/w)|0)*cs;ctx.fillStyle="rgba(255,214,140,.22)";ctx.fillRect(x+cs*.18,y+cs*.55,cs*.64,cs*.45);
   ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,cs*.05);ctx.strokeRect(x+cs*.18,y+cs*.55,cs*.64,cs*.45)}   // the doorway out
 // ==== PLACE (end) ====
 // ==== MAT (start) ====
@@ -1975,6 +2078,331 @@ function matHud(){const el=$("mats");if(!el)return;const m=matsOf(),ks=Object.ke
   el.innerHTML=ks.map(k=>'<span><i style="background:'+MATS[k].col+'"></i>'+MATS[k].name+"<b>"+Math.floor(m[k])+"</b></span>").join("")+
     U.map(k=>"<span>"+MAT_USE[k].name+"s<b>"+S.k[k]+"</b></span>").join("")+(bad.length?'<span style="color:#e07a4f">Worn through<b style="color:#e07a4f">'+bad.length+"</b></span>":"")}
 // ==== MAT (end) ====
+// ==== MAPX (start) ====
+// Bigger, more varied tile maps. Each map carries its own size (w × h). Maps made before this keep 11 × 9 (their saved
+// state has no width), so an old save keeps every map it has seen; land you have not set foot on yet comes out bigger,
+// laid out by its kind: streets and blocks in the ruins, a stream and clearings in the woods, ridges and a chasm in the
+// crags, craters and a highway in the ash, a frozen lake on the frost, standing stones round a Spire. The map view
+// follows the squad and can be dragged. New things to do on the land: traders, wrecks, campfires, lookout masts,
+// animal dens, and locked vaults whose code is written down somewhere else on the same map.
+const mw=M=>(M&&M.w)||MW,mh=M=>(M&&M.h)||MH;
+const revealAll=ms=>{if(ms&&typeof ms.rev==="string")ms.rev="1".repeat(ms.rev.length)};
+let PW=11;   // the width of the map being painted (paintLand → mapObstacle)
+const legacyHome=i=>!!(S&&S.maps&&S.maps[i]&&typeof S.maps[i].rev==="string"&&!S.maps[i].w);
+const legacyAway=(key,i)=>{const w=S&&S.xw&&S.xw[key];return!!(w&&w.maps&&w.maps[i]&&typeof w.maps[i].rev==="string"&&!w.maps[i].w)};
+const blockedG=v=>v===1||v===3;   // walls and trees; water and chasms
+// things the squad walks round (stairs, cave mouths, cracked walls) never go where they'd cut the rest of the map off
+function reachCount(g,w,h,from,blocked){const seen=new Set([from]),q=[from];while(q.length){const k=q.shift(),x=k%w,y=(k/w)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=w||ny>=h)continue;const n=ny*w+nx;
+  if(seen.has(n)||g[n]===1||g[n]===3)continue;seen.add(n);if(!blocked.has(n))q.push(n)}}return seen.size}   // what you walk round, you can still walk to
+function noCut(g,w,h,from,blocked,k){const b=new Set(blocked);const n0=reachCount(g,w,h,from,b);b.add(k);return reachCount(g,w,h,from,b)===n0}
+const mapStepK=M=>Math.max(1,Math.sqrt(mw(M)*mh(M)/(MW*MH)));   // a trip onto a bigger map carries more steps
+const MAP_SIZE={ash:[15,11],woods:[15,12],ruins:[17,13],crags:[15,12],frost:[15,11],spire:[15,13]};
+const AWAY_SIZE={bog:[15,12],reeds:[15,12],shell:[15,12],spore:[15,12],spire:[15,13]};
+// ---- making a map: noise, then the lay of the land, then what is on it (each find with a way in from the entry)
+function wideMap(R,w,h,dens,rough){const g=[];for(let k=0;k<w*h;k++)g.push(R()<dens?1:R()<rough?2:0);const entry=(h-1)*w+(w>>1);g[entry]=0;if(g[entry-w]===1)g[entry-w]=0;
+  return{g,pois:[],entry,w,h,road:new Set(),water:new Set(),bridge:new Set(),ice:new Set(),chasm:new Set(),glade:[]}}
+function wSet(M,x,y,v,layer){if(x<0||y<0||x>=M.w||y>=M.h)return;const k=y*M.w+x;if(k===M.entry&&blockedG(v))return;M.g[k]=v;if(layer)M[layer].add(k)}
+function wAdd(M,R,type,extra,at){const{g,w,h,entry}=M,used=M.used||(M.used=new Set([entry,...M.pois.map(p=>p.k)]));let k=at;
+  if(k===undefined||used.has(k)){k=undefined;for(let n=0;n<400;n++){const q=(R()*(h-2)|0)*w+(R()*w|0);if(!used.has(q)&&g[q]!==3){k=q;break}}}
+  if(k===undefined)return null;used.add(k);g[k]=0;M.pois.push(Object.assign({k,type},extra||{}));
+  let x=entry%w,y=(entry/w)|0;const tx=k%w,ty=(k/w)|0,xf=R()<.5,clr=()=>{const q=y*w+x;if(g[q]===1)g[q]=0;else if(g[q]===3){g[q]=0;M.bridge.add(q)}};
+  if(xf){while(x!==tx){x+=Math.sign(tx-x);clr()}while(y!==ty){y+=Math.sign(ty-y);clr()}}else{while(y!==ty){y+=Math.sign(ty-y);clr()}while(x!==tx){x+=Math.sign(tx-x);clr()}}
+  return k}
+const wClear=(M,cx,cy,r)=>{for(let y=cy-r;y<=cy+r;y++)for(let x=cx-r;x<=cx+r;x++)if((x-cx)**2+(y-cy)**2<=r*r+.5&&x>=0&&y>=0&&x<M.w&&y<M.h-1)M.g[y*M.w+x]=0;M.glade.push(cy*M.w+cx)};
+const wPick=(R,a)=>a.length?a[R()*a.length|0]:undefined;
+function wLay(M,R,b){const{w,h}=M,ex=w>>1;
+  if(b==="ruins"||b==="shell"){   // streets: an avenue up from the way in, two cross streets, a side street; blocks of walls between
+    if(b==="ruins"){for(let y=0;y<h;y++)wSet(M,ex,y,0,"road");const ys=[2+(R()*2|0),h-5+(R()*2|0)];for(const y of ys)for(let x=0;x<w;x++)wSet(M,x,y,0,"road");
+      const sx=R()<.5?2+(R()*2|0):w-3-(R()*2|0);for(let y=ys[0];y<=ys[1];y++)wSet(M,sx,y,0,"road");
+      for(let k=0;k<w*h;k++)if(!M.road.has(k)&&M.g[k]===0&&R()<.2)M.g[k]=1;
+      const px=R()<.5?ex-3:ex+3,py=ys[R()*2|0];wClear(M,Math.max(1,Math.min(w-2,px)),py,1)}
+    else for(let r=0;r<2;r++){const y0=2+(R()*(h-5)|0),gap=1+(R()*(w-3)|0);let y=y0;for(let x=0;x<w;x++){if(Math.abs(x-gap)>1)wSet(M,x,y,1);if(R()<.3)y=Math.max(1,Math.min(h-3,y+(R()<.5?-1:1)))}}}
+  else if(b==="woods"||b==="reeds"||b==="bog"){   // a stream (bridged where the ways in cross it), clearings, and in the bog, pools
+    let x=1+(R()*(w-2)|0);for(let y=0;y<h-1;y++){wSet(M,x,y,3,"water");if(R()<.45){const nx=Math.max(1,Math.min(w-2,x+(R()<.5?-1:1)));wSet(M,nx,y,3,"water");x=nx}}
+    if(b!=="reeds"){const bx=wPick(R,[...M.water]);if(bx!==undefined){M.g[bx]=0;M.bridge.add(bx)}}
+    const nG=b==="woods"?2:1;for(let n=0;n<nG;n++)wClear(M,2+(R()*(w-4)|0),1+(R()*(h-5)|0),2);
+    if(b==="bog")for(let n=0;n<3;n++){const cx=1+(R()*(w-2)|0),cy=1+(R()*(h-4)|0);for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++)if(R()<.7)wSet(M,x,y,3,"water")}}
+  else if(b==="crags"){   // two ridges with a pass through each, and a chasm
+    for(let r=0;r<2;r++){const y0=2+r*((h-4)>>1)+(R()*2|0),gap=1+(R()*(w-3)|0);let y=y0;for(let x=0;x<w;x++){if(Math.abs(x-gap)>1)wSet(M,x,y,1);if(R()<.25)y=Math.max(1,Math.min(h-3,y+(R()<.5?-1:1)))}}
+    let x=R()*w|0,y=R()*(h-4)|0;for(let n=0;n<7;n++){wSet(M,x,y,3,"chasm");x+=R()<.5?1:0;y+=R()<.6?1:0;if(x>=w||y>=h-2)break}}
+  else if(b==="ash"){   // a highway across, and craters with rims of rubble
+    const hy=2+(R()*(h-6)|0);for(let x=0;x<w;x++)for(const y of[hy,hy+1])wSet(M,x,y,0,"road");
+    const nC=2+(R()*2|0);for(let c=0;c<nC;c++){const cx=2+(R()*(w-4)|0),cy=1+(R()*(h-4)|0),r=1.7+R()*.8;
+      for(let y=Math.floor(cy-r-1);y<=cy+r+1;y++)for(let x=Math.floor(cx-r-1);x<=cx+r+1;x++){if(x<0||y<0||x>=w||y>=h-1)continue;const d=Math.hypot(x-cx,y-cy),k=y*w+x;if(M.road.has(k))continue;if(d<r-.6)M.g[k]=0;else if(d<r+.6)M.g[k]=2}
+      M.glade.push(cy*w+cx)}}
+  else if(b==="frost"){   // a frozen lake, with a hole in the ice
+    const cx=2+(R()*(w-4)|0),cy=2+(R()*(h-6)|0),rx=2.5+R()*1.5,ry=1.6+R()*.6;
+    for(let y=0;y<h-1;y++)for(let x=0;x<w;x++)if(((x-cx)/rx)**2+((y-cy)/ry)**2<=1)wSet(M,x,y,0,"ice");
+    M.glade.push(Math.round(cy)*w+Math.round(cx))}
+  else if(b==="spire"){   // standing stones in a ring round the Spire's foot
+    const cx=w>>1,cy=3,r=2.6;for(let y=0;y<h-1;y++)for(let x=0;x<w;x++){const d=Math.hypot(x-cx,y-cy);if(d<r-.5)M.g[y*w+x]=0;else if(d<r+.5&&!(y>cy&&Math.abs(x-cx)<=1)&&R()<.75)wSet(M,x,y,1)}
+    M.glade.push(cy*w+cx)}
+  else if(b==="spore")for(let n=0;n<3;n++)wClear(M,2+(R()*(w-4)|0),1+(R()*(h-5)|0),1+(R()*2|0))}
+// what else is out there, beyond the threats and finds every map has (home: a trader; away: no traders)
+function wExtras(M,R,b,away){const at=a=>wPick(R,a);
+  const T={trader:away?0:{ruins:.45,ash:.3}[b]??.18,wreck:{ash:1.2,ruins:.6,shell:.5}[b]??.15,camp:.4,mast:{crags:.45,ruins:.35,shell:.4}[b]??.2,den:{woods:.6,crags:.35,frost:.35,ash:.2,bog:.45,reeds:.5,spore:.3}[b]??.15,vault:{ruins:.35,shell:.3}[b]??.15};
+  if(R()<T.trader)wAdd(M,R,"trader",{mat:{ruins:"wire",ash:"iron",woods:"hide",crags:"copper",frost:"bone",spire:"crystal"}[b]||"iron"},at(M.glade));
+  for(let n=0,c=T.wreck;n<2&&R()<c;n++,c-=1)wAdd(M,R,"wreck",{amt:10+(R()*12|0),fuel:!away&&R()<.6,mat:R()<.5?"iron":"wire"},at([...M.road].filter(k=>k!==M.entry)));
+  if(R()<T.camp)wAdd(M,R,"camp",{},at(M.glade));
+  if(R()<T.mast)wAdd(M,R,"mast",{});
+  if(b==="frost"&&M.glade.length)wAdd(M,R,"den",{fish:true},M.glade[0]);else if(R()<T.den)wAdd(M,R,"den",{},at(M.glade));
+  if(R()<T.vault){wAdd(M,R,"vault",{});wAdd(M,R,"note",{})}}
+const EASY_SET=()=>EASY||(EASY=ring(new Set([START,...STARTERS.map(s=>s[0])]),1));
+function genTileNew(i){const b=T[i].b,[w,h]=MAP_SIZE[b]||[15,12],R=rng(i*7919+SEED+104729),easy=EASY_SET().has(i),dens={ash:.12,woods:.3,ruins:.22,crags:.26,frost:.18,spire:.2}[b]??.2;
+  const M=wideMap(R,w,h,dens,.12);wLay(M,R,b);
+  if(easy)wAdd(M,R,"threat",{t:R()<.5?"dogs":"rad"});
+  else{const n=BIO_N[b]+(w*h>200?1:0);for(let j=0;j<n;j++){const pool=BIO_T[b];wAdd(M,R,"threat",{t:pool[R()*pool.length|0]})}if(b==="spire")wAdd(M,R,"threat",{t:"warden"},M.glade[0]!==undefined?M.glade[0]+M.w:undefined)}
+  const lootW={ash:["cache","cache","spring"],woods:["garden","garden","cache"],ruins:["cache","cache","cache","spring"],crags:["cache","spring","spring"],frost:["spring","cache"],spire:["cache","cache","garden"]}[b];
+  const nL=3+(R()*4|0);for(let j=0;j<nL;j++)wAdd(M,R,lootW[R()*lootW.length|0],{amt:8+(R()*14|0)});
+  if(R()<.5)wAdd(M,R,"pack");if(R()<.22)wAdd(M,R,"survivor");
+  if(R()<.85)wAdd(M,R,"event",{e:EV_KEYS[R()*EV_KEYS.length|0]});if(R()<.35)wAdd(M,R,"event",{e:EV_KEYS[R()*EV_KEYS.length|0]});
+  if(R()<({ruins:.7,spire:1}[b]??.4)){const fam=LMS[LM_FAMILY[b]];wAdd(M,R,"landmark",{lm:fam[R()*fam.length|0].name})}
+  wExtras(M,R,b,false);delete M.used;
+  return addPlace(addCaveMouth(M,i,b,null),i,b,null)}
+function genAwayNew(key,i){const A=awayTiles(key),b=A[i].b,[w,h]=AWAY_SIZE[b]||[15,12],R=rng(i*7919+XWORLDS[key].seed+104729),dens=A_DENS[b]??.2;
+  const M=wideMap(R,w,h,dens,.16);wLay(M,R,b);
+  const n=(A_N[b]||1)+(w*h>200?1:0);for(let j=0;j<n;j++){const pool=A_T[b]||["stalker"];wAdd(M,R,"threat",{t:pool[R()*pool.length|0]})}if(b==="spire")wAdd(M,R,"threat",{t:"warden"},M.glade[0]!==undefined?M.glade[0]+M.w:undefined);
+  const lw=A_LOOT[b]||["cache"],nL=3+(R()*3|0);for(let j=0;j<nL;j++)wAdd(M,R,lw[R()*lw.length|0],{amt:8+(R()*14|0)});
+  if(R()<.45)wAdd(M,R,"pack");if(R()<.75)wAdd(M,R,"event",{e:AEV_KEYS[R()*AEV_KEYS.length|0]});
+  if(R()<(b==="spire"?1:.55)){const fam=A_LM[b]||[];if(fam.length)wAdd(M,R,"landmark",{cx:fam[R()*fam.length|0]})}
+  if(key==="mire"&&i===tideTile())wAdd(M,R,"village");
+  wExtras(M,R,b,true);delete M.used;
+  return addPlace(addCaveMouth(M,i,b,key),i,b,key)}
+
+// ---- the camera: big maps scroll with the squad; drag to look around (a new path brings the view back)
+const CAMM={x:0,y:0,px:0,py:0,t:0,id:""};
+function mapCam(M,e,cs,avH,now){const w=mw(M),h=mh(M),id=(e.away?"a":"h")+e.i+(e.cave?"c"+(e.cave.kind||"")+(e.cave.fl||0):"")+(e.sea?"s":"");
+  const tx=e.pos%w+.5+CAMM.px,ty=((e.pos/w)|0)+.5+CAMM.py;if(CAMM.id!==id){CAMM.id=id;CAMM.px=CAMM.py=0;CAMM.x=e.pos%w+.5;CAMM.y=((e.pos/w)|0)+.5}
+  const dt=Math.min(.2,Math.max(0,(now-CAMM.t)/1000));CAMM.t=now;const k=reduced?1:1-Math.exp(-dt*7);CAMM.x+=(tx-CAMM.x)*k;CAMM.y+=(ty-CAMM.y)*k;
+  const mW=cs*w,mH=cs*h,ox=mW<=W?(W-mW)/2|0:Math.round(Math.min(0,Math.max(W-mW,W/2-CAMM.x*cs))),oy=mH<=avH?Math.max(0,(avH-mH)/2|0):Math.round(Math.min(0,Math.max(avH-mH,avH/2-CAMM.y*cs)));
+  if(Math.abs(tx-CAMM.x)+Math.abs(ty-CAMM.y)>.01)dirty=true;return[ox,oy]}
+function mapPan(dx,dy){if(!S.exp||!GM.cs)return;const w=GM.w||MW,h=GM.h||MH;if(w*GM.cs<=W&&h*GM.cs<=H)return;CAMM.px=Math.max(-w,Math.min(w,CAMM.px-dx*DPR/GM.cs));CAMM.py=Math.max(-h,Math.min(h,CAMM.py-dy*DPR/GM.cs));dirty=true}
+
+// ---- the lay of the land, painted under what stands on it
+function paintTerrain(g,M,b,base,lit,cs,i){if(!M.road)return;const w=mw(M),L=lit,C=(a,m)=>col(a,(m||1)*L),at=k=>[(k%w)*cs,((k/w)|0)*cs],has=(set,x,y)=>x>=0&&y>=0&&x<w&&set.has(y*w+x);
+  for(const k of M.road){const[x,y]=at(k),cx=k%w,cy=(k/w)|0;g.fillStyle=C([60,58,56],.95+.08*h3(i,k,61));g.fillRect(x,y,cs,cs);
+    g.fillStyle=C([46,44,42]);for(let q=0;q<2;q++)g.fillRect(x+cs*h3(i,k,62+q),y+cs*h3(i,k,64+q),cs*.18,Math.max(1,cs*.03));   // cracks
+    g.fillStyle=C([200,184,110],.55);const hz=has(M.road,cx-1,cy)||has(M.road,cx+1,cy),vt=has(M.road,cx,cy-1)||has(M.road,cx,cy+1);
+    if(hz&&!vt)g.fillRect(x+cs*.3,y+cs*.47,cs*.4,Math.max(1,cs*.06));else if(vt&&!hz)g.fillRect(x+cs*.47,y+cs*.3,Math.max(1,cs*.06),cs*.4)}
+  for(const k of M.ice){const[x,y]=at(k);g.fillStyle=C([196,214,228],.95+.06*h3(i,k,71));g.fillRect(x,y,cs,cs);g.strokeStyle=C([236,246,252],.8);g.lineWidth=Math.max(1,cs*.025);
+    g.beginPath();g.moveTo(x+cs*h3(i,k,72),y+cs*.2);g.lineTo(x+cs*h3(i,k,73),y+cs*.55);g.lineTo(x+cs*h3(i,k,74),y+cs*.85);g.stroke()}
+  for(const k of M.water){const[x,y]=at(k),cx=k%w,cy=(k/w)|0;g.fillStyle=C(b==="bog"?[52,66,48]:[44,72,88]);g.fillRect(x,y,cs,cs);
+    g.strokeStyle=C(b==="bog"?[92,110,80]:[120,160,180],.8);g.lineWidth=Math.max(1,cs*.03);g.beginPath();for(let q=0;q<2;q++){const yy=y+cs*(.35+.3*q),xx=x+cs*(.15+.3*h3(i,k,75+q));g.moveTo(xx,yy);g.quadraticCurveTo(xx+cs*.12,yy-cs*.06,xx+cs*.24,yy)}g.stroke();
+    g.fillStyle=C([62,50,38],.9);for(const[dx,dy]of[[0,-1],[0,1],[-1,0],[1,0]]){if(has(M.water,cx+dx,cy+dy)||cx+dx<0||cy+dy<0||cx+dx>=w||cy+dy>=M.h)continue;   // banks
+      if(dx)g.fillRect(dx>0?x+cs*.92:x,y,cs*.08,cs);else g.fillRect(x,dy>0?y+cs*.92:y,cs,cs*.08)}}
+  for(const k of M.chasm){const[x,y]=at(k);g.fillStyle="#0b0907";g.beginPath();g.moveTo(x+cs*.1,y);g.lineTo(x+cs*.9,y+cs*.1);g.lineTo(x+cs,y+cs*.9);g.lineTo(x+cs*.2,y+cs);g.lineTo(x,y+cs*.4);g.closePath();g.fill();
+    g.strokeStyle=C([150,140,126],.7);g.lineWidth=Math.max(1,cs*.03);g.stroke()}
+  for(const k of M.bridge){const[x,y]=at(k),cx=k%w,cy=(k/w)|0,wet=M.water.has(k)||M.chasm.has(k),across=has(M.water,cx-1,cy)||has(M.water,cx+1,cy)||has(M.chasm,cx-1,cy)||has(M.chasm,cx+1,cy);
+    if(!wet)continue;g.fillStyle=C([128,94,60]);g.strokeStyle=C([60,44,30]);g.lineWidth=Math.max(1,cs*.025);
+    for(let q=0;q<4;q++){if(across)g.fillRect(x+cs*(.12+.2*q),y-cs*.05,cs*.16,cs*1.1);else g.fillRect(x-cs*.05,y+cs*(.12+.2*q),cs*1.1,cs*.16)}
+    if(across){g.strokeRect(x+cs*.1,y,cs*.8,cs)}else g.strokeRect(x,y+cs*.1,cs,cs*.8)}}
+
+// ---- the map key: only what you can see on this map
+const LEG={threat:"◆ threat",cache:"▣ cache",spring:"drop = spring",garden:"leaves = garden",event:"? = event",landmark:"flag = landmark",survivor:"figure = survivor",pack:"pack = field camp",cave:"dark arch = cave mouth",
+  place:"building = a place to go in",trader:"tent = trader",wreck:"car = wreck",camp:"fire = campfire",mast:"mast = lookout",den:"hole = den",vault:"steel door = vault",note:"paper = a note",artifact:"gold = rare artifact",ruin:"tablet = Builder ruin",village:"stilt houses = the Tidefolk"};
+function mapLegend(M,ms,aw){const seen=new Set();M.pois.forEach((p,ix)=>{if(ms.rev[p.k]==="1"&&!(ms.got.includes(ix)&&p.type!=="landmark"))seen.add(p.type)});
+  const parts=[...seen].map(t=>aw&&t==="landmark"?"flag = site":aw&&t==="pack"?"pack = supply drop":LEG[t]).filter(Boolean),drag=mw(M)*GM.cs>W||mh(M)*GM.cs>H;
+  return parts.length||drag?'<p class="meta">'+parts.join(" · ")+(drag?(parts.length?". ":"")+"Drag the map to look around.":"")+"</p>":""}
+// ---- the new things on the land
+const TP_TYPES=new Set(["trader","wreck","camp","mast","vault","note","den"]);
+function tpMeet(pi){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[pi];if(!ms.att||typeof ms.att!=="object")ms.att={};
+  if(p.type==="note"){ms.got.push(pi);ms.att.code=1;PATH=[];CARD={kind:"find",pi,title:"A scrap of paper",text:"Four numbers in pencil, and under them one word: VAULT. Somewhere on this "+(e.away?"ground":"tile")+" there is a door they open."};say("Found the code to a vault.");return}
+  PATH=[];CARD={kind:"tp",pi}}
+const tpSteps=(e,n)=>{if(e.sup<0)return true;if(e.sup<n)return false;e.sup-=n;if(e.away&&S.x)S.x.steps=e.sup;return true};
+const tpGive=(e,res,v,what)=>{if(e.away)return holdMsg(what,res,v);S.res[res]+=v;return what+": "+v+" "+res+"."};
+const tpMost=()=>{const m=matsOf();let best=null;for(const k in MATS)if((+m[k]||0)>=5&&(!best||m[k]>m[best]))best=k;return best};
+const TRADES={food:{give:{scrap:15},get:["food",14],txt:"14 food for 15 scrap"},water:{give:{scrap:15},get:["water",14],txt:"14 water for 15 scrap"},
+  mat:{give:{scrap:20},txt:"3 of what they carry for 20 scrap"},sell:{txt:"5 of what you have most of for 25 scrap"},map:{give:{scrap:10},txt:"a map of this tile for 10 scrap"}};
+function tpHTML(){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[CARD.pi],aw=!!e.away,st=n=>e.sup<0?"":" · "+n+" steps",cant=n=>e.sup>=0&&e.sup<n,att=ms.att||{},pi=CARD.pi,walk=btn("tp:back","Walk on","It stays here",null);
+  const card=(meta,title,text,acts)=>'<div class="meta">'+meta+'</div><div class="tile-h">'+title+"</div><p>"+text+'</p><div class="acts">'+acts.join("")+walk+"</div>";
+  if(p.type==="trader"){const done=Object.keys(TRADES).filter(d=>att["t"+pi+d]).length,most=tpMost();
+    return card("A trader","A trader with a pack mule","A thin man with a mule loaded down with bags. “I trade fair,” he says. “Mostly.” He'll make two deals, then he moves on."+(done?" One deal done.":""),
+      Object.keys(TRADES).filter(d=>!att["t"+pi+d]).map(d=>{const D=TRADES[d],txt=d==="mat"?"3 "+matName(p.mat)+" for 20 scrap":D.txt,ok=d==="sell"?!!most:afford(D.give);
+        return btn("tp:trade:"+d,d==="sell"&&most?"Sell 5 "+matName(most):d==="sell"?"Sell materials":"Buy "+(d==="mat"?matName(p.mat):d==="map"?"a map":d),d==="sell"&&!most?"You have nothing he wants (5 of one kind)":txt,null,"",!ok)}))}
+  if(p.type==="wreck"){const fuel=p.fuel&&!att["f"+pi],cap=E?E.fuelCap:0;
+    return card("A wreck",aw?"A crashed lander":"A wreck on its side",aw?"A Kestrel lander that came down hard. The hull is split, but the frame and wiring are still good.":"A car on its side, doors hanging open. The frame is good steel and the wiring is still there."+(fuel?" The tank sloshes when you kick it.":""),
+      [btn("tp:strip","Strip it","Scrap and "+matName(p.mat)+st(2),null,"primary",cant(2))].concat(fuel?[btn("tp:siphon","Siphon the tank",cap>0?"About 12 fuel for your tanks":"You have no fuel tanks to fill",null,"",!(cap>0&&S.k.fuel<cap))]:[]))}
+  if(p.type==="camp"){const food=aw?(S.x?S.x.hold.food:0):S.res.food;
+    return card("A campfire","An old campfire","A ring of stones with dry wood stacked beside it. A good place to stop and eat."+(e.sup<0?" On your own land the squad has no need to camp here.":""),
+      e.sup<0?[]:[btn("tp:rest","Rest and eat","+10 steps for 6 food"+(aw?" from the hold":""),null,"primary",food<6)])}
+  if(p.type==="mast")return card("A lookout","A radio mast","A lattice mast with a ladder up the side. From the top you could see the whole "+(aw?"area":"tile")+".",[btn("tp:climb","Climb it","See every cell of this map"+st(2),null,"primary",cant(2))]);
+  if(p.type==="den")return p.fish?card("A fishing hole","A hole in the ice","Someone cut a hole in the lake and left a line coiled beside it. Something big moves under the ice.",[btn("tp:hunt","Fish","Food, and bone if it goes well"+st(2),null,"primary",cant(2))]):
+    card("A den","An animal den","Tracks and gnawed bones round a hole in the bank. Something lives in there, and it's big enough to eat.",[btn("tp:hunt","Hunt","Food, hide and bone if it goes well"+st(2),null,"primary",cant(2))]);
+  if(p.type==="vault"){const code=!!att.code;
+    return card("A vault",aw?"A Kestrel strongbox":"A vault door","A steel door set into the ground, with a keypad gone green with age. "+(code?"You have the code.":"It wants four numbers. They must be written down somewhere on this "+(aw?"ground":"tile")+"."),
+      code?[btn("tp:open","Punch in the code","Whatever they locked away",null,"primary")]:[])}
+  return card("","Something","",[])}
+function tpAct(a){const e=S.exp;if(!e||!CARD||CARD.kind!=="tp")return;const M=xGen(e.i),ms=xMS(e.i),pi=CARD.pi,p=M.pois[pi],aw=!!e.away;if(!ms.att||typeof ms.att!=="object")ms.att={};const att=ms.att,done=()=>{ms.got.push(pi);CARD=null};
+  if(a==="back"){CARD=null}
+  else if(a.startsWith("trade:")&&p.type==="trader"){const d=a.slice(6),D=TRADES[d];if(!D||att["t"+pi+d])return;
+    if(d==="sell"){const k=tpMost();if(!k)return;matsOf()[k]-=5;S.res.scrap+=25;say("Sold 5 "+matName(k)+" to the trader: 25 scrap.")}
+    else{if(!afford(D.give))return;pay(D.give);if(d==="mat"){matAdd(p.mat,3);say("Bought 3 "+matName(p.mat)+" from the trader.")}else if(d==="map"){revealAll(ms);say("The trader's map shows the whole tile.")}else{S.res[D.get[0]]+=D.get[1];say("Bought "+D.get[1]+" "+D.get[0]+" from the trader.")}}
+    att["t"+pi+d]=1;if(Object.keys(TRADES).filter(q=>att["t"+pi+q]).length>=2){done();say("The trader packs up and heads off down the road.")}}
+  else if(a==="strip"&&p.type==="wreck"){if(!tpSteps(e,2))return;matAdd(p.mat,2);say(tpGive(e,"scrap",p.amt,aw?"Stripped the lander":"Stripped the wreck")+" And 2 "+matName(p.mat)+".");done()}
+  else if(a==="siphon"&&p.type==="wreck"){const cap=E?E.fuelCap:0;if(!p.fuel||att["f"+pi]||!(cap>0&&S.k.fuel<cap))return;const v=Math.min(12,cap-S.k.fuel);S.k.fuel+=v;att["f"+pi]=1;say("Siphoned "+Math.round(v)+" fuel out of the wreck's tank.")}
+  else if(a==="rest"&&p.type==="camp"){if(e.sup<0)return;if(aw){if(!S.x||S.x.hold.food<6)return;S.x.hold.food-=6}else{if(S.res.food<6)return;S.res.food-=6}e.sup+=10;if(aw&&S.x)S.x.steps=e.sup;say("A fire, a hot meal and a few hours' rest: 10 more steps.");done()}
+  else if(a==="climb"&&p.type==="mast"){if(!tpSteps(e,2))return;revealAll(ms);say("From the top of the mast you can see the whole "+(aw?"area":"tile")+".");done()}
+  else if(a==="hunt"&&p.type==="den"){if(!tpSteps(e,2))return;if(h3(e.i,pi,day()+7)<.65){if(p.fish){matAdd("bone",2);say(tpGive(e,"food",14,"A fish as long as your arm")+" And 2 bone.")}else{matAdd("hide",2);matAdd("bone",1);say(tpGive(e,"food",12,"A good hunt")+" And 2 hide, 1 bone.")}}
+    else say(p.fish?"The line snaps. Nothing this time.":"It bolts deeper into the den. Nothing this time.");done()}
+  else if(a==="open"&&p.type==="vault"){if(!att.code)return;const R=rng(e.i*31+pi),ks=Object.keys(MATS),m1=ks[R()*ks.length|0],m2=ks[R()*ks.length|0];matAdd(m1,3);matAdd(m2,3);S.k.medkits=(S.k.medkits|0)+1;
+    say(tpGive(e,"scrap",40,aw?"The strongbox opens":"The vault opens")+" Inside: 3 "+matName(m1)+", 3 "+matName(m2)+" and a medkit.");done()}
+  else return;dirty=true;save()}
+function tpIcon(p,x,y,cs,now,done){const s=cs*.3;ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.045);ctx.strokeStyle=INK;ctx.lineJoin="round";
+  if(p.type==="trader"){ctx.fillStyle="#c9a46a";ctx.beginPath();ctx.moveTo(-s*1.2,s*.9);ctx.lineTo(0,-s*1.1);ctx.lineTo(s*1.2,s*.9);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle="#2a2119";ctx.beginPath();ctx.moveTo(-s*.35,s*.9);ctx.lineTo(0,s*.1);ctx.lineTo(s*.35,s*.9);ctx.closePath();ctx.fill();ctx.fillStyle="#ffd36a";ctx.beginPath();ctx.arc(s*.95,-s*.05,s*.18,0,6.2832);ctx.fill()}
+  else if(p.type==="wreck"){ctx.fillStyle="#8a4a32";ctx.beginPath();ctx.moveTo(-s*1.2,s*.7);ctx.lineTo(-s*1.1,0);ctx.lineTo(-s*.5,-s*.1);ctx.lineTo(-s*.2,-s*.6);ctx.lineTo(s*.6,-s*.6);ctx.lineTo(s*.9,-s*.1);ctx.lineTo(s*1.2,0);ctx.lineTo(s*1.2,s*.7);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle="#1d1712";ctx.fillRect(-s*.1,-s*.48,s*.55,s*.3);ctx.beginPath();ctx.arc(-s*.6,s*.72,s*.25,0,6.2832);ctx.arc(s*.7,s*.72,s*.25,0,6.2832);ctx.fill()}
+  else if(p.type==="camp"){ctx.fillStyle="#6a4a2e";ctx.save();ctx.rotate(.5);ctx.fillRect(-s*.9,s*.2,s*1.8,s*.32);ctx.strokeRect(-s*.9,s*.2,s*1.8,s*.32);ctx.restore();ctx.save();ctx.rotate(-.5);ctx.fillRect(-s*.9,s*.2,s*1.8,s*.32);ctx.strokeRect(-s*.9,s*.2,s*1.8,s*.32);ctx.restore();
+    const f=reduced?1:.85+.15*Math.sin(now/90);ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.moveTo(-s*.5,s*.3);ctx.quadraticCurveTo(-s*.4,-s*.6*f,0,-s*1.1*f);ctx.quadraticCurveTo(s*.4,-s*.6*f,s*.5,s*.3);ctx.closePath();ctx.fill();ctx.fillStyle="#ffe08a";ctx.beginPath();ctx.ellipse(0,0,s*.22,s*.45*f,0,0,6.2832);ctx.fill()}
+  else if(p.type==="mast"){ctx.strokeStyle="#c8c4b8";ctx.lineWidth=Math.max(1,cs*.035);ctx.beginPath();ctx.moveTo(-s*.7,s*1);ctx.lineTo(0,-s*1.4);ctx.lineTo(s*.7,s*1);for(let q=0;q<4;q++){const yy=s*(.8-q*.55),hw=s*.7*(yy+s*1.4)/(s*2.4);ctx.moveTo(-hw,yy);ctx.lineTo(hw,yy-s*.5)}ctx.stroke();
+    ctx.fillStyle=reduced||(now/500|0)%2?"#ff5a40":"#6a2a20";ctx.beginPath();ctx.arc(0,-s*1.4,s*.2,0,6.2832);ctx.fill()}
+  else if(p.type==="den"){ctx.fillStyle="#120e0b";ctx.beginPath();ctx.ellipse(0,s*.2,s*1.1,s*.7,0,0,6.2832);ctx.fill();ctx.strokeStyle="#5a4a3a";ctx.stroke();ctx.strokeStyle="#e6dcc4";ctx.lineWidth=Math.max(1,cs*.05);
+    ctx.beginPath();ctx.moveTo(-s*1.1,s*.9);ctx.lineTo(-s*.3,s*.6);ctx.moveTo(s*.4,s*.95);ctx.lineTo(s*1.1,s*.55);ctx.stroke()}
+  else if(p.type==="vault"){ctx.fillStyle="#7d858c";ctx.fillRect(-s*1.1,-s*1,s*2.2,s*2);ctx.strokeRect(-s*1.1,-s*1,s*2.2,s*2);ctx.strokeStyle=done?"#7d858c":"#2a3036";ctx.lineWidth=Math.max(1,cs*.06);ctx.beginPath();ctx.arc(0,0,s*.55,0,6.2832);ctx.moveTo(-s*.55,0);ctx.lineTo(s*.55,0);ctx.moveTo(0,-s*.55);ctx.lineTo(0,s*.55);ctx.stroke();
+    const code=S.exp&&(xMS(S.exp.i)||{}).att;ctx.fillStyle=code&&code.code?"#6af08a":"#c0392b";ctx.fillRect(s*.62,-s*.85,s*.3,s*.22)}
+  else if(p.type==="note"){ctx.rotate(-.2);ctx.fillStyle="#efe2c4";ctx.fillRect(-s*.8,-s*.95,s*1.6,s*1.9);ctx.strokeRect(-s*.8,-s*.95,s*1.6,s*1.9);ctx.fillStyle="#8a7a5a";for(let q=0;q<4;q++)ctx.fillRect(-s*.55,-s*.6+q*s*.38,s*(q===3?.6:1.1),Math.max(1,s*.1))}
+  ctx.restore()}
+// ==== MAPX (end) ====
+// ==== CAVE (start) ====
+// Cave bunkers: settle the cave under a tile you own (once your squad has seen its mouth) as a second bunker. It comes
+// with natural caverns already open (some with pools a pump works twice as hard on), and the rock round them is rich in
+// veins. You dig and fit it out like the home bunker, from a shorter list of rooms; the people you move in live and
+// work there, on their own power, and what they make goes into the colony's shared stores (they eat and drink from
+// them too). Up to three. State: S.cbs {tile: {ug:{"r,c":{d,room,vein,left,mp,pool}}, order:["r,c"], people:[...], dig}}.
+const CB_COLS=7,CB_ROWS=6,CB_IN=3,CB_MAX=3,CB_COST={scrap:150},CB_ROOMS=["bunks","gen","pump","hydro","shop","store","mine"];
+const cbsOf=()=>{if(!S.cbs||typeof S.cbs!=="object")S.cbs={};return S.cbs};
+const cbAt=i=>{const c=S.cbs&&S.cbs[i];if(!c||typeof c!=="object")return null;if(!c.ug||typeof c.ug!=="object")c.ug={};if(!Array.isArray(c.order))c.order=[];if(!Array.isArray(c.people))c.people=[];return c};
+const cbList=()=>Object.keys(S.cbs||{}).map(Number).filter(i=>cbAt(i));
+const cbPeople=()=>cbList().reduce((a,i)=>a+cbAt(i).people.length,0);
+function cbMake(i){const R=rng(i*7727+SEED+31),ug={},open=(r,c)=>{if(r>=0&&c>=0&&r<CB_ROWS&&c<CB_COLS)ug[r+","+c]={d:1}};
+  let r=0,c=CB_IN;open(r,c);   // a passage winding down from the rope, opening into chambers
+  for(let n=0;n<10;n++){const d=R();if(d<.42&&r<CB_ROWS-1)r++;else if(d<.71)c=Math.max(0,c-1);else c=Math.min(CB_COLS-1,c+1);open(r,c);if(R()<.4)open(r,c+(R()<.5?-1:1));if(R()<.2&&r<CB_ROWS-1)open(r+1,c)}
+  for(const k of Object.keys(ug))if(k!=="0,"+CB_IN&&R()<.22)ug[k].pool=1;
+  return{ug,order:[],people:[],dig:null}}
+// cave rock is rich: a vein in one cell in four, crystal and old circuits further down
+function cbVeinAt(i,r,c){if(h3(i*13+r,c,4421)>=.27)return null;const v=h3(i*17+c,r,4423),L=r<2?["bone","copper","copper"]:r<4?["copper","iron","iron"]:["iron","crystal","wire"];return L[v*L.length|0]}
+const cbVeinLeft=(cell,r)=>{if(!cell||!cell.vein||!MATS[cell.vein])return 0;if(typeof cell.left!=="number"||!isFinite(cell.left))cell.left=veinSize(r+3);return Math.max(0,Math.floor(cell.left))};
+const cbDug=(cb,r,c)=>!!(cb.ug[r+","+c]&&cb.ug[r+","+c].d);
+function cbDigWhy(cb,r,c){if(cbDug(cb,r,c))return"dug";if(!(cbDug(cb,r-1,c)||cbDug(cb,r+1,c)||cbDug(cb,r,c-1)||cbDug(cb,r,c+1)))return"far";return cb.dig?"busy":null}
+const cbDigCost=r=>({scrap:10+4*(r+1)}),cbDigTime=r=>4+1.5*(r+1);
+function cbRoomCost(cb,b,k){const r=+k.split(",")[0],n=Object.values(cb.ug).filter(x=>x.room===b).length;return{scrap:Math.ceil((RC[b].cost+CFG.roomPerRow*(r+1))*Math.pow(CFG.roomScale,n)*(hasBp("alloys")?.8:1))}}
+// ---- the cave's own small economy: residents staff its rooms, its generators power them; output goes to the shared stores
+function cbEcon(genSup,grow){const out={sc:0,wa:0,fo:0,store:0,info:{}};if(!S||!S.cbs)return out;
+  for(const i of cbList()){const cb=cbAt(i),pool=cb.people.slice(),on=new Set(),who=new Map(),bonus=new Map(),paused=new Map();let pw=0,dem=0,gens=0,bunks=0;
+    const rooms=cb.order.filter(k=>cb.ug[k]&&cb.ug[k].room).map(k=>[k,cb.ug[k].room]);
+    const hire=(k,room)=>{const need=JOB_SKILL[room];let bi=-1,bs=-1;pool.forEach((p,j)=>{const sc=(p.sk===need?p.lv:0)*10+(p.tr==="tinkerer"?1:0);if(sc>bs){bs=sc;bi=j}});if(bi<0)return false;
+      const p=pool.splice(bi,1)[0];who.set(k,p);bonus.set(k,1+(p.sk===need?.1*p.lv:0)+(p.tr==="tinkerer"?.1:0));return true};
+    for(const[k,room]of rooms)if(room==="gen"){if(hire(k,room)){on.add(k);pw+=genSup;gens++}else paused.set(k,"nobody free")}
+    for(const[k,room]of rooms)if(room==="store"){on.add(k);out.store+=CFG.storePerRoom}
+    for(const[k,room]of rooms.filter(([,r])=>r!=="gen"&&r!=="store").sort((a,b)=>(RC[a[1]].prio||0)-(RC[b[1]].prio||0))){const d=RC[room],p=d.power||0,r=+k.split(",")[0];
+      if(room==="mine"&&!cbVeinLeft(cb.ug[k],r)){paused.set(k,"worked out");continue}
+      if(dem+p>pw+1e-9){paused.set(k,"no power");continue}if(d.staff&&!hire(k,room)){paused.set(k,"nobody free");continue}dem+=p;on.add(k)}
+    bunks=rooms.filter(([,r])=>r==="bunks").length;
+    for(const k of on){const cell=cb.ug[k],room=cell.room,m=bonus.get(k)||1;
+      if(room==="hydro")out.fo+=RC.hydro.food*m*grow;else if(room==="shop")out.sc+=RC.shop.scrap*m;else if(room==="pump")out.wa+=(cell.pool?RC.pump.aquifer:RC.pump.water)*m}
+    if(dem>0)out.sc-=RC.gen.burn*gens;const n=cb.people.length;out.fo-=EAT*n;out.wa-=EAT*n;
+    out.info[i]={on,who,bonus,paused,power:{supply:pw,demand:Math.round(dem*10)/10},cap:2+bunks*RC.bunks.cap,idle:pool.length,idlers:pool}}
+  return out}
+// the clock: digs finish, mines dig, and a resident has to come home if there's nowhere left to sleep
+function cbTick(dt,quiet){if(!S.cbs||!E||!E.cbx)return;for(const i of cbList()){const cb=cbAt(i),info=E.cbx[i];
+  if(cb.dig){cb.dig.left-=dt;if(cb.dig.left<=0){const k=cb.dig.k,[r,c]=k.split(",").map(Number);cb.dig=null;cb.ug[k]={d:1};const v=cbVeinAt(i,r,c);
+    if(v){const n=4+2*r;matAdd(v,n);cb.ug[k].vein=v;cb.ug[k].left=veinSize(r+3);if(!quiet)say("The cave diggers hit a vein of "+matName(v)+": "+n+" "+matName(v)+". A Mine there would keep digging it out.")}
+    else if(!quiet)say("The cave bunker under tile "+i+" has a new chamber.");E=econ();dirty=true}}
+  if(!info)continue;
+  for(const k of info.on){const cell=cb.ug[k];if(!cell||cell.room!=="mine")continue;const r=+k.split(",")[0];if(!cbVeinLeft(cell,r))continue;
+    cell.mp=(+cell.mp||0)+RC.mine.rate*(info.bonus.get(k)||1)*(S.gear&&S.gear.drillbits?2:1)*dt;let got=0;while(cell.mp>=1&&cell.left>0){cell.mp-=1;cell.left--;got++}
+    if(got){matAdd(cell.vein,got);if(S.gear.drillbits)matWear("mine",got)}
+    if(cell.left<=0){cell.left=0;cell.mp=0;if(!quiet)say("A "+matName(cell.vein)+" vein in the cave bunker is worked out.");E=econ()}}
+  if(cb.people.length>Math.max(2,info.cap)){const p=cb.people.pop();S.people.push(p);S.pop=S.people.length;if(!quiet)say(p.name+" comes home from the cave bunker: there's no bed for them down there.")}}}
+// ---- what you can do there
+let CBI=-1,selC=null,GRC={cw:1,ch:1,gy:0};
+function cbCanFound(i){if(!S.owned.has(i)||T[i].b==="sea"||T[i].pent||S.bld[i]==="bunker"||cbAt(i))return false;const M=genMap(i),ms=S.maps[i];if(!ms)return false;
+  const k=M.pois.findIndex(p=>p.type==="cave");return k>=0&&ms.rev[M.pois[k].k]==="1"}
+function cbAct(a){
+  if(a==="found"){const i=sel;if(!cbCanFound(i)||cbList().length>=CB_MAX||S.pop<4||!afford(CB_COST))return;pay(CB_COST);const cb=cbsOf()[i]=cbMake(i);
+    for(let n=0;n<2;n++){const p=S.people.pop();if(p)cb.people.push(p)}S.pop=S.people.length;E=econ();say("A second bunker: "+cb.people.map(p=>p.name).join(" and ")+" move down into the caves under tile "+i+".");CBI=i;selC=null;setView("cave");dirty=true;save();return}
+  if(a==="open"){if(!cbAt(sel))return;CBI=sel;selC=null;setView("cave");return}
+  const cb=cbAt(CBI);if(!cb)return;const info=E.cbx&&E.cbx[CBI];
+  if(a==="up"){sel=CBI;setView("surface");return}
+  if(a==="send"){if(S.pop<=3||!info||cb.people.length>=info.cap)return;const p=S.people.pop();if(!p)return;cb.people.push(p);S.pop=S.people.length;say(p.name+" moves down to the cave bunker.")}
+  else if(a==="recall"){if(!cb.people.length)return;const p=cb.people.pop();S.people.push(p);S.pop=S.people.length;say(p.name+" comes back up to the home bunker.")}
+  else if(a==="dig"&&selC){const[r,c]=selC.split(",").map(Number),co=cbDigCost(r);if(cbDigWhy(cb,r,c)||!afford(co))return;pay(co);const tt=cbDigTime(r);cb.dig={k:selC,left:tt,total:tt}}
+  else if(a.startsWith("room:")&&selC){const b=a.slice(5),cell=cb.ug[selC],r=+selC.split(",")[0];if(!cell||!cell.d||cell.room||selC==="0,"+CB_IN||!CB_ROOMS.includes(b))return;
+    if(b==="mine"&&!cbVeinLeft(cell,r))return;const co=cbRoomCost(cb,b,selC);if(!afford(co))return;pay(co);cell.room=b;cb.order.push(selC);say("Fitted out "+ROOM[b].name.toLowerCase()+" in the cave bunker.")}
+  else if(a==="raze"&&selC){const cell=cb.ug[selC];if(!cell||!cell.room)return;const b=cell.room,co=cbRoomCost(cb,b,selC);delete cell.room;cb.order=cb.order.filter(x=>x!==selC);for(const x in co)S.res[x]+=Math.floor(co[x]/CFG.roomScale*.5);say("Stripped the "+ROOM[b].name.toLowerCase()+" in the cave bunker for parts.")}
+  else return;E=econ();dirty=true;save()}
+function cbTileHTML(i){const cb=cbAt(i);
+  if(cb){const info=E.cbx&&E.cbx[i];return"<p><b>Cave bunker below.</b> "+cb.people.length+" "+(cb.people.length===1?"person lives":"people live")+" down there"+(info?", "+info.on.size+" room"+(info.on.size===1?"":"s")+" running":"")+".</p>"+
+    '<div class="acts">'+btn("cb:open","Go down to the cave bunker","Its own rooms and people",null,"primary")+"</div>"}
+  if(!cbCanFound(i))return"";const full=cbList().length>=CB_MAX,few=S.pop<4;
+  return"<p>Your squad found a cave under this tile. You could settle it: a second bunker in the caverns, rich in veins.</p>"+
+    '<div class="acts">'+btn("cb:found","Start a cave bunker",full?"You have "+CB_MAX+" already":few?"You need 4 people: 2 move down":"Costs "+costText(CB_COST)+" · 2 people move down",full||few?null:CB_COST,"primary",full||few)+"</div>"}
+function caveHTML(){const cb=cbAt(CBI);if(!cb)return'<div class="tile-h">No cave bunker</div>';const info=E.cbx&&E.cbx[CBI]||{on:new Set(),paused:new Map(),who:new Map(),power:{supply:0,demand:0},cap:2,idle:0};
+  let h='<div class="row"><button class="linkbtn" data-act="cb:up">← Back to the surface</button><span class="meta">Power '+info.power.supply+" / "+info.power.demand+" used</span></div>";
+  h+='<div class="tile-h">The cave bunker under tile '+CBI+"</div><p>"+cb.people.length+" of "+info.cap+" beds taken"+(cb.people.length?": "+cb.people.map(p=>p.name).join(", "):"")+". "+(info.idle?info.idle+" with nothing to do. ":"")+
+    "What they make goes into the colony's stores, and they eat and drink from them. Tap a chamber to fit it out, or the rock next to one to dig.</p>"+
+    '<div class="acts">'+btn("cb:send","Send someone down","From the home bunker",null,"",S.pop<=3||cb.people.length>=info.cap)+btn("cb:recall","Bring someone home","Back to the home bunker",null,"",!cb.people.length)+"</div>";
+  if(!selC)return h;const[r,c]=selC.split(",").map(Number),cell=cb.ug[selC];h+='<div class="meta">'+((r+1)*3)+" m under the cave mouth</div>";
+  if(cell&&cell.d&&cell.room){const def=ROOM[cell.room],on=info.on.has(selC),why=info.paused.get(selC),p=info.who.get(selC),left=cell.room==="mine"?cbVeinLeft(cell,r):0;
+    h+='<div class="tile-h">'+def.name+"</div><p>"+def.what+". "+(def.power?"Uses "+def.power+" power. ":"")+(on?(p?p.name+" works here.":"Running."):why==="worked out"?"<b>The vein is worked out.</b>":why==="no power"?"<b>Paused: not enough power.</b> Fit out a generator down here.":"<b>Paused: nobody free to work here.</b> Send someone down.")+
+      (cell.pool&&cell.room==="pump"?" A pool in this chamber: the pump makes about twice as much.":"")+(cell.room==="mine"&&left?" A vein of "+matName(cell.vein)+": "+left+" left in it.":"")+"</p>";
+    return h+'<div class="acts">'+btn("cb:raze","Strip it","Get some parts back",null,"warn")+"</div>"}
+  if(cell&&cell.d){if(selC==="0,"+CB_IN)return h+'<div class="tile-h">The cave mouth</div><p>A rope and a ladder down from the surface. Everything goes up and down here.</p>';
+    const vl=cbVeinLeft(cell,r);h+='<div class="tile-h">An open chamber</div><p>'+(cell.pool?"A still, clear pool: a pump here makes about twice as much. ":"")+(vl?"A vein of "+matName(cell.vein)+" runs through the wall ("+vl+" left): a Mine here keeps digging it out. ":"")+"Fit it out.</p><div class=\"acts\">";
+    for(const b of CB_ROOMS){if(b==="mine"&&!vl)continue;const co=cbRoomCost(cb,b,selC),d=ROOM[b];h+=btn("cb:room:"+b,d.name,d.what+(d.power?" · "+d.power+" power":"")+(d.staff?" · 1 worker":"")+" · "+costText(co),co,b==="mine"?"primary":"")}
+    return h+"</div>"}
+  h+='<div class="tile-h">Cave rock</div>';if(cb.dig&&cb.dig.k===selC)return h+"<p>Digging. "+Math.ceil(cb.dig.left)+" s left.</p>";
+  const why=cbDigWhy(cb,r,c),v=cbVeinAt(CBI,r,c),co=cbDigCost(r);
+  return h+"<p>"+(v?"Coloured specks of "+matName(v)+" in the rock: a vein. ":"")+(why==="far"?"Dig next to an open chamber.":why==="busy"?"The diggers are busy with another chamber.":"Dig it out: "+costText(co)+", "+Math.round(cbDigTime(r))+" s.")+"</p>"+(why?"":'<div class="acts">'+btn("cb:dig","Dig","Opens a new chamber",co,"primary")+"</div>")}
+// ---- the cutaway: rock and caverns, veins, pools, rooms, people, the rope up to the surface
+function paintCaveRock(g,cb,cw,ch,i){const W0=CB_COLS*cw,H0=CB_ROWS*ch;g.fillStyle="#3b342d";g.fillRect(0,0,W0,H0+1);
+  for(let q=0;q<160;q++){g.fillStyle=h3(i,q,7)<.5?"rgba(20,16,12,.35)":"rgba(120,108,92,.18)";g.beginPath();g.arc(W0*h3(i,q,8),H0*h3(i,q,9),Math.max(1,cw*(.02+.04*h3(i,q,10))),0,6.2832);g.fill()}
+  const dug=(r,c)=>cbDug(cb,r,c),hole="#17130f";g.fillStyle=hole;
+  for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){if(!dug(r,c))continue;const x=c*cw,y=r*ch,j=(q,s)=>(h3(i*31+r*7+c,q,s)-.5)*cw*.08;
+    g.beginPath();g.moveTo(x+cw*.1+j(1,1),y+ch*.12+j(1,2));g.quadraticCurveTo(x+cw*.5,y+ch*.02+j(2,1),x+cw*.9+j(3,1),y+ch*.1+j(3,2));g.lineTo(x+cw*.96+j(4,1),y+ch*.88);g.quadraticCurveTo(x+cw*.5,y+ch*.98,x+cw*.04+j(5,1),y+ch*.9);g.closePath();g.fill();
+    if(dug(r,c+1))g.fillRect(x+cw*.8,y+ch*.2,cw*.4,ch*.68);if(dug(r+1,c))g.fillRect(x+cw*.22,y+ch*.8,cw*.56,ch*.4)}
+  g.fillStyle="#4a4138";for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){if(!dug(r,c))continue;const x=c*cw,y=r*ch;   // stalactites and stalagmites
+    for(let q=0;q<3;q++){const px=x+cw*(.2+.3*q+.08*h3(r,c,q)),L=ch*(.08+.1*h3(c,r,q+3));if(!dug(r-1,c)){g.beginPath();g.moveTo(px-cw*.03,y+ch*.08);g.lineTo(px+cw*.03,y+ch*.08);g.lineTo(px,y+ch*.08+L);g.closePath();g.fill()}
+      if(!dug(r+1,c)&&h3(r,c,q+9)<.5){g.beginPath();g.moveTo(px-cw*.035,y+ch*.92);g.lineTo(px+cw*.035,y+ch*.92);g.lineTo(px+cw*.01,y+ch*.92-L*.8);g.closePath();g.fill()}}}}
+function drawCave(now){const cb=cbAt(CBI);if(!cb){setView("surface");return}
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle="#0c0a08";ctx.fillRect(0,0,W,H);
+  const top=Math.max(46*DPR,H*.12),pad=22*DPR,cw=W/CB_COLS,ch=Math.min(cw*.82,(H-top-pad)/CB_ROWS),gy=top+Math.max(0,(H-top-pad-CB_ROWS*ch)/2);GRC={cw,ch,gy};
+  const t=T[CBI],dl=smooth(-.12,.3,dot(sunAt(S.t),t.c)),sky=ctx.createLinearGradient(0,0,0,top);sky.addColorStop(0,dl>.4?"#5a6a7a":"#14161c");sky.addColorStop(1,dl>.4?"#a8a090":"#2a2620");
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,top);ctx.fillStyle=col(t.base||[110,100,86],.6+.4*dl);ctx.fillRect(0,top-6*DPR,W,gy-top+6*DPR);
+  const sig=Object.keys(cb.ug).filter(k=>cb.ug[k].d).sort().join(";");
+  stamp("cbrock:"+CBI+":"+sig+":"+Math.round(cw*10)+":"+Math.round(ch*10),W,CB_ROWS*ch+1,0,gy,g=>paintCaveRock(g,cb,cw,ch,CBI),"cave");
+  const rx=(CB_IN+.5)*cw;ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,1.2*DPR);ctx.beginPath();ctx.moveTo(rx,top-6*DPR);ctx.lineTo(rx,gy+ch*.85);ctx.stroke();   // the rope
+  ctx.fillStyle="#2a2119";ctx.fillRect(rx-cw*.16,top-8*DPR,cw*.32,5*DPR);
+  const info=E.cbx&&E.cbx[CBI];
+  for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){const k=r+","+c,cell=cb.ug[k],x=c*cw,y=gy+r*ch;
+    if(!(cell&&cell.d)){const v=cbVeinAt(CBI,r,c);if(v)seamAt(x,y,cw,ch,r,c,v,.85,.7);continue}
+    if(cell.pool&&!cell.room){ctx.fillStyle="rgba(70,120,150,.75)";ctx.beginPath();ctx.ellipse(x+cw*.5,y+ch*.84,cw*.32,ch*.07,0,0,6.2832);ctx.fill();if(!reduced){ctx.strokeStyle="rgba(200,230,255,.35)";ctx.lineWidth=DPR;ctx.beginPath();ctx.ellipse(x+cw*.5,y+ch*.84,cw*.32*((now/1600)%1),ch*.07*((now/1600)%1),0,0,6.2832);ctx.stroke()}}
+    if(!cell.room&&cell.vein&&cbVeinLeft(cell,r))seamAt(x,y,cw,ch,r,c,cell.vein,.55,1)}
+  ctx.font=Math.round(Math.max(8*DPR,Math.min(ch*.2,11*DPR)))+'px "Courier Prime",monospace';ctx.textBaseline="top";
+  for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){const k=r+","+c,cell=cb.ug[k];if(!cell||!cell.room)continue;const x=c*cw,y=gy+r*ch,lit=!!(info&&info.on.has(k)),room=cell.room,def=ROOM[room];
+    stamp("room:"+room+":1:"+Math.round(cw*100)+":"+Math.round(ch*100)+":"+(lit?1:0),cw,ch,x,y,g=>paintRoom(g,room,cw,ch,lit,1));
+    if(lit)roomFx(room,x,y,cw,ch,1,now);if(room==="mine"){const L=cbVeinLeft(cell,r);if(L)seamAt(x,y,cw,ch,r,c,cell.vein,lit?1:.45,Math.min(1,L/veinSize(r+3)))}
+    const label=def.name.split(" ")[0].slice(0,7),tw=ctx.measureText(label).width;ctx.fillStyle="rgba(20,15,11,.72)";ctx.fillRect(x+3*DPR,y+ch*.1,tw+6*DPR,Math.max(8*DPR,Math.min(ch*.2,11*DPR))+4*DPR);ctx.fillStyle=lit?"#efe2c4":"#a99d86";ctx.fillText(label,x+6*DPR,y+ch*.1+2*DPR)}
+  if(info){let sd=0;for(const[k,p]of info.who){const[r,c]=k.split(",").map(Number),cell=cb.ug[k],sx=c*cw+cw*(cell.room==="mine"?.52:.25+.5*(.5+.5*Math.sin(now/1900+sd*2.1)*(reduced?0:1))),o=cell.room==="mine"?{act:"dig",f:-1}:undefined;
+      ctx.save();ctx.beginPath();ctx.rect(c*cw+DPR,gy+r*ch+ch*.08,cw-2*DPR,ch*.92);ctx.clip();person(sx,gy+r*ch+ch-3*DPR,ch*.5,sd++,now,lookOf(p),o);ctx.restore()}
+    const spots=Object.keys(cb.ug).filter(k=>cb.ug[k].d&&!cb.ug[k].room);info.idlers.forEach((p,j)=>{if(!spots.length)return;const[r,c]=spots[j%spots.length].split(",").map(Number);
+      ctx.save();ctx.beginPath();ctx.rect(c*cw+DPR,gy+r*ch,cw-2*DPR,ch);ctx.clip();person(c*cw+cw*(.25+.5*(.5+.5*Math.sin(now/2600+j*1.7)*(reduced?0:1))),gy+r*ch+ch*.92,ch*.46,j+30,now,lookOf(p));ctx.restore()})}
+  if(cb.dig){const[r,c]=cb.dig.k.split(",").map(Number),x=c*cw,y=gy+r*ch,p=1-cb.dig.left/cb.dig.total;ctx.fillStyle="rgba(240,164,58,.35)";ctx.fillRect(x,y,cw*p,ch);ctx.setLineDash([3*DPR,3*DPR]);ctx.strokeStyle="#f0a43a";ctx.lineWidth=DPR;ctx.strokeRect(x+DPR,y+DPR,cw-2*DPR,ch-2*DPR);ctx.setLineDash([])}
+  for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){const k=r+","+c,cell=cb.ug[k],x=c*cw,y=gy+r*ch;   // room frames, and rock you can dig
+    if(cell&&cell.room){ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1.5,2*DPR);ctx.strokeRect(x+DPR,y+DPR,cw-2*DPR,ch-2*DPR)}
+    else if(!(cell&&cell.d)&&!cbDigWhy(cb,r,c)){ctx.strokeStyle="rgba(240,164,58,.4)";ctx.lineWidth=DPR;ctx.strokeRect(x+1.5*DPR,y+1.5*DPR,cw-3*DPR,ch-3*DPR)}}
+  if(selC){const[r,c]=selC.split(",").map(Number);ctx.strokeStyle="#e8dcc2";ctx.lineWidth=Math.max(2,2*DPR);ctx.setLineDash([4*DPR,3*DPR]);ctx.strokeRect(c*cw+2*DPR,gy+r*ch+2*DPR,cw-4*DPR,ch-4*DPR);ctx.setLineDash([])}}
+const cbLegend=()=>{const cb=cbAt(CBI),info=E.cbx&&E.cbx[CBI];return cb&&info?"Cave bunker · "+cb.people.length+" people · power "+info.power.supply+"/"+info.power.demand:"Cave bunker"};
+// on the globe: a lit cave mouth beside the tile's own building, so you can find your cave bunkers
+function cbMarks(vis,cx,cy,r,tr,obs){if(!S.cbs)return;for(let v=0;v<vis.length;v+=3){const i=vis[v];if(!cbAt(i))continue;const z=vis[v+1],s=tr*.66*(.5+.5*z);if(s<4*DPR)continue;
+  const nx=dot([R[0],R[1],R[2]],T[i].c);obs.push([z+.001,"_cb",cx+nx*r,cy-dot([R[3],R[4],R[5]],T[i].c)*r,s,0,vis[v+2],i,1])}}
+function cbMark(o,now){const[,,x0,y0,s]=o,x=x0+s*.42,y=y0+s*.18,f=reduced?1:.8+.2*Math.sin(now/170+o[7]);
+  const g=ctx.createRadialGradient(x,y,0,x,y,s*.7);g.addColorStop(0,"rgba(255,190,90,"+(.35*f).toFixed(3)+")");g.addColorStop(1,"rgba(255,190,90,0)");ctx.fillStyle=g;ctx.fillRect(x-s*.7,y-s*.7,s*1.4,s*1.4);
+  ctx.fillStyle="#8a7f70";ctx.beginPath();ctx.moveTo(x-s*.34,y+s*.14);ctx.lineTo(x-s*.34,y-s*.02);ctx.arc(x,y-s*.02,s*.34,Math.PI,0);ctx.lineTo(x+s*.34,y+s*.14);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#0e0b08";ctx.beginPath();ctx.moveTo(x-s*.22,y+s*.14);ctx.lineTo(x-s*.22,y);ctx.arc(x,y,s*.22,Math.PI,0);ctx.lineTo(x+s*.22,y+s*.14);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#ffcf7a";ctx.beginPath();ctx.arc(x+s*.13,y-s*.08,Math.max(1,s*.06*f),0,6.2832);ctx.fill()}
+function cbTap(sx,sy){const c=Math.floor(sx/GRC.cw),r=Math.floor((sy-GRC.gy)/GRC.ch);if(r<0||c<0||r>=CB_ROWS||c>=CB_COLS)return;selC=r+","+c;dirty=true}
+// ==== CAVE (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const skyH=Math.max(54*DPR,H*.13),padB=24*DPR,cw=W/COLS,ch=Math.min(cw*.8,Math.max(28*DPR,(H-skyH-padB)/ROWS)),gy=skyH;
@@ -2048,7 +2476,7 @@ function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v==="fight"&&!FIGHT)
   $("sys").hidden=!sysOpen()||v==="map"||v==="below"||v==="fight";$("fdeck").hidden=v!=="fight";
   const d=$("dive");d.textContent=v==="below"?"⇧":"⇩";d.setAttribute("aria-label",v==="below"?"Back to the surface":"Go below the bunker");
   const sy=$("sys");sy.textContent=v==="stars"?"◉":"✦";sy.setAttribute("aria-label",v==="stars"?"Back to the planet":"System map");$("home").setAttribute("aria-label",v==="away"?"Turn to your ship":"Turn to your bunker");
-  cv.setAttribute("aria-label",v==="fight"?"A puppet fight on a board. The stick works your puppet's rod: up stands tall, down ducks, forward leans in. The button fires.":v==="below"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
+  cv.setAttribute("aria-label",v==="fight"?"A puppet fight on a board. The stick works your puppet's rod: up stands tall, down ducks, forward leans in. The button fires.":v==="below"||v==="cave"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
     v==="away"?"Another world. Drag to turn it, tap a tile to choose it.":"The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you.");dirty=true}
 
 // ---------------------------------------------------------------- tile maps: every tile is a small map you walk and clear
@@ -2116,7 +2544,7 @@ const EVENTS={
 const EV_KEYS=Object.keys(EVENTS);
 function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const MAPS=new Map();let EASY=null;
-function genMap(i){if(MAPS.has(i))return MAPS.get(i);
+function genMap(i){if(MAPS.has(i))return MAPS.get(i);if(T[i].b!=="sea"&&!legacyHome(i)){const m=genTileNew(i);MAPS.set(i,m);return m}
   if(T[i].b==="sea"){const m=seaMap(i,null);MAPS.set(i,m);return m}   // slice 2: seabeds, for the diving bell
   if(!EASY)EASY=ring(new Set([START,...STARTERS.map(s=>s[0])]),1);
   const b=T[i].b,R=rng(i*7919+SEED),dens={ash:.14,woods:.3,ruins:.26,crags:.32,frost:.2,spire:.24}[b]??.2,easy=EASY.has(i);
@@ -2138,41 +2566,42 @@ function genMap(i){if(MAPS.has(i))return MAPS.get(i);
     if(R()<({ruins:.7,spire:1}[b]??.4)){const fam=LMS[LM_FAMILY[b]];add("landmark",{lm:fam[R()*fam.length|0].name})}
   }
   const m=addPlace(addCaveMouth({g,pois,entry},i,b,null),i,b,null);MAPS.set(i,m);return m}   // the cave mouth goes last, so older saves keep their finds
-function mapState(i){let ms=S.maps[i];if(!ms){const M=genMap(i);ms=S.maps[i]={rev:"0".repeat(MW*MH),got:[],att:{}};
+function mapState(i){let ms=S.maps[i];if(!ms){const M=genMap(i);ms=S.maps[i]={rev:"0".repeat(mw(M)*mh(M)),got:[],att:{}};if(M.w)ms.w=M.w;
   if(S.owned.has(i))M.pois.forEach((p,ix)=>{if(p.type==="threat")ms.got.push(ix)})}return ms}
 function landmarkOf(i){const ms=S.maps[i];if(!ms)return null;const M=genMap(i),ix=M.pois.findIndex(p=>p.type==="landmark");return ix>=0&&ms.got.includes(ix)?LM_BY_NAME[M.pois[ix].lm]:null}
 const lmBonus=(i,b)=>{if(!S||!S.maps[i])return 1;const l=landmarkOf(i);return l&&l.fx==="tile"&&l.kind===b&&l.x?l.x:1};
 const lmAdd=(i,b)=>{if(!S||!S.maps[i])return 0;const l=landmarkOf(i);return l&&l.fx==="tile"&&l.kind===b&&l.add?l.add:0};
 function threatsLeft(i){const M=genMap(i),ms=S.maps[i];return M.pois.filter((p,ix)=>p.type==="threat"&&!(ms&&ms.got.includes(ix))).length}
-function explored(i){const ms=S.maps[i];if(!ms)return 0;let n=0;for(const ch of ms.rev)if(ch==="1")n++;return n/(MW*MH)}
-function reveal(ms,k,rad){const x0=k%MW,y0=(k/MW)|0,r=ms.rev.split("");
-  for(let y=y0-rad;y<=y0+rad;y++)for(let x=x0-rad;x<=x0+rad;x++){if(x<0||y<0||x>=MW||y>=MH||Math.abs(x-x0)+Math.abs(y-y0)>rad+1)continue;r[y*MW+x]="1"}ms.rev=r.join("")}
+function explored(i){const ms=S.maps[i];if(!ms)return 0;let n=0;for(const ch of ms.rev)if(ch==="1")n++;return n/ms.rev.length}
+function reveal(ms,k,rad){const RW=ms.w||MW,RH=(ms.rev.length/RW)|0,x0=k%RW,y0=(k/RW)|0,r=ms.rev.split("");
+  for(let y=y0-rad;y<=y0+rad;y++)for(let x=x0-rad;x<=x0+rad;x++){if(x<0||y<0||x>=RW||y>=RH||Math.abs(x-x0)+Math.abs(y-y0)>rad+1)continue;r[y*RW+x]="1"}ms.rev=r.join("")}
 // sight: daylight, the lookout and the scanner on the surface; caves and seabeds are dark (slice 2: the skimmer, the Builder Lens and the Deep Lamp)
 const sightR=i=>{const e=S.exp,deep=!!(e&&(e.cave||e.sea));
   return(hasBp("maps")?1:0)+(deep?1+(hasArt("lamp")?1:0)+(S.gear.lamps?1:0):(smooth(-.12,.3,dot(sunAt(S.t),T[i].c))>.4?2:1)+(S.unl.lookout?1:0)+(skimOn()?1:0))+(S.gear.scanner?1:0)+(hasArt("lens")?1:0)};
 function squadP(){const base=Math.min(2,1+Math.floor(S.pop/8)),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0))+matStr()+(crawlOn()&&!(S.exp&&(S.exp.cave||S.exp.sea))?(S.gear.crawlplate?2:1):0),morale=E&&(E.med||E.radio)?1:0;return{P:base+gear+morale+(hasBp("drills")?1:0),base,gear,morale}}
 const tripSteps=()=>XC.steps+(hasBp("packs")?6:0)+(S.k.lantern?4:0)+(S.gear.pack?CFG.gear.pack.steps:0)+(S.gear.mule?CFG.gear.mule.steps:0)+(S.cnt.watch>0?6:0)-(S.cnt.decon>0?5:0);
 function sendBlock(){if(S.wounded>0)return"The squad is still recovering ("+Math.ceil(S.wounded)+" s).";if(S.pop<=XC.squad)return"You need more than "+XC.squad+" people to send a squad.";return null}
-let PATH=[],CARD=null,stepT=0,GM={cs:1,ox:0,oy:0};
+let PATH=[],CARD=null,stepT=0,GM={cs:1,ox:0,oy:0,w:11,h:9};
 function startExp(i){if(S.exp)return;const sea=!land(i);if(sea&&!S.veh.bell)return;   // seas need the diving bell (slice 2)
   const own=sea?!!S.wet[i]:S.owned.has(i);if(!own&&!reachHome(i))return;if(sendBlock())return;
-  let sup=-1;if(!own){if(!afford(xcost()))return;pay(xcost());sup=tripSteps();if(S.cnt.watch>0)S.cnt.watch--;if(S.cnt.decon>0)S.cnt.decon--}
+  let sup=-1;if(!own){if(!afford(xcost()))return;pay(xcost());sup=tripSteps()+Math.round(XC.steps*(mapStepK(genMap(i))-1));if(S.cnt.watch>0)S.cnt.watch--;if(S.cnt.decon>0)S.cnt.decon--}
   const M=genMap(i),ms=mapState(i);S.exp={i,sup,pos:M.entry,sea};matTrip(!own,sea);reveal(ms,M.entry,sightR(i));
   if(S.gear.scanner){const ti=M.pois.findIndex((p,ix)=>p.type==="threat"&&!ms.got.includes(ix)&&ms.rev[p.k]!=="1");if(ti>=0)reveal(ms,M.pois[ti].k,0)}
   PATH=[];CARD=null;sel=i;setView("map");save()}
 function endExp(msg){if(msg)say(msg);const aw=!!(S.exp&&S.exp.away);S.exp=null;PATH=[];CARD=null;setView(aw?"away":"surface");save()}
 const poiAt=k=>xGen(S.exp.i).pois.findIndex(p=>p.k===k);
 function pathTo(target){const M=xGen(S.exp.i),ms=xMS(S.exp.i),start=S.exp.pos;if(target===start)return[];
-  const prev=new Map([[start,-1]]),q=[start];
-  while(q.length){const k=q.shift();if(k===target)break;const x=k%MW,y=(k/MW)|0;
-    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=MW||ny>=MH)continue;const n=ny*MW+nx;if(prev.has(n))continue;
-      const known=ms.rev[n]==="1";if(known&&M.g[n]===1)continue;if(!known&&n!==target)continue;
-      const pi=poiAt(n);if(pi>=0&&((M.pois[pi].type==="threat"&&!ms.got.includes(pi))||M.pois[pi].type==="cave")&&n!==target)continue;   // walk round cave mouths unless you mean to go down
+  const PWm=mw(M),PHm=mh(M),prev=new Map([[start,-1]]),q=[start];
+  while(q.length){const k=q.shift();if(k===target)break;const x=k%PWm,y=(k/PWm)|0;
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=PWm||ny>=PHm)continue;const n=ny*PWm+nx;if(prev.has(n))continue;
+      const known=ms.rev[n]==="1";if(known&&blockedG(M.g[n])&&!(n===target&&crackAt(M,ms,n)>=0))continue;if(!known&&n!==target)continue;
+      const pi=poiAt(n);if(pi>=0&&((M.pois[pi].type==="threat"&&!ms.got.includes(pi))||M.pois[pi].type==="cave"||M.pois[pi].type==="stairs")&&n!==target)continue;   // walk round cave mouths unless you mean to go down
       prev.set(n,k);q.push(n)}}
   if(!prev.has(target))return null;const p=[];for(let k=target;k!==start;k=prev.get(k))p.unshift(k);return p}
 const pathCost=p=>{const M=xGen(S.exp.i);return p.reduce((a,k)=>a+stepCost(M,k),0)};
 function stepOnce(){const e=S.exp;if(!e||!PATH.length||CARD)return;const n=PATH[0],M=xGen(e.i),ms=xMS(e.i);
-  if(M.g[n]===1){reveal(ms,n,0);PATH=[];return}
+  {const ci=crackAt(M,ms,n);if(ci>=0){PATH=[];CARD={kind:"crack",pi:ci};dirty=true;return}}
+  if(blockedG(M.g[n])){reveal(ms,n,0);PATH=[];return}
   const pi=poiAt(n);
   if(pi>=0&&M.pois[pi].type==="threat"&&!ms.got.includes(pi)){PATH=[];CARD={kind:"threat",pi};dirty=true;return}
   const c=stepCost(M,n);if(e.sup>=0&&e.sup<c){PATH=[];CARD={kind:"out"};dirty=true;return}
@@ -2185,7 +2614,7 @@ function applyLandmark(i,L){switch(L.fx){
   case"res":for(const k in L.res)S.res[k]+=L.res[k];if(L.key2)S.unl[L.key2]=(S.unl[L.key2]||0)+1;return"";
   case"count":S.cnt[L.key]=(S.cnt[L.key]||0)+L.n;return"";
   case"seen":for(const j of ring([i],L.r))S.seen.add(j);return"";
-  case"observe":for(const j of T[i].n.filter(land).slice(0,3)){S.seen.add(j);mapState(j).rev="1".repeat(MW*MH)}return"";
+  case"observe":for(const j of T[i].n.filter(land).slice(0,3)){S.seen.add(j);revealAll(mapState(j))}return"";
   case"person":S.pop++;return"";
   default:return""}}
 function meet(pi){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[pi],aw=!!e.away;   // away, finds go into the ship's hold
@@ -2195,8 +2624,10 @@ function meet(pi){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[pi],aw=!!e.away
   else if(p.type==="garden"){ms.got.push(pi);if(aw)say(holdMsg(L||"Found edible marsh weed","food",p.amt));else{S.res.food+=p.amt;say((L||"Found a wild garden")+": "+p.amt+" food.")}}
   else if(p.type==="pack"&&aw){ms.got.push(pi);S.x.steps+=XP.packSteps;if(e.sup>=0)e.sup=S.x.steps;say((L||"An old Kestrel supply drop, still sealed")+": "+XP.packSteps+" more steps of rations.")}
   else if(p.type==="pack"){ms.got.push(pi);if(e.sup>=0){e.sup+=XC.packSteps;say((L||"An old field camp with dry rations")+": "+XC.packSteps+" more steps.")}else{S.res.food+=6;say("An old field camp: 6 food.")}}
+  else if(TP_TYPES.has(p.type))tpMeet(pi);
   else if(p.type==="cave"){PATH=[];CARD={kind:"cave",pi}}
   else if(p.type==="place"){PATH=[];CARD={kind:"place",pi}}   // a building: never "got", you can go back in
+  else if(p.type==="stairs"||p.type==="crack"){PATH=[];CARD={kind:p.type,pi}}
   else if(PLACE_FX[p.type])placeFind(pi);   // never "got": a cave mouth stays open
   else if(p.type==="artifact"){ms.got.push(pi);const k=p.art,have=S.arts.includes(k)||(aw&&S.x.arts.includes(k));let note="";
     if(have)note=aw?holdMsg("You already have one like it, so you strip it","scrap",CFG.veh.dupScrap):(S.res.scrap+=CFG.veh.dupScrap,"You already have one like it. It sells for "+CFG.veh.dupScrap+" scrap.");
@@ -2229,20 +2660,20 @@ function evDo(code,e,ms,i){const steps=n=>{if(e.sup>=0){if(e.sup<n)return false;
     case"tech_trade":one("scrap",18);say("Traded for know-how and parts: 18 scrap.");return true;
     case"spore_yes":one("food",16);S.cnt.decon=(S.cnt.decon||0)+1;say("Harvested 16 food. The squad needs scrubbing: next trip has 5 fewer steps.");return true;
     case"spore_burn":one("scrap",8);say("Burned the spores. 8 scrap in the ashes.");return true;
-    case"fb_yes":{if(!afford({food:8}))return false;pay({food:8});const nb=T[i].n.filter(j=>land(j)&&!S.owned.has(j)).slice(0,2);for(const j of nb){S.seen.add(j);mapState(j).rev="1".repeat(MW*MH)}say("The beacon pings back. "+nb.length+" nearby tiles are charted.");return true}
+    case"fb_yes":{if(!afford({food:8}))return false;pay({food:8});const nb=T[i].n.filter(j=>land(j)&&!S.owned.has(j)).slice(0,2);for(const j of nb){S.seen.add(j);revealAll(mapState(j))}say("The beacon pings back. "+nb.length+" nearby tiles are charted.");return true}
     case"fb_strip":one("scrap",14);say("Stripped the beacon: 14 scrap.");return true;
     case"lift_yes":if(!afford({scrap:20}))return false;pay({scrap:20});S.cnt.hoist=(S.cnt.hoist||0)+3;say("Shaft Hoist: your next 3 shaft digs are cheaper and faster.");return true;
     case"lift_salv":one("scrap",12);say("Salvaged the motor: 12 scrap.");return true;
-    case"emap_yes":{if(!steps(4))return false;ms.rev="1".repeat(MW*MH);const nb=T[i].n.find(j=>land(j)&&!S.owned.has(j));if(nb!==undefined){S.seen.add(nb);mapState(nb).rev="1".repeat(MW*MH)}say("Decoded the map: this tile and a neighbour are charted.");return true}
+    case"emap_yes":{if(!steps(4))return false;revealAll(ms);const nb=T[i].n.find(j=>land(j)&&!S.owned.has(j));if(nb!==undefined){S.seen.add(nb);revealAll(mapState(nb))}say("Decoded the map: this tile and a neighbour are charted.");return true}
     case"emap_sell":one("food",9);say("Sold the map paper: 9 food.");return true;
     case"traveler_yes":if(!afford({water:10}))return false;pay({water:10});S.pop++;say("The traveler joins you.");return true;
     case"drop_yes":one("scrap",30);one("food",10);say("The crate held 30 scrap and 10 food.");return true;
-    case"static_yes":if(!steps(3))return false;ms.rev="1".repeat(MW*MH);say("You copy down the numbers. The whole tile is on your map now.");return true;
+    case"static_yes":if(!steps(3))return false;revealAll(ms);say("You copy down the numbers. The whole tile is on your map now.");return true;
     case"beacon_yes":if(!afford({food:15}))return false;pay({food:15});S.pop++;say("The family comes with you. One of them stays on as a worker.");return true;
     case"beacon_take":one("food",12);say("You take their spare tins. Nobody looks back.");return true;
     case"fungus_yes":if(h3(i,77,5)<.7){one("food",14);say("Fourteen meals of mushrooms.")}else say("The whole batch was the bad kind. Nothing to eat.");return true;
   }return false}
-function resolve(act){const e=S.exp;if(!e||!CARD)return;const M=xGen(e.i),ms=xMS(e.i),aw=!!e.away;
+function resolve(act){const e=S.exp;if(!e||!CARD)return;const M=xGen(e.i),ms=xMS(e.i),aw=!!e.away;if(CARD.kind==="tp"){if(act==="back"||act==="ok")tpAct("back");return}if(CARD.kind==="stairs"||CARD.kind==="crack"){if(act==="back"||act==="ok")CARD=null;return}
   if(CARD.kind==="threat"){const p=M.pois[CARD.pi],th=thOf(p.t);
     if(act==="bomb"){matBomb(p,th,ms);return}
     if(act==="fight"&&th.lvl>0){threatFight("quick");return}   // a quick fight: Stick 'Em Up, played out by bots on both sides
@@ -2271,8 +2702,10 @@ function feature(b,x,y,cs,lit,g){g=g||ctx;g.save();g.translate(x,y);const ink="#
 function poiIcon(p,x,y,cs,done,now,ix){const s=cs*.3,ink="#16110c";
   if(p.type==="survivor"){person(x,y+cs*.36,cs*.7,7,now,STRANGER,{mood:"worry",f:-1});return}
   if(p.type==="place"){placeIcon(p.kind,x,y,cs,now);return}
+  if(p.type==="stairs"||p.type==="crack"){placeFloorIcon(p,x,y,cs);return}
   if(PLACE_FX[p.type]){placePrize(p.type,x,y,cs);return}
   if(p.type==="village"){tideIcon(x,y,cs,now);return}
+  if(TP_TYPES.has(p.type)){tpIcon(p,x,y,cs,now,done);return}
   if(p.type==="landmark"){glyph("flag",x,y,cs*.42,done?.8:1);return}
   ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.05);ctx.strokeStyle=ink;
   if(p.type==="cache"){ctx.fillStyle="#c9a46a";ctx.fillRect(-s,-s*.8,s*2,s*1.6);ctx.strokeRect(-s,-s*.8,s*2,s*1.6);ctx.beginPath();ctx.moveTo(-s,-s*.8);ctx.lineTo(s,s*.8);ctx.moveTo(s,-s*.8);ctx.lineTo(-s,s*.8);ctx.stroke()}
@@ -2291,26 +2724,28 @@ function poiIcon(p,x,y,cs,done,now,ix){const s=cs*.3,ink="#16110c";
   ctx.restore()}
 function drawMap(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle="#0c0a08";ctx.fillRect(0,0,W,H);
-  const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),deep=e.cave?(e.cave.kind&&PLACES[e.cave.kind]?"place:"+e.cave.kind:"cave"):e.sea?"kelp":"",b=deep||t.b;
-  const avH=H-24*DPR,cs=Math.floor(Math.min(W/MW,avH/MH)),ox=(W-cs*MW)/2|0,oy=Math.max(0,(avH-cs*MH)/2|0);GM={cs,ox,oy};
+  const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),deep=e.cave?(e.cave.kind&&PLACES[e.cave.kind]?"place:"+e.cave.kind+(e.cave.fl?"@"+e.cave.fl:""):"cave"):e.sea?"kelp":"",b=deep||t.b;
+  const avH=H-24*DPR,MWd=mw(M),MHd=mh(M),cs=Math.floor(Math.min(W/Math.min(MWd,MW),avH/Math.min(MHd,MH))),[ox,oy]=mapCam(M,e,cs,avH,now);GM={cs,ox,oy,w:MWd,h:MHd};
   // caves and seabeds have no day or night; their floor takes its own colour
   const dl=deep?0:smooth(-.12,.3,dot(sunAt(S.t),t.c)),lit=deep?.7:.5+.5*dl,base=e.cave?(e.cave.kind&&PLACES[e.cave.kind]?PLACES[e.cave.kind].floor:[78,70,62]):e.sea?(e.away?[34,70,80]:[44,84,74]):t.base;
   // the map: the land painted once per light; the fog drawn live on top (cheap, so revealing a cell costs nothing)
   {const lq=Math.round(lit*12)/12,mk=(e.away&&S.x?"a"+S.x.w:"h")+":"+i+":"+b+":"+(e.cave?"c":"")+(e.sea?"s":"")+":"+cs;
-    stamp("land:"+mk+":"+lq,cs*MW,cs*MH+cs,ox,oy-cs,g=>{g.translate(0,cs);paintLand(g,i,M,b,base,lq,cs)},"land");   // a cell of margin on top, for the tops of trees
-    drawFog(ox,oy,i,ms,cs)}
-  M.pois.forEach((p,ix)=>{const got=ms.got.includes(ix);if((got&&p.type!=="landmark")||ms.rev[p.k]!=="1")return;poiIcon(p,ox+(p.k%MW+.5)*cs,oy+(((p.k/MW)|0)+.5)*cs,cs,got,now,ix)});
-  const ex=ox+(M.entry%MW)*cs,ey=oy+((M.entry/MW)|0)*cs;ctx.strokeStyle="#f0a43a";ctx.lineWidth=2*DPR;ctx.setLineDash([3*DPR,3*DPR]);ctx.beginPath();ctx.moveTo(ex,ey+cs-DPR);ctx.lineTo(ex+cs,ey+cs-DPR);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle="rgba(240,164,58,.6)";for(const k of PATH)ctx.fillRect(ox+(k%MW+.5)*cs-1.5*DPR,oy+(((k/MW)|0)+.5)*cs-1.5*DPR,3*DPR,3*DPR);
-  const sx=ox+(e.pos%MW+.5)*cs,sy=oy+(((e.pos/MW)|0)+.5)*cs;
+    stamp("land:"+mk+":"+lq,cs*MWd,cs*MHd+cs,ox,oy-cs,g=>{g.translate(0,cs);paintLand(g,i,M,b,base,lq,cs)},"land");   // a cell of margin on top, for the tops of trees
+    if(M.secret)placeOverlay(ox,oy,M,cs);drawFog(ox,oy,i,ms,cs)}
+  M.pois.forEach((p,ix)=>{const got=ms.got.includes(ix);if((got&&p.type!=="landmark")||ms.rev[p.k]!=="1")return;poiIcon(p,ox+(p.k%MWd+.5)*cs,oy+(((p.k/MWd)|0)+.5)*cs,cs,got,now,ix)});
+  const ex=ox+(M.entry%MWd)*cs,ey=oy+((M.entry/MWd)|0)*cs;ctx.strokeStyle="#f0a43a";ctx.lineWidth=2*DPR;ctx.setLineDash([3*DPR,3*DPR]);ctx.beginPath();ctx.moveTo(ex,ey+cs-DPR);ctx.lineTo(ex+cs,ey+cs-DPR);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle="rgba(240,164,58,.6)";for(const k of PATH)ctx.fillRect(ox+(k%MWd+.5)*cs-1.5*DPR,oy+(((k/MWd)|0)+.5)*cs-1.5*DPR,3*DPR,3*DPR);
+  const sx=ox+(e.pos%MWd+.5)*cs,sy=oy+(((e.pos/MWd)|0)+.5)*cs;
   ctx.globalCompositeOperation="lighter";const lg=ctx.createRadialGradient(sx,sy,0,sx,sy,cs*2.4);lg.addColorStop(0,"rgba(240,164,58,"+(.22+.25*(1-dl)).toFixed(2)+")");lg.addColorStop(1,"rgba(240,164,58,0)");ctx.fillStyle=lg;ctx.fillRect(sx-cs*2.5,sy-cs*2.5,cs*5,cs*5);ctx.globalCompositeOperation="source-over";
   {const sq=squadPeople(),wk=PATH.length>0;person(sx+cs*.2,sy+cs*.42,cs*.64,2,now,sq[1]?lookOf(sq[1]):null,{walk:wk});person(sx-cs*.16,sy+cs*.4,cs*.78,1,now,lookOf(sq[0]),{walk:wk})}
   if(e.sea){ctx.strokeStyle="rgba(232,220,194,.8)";ctx.lineWidth=Math.max(1.5,cs*.05);ctx.beginPath();ctx.arc(sx,sy+cs*.42,cs*.5,Math.PI,0);ctx.stroke()}   // the diving bell
-  if(e.cave&&e.cave.kind)placeExit(ox,oy,M,cs);else if(e.cave){const rx=ox+(M.entry%MW+.5)*cs,ry=oy+((M.entry/MW)|0)*cs;ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,cs*.04);ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx,ry+cs*.8);ctx.stroke()}   // the rope back up
-  ctx.strokeStyle="#3a3127";ctx.lineWidth=DPR;ctx.strokeRect(ox+.5,oy+.5,cs*MW-1,cs*MH-1);
+  if(e.cave&&e.cave.kind)placeExit(ox,oy,M,cs);else if(e.cave){const rx=ox+(M.entry%MWd+.5)*cs,ry=oy+((M.entry/MWd)|0)*cs;ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,cs*.04);ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx,ry+cs*.8);ctx.stroke()}   // the rope back up
+  ctx.strokeStyle="#3a3127";ctx.lineWidth=DPR;ctx.strokeRect(ox+.5,oy+.5,cs*MWd-1,cs*MHd-1);
 }
 function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i),aw=!!e.away;
   if(CARD){
+    if(CARD.kind==="tp")return tpHTML();
+    if(CARD.kind==="stairs")return placeStairsHTML(M.pois[CARD.pi]);if(CARD.kind==="crack")return placeCrackHTML();
     if(CARD.kind==="place")return placeDoorHTML(M.pois[CARD.pi]);if(CARD.kind==="find")return placeFindHTML();
     if(CARD.kind==="cave")return'<div class="meta">Cave mouth</div><div class="tile-h">A way down</div><p>Cold air breathes out of a crack in the ground, and it goes down a long way. Inside it is dark: you see less, and there is no day or night.</p>'+
       '<div class="acts">'+btn("down","Climb down","Walking down there uses the same "+(aw?"rations":"supplies"),null,"primary")+btn("back","Not now","It stays open",null)+"</div>";
@@ -2346,7 +2781,7 @@ function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i)
     '<div class="tile-h">'+(own?(aw?"Walking charted land":"Walking your land"):"Exploring "+bi.name.toLowerCase())+"</div>"+
     "<p>"+(own?(aw?"No rations needed here.":"No supplies needed here."):aw?"Rations: <b>"+e.sup+"</b> steps. Mud costs 2. Going back to the ship is free.":"Supplies: <b>"+e.sup+"</b> steps. Rubble costs 2. Heading home is free.")+" "+
     (tl?tl+" threat"+(tl>1?"s":"")+" left"+(own?".":" to clear before it's "+(aw?"charted.":"yours.")):"No threats left.")+(lm?" Landmark: "+lm.name+".":"")+(aw?" Hold "+holdUsed()+" / "+S.x.cap+".":"")+" "+(aw?"Crew":"Squad")+" strength "+q.P+".</p>"+
-    '<p class="meta">◆ threat · ▣ cache · drop = spring · leaves = garden · ? = event · flag = '+(aw?"site · pack = supply drop":"landmark · figure = survivor · pack = field camp")+" · dark arch = cave mouth · building = a place to go in</p>"+
+    mapLegend(M,ms,aw)+
     '<div class="acts">'+btn("leave",aw?"Back to the ship":"Head home","Progress here is kept",null)+"</div>"}
 
 // ---------------------------------------------------------------- expeditions: the ship, the Ashen system and a second world
@@ -2419,7 +2854,7 @@ function awayFace(){const x=S.x;if(!x)return START;if(x.site>=0)return x.site;if
   A.forEach((t,i)=>{if(t.b==="msea"||t.pent||Math.abs(t.c[1])>.6)return;let s=0;for(const j of ring([i],2))if(A[j].b!=="msea")s++;if(s>bs){bs=s;best=i}});return AFACE[x.w]=best}
 function xw(key){if(!S.xw||typeof S.xw!=="object")S.xw={};let w=S.xw[key];if(!w||typeof w!=="object")w=S.xw[key]={};
   if(!w.charted||typeof w.charted!=="object")w.charted={};if(!w.maps||typeof w.maps!=="object")w.maps={};if(!w.caves||typeof w.caves!=="object")w.caves={};w.visits|=0;w.gifts|=0;return w}
-function awayMap(key,i){const id=key+":"+i;if(AMAPS.has(id))return AMAPS.get(id);
+function awayMap(key,i){const id=key+":"+i;if(AMAPS.has(id))return AMAPS.get(id);if(awayTiles(key)[i].b!=="msea"&&!legacyAway(key,i)){const m=genAwayNew(key,i);AMAPS.set(id,m);return m}
   if(awayTiles(key)[i].b==="msea"){const m=seaMap(i,key);AMAPS.set(id,m);return m}
   const A=awayTiles(key),b=A[i].b,R=rng(i*7919+XWORLDS[key].seed),dens=A_DENS[b]??.2;
   const g=[];for(let k=0;k<MW*MH;k++)g.push(R()<dens?1:R()<.16?2:0);
@@ -2438,22 +2873,22 @@ function awayMap(key,i){const id=key+":"+i;if(AMAPS.has(id))return AMAPS.get(id)
     if(key==="mire"&&i===tideTile())add("village");   // slice 3: the Tidefolk live here
   }
   const m=addPlace(addCaveMouth({g,pois,entry},i,b,key),i,b,key);AMAPS.set(id,m);return m}
-function aMapState(key,i){const w=xw(key);let ms=w.maps[i];if(!ms){const M=awayMap(key,i);ms=w.maps[i]={rev:"0".repeat(MW*MH),got:[],att:{}};
+function aMapState(key,i){const w=xw(key);let ms=w.maps[i];if(!ms){const M=awayMap(key,i);ms=w.maps[i]={rev:"0".repeat(mw(M)*mh(M)),got:[],att:{}};if(M.w)ms.w=M.w;
   if(w.charted[i])M.pois.forEach((p,ix)=>{if(p.type==="threat")ms.got.push(ix)})}return ms}
 const aThreats=(key,i)=>{const M=awayMap(key,i),ms=xw(key).maps[i];return M.pois.filter((p,ix)=>p.type==="threat"&&!(ms&&ms.got.includes(ix))).length};
-const aExplored=(key,i)=>{const ms=xw(key).maps[i];if(!ms)return 0;let n=0;for(const ch of ms.rev)if(ch==="1")n++;return n/(MW*MH)};
+const aExplored=(key,i)=>{const ms=xw(key).maps[i];if(!ms)return 0;let n=0;for(const ch of ms.rev)if(ch==="1")n++;return n/ms.rev.length};
 const aSite=(key,i)=>{const M=awayMap(key,i),ix=M.pois.findIndex(p=>p.type==="landmark");if(ix<0)return null;const ms=xw(key).maps[i];return{ix,cx:M.pois[ix].cx,got:!!(ms&&ms.got.includes(ix))}};
 // routing for the tile-map code: the home world, or the world the crew is walking
 const XA=()=>!!(S.exp&&S.exp.away);
 const inCave=()=>!!(S.exp&&S.exp.cave);   // slice 2: a cave map under the tile the squad is on
-const xGen=i=>inCave()?(S.exp.cave.kind?placeMap(i,XA()?S.exp.w:null,S.exp.cave.kind):caveMap(i,XA()?S.exp.w:null)):XA()?awayMap(S.exp.w,i):genMap(i);
+const xGen=i=>inCave()?(S.exp.cave.kind?placeMap(i,XA()?S.exp.w:null,S.exp.cave.kind,S.exp.cave.fl|0):caveMap(i,XA()?S.exp.w:null)):XA()?awayMap(S.exp.w,i):genMap(i);
 const xMS=i=>inCave()?(S.exp.cave.kind?placeState(i,XA()?S.exp.w:null):caveState(i,XA()?S.exp.w:null)):XA()?aMapState(S.exp.w,i):S.maps[i];
 const xTile=i=>XA()?awayTiles(S.exp.w)[i]:T[i];
 const xBio=i=>XA()?ABIOME[xTile(i).b]:BIOME[T[i].b];
 const xOwn=i=>XA()?!!xw(S.exp.w).charted[i]:land(i)?S.owned.has(i):!!S.wet[i];
 const thOf=t=>XA()?ATHREAT[t]:THREAT[t];
 const xThreatsLeft=i=>{const M=xGen(i),ms=xMS(i);return M.pois.filter((p,ix)=>p.type==="threat"&&!(ms&&ms.got.includes(ix))).length};
-const xExplored=i=>{const ms=xMS(i);if(!ms)return 0;let n=0;for(const c of ms.rev)if(c==="1")n++;return n/(MW*MH)};
+const xExplored=i=>{const ms=xMS(i);if(!ms)return 0;let n=0;for(const c of ms.rev)if(c==="1")n++;return n/ms.rev.length};
 // the ship and the trip
 const crewNames=a=>a.length<2?(a[0]?a[0].name:"nobody"):a.slice(0,-1).map(p=>p.name).join(", ")+" and "+a.at(-1).name;
 const xDest=()=>XWORLDS[S.k.dest]||XWORLDS.mire;
@@ -2552,7 +2987,7 @@ function aEvDo(code,e,ms,i){const x=S.x,steps=n=>{if(x.steps<n)return false;x.st
     case"eggs_take":say(holdMsg("Packed the eggs","food",15));return true;
     case"pool_fill":say(holdMsg("Filled the water tanks","water",20));return true;
     case"pool_rest":more(6);say("Clean water and a rest: 6 more steps.");return true;
-    case"tracks_follow":if(!steps(5))return false;ms.rev="1".repeat(MW*MH);say("The tracks wander all over this tile. Now it's all on your map.");return true;
+    case"tracks_follow":if(!steps(5))return false;revealAll(ms);say("The tracks wander all over this tile. Now it's all on your map.");return true;
     case"tracks_gift":if(!steps(5))return false;xw(x.w).gifts++;say(tideGiftMsg(x.w));return true;
   }return false}
 function xWhere(){const x=S.x,nm=XWORLDS[x.w].name,left=Math.max(0,Math.ceil(x.total-x.t));
@@ -2721,10 +3156,10 @@ function caveMap(i,key){const id=(key||"home")+":"+i;if(CMAPS.has(id))return CMA
 function caveState(i,key){const box=key?xw(key).caves:(S.caves||(S.caves={}));let ms=box[i];if(!ms)ms=box[i]={rev:"0".repeat(MW*MH),got:[],att:{}};return ms}
 const CAVE_P={crags:.5,ruins:.3,frost:.25,woods:.15,ash:.1,spire:.5,shell:.45,bog:.2,spore:.3,reeds:.15};   // how often a tile has a way down
 function addCaveMouth(m,i,b,key){if(!(h3(i,4049+(key?11:0),271)<(CAVE_P[b]||0)))return m;
-  const seen=new Set([m.entry]),q=[m.entry],taken=new Set(m.pois.map(p=>p.k)),cand=[];
-  while(q.length){const k=q.shift(),x=k%MW,y=(k/MW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=MW||ny>=MH)continue;const n=ny*MW+nx;
-    if(seen.has(n)||m.g[n]===1)continue;seen.add(n);q.push(n);if(!taken.has(n)&&ny<MH-2)cand.push(n)}}
-  if(cand.length)m.pois.push({k:cand[h3(i,9013+(key?5:0),17)*cand.length|0],type:"cave"});return m}
+  const CW=m.w||MW,CH=m.h||MH,seen=new Set([m.entry]),q=[m.entry],taken=new Set(m.pois.map(p=>p.k)),cand=[];
+  while(q.length){const k=q.shift(),x=k%CW,y=(k/CW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=CW||ny>=CH)continue;const n=ny*CW+nx;
+    if(seen.has(n)||blockedG(m.g[n]))continue;seen.add(n);q.push(n);if(!taken.has(n)&&ny<CH-2)cand.push(n)}}
+  const cc=m.w?cand.filter(k=>noCut(m.g,m.w,m.h,m.entry,new Set(m.pois.filter(p=>p.type==="cave"||p.type==="stairs").map(p=>p.k)),k)):cand;if(cc.length)m.pois.push({k:cc[h3(i,9013+(key?5:0),17)*cc.length|0],type:"cave"});return m}
 function enterCave(){const e=S.exp;if(!e||e.cave||e.sea)return;e.cave={pos:e.pos};const C=xGen(e.i),ms=xMS(e.i);e.pos=C.entry;reveal(ms,C.entry,sightR(e.i));PATH=[];CARD=null;
   say((e.away?"The crew":"The squad")+" climbs down into the dark.");dirty=true;save()}
 function exitCave(){const e=S.exp;if(!e||!e.cave)return;e.pos=e.cave.pos;e.cave=null;PATH=[];CARD=null;dirty=true;save()}
@@ -5547,14 +5982,16 @@ const ptrs=new Map();let downX=0,downY=0,moved=false,pinch=0;
 const pd=()=>{const p=[...ptrs.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)};
 cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===1){downX=e.clientX;downY=e.clientY;moved=false;vel=[0,0]}if(ptrs.size===2)pinch=pd();focus=null;lastTouch=performance.now()});
 cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW==="fight")return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;lastTouch=performance.now();
-  if(VIEW==="map"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
+  if(VIEW==="map"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)mapPan(dx,dy);return}
+  if(VIEW==="cave"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(VIEW==="below"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY-dy*DPR));return}
   if(VIEW==="stars"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(ptrs.size===1){if(Math.hypot(e.clientX-downX,e.clientY-downY)>6)moved=true;if(moved){spin(dx,dy);vel=[dx,dy]}}
   else if(ptrs.size===2){moved=true;const d=pd();if(pinch)zoom=Math.max(.7,Math.min(ZMAX,zoom*d/pinch));pinch=d;vel=[0,0]}});
 const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;if(VIEW==="fight")return;
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="map"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
-    const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<MW&&y<MH){const p=pathTo(y*MW+x);if(p)PATH=p}return}
+    const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<GM.w&&y<GM.h){const p=pathTo(y*GM.w+x);if(p){PATH=p;CAMM.px=CAMM.py=0}}return}
+  if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="cave"){const b=cv.getBoundingClientRect();cbTap((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="below"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const c=Math.floor(sx/GR.cw),r=Math.floor((sy-GR.gy)/GR.ch);if(c>=0&&c<COLS&&r>=0&&r<ROWS){selU=r+","+c;dirty=true}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="stars"&&ATL.open){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;let best=-1,bd=1e9;
@@ -5565,11 +6002,11 @@ const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.si
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b=cv.getBoundingClientRect();const i=pick((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);if(i>=0){sel=i;dirty=true}}
   if(reduced)vel=[0,0]};
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
-cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars"||VIEW==="fight")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
+cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars"||VIEW==="fight"||VIEW==="cave")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
 cv.addEventListener("keydown",e=>{
   if(VIEW==="fight")return;
-  if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-MW,ArrowDown:MW}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
-    if(n>=0&&n<MW*MH&&!((mv===1&&p%MW===MW-1)||(mv===-1&&p%MW===0))){const q=pathTo(n);if(q)PATH=q}}return}
+  if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-GM.w,ArrowDown:GM.w}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
+    if(n>=0&&n<GM.w*GM.h&&!((mv===1&&p%GM.w===GM.w-1)||(mv===-1&&p%GM.w===0))){const q=pathTo(n);if(q)PATH=q}}return}
   if(VIEW==="stars"&&ATL.open){const n=atlSys().worlds.length,mv={ArrowLeft:-1,ArrowRight:1}[e.key];if(mv){e.preventDefault();ATL.w=(ATL.w+mv+n)%n;dirty=true}
     else if(e.key==="ArrowUp"||e.key==="ArrowDown"){e.preventDefault();atlAct(e.key==="ArrowUp"?"b-":"b+")}return}
   if(VIEW==="stars"){const ks=BODIES.map(b=>b.key),mv={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];if(mv){e.preventDefault();sBody=ks[(ks.indexOf(sBody)+mv+ks.length)%ks.length];dirty=true}return}
@@ -5602,7 +6039,7 @@ function panelHTML(){
     h+="<p>"+BLD[b].what+(m!==1&&BLD[b].staff?" (×"+m.toFixed(1)+" here)":"")+". "+(working?(BLD[b].staff?(workerNote(sel)||" Someone is working here.")+(b==="pad"&&E.who.get("pad2:"+sel)?" "+E.who.get("pad2:"+sel).name+" helps.":""):"No worker needed."):"<b>"+(b==="pad"?"The pad needs 2 free people.":"Nobody to work here.")+"</b> Grow your people or tear down something else.")+"</p>";
     if(b==="pad")h+=padHTML();if(b==="garage")h+=garageHTML();if(b==="tank")h+="<p>Fuel: <b>"+Math.floor(S.k.fuel)+" / "+E.fuelCap+"</b>"+(E.fuelRate?" · filling at "+E.fuelRate.toFixed(2)+"/s":"")+".</p>";
     const lmb=S.maps[sel]?landmarkOf(sel):null;if(lmb)h+="<p><b>Landmark: "+lmb.name+".</b> "+lmb.txt+"</p>";
-    return h+'<div class="acts">'+btn("walk","Walk this tile","Free on your land",null)+btn("raze","Tear down","Get some parts back",null,"warn")+"</div>"}
+    h+=cbTileHTML(sel);return h+'<div class="acts">'+btn("walk","Walk this tile","Free on your land",null)+btn("raze","Tear down","Get some parts back",null,"warn")+"</div>"}
   h+="<p>"+bi.desc+"</p>";
   if(t.b==="sea"){h+=t.n.some(j=>S.owned.has(j))?"<p>Your shore tiles next to this water make 60% more from a water still.</p>":"";   // slice 2: the diving bell
     return h+(S.veh.bell?seaHTML(sel):S.k.lantern?"<p>A diving bell from the garage could take a squad down there.</p>":"")}
@@ -5614,6 +6051,7 @@ function panelHTML(){
     if(blk)return h+"<p><b>"+blk+"</b></p>";
     return h+'<div class="acts">'+btn("explore",S.maps[sel]?"Send the squad back":"Send a squad","Costs "+costText(xcost())+" · "+tripSteps()+" steps",xcost(),"primary")+"</div>"}
   if(lm)h+="<p><b>Landmark: "+lm.name+".</b> "+lm.txt+"</p>";
+  h+=cbTileHTML(sel);
   h+='<div class="acts">'+walk;
   for(const k of BUILD_LIST.concat(["wind","pad","tank","garage"]).filter(k=>canBuild(sel,k))){const c=costAt(sel,k),m=mult(sel,k);h+=btn("build:"+k,BLD[k].name,BLD[k].what+(m!==1&&BLD[k].staff?" ×"+m.toFixed(1):"")+" · "+costText(c),c)}
   return h+"</div>";
@@ -5657,9 +6095,9 @@ let lastSubject="";
 function renderPanel(){
   const p=$("panel"),f=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.act:null;
   // a new subject (view, tile, card, world) starts at the top of the drawer; the same subject keeps its scroll
-  const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:""].join("|");
+  const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="cave"?CBI+":"+selC:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:""].join("|");
   if(subj!==lastSubject){lastSubject=subj;const d=$("drawer");if(d)d.scrollTop=0}
-  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?(showRs?researchHTML():peopleHTML()):VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
+  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?(showRs?researchHTML():peopleHTML()):VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():VIEW==="cave"?caveHTML():panelHTML();updateButtons();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
   $("goal").innerHTML=g?"<span>Goal: "+g.text+"</span><b>"+Math.min(g.p()[0],g.p()[1])+" / "+g.p()[1]+"</b>":"<span>Every goal met. The world remembers your lights.</span><b>✓</b>";
@@ -5668,7 +6106,7 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;doAct(b.dataset.act);renderPanel()});
 function doAct(a){
-  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}
+  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("pl:")){placeAct(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}if(a.startsWith("tp:")){tpAct(a.slice(3));renderPanel();return}if(a.startsWith("cb:")){cbAct(a.slice(3));renderPanel();return}
   if(a==="play"){threatFight("play");return}if(a==="fauto"){if(FIGHT)PUP.hand(FIGHT.g,0,FIGHT.lvYou);dirty=true;return}if(a==="fquit"){fightGiveUp();return}
   if(a==="fw"){const ws=fightWeapons();S.fw=ws[(ws.indexOf(fightWeapon())+1)%ws.length];dirty=true;return}
   if(a==="fab"){if(CARD)CARD.abPick=!CARD.abPick;dirty=true;return}if(a.startsWith("fab:")){abToggle(a.slice(4));dirty=true;return}   // abilities
@@ -5705,10 +6143,10 @@ function hud(){
   for(const[k,v]of[["scrap",E.sc],["water",E.wa],["food",E.fo]]){const el=$("d-"+k),have=S.res[k];
     let txt=rate(v);if(v<0&&have>0){const s=have/-v;txt+=" · "+(s>=3600?Math.floor(s/3600)+"h":s>=60?Math.floor(s/60)+"m":Math.ceil(s)+"s")+" left"}else if(v<0)txt="empty";else if(have>=E.store-.5)txt="full · "+E.store;
     el.textContent=txt;el.className=v<0?"neg":""}
-  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight";
+  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight"||VIEW==="cave";
   $("r-pop").textContent=S.pop+" / "+E.cap;matHud();
   const unstaffed=E.needStaff-E.st.size,dp=$("d-pop");dp.textContent=S.exp&&!S.exp.away?XC.squad+" out exploring":S.wounded>0?"squad resting":unstaffed>0?unstaffed+" job"+(unstaffed>1?"s":"")+" empty":
-    S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";dp.className=unstaffed>0?"neg":"";
+    S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";if(S.cbs&&cbPeople()&&dp.textContent==="all working")dp.textContent="+"+cbPeople()+" in caves";dp.className=unstaffed>0?"neg":"";
   $("clock").innerHTML=(S.world?WORLDS[Math.min(S.world,WORLDS.length-1)].name+" · ":"")+"Day <b>"+day()+"</b> · "+partOfDay()+(S.x?" · "+xShort():"")+(republicHere()&&S.h.secret?" · suspicion <b"+(S.h.susp>=50?' class="hot"':"")+">"+Math.round(S.h.susp)+"</b>":"");
   const al=alertText(),ab=$("alert");if(al){const sig=al.t+al.b.map(x=>x[0]).join();if(ab.dataset.sig!==sig){ab.dataset.sig=sig;ab.innerHTML="<span>"+al.t+"</span>"+al.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+x[1]+"</span></button>").join("")}ab.hidden=false}else ab.hidden=true;
   const tl=VIEW==="map"&&S.exp?xThreatsLeft(S.exp.i):0;
@@ -5716,7 +6154,7 @@ function hud(){
   $("legend").textContent=VIEW==="fight"&&FIGHT?(FIGHT.kind==="space"?"Space battle":"Fight")+" · "+PUP.WPN[FIGHT.wk].name.toLowerCase()+" · pop them "+FIGHT.g.needs[0]+"× before they pop you "+FIGHT.g.needs[1]+"×":VIEW==="map"&&S.exp?(S.exp.cave?(S.exp.cave.kind&&PLACES[S.exp.cave.kind]?"Inside the "+PLACES[S.exp.cave.kind].name.toLowerCase()+" · ":"In the cave · "):S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
     VIEW==="stars"&&ATL.open?"Library atlas · "+atlSys().star.name+" · "+atlSys().galaxy.name:
     VIEW==="stars"?"The Ashen system"+(S.x?" · "+xShort():"")+" · codex "+S.codex.found.length:
-    VIEW==="away"&&S.x?(S.x.phase==="orbit"?"In orbit over "+XWORLDS[S.x.w].name+" · tap a tile to land":XWORLDS[S.x.w].name+" · "+S.x.steps+" steps of rations · hold "+Math.floor(holdUsed())+"/"+S.x.cap):VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand+" · "+deg(E.temp)+" in, "+deg(E.tOut)+" out":S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
+    VIEW==="away"&&S.x?(S.x.phase==="orbit"?"In orbit over "+XWORLDS[S.x.w].name+" · tap a tile to land":XWORLDS[S.x.w].name+" · "+S.x.steps+" steps of rations · hold "+Math.floor(holdUsed())+"/"+S.x.cap):VIEW==="cave"?cbLegend():VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand+" · "+deg(E.temp)+" in, "+deg(E.tOut)+" out":S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
   const dlft=$("digleft");if(dlft&&S.dig)dlft.textContent=Math.ceil(S.dig.left);
   if(S.dig===null&&wasDigging){dirty=true}wasDigging=!!S.dig;
   if(S.pop!==lastPop){lastPop=S.pop;dirty=true}
@@ -5744,7 +6182,7 @@ function frame(now){
   guard("step",()=>{if(gap>1)catchUp(gap);else{if(!S.h.crack)step(gap);if(!document.hidden)tickActive(gap);tickCrack(gap)}});
   guard("view",()=>{
     if(VIEW==="map"){stepT+=Math.min(gap,.5);while(stepT>.13){stepT-=.13;stepOnce()}}
-    else if(VIEW==="below"||VIEW==="stars"){}
+    else if(VIEW==="below"||VIEW==="stars"||VIEW==="cave"){}
     else if(VIEW==="fight")fightTick(gap);
     else if(focus!==null){const p=applyM(R,T[focus].c),ax=cross(p,[0,0,1]),s=Math.hypot(ax[0],ax[1],ax[2]);
       if(s<1e-3&&p[2]>0)focus=null;else{const ang=Math.atan2(s,p[2]);R=orthonorm(mul(rot(s<1e-6?[0,1,0]:norm(ax),ang*Math.min(1,gap*6)),R))}}
@@ -5752,7 +6190,7 @@ function frame(now){
       if(Math.abs(vel[0])+Math.abs(vel[1])>.05){spin(vel[0],vel[1]);vel[0]*=.92;vel[1]*=.92}
       else if(now-lastTouch>6000)R=orthonorm(mul(rot([0,1,0],gap*.05),R));
     }});
-  guard("draw",()=>{if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="stars")drawStars(now);else if(VIEW==="fight")drawFight(gap);else draw(now)});
+  guard("draw",()=>{if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="cave")drawCave(now);else if(VIEW==="stars")drawStars(now);else if(VIEW==="fight")drawFight(gap);else draw(now)});
   guard("panel",()=>{hudT+=gap;if(hudT>.25){hudT=0;hud()}if(dirty){dirty=false;renderPanel()}});
   saveT+=gap;if(saveT>5){saveT=0;save()}
   requestAnimationFrame(frame);
@@ -5770,12 +6208,12 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
       atlas:{chart:chartSystem,page:libPage,names:libNames,code:atlCode,fromCode:atlFromCode,galaxy,tiles:worldTiles,act:a=>{atlAct(a);renderPanel()},ui:()=>ATL,LIB,GLYPHS,SKIND,WKIND,nameOk:libNameOk,hash:libHash,rng:libRng,fix:fixAtlas},
-      ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="stars")drawStars(n);else if(VIEW==="fight")drawFight(1/60);else draw(n)},
+      ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="cave")drawCave(n);else if(VIEW==="stars")drawStars(n);else if(VIEW==="fight")drawFight(1/60);else draw(n)},
       fight:{state:()=>FIGHT,tick:t=>fightTick(t),PUP,lookOf,fightLevels,threatFight,spaceFight,spaceRoll:()=>S.x&&spaceRoll(S.x),SPACE_FOES,FOES,foeOf,mutant,FOE_CAL,foeCal,abKnown,abBring,abLoadout,abCheck,abToggle,threatAbHTML,foePic,THREAT,ATHREAT}}};
   last=performance.now();requestAnimationFrame(frame);
   const sp=$("splash"),hadSave=!!loadSaved();

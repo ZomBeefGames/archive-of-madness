@@ -26,9 +26,11 @@ function mine(dev, S, kind = 'copper') {
 // a squad out on your own land, face to face with a threat
 function atThreat(dev, S, T, key) {
   const i = [...S.owned].find(j => T[j].b !== 'sea'); dev.setView('surface'); dev.sel(i); dev.act('walk'); if (key) dev.place.enter(key);
-  const M = dev.map(), ms = dev.mapState(); ms.rev = '1'.repeat(MW * MH);
+  const M = dev.map(), ms = dev.mapState(); ms.rev = '1'.repeat(ms.rev.length);
   const ix = M.pois.findIndex((p, j) => p.type === 'threat' && !ms.got.includes(j)); assert.ok(ix >= 0, 'a threat to face');
-  dev.path(M.pois[ix].k); const c = dev.walk(); assert.ok(c && c.kind === 'threat', 'face to face'); return M.pois[ix];
+  let c = null;
+  for (let n = 0; n < 12; n++) { dev.path(M.pois[ix].k); c = dev.walk(); if (c && c.kind === 'threat') break; if (c) { dev.act(c.kind === 'event' ? 'ev:close' : c.kind === 'tp' ? 'tp:back' : 'ok'); if (dev.card()) dev.act('back'); } }
+  assert.ok(c && c.kind === 'threat', 'face to face'); return M.pois[ix];
 }
 
 test('a Mine built where a vein was dug out keeps digging it out, about one every 20 s, until it is worked out', () => {
@@ -128,7 +130,7 @@ test('copper charms raise the Tidefolk\'s trust a whole step, and show at the be
   S.xw = S.xw || {}; S.xw.mire = S.xw.mire || {}; S.xw.mire.tide = { seen: true };
   dev.setView('below'); dev.selU('1,3'); assert.match(dev.panel(), /Make a copper charm/); dev.mats.craft('charms'); assert.equal(S.k.charms, 1);
   dev.run(0.01); dev.setView('away'); dev.sel(site); dev.act('land'); S.xw.mire.charted[v] = 1; dev.sel(v); dev.act('xwalk');
-  dev.mapState().rev = '1'.repeat(99); const M = dev.map(), k = M.pois.find(p => p.type === 'village').k; dev.path(k); const c = dev.walk();
+  dev.mapState().rev = '1'.repeat(dev.mapState().rev.length); const M = dev.map(), k = M.pois.find(p => p.type === 'village').k; dev.path(k); const c = dev.walk();
   assert.equal(c && c.kind, 'village'); assert.match(dev.panel(), /Give a copper charm/);
   const t0 = S.xw.mire.tide.trust; dev.act('tf:charm'); assert.equal(S.k.charms, 0);
   assert.equal(S.xw.mire.tide.trust, Math.min(3, Math.max(1, t0 + 1)), 'a whole step'); assert.doesNotMatch(dev.panel(), /Give a copper charm/, 'none left');

@@ -64,7 +64,6 @@ test('the whole first expedition: build, launch, fly, land, explore, fly home, u
   assert.ok(S().exp.away);
   frame(2400);
   // A scripted player: pick up any find it can reach, otherwise walk into the nearest fog at the edge of what it has seen.
-  const MW = 11, MH = 9;
   const walkAll = () => {
     for (let guard = 0; guard < 120; guard++) {
       const card = dev.card();
@@ -75,8 +74,8 @@ test('the whole first expedition: build, launch, fly, land, explore, fly home, u
         dev.act('ok'); continue;
       }
       if (!S().exp) return 'left';
-      const M = dev.map(), ms = dev.mapState(), skip = new Set(M.pois.filter(p => p.type === 'event').map(p => p.k));
-      const todo = M.pois.map((p, ix) => ({ p, ix })).filter(({ p, ix }) => !ms.got.includes(ix) && p.type !== 'event' && ms.rev[p.k] === '1');
+      const M = dev.map(), ms = dev.mapState(), MW = M.w || 11, MH = M.h || 9, skip = new Set(M.pois.filter(p => p.type === 'event' || ['trader', 'wreck', 'camp', 'mast', 'vault', 'den', 'place'].includes(p.type)).map(p => p.k));
+      const todo = M.pois.map((p, ix) => ({ p, ix })).filter(({ p, ix }) => !ms.got.includes(ix) && !skip.has(p.k) && ms.rev[p.k] === '1');
       let moved = false;
       for (const { p } of todo) if (dev.path(p.k)) { dev.walk(); moved = true; break; }
       if (moved) continue;
@@ -84,7 +83,7 @@ test('the whole first expedition: build, launch, fly, land, explore, fly home, u
       for (let k = 0; k < MW * MH; k++) {
         if (ms.rev[k] === '1' || skip.has(k)) continue;
         const x = k % MW, y = (k / MW) | 0;
-        if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) return false; const n = ny * MW + nx; return ms.rev[n] === '1' && M.g[n] !== 1; })) fog.push(k);
+        if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) return false; const n = ny * MW + nx; return ms.rev[n] === '1' && M.g[n] !== 1 && M.g[n] !== 3; })) fog.push(k);
       }
       for (const k of fog) if (dev.path(k)) { dev.walk(); moved = true; break; }
       if (!moved) return 'done';

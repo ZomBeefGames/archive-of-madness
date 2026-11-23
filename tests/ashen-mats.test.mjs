@@ -14,9 +14,11 @@ function workshop(dev, S) { for (const [k, room] of [['1,3', 'shop'], ['1,5', 'g
 function atThreat(dev, S, T, key) {
   const i = [...S.owned].find(j => T[j].b !== 'sea'); dev.setView('surface'); dev.sel(i); dev.act('walk');
   if (key) dev.place.enter(key);
-  const M = dev.map(), ms = dev.mapState(); ms.rev = '1'.repeat(MW * MH);
+  const M = dev.map(), ms = dev.mapState(); ms.rev = '1'.repeat(ms.rev.length);
   const ix = M.pois.findIndex((p, j) => p.type === 'threat' && !ms.got.includes(j)); assert.ok(ix >= 0, 'a threat to face');
-  ms.got = ms.got.filter(j => j !== ix); dev.path(M.pois[ix].k); const c = dev.walk(); assert.ok(c && c.kind === 'threat', 'face to face');
+  ms.got = ms.got.filter(j => j !== ix); let c = null;
+  for (let n = 0; n < 12; n++) { dev.path(M.pois[ix].k); c = dev.walk(); if (c && c.kind === 'threat') break; if (c) { dev.act(c.kind === 'event' ? 'ev:close' : c.kind === 'tp' ? 'tp:back' : 'ok'); if (dev.card()) dev.act('back'); } }
+  assert.ok(c && c.kind === 'threat', 'face to face');
   return M.pois[ix];
 }
 
@@ -77,7 +79,7 @@ test('a pipe bomb clears a threat without a fight, and a medkit patches up a squ
 
 test("buildings' caches hold materials, and saves keep them while old saves load with none", () => {
   const { dev, S, T } = base(); const i = [...S.owned].find(j => T[j].b !== 'sea'); dev.setView('surface'); dev.sel(i); dev.act('walk');
-  dev.place.enter('datacenter'); const M = dev.map(), ms = dev.mapState(); ms.rev = '1'.repeat(MW * MH);
+  dev.place.enter('datacenter'); const M = dev.map(), ms = dev.mapState(); ms.rev = '1'.repeat(ms.rev.length);
   const ix = M.pois.findIndex(p => p.type === 'cache' && p.mat === 'copper'); assert.ok(ix >= 0, 'copper cable in the data center');
   for (const [j, p] of M.pois.entries()) if (p.type === 'threat') ms.got.push(j);
   const c0 = S.mats && S.mats.copper | 0; dev.path(M.pois[ix].k); dev.walk(); assert.ok((S.mats.copper | 0) > c0, 'copper from the cable');
