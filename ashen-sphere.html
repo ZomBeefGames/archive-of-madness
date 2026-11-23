@@ -128,6 +128,109 @@ button:disabled{opacity:.42;cursor:not-allowed}
   .drawer{max-height:none;height:100%}
 }
 @media (max-width:420px){ .chip b{font-size:15px} h1{font-size:21px} }
+/* ==== UI CSS (start) ==== */
+/* The overlay layout (the UI block sets the sizes it uses): the game fills the screen and everything else floats over
+   it. Supplies sit in a slim bar on top, messages go to a small event channel at the top left, and the panel is a sheet
+   that slides up from the bottom; on wide screens it is a column on the right that closes to a tab. */
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);
+  --hud-h:64px;--sheet-h:45vh;--side-w:0px;--deck-h:0px;--glass:rgba(17,14,10,.78)}
+.app{display:block;height:100%;padding:0}
+.main{display:block}
+.saprobe{position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none}
+/* the bar on top: supplies, then the day and the goal, then materials (if any) */
+.hud{position:fixed;z-index:6;top:0;left:0;right:0;display:flex;flex-direction:column;gap:3px;
+  padding:calc(var(--sat) + 5px) calc(var(--sar) + 8px) 5px calc(var(--sal) + 8px);
+  background:linear-gradient(rgba(14,11,8,.92),rgba(14,11,8,.66));border-bottom:1px solid rgba(58,49,39,.6)}
+body[data-view=fight] .hud{display:none}
+.hud h1{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hud .res{order:1;gap:5px}
+.hud .chip{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;column-gap:4px;row-gap:0;padding:2px 5px 3px;background:rgba(31,26,20,.6);border-color:rgba(58,49,39,.9);border-radius:8px}
+.hud .chip[role=button]{cursor:pointer}.hud .chip[role=button]:hover{border-color:var(--lamp)}
+.hud .chip .lbl{grid-column:1/-1;font-size:9.5px;line-height:1.25}
+.hud .chip b{font-size:15px;line-height:1.2}
+.hud .chip small{font-size:10px;line-height:1.2}
+.hud header{order:2;display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:nowrap;min-width:0;padding:0 2px}
+.hud .clock{flex:0 1 auto;min-width:0;font-size:11px;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hud .goal{flex:0 1 auto;min-width:0;display:flex;align-items:baseline;justify-content:flex-end;gap:6px;margin:0;padding:0;border:0;background:none;color:var(--paper-dim);font:inherit;font-size:11px;white-space:nowrap;cursor:pointer;flex-wrap:nowrap}
+.hud .goal span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.hud .goal b{flex:0 0 auto}
+.hud .goal:hover span{color:var(--paper)}
+.hud .goal:empty{display:none}
+.hud .mats{order:3;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;font-size:11px;padding:0 2px;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent)}
+.hud .mats::-webkit-scrollbar{display:none}
+/* the game: all of the screen the bar and the sheet leave (a fight has no bar) */
+.stage{position:fixed;z-index:1;left:0;right:var(--side-w);top:var(--hud-h);bottom:calc(var(--sheet-h) + var(--deck-h));min-height:0;flex:none}
+body[data-view=fight] .stage{top:var(--sat)}
+canvas:focus-visible{outline:1px solid rgba(240,164,58,.25);outline-offset:-1px}
+.stage .tools{top:8px;right:calc(var(--sar) + 8px);gap:6px}
+.stage .tools button{width:42px;height:40px;border-radius:10px;background:var(--glass);border-color:rgba(58,49,39,.95);font-size:15px}
+.stage .legend{left:calc(var(--sal) + 10px);max-width:calc(100% - var(--sal) - 100px);bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000,0 0 6px #000}
+.stage .alert{bottom:28px;width:min(calc(100% - 20px),440px);background:rgba(24,20,15,.95);border-radius:10px;padding:6px 8px 6px 10px;gap:6px 8px;font-size:12.5px;line-height:1.35;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.stage .alert button.act{padding:5px 10px;font-size:12.5px}
+.stage .toast{display:none!important}
+/* the event channel: the newest few messages show for a few seconds and fade; Events opens all of them */
+.feed{position:absolute;z-index:3;left:calc(var(--sal) + 8px);right:62px;top:8px;bottom:30px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;pointer-events:none}
+.feed>*{pointer-events:auto}
+.feedbtn{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:2px 10px;border-radius:14px;border:1px solid rgba(58,49,39,.95);background:var(--glass);color:var(--paper-dim);font:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.feedbtn:hover,.feedbtn[aria-expanded=true]{color:var(--paper);border-color:var(--lamp)}
+.feedbtn i{font-style:normal;font-size:13px;letter-spacing:0}
+.feedlive{flex:0 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;gap:3px;max-width:min(100%,310px);pointer-events:none}
+/* the newest gets three lines, older ones one: Events has them in full */
+.feedlive .ev{padding:3px 9px;border-radius:8px;background:rgba(14,11,8,.76);border-left:2px solid var(--lamp);color:var(--paper);font-size:11.5px;line-height:1.35;box-shadow:0 2px 6px rgba(0,0,0,.3);animation:uifade 8s linear both}
+.feedlive .ev>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.feedlive .ev+.ev{color:var(--paper-dim)}.feedlive .ev+.ev>span{-webkit-line-clamp:1}
+.feedlive .ev.note{border-left-color:var(--paper-dim)}.feedlive .ev.bug{border-left-color:var(--rust)}
+.feedlive em,.feedlist em{font-style:normal;color:var(--paper-dim);margin-left:4px}
+@keyframes uifade{0%{opacity:0;transform:translateY(-4px)}3%{opacity:1;transform:none}86%{opacity:1}100%{opacity:0}}
+@keyframes uifade2{0%,92%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.feedlive .ev{animation-name:uifade2}}
+body[data-view=fight] .feedlive{display:none}   /* a fight keeps its board clear: the messages wait in Events */
+.feedlist{flex:0 1 auto;min-height:0;max-height:62%;overflow:auto;overscroll-behavior:contain;width:min(100%,400px);padding:3px 0;border-radius:10px;border:1px solid var(--line);background:rgba(22,18,13,.96);box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.feedlist .evl{padding:5px 10px;font-size:12px;line-height:1.35;color:var(--paper);border-bottom:1px solid rgba(58,49,39,.55)}
+.feedlist .evl:last-child{border-bottom:0}
+.feedlist .evl i{font-style:normal;color:var(--lamp);font-size:11px;margin-right:6px}
+.feedlist .evl.note{color:var(--paper-dim)}.feedlist .evl.bug{color:var(--rust)}
+.feedlist p{margin:0;padding:8px 10px;font-size:12px;color:var(--paper-dim)}
+/* a fight: the stick and the button in a bar under the board */
+.fdeck{position:fixed;z-index:4;left:0;right:var(--side-w);bottom:var(--sheet-h);padding:8px calc(var(--sar) + 14px) 10px calc(var(--sal) + 14px);border-bottom:0;background:linear-gradient(rgba(17,14,10,.5),rgba(17,14,10,.94) 40%)}
+/* the panel: a sheet with a handle; drag it, or tap the handle to raise or lower it */
+.sheet{position:fixed;z-index:5;left:0;right:0;bottom:0;height:var(--sheet-h);display:flex;flex-direction:column;background:rgba(27,23,17,.97);border:1px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;box-shadow:0 -8px 22px rgba(0,0,0,.45);transition:height .22s ease}
+.sheet.drag{transition:none}
+.sheet[data-st=peek] .drawer{overflow:hidden;touch-action:none;cursor:pointer}
+.grab{position:relative;flex:0 0 auto;height:26px;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;outline-offset:-3px}
+.grab i{display:block;width:44px;height:5px;border-radius:3px;background:#5d5041}
+.grab:hover i,.grab:focus-visible i{background:var(--lamp)}
+.sheetmax{position:absolute;z-index:1;top:1px;right:calc(var(--sar) + 6px);width:40px;height:26px;padding:0;border:0;background:none;color:var(--paper-dim);font:inherit;font-size:12px;cursor:pointer}
+.sheetmax:hover{color:var(--lamp)}
+.sheet .drawer{flex:1 1 auto;min-height:0;height:auto;max-height:none;overflow:auto;overscroll-behavior:contain;background:none;border:0;padding:0 calc(var(--sar) + 14px) calc(var(--sab) + 14px) calc(var(--sal) + 14px)}
+@media (prefers-reduced-motion:reduce){.sheet{transition:none}}
+/* wide screens, and phones on their side: the panel is a column on the right that closes to a tab */
+@media (min-width:860px),(orientation:landscape) and (max-height:540px){
+  .sheet{left:auto;top:var(--hud-h);height:auto;width:var(--side-w);flex-direction:row;border-radius:12px 0 0 0;border-right:0;box-shadow:-8px 0 22px rgba(0,0,0,.4);transition:width .22s ease}
+  .grab{width:30px;height:auto;flex:0 0 30px;border-right:1px solid rgba(58,49,39,.6);cursor:pointer}
+  .grab i{width:5px;height:44px}
+  .sheetmax{display:none}
+  .sheet[data-st=closed] .drawer{display:none}
+  .sheet .drawer{padding:12px calc(var(--sar) + 14px) calc(var(--sab) + 14px) 12px}
+  .stage{bottom:var(--deck-h)}
+  .fdeck{bottom:0}
+}
+@media (min-width:860px){
+  .hud{flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:18px;padding-top:calc(var(--sat) + 6px);padding-bottom:6px}
+  .hud .res{flex:0 1 600px}
+  .hud header{flex:1 1 200px;flex-direction:column;align-items:flex-end;gap:2px}
+  .hud .clock,.hud .goal{max-width:100%}
+  .hud .mats{flex:1 1 100%}
+}
+@media (orientation:landscape) and (max-height:540px){
+  .hud{padding-top:calc(var(--sat) + 3px);padding-bottom:3px;gap:2px}
+  .hud .chip{padding:1px 7px 2px}
+}
+/* the start screen scrolls when it is taller than the screen (a short phone on its side, or a long list of choices),
+   from the top: centred when it fits */
+.splash{overflow-y:auto;overscroll-behavior:contain}
+.splash-in{margin:auto}
+/* ==== UI CSS (end) ==== */
 </style>
 
 </head>
@@ -146,9 +249,11 @@ button:disabled{opacity:.42;cursor:not-allowed}
   </div>
 </div>
 <div class="app">
+  <div class="hud" id="hud">
   <header>
     <h1>Ashen Sphere</h1>
     <div class="clock" id="clock">Day <b>1</b> · morning</div>
+    <button class="goal" id="goal" type="button"></button>
   </header>
   <div class="res" aria-live="off">
     <div class="chip"><span class="lbl">Scrap</span><b id="r-scrap">0</b><small id="d-scrap">+0/s</small></div>
@@ -157,6 +262,7 @@ button:disabled{opacity:.42;cursor:not-allowed}
     <button class="chip chipbtn" id="people-chip" aria-label="Show your people"><span class="lbl">People ›</span><b id="r-pop">0</b><small id="d-pop">all working</small></button>
   </div>
   <div class="mats" id="mats" hidden></div>
+  </div>
   <div class="main">
     <div class="stage" id="stage">
       <canvas id="globe" tabindex="0" aria-label="The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you."></canvas>
@@ -167,16 +273,21 @@ button:disabled{opacity:.42;cursor:not-allowed}
         <button id="dive" aria-label="Go below the bunker">⇩</button>
         <button id="sys" aria-label="System map" hidden>✦</button>
       </div>
+      <div class="feed" id="feed"><button class="feedbtn" id="feedbtn" type="button" aria-expanded="false" aria-controls="feedlist"><i>≡</i><span>Events</span></button><div class="feedlive" id="feedlive" aria-live="polite"></div><div class="feedlist" id="feedlist" role="log" aria-label="Recent events" hidden></div></div>
       <div class="legend" id="legend">642 tiles · 12 spires</div>
       <div class="toast" id="toast" hidden></div>
       <div class="alert" id="alert" hidden role="status"></div>
     </div>
-    <aside class="drawer" id="drawer">
-      <div class="fdeck" id="fdeck" hidden><div class="fstick" id="fstick" role="img" aria-label="The stick: your puppet's rod"><div class="fball" id="fball"></div></div><div class="fmid"><div class="fabs" id="fabs" hidden></div><p class="fhint">Stick: arrows or WASD<br>Button: Space or Enter<br>Abilities: Q and E</p></div><button class="fbtn" id="fbtn" type="button" aria-label="The button: fire, thrust, throw or punch">FIRE</button></div>
-      <div id="panel"></div>
-      <div class="goal" id="goal"></div>
-      <div class="log" id="log"></div>
-      <div class="row" id="resetrow"><button class="linkbtn" id="reset">Start a new world</button></div>
+    <div class="saprobe" id="saprobe" aria-hidden="true"></div>
+    <div class="fdeck" id="fdeck" hidden><div class="fstick" id="fstick" role="img" aria-label="The stick: your puppet's rod"><div class="fball" id="fball"></div></div><div class="fmid"><div class="fabs" id="fabs" hidden></div><p class="fhint">Stick: arrows or WASD<br>Button: Space or Enter<br>Abilities: Q and E</p></div><button class="fbtn" id="fbtn" type="button" aria-label="The button: fire, thrust, throw or punch">FIRE</button></div>
+    <aside class="sheet" id="sheet" data-st="half">
+      <div class="grab" id="grab" role="button" tabindex="0" aria-label="Lower the panel" aria-expanded="true" aria-controls="drawer"><i></i></div>
+      <button class="sheetmax" id="sheetmax" type="button" aria-label="Make the panel tall">▲</button>
+      <div class="drawer" id="drawer">
+        <div id="panel"></div>
+        <div class="log" id="log" hidden></div>
+        <div class="row" id="resetrow"><button class="linkbtn" id="reset">Start a new world</button></div>
+      </div>
     </aside>
   </div>
 </div>
@@ -475,7 +586,7 @@ function deser(o){MAPS.clear();AMAPS.clear();CMAPS.clear();if(typeof PMAPS!=="un
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
     codex:fixCodex(o.codex),x:sanX(o.x),veh:o.veh&&typeof o.veh==="object"?Object.fromEntries(Object.keys(VEH).filter(k=>o.veh[k]).map(k=>[k,1])):{},
     arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,dfs:fixDfs(o.dfs),raid:fixRaid(o.raid),cbs:o.cbs&&typeof o.cbs==="object"?o.cbs:{},orb:fixOrb(o.orb),wear:o.wear&&typeof o.wear==="object"?o.wear:{},mats:o.mats&&typeof o.mats==="object"?o.mats:{},inside:o.inside&&typeof o.inside==="object"?o.inside:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
-    h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
+    h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,20):[]}}
 const KEY="ashen-sphere-v9",OLD_KEYS=["ashen-sphere-v8","ashen-sphere-v7","ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
 function loadSaved(){try{let raw=localStorage.getItem(KEY);for(const k of OLD_KEYS)raw=raw||localStorage.getItem(k);return raw?JSON.parse(raw):null}catch(e){return null}}
@@ -536,7 +647,7 @@ function econ(){
   return{cbx:CBX.info,obx:OBX.info,obBeam:OBX.beam,rsRate:smartRate()*(1+rsr)+OBX.rs,labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1)-tideHome().length*EAT*TIDE.drink,fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
 }
 let E;
-function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
+function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,20);dirty=true;uiFeed(msg,"ev")}
 function step(dt,quiet){
   reconcile();if(!S.k.smart0&&S.people.length){S.people[0].iq=Math.max(1,S.people[0].iq|0);S.k.smart0=true}E=econ();
   S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);mineTick(dt,quiet);cbTick(dt,quiet);orbTick(dt,quiet);
@@ -2979,6 +3090,100 @@ function cutTap(e){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,
   if(VIEW==="cave"){cbTap(sx,sy);return}
   const[r,c]=cutCell(sx,sy,GR);if(c>=0&&c<COLS&&r>=0&&r<ROWS){selU=r+","+c;dirty=true}}
 // ==== ZOOM (end) ====
+// ==== UI (start) ====
+// The overlay layout. The game fills the screen and the rest floats over it: supplies in a slim bar on top, messages in
+// a small event channel at the top left (toasts and the log both land there; nothing pops up over the game), and the
+// panel in a sheet that slides up from the bottom (drag its handle, or tap it). On wide screens, and phones on their
+// side, the panel is a column on the right that closes to a tab. The look is the UI CSS block; this sets the sizes it
+// uses, moves the sheet and keeps the channel. Nothing here is saved with the game: the sheet's height is remembered
+// on its own, and the channel's history is the game's log plus this visit's messages.
+var UI_;   // made on first use (a message can come before this part of the page has run)
+function ui_(){if(UI_)return UI_;let st="half",open=true;
+  try{const o=JSON.parse(localStorage.getItem("ashen-ui")||"null");if(o&&["peek","half","full"].includes(o.st))st=o.st;if(o&&typeof o.open==="boolean")open=o.open}catch(e){}
+  return UI_={st,open,side:false,pre:null,feed:[],seq:0,liveSig:"",listSig:"",list:false,poke:-1e9,seeded:false,pd:null,drag:null}}
+function uiEl(id){return document.getElementById(id)}
+function uiNow(){return performance.now()}
+function uiEsc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+// ---- the event channel: say() (the game's log) and toast() (notes, and bugs) both land here
+// how long a message shows before it fades: longer ones stay longer (6 to 15 seconds)
+function uiLife(e){return Math.min(15000,6000+e.text.length*55)}
+function uiFeed(text,kind){const U=ui_(),now=uiNow(),top=U.feed[0];text=String(text==null?"":text);if(!text)return;
+  if(top&&top.text===text&&top.kind===kind&&top.t>0&&now-top.t<30000){top.n++;top.t=now}   // the same again: counted, not repeated
+  else{let d=0;try{d=day()}catch(e){}U.feed.unshift({id:++U.seq,text,kind,t:now,n:1,d});if(U.feed.length>80)U.feed.length=80}
+  uiFeedDraw()}
+function uiFeedDraw(){const U=ui_(),now=uiNow(),fl=uiEl("feedlive");if(!fl)return;
+  const live=U.list?[]:U.feed.filter(e=>e.t>0&&now-e.t<uiLife(e)).slice(0,3),sig=live.map(e=>e.id+"/"+e.n).join();
+  // each line fades on its own clock: drawn again, it picks up where it was
+  if(sig!==U.liveSig){U.liveSig=sig;fl.innerHTML=live.map(e=>'<div class="ev '+e.kind+'" style="animation-duration:'+(uiLife(e)/1000).toFixed(1)+"s;animation-delay:-"+((now-e.t)/1000).toFixed(2)+'s"><span>'+uiEsc(e.text)+(e.n>1?"<em>×"+e.n+"</em>":"")+"</span></div>").join("")}
+  if(U.list)uiFeedList()}
+function uiFeedList(){const U=ui_(),fl=uiEl("feedlist");if(!fl)return;const sig=U.feed.length+":"+(U.feed[0]?U.feed[0].id+"/"+U.feed[0].n:"");if(sig===U.listSig)return;U.listSig=sig;
+  fl.innerHTML=U.feed.length?U.feed.map(e=>'<div class="evl '+e.kind+'">'+(e.kind==="ev"&&e.d?"<i>Day "+e.d+"</i>":"")+uiEsc(e.text)+(e.n>1?"<em>×"+e.n+"</em>":"")+"</div>").join(""):"<p>Nothing has happened yet.</p>"}
+function uiList(open){const U=ui_();U.list=open===undefined?!U.list:!!open;const fl=uiEl("feedlist"),b=uiEl("feedbtn");if(fl){fl.hidden=!U.list;if(U.list)fl.scrollTop=0}
+  if(b&&b.setAttribute)b.setAttribute("aria-expanded",String(U.list));U.listSig=U.liveSig=null;uiFeedDraw()}   // (null: draw both again)
+function uiTick(){uiFeedDraw()}   // from hud(), four times a second: lets old lines go
+// ---- the sheet: a peek (its handle and the panel's first lines), about half the screen, or most of it; the game keeps
+// at least 170 px (CSS) under the bar so there is always a picture to tap
+function uiSheetPx(st,vh,hh,sab){const peek=84+sab,full=Math.max(peek,vh-hh-170),half=Math.max(peek,Math.min(full,Math.round(vh*.45)));return st==="peek"?peek:st==="full"?full:half}
+function uiWide(){try{return!!matchMedia("(min-width:860px),(orientation:landscape) and (max-height:540px)").matches}catch(e){return false}}
+function uiSab(){const p=uiEl("saprobe");return p&&p.offsetHeight||0}
+function uiHudH(){const h=uiEl("hud");return VIEW==="fight"?0:h&&h.offsetHeight||0}
+function uiLayout(){const U=ui_(),doc=document.documentElement,cs=doc&&doc.style;if(!cs||typeof cs.setProperty!=="function")return;
+  const vh=window.innerHeight||800,vw=window.innerWidth||400,hh=uiHudH(),deck=uiEl("fdeck"),dh=deck&&!deck.hidden&&deck.offsetHeight||0;
+  U.side=uiWide();const sideW=U.side?(U.open?Math.round(Math.min(400,Math.max(300,vw*.32))):30):0,sheetH=U.side?0:uiSheetPx(U.st,vh,hh,uiSab());
+  cs.setProperty("--hud-h",hh+"px");cs.setProperty("--side-w",sideW+"px");cs.setProperty("--sheet-h",sheetH+"px");cs.setProperty("--deck-h",dh+"px");
+  const s=U.side?(U.open?"open":"closed"):U.st,sh=uiEl("sheet"),g=uiEl("grab"),mx=uiEl("sheetmax");if(sh&&sh.dataset)sh.dataset.st=s;
+  if(g&&g.setAttribute){g.setAttribute("aria-expanded",String(s!=="peek"&&s!=="closed"));g.setAttribute("aria-label",U.side?(U.open?"Close the panel":"Open the panel"):s==="peek"?"Raise the panel":"Lower the panel")}
+  if(mx){mx.textContent=U.st==="full"?"▼":"▲";if(mx.setAttribute)mx.setAttribute("aria-label",U.st==="full"?"Make the panel shorter":"Make the panel tall")}}
+function uiSave(){const U=ui_();try{localStorage.setItem("ashen-ui",JSON.stringify({st:U.st,open:U.open}))}catch(e){}}
+function uiSet(st){const U=ui_();if(U.side)U.open=st!=="closed"&&st!=="peek";else{U.st=st;U.pre=null}uiSave();uiLayout()}
+function uiToggle(){const U=ui_();if(U.side)U.open=!U.open;else{U.st=U.st==="peek"?"half":"peek";U.pre=null}uiSave();uiLayout()}
+// dragging the handle (or a lowered sheet anywhere): the sheet follows the finger, then settles on the nearest height
+// (a flick goes on to the next one). A tap on the handle raises or lowers it; a tap on a lowered sheet raises it.
+function uiDragStart(e){const U=ui_(),sh=uiEl("sheet"),t=e.target,on=q=>!!(t&&t.closest&&t.closest(q));if(!sh)return;
+  const grab=on(".grab"),peek=!grab&&!U.side&&U.st==="peek"&&on(".drawer");if(!grab&&!peek)return;
+  U.drag={id:e.pointerId,y0:e.clientY,h0:sh.offsetHeight,moved:false,v:0,ly:e.clientY,lt:uiNow(),grab};
+  if(grab)try{uiEl("grab").setPointerCapture(e.pointerId)}catch(_){}}   // (on the panel only once it moves, so its buttons still click)
+function uiDragMove(e){const U=ui_(),d=U.drag;if(!d||e.pointerId!==d.id||U.side)return;const sh=uiEl("sheet"),dy=e.clientY-d.y0;
+  if(!d.moved){if(Math.abs(dy)<6)return;d.moved=true;sh.classList.add("drag");if(!d.grab)try{sh.setPointerCapture(e.pointerId)}catch(_){}}
+  const now=uiNow();d.v=.6*d.v+.4*((e.clientY-d.ly)/Math.max(1,now-d.lt));d.ly=e.clientY;d.lt=now;
+  sh.style.height=Math.max(56,Math.min((window.innerHeight||800)-20,d.h0-dy))+"px"}
+function uiDragEnd(e){const U=ui_(),d=U.drag;if(!d||e.pointerId!==d.id)return;U.drag=null;const sh=uiEl("sheet");
+  if(!d.moved||U.side){if(e.type!=="pointerup")return;const t=e.target;if(d.grab)uiToggle();else if(!(t&&t.closest&&t.closest("button,a,input,select,textarea")))uiSet("half");return}
+  const h=sh.offsetHeight,vh=window.innerHeight||800,order=["peek","half","full"],px=order.map(s=>uiSheetPx(s,vh,uiHudH(),uiSab()));
+  let i=px.reduce((b,p,k)=>Math.abs(p-h)<Math.abs(px[b]-h)?k:b,0);
+  if(d.v>.45){const lo=px.map((p,k)=>p<h-4?k:-1).filter(k=>k>=0);i=lo.length?lo[lo.length-1]:0}
+  else if(d.v<-.45){const up=px.map((p,k)=>p>h+4?k:-1).filter(k=>k>=0);i=up.length?up[0]:2}
+  sh.classList.remove("drag");sh.style.height="";U.st=order[i];U.pre=null;uiSave();uiLayout()}
+// ---- following the game: the view (a fight gets the screen), and a new subject in the panel
+function uiView(v){const U=ui_(),b=document.body;if(b&&b.dataset)b.dataset.view=v;
+  // the channel starts with what the game's log already holds (oldest last)
+  if(!U.seeded&&S&&Array.isArray(S.log)){U.seeded=true;for(const x of S.log){const m=/^D(\d+) · ([\s\S]*)$/.exec(String(x));U.feed.push({id:++U.seq,text:m?m[2]:String(x),kind:"ev",t:-1e9,n:1,d:m?+m[1]:0})}}
+  // a fight gets the screen: the sheet drops to its peek, and comes back after
+  if(v==="fight"){if(U.pre===null&&!U.side){U.pre=U.st;U.st="peek"}}else if(U.pre!==null){U.st=U.pre;U.pre=null}
+  uiLayout()}
+// tapped something (a tile, a cell, a bay, the People chip, an alert's button), or the squad met something on its map:
+// a lowered sheet comes up to show it. Dragging the picture around never moves the sheet.
+function uiSubject(){const U=ui_(),poked=uiNow()-U.poke<1000,card=VIEW==="map"&&!!CARD;if(!poked&&!card)return;U.poke=-1e9;
+  if(U.side){if(!U.open){U.open=true;uiLayout()}}else if(U.st==="peek"&&VIEW!=="fight"){U.st="half";uiLayout()}}
+(()=>{const on=(el,ev,f,o)=>{if(el&&el.addEventListener)el.addEventListener(ev,f,o)},g=uiEl("grab");
+  on(uiEl("feedbtn"),"click",()=>uiList());
+  const sh=uiEl("sheet");on(sh,"pointerdown",uiDragStart);on(sh,"pointermove",uiDragMove);on(sh,"pointerup",uiDragEnd);on(sh,"pointercancel",uiDragEnd);
+  on(g,"keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();uiToggle()}});
+  on(uiEl("sheetmax"),"click",()=>uiSet(ui_().st==="full"?"half":"full"));
+  on(uiEl("goal"),"click",()=>{try{const gl=GOALS[S.goal],p=gl&&gl.p();uiFeed(gl?"Goal: "+gl.text+" ("+Math.min(p[0],p[1])+" of "+p[1]+")":"Every goal met.","note")}catch(e){}});
+  on(uiEl("people-chip"),"click",()=>{ui_().poke=uiNow()});
+  // the supply chips are short on room: a tap says it in full in the channel
+  for(const k of["scrap","water","food"]){const v=uiEl("r-"+k),ch=v&&v.parentNode;if(!ch||!ch.setAttribute)continue;ch.setAttribute("role","button");ch.setAttribute("tabindex","0");
+    const say=()=>{const d=uiEl("d-"+k);uiFeed(k[0].toUpperCase()+k.slice(1)+": "+v.textContent+(d&&d.textContent?" · "+d.textContent:""),"note")};
+    on(ch,"click",say);on(ch,"keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();say()}})}
+  on(uiEl("alert"),"click",()=>{ui_().poke=uiNow()},true);
+  // a tap on the picture (not a drag) counts as choosing something; with Events open, a tap outside it only closes it
+  on(stage,"pointerdown",e=>{const U=ui_();U.pd=null;if(U.list&&!(e.target&&e.target.closest&&e.target.closest(".feed"))){uiList(false);if(e.target===cv)e.stopPropagation();return}
+    if(e.target===cv)U.pd={x:e.clientX,y:e.clientY,t:uiNow()}},true);
+  on(stage,"pointerup",e=>{const U=ui_(),p=U.pd;U.pd=null;if(p&&e.target===cv&&Math.hypot(e.clientX-p.x,e.clientY-p.y)<10&&uiNow()-p.t<700)U.poke=uiNow()},true);
+  on(window,"resize",()=>uiLayout());
+  if(typeof ResizeObserver==="function"){const ro=new ResizeObserver(()=>uiLayout());for(const id of["hud","fdeck"]){const el=uiEl(id);if(el)ro.observe(el)}}})();
+// ==== UI (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   // zoom and move around (the ZOOM block): laid out Z.rz times its zoom-1 size, stretched by Z.k, moved by Z.ox and Z.oy
@@ -3055,7 +3260,7 @@ function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v==="fight"&&!FIGHT)
   const d=$("dive");d.textContent=v==="below"?"⇧":"⇩";d.setAttribute("aria-label",v==="below"?"Back to the surface":"Go below the bunker");
   const sy=$("sys");sy.textContent=v==="stars"?"◉":"✦";sy.setAttribute("aria-label",v==="stars"?"Back to the planet":"System map");$("home").setAttribute("aria-label",v==="below"||v==="cave"?"See all of it again":v==="away"?"Turn to your ship":"Turn to your bunker");
   cv.setAttribute("aria-label",v==="fight"?"A puppet fight on a board. The stick works your puppet's rod: up stands tall, down ducks, forward leans in. The button fires.":v==="station"?"Your space station: the truss, its modules and the tether down to the planet. Tap a bay, the hub or the tether.":v==="below"||v==="cave"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
-    v==="away"?"Another world. Drag to turn it, tap a tile to choose it.":"The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you.");dirty=true}
+    v==="away"?"Another world. Drag to turn it, tap a tile to choose it.":"The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you.");dirty=true;uiView(v)}
 
 // ---------------------------------------------------------------- tile maps: every tile is a small map you walk and clear
 // Content and numbers from GPT's design pass (inbox G-125), adapted by Claude. Placeholder art.
@@ -6677,7 +6882,7 @@ function renderPanel(){
   const p=$("panel"),f=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.act:null;
   // a new subject (view, tile, card, world) starts at the top of the drawer; the same subject keeps its scroll
   const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="cave"?CBI+":"+selC:VIEW==="station"?"st:"+selO:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:"",DEFP].join("|");
-  if(subj!==lastSubject){lastSubject=subj;const d=$("drawer");if(d)d.scrollTop=0}
+  if(subj!==lastSubject){lastSubject=subj;const d=$("drawer");if(d)d.scrollTop=0;uiSubject()}
   p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?(showRs?researchHTML():peopleHTML()):VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():VIEW==="cave"?caveHTML():VIEW==="station"?stationHTML():panelHTML();updateButtons();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
@@ -6741,10 +6946,10 @@ function hud(){
   if(S.pop!==lastPop){lastPop=S.pop;dirty=true}
   if(VIEW==="surface"&&!showPeople&&selOrb<0&&sel>=0&&S.bld[sel]==="pad"){const ms=mission(),sig=S.k.flight?"f"+Math.floor(S.k.flight.t):(S.x?"x"+S.x.phase:"")+(rocket(ms==="exped"?S.k.ship:S.k.design,ms).ok?"ok":"no")+Math.floor(S.k.fuel/5);if(sig!==lastPadSig){lastPadSig=sig;dirty=true}}
   if((VIEW==="stars"||VIEW==="away")&&S.x&&!showPeople){const sig=S.x.phase+Math.floor(S.x.t)+":"+Math.ceil(S.x.hurt);if(sig!==lastXSig){lastXSig=sig;dirty=true}}
-  updateButtons();
+  updateButtons();uiTick();
 }
 let toastTimer=0;
-function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.hidden=true},6000)}
+function toast(msg){const t=$("toast");t.textContent=msg;uiFeed(msg,/^Something broke/.test(msg)?"bug":"note")}   // into the event channel (the UI block)
 function catchUp(sec){const before={...S.res},p0=S.pop;sec=Math.min(sec,4*3600);let left=sec;while(left>0){const d=Math.min(sec-left<60?1:5,left);step(d,true);left-=d}
   if(sec>=30){const g=k=>Math.floor(S.res[k]-before[k]);const parts=["scrap","water","food"].map(k=>(g(k)>=0?"+":"")+g(k)+" "+k);if(S.pop!==p0)parts.push((S.pop-p0>0?"+":"")+(S.pop-p0)+" people");
     toast("While you were away ("+Math.round(sec/60)+" min): "+parts.join(", ")+".")}
@@ -6789,7 +6994,7 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,zoomx:{cam:v=>CUTZ[v],at:(f,sx,sy)=>cutZoomAt(cutCam(),f,sx,sy,true),pan:(dx,dy)=>{cutPan(cutCam(),dx,dy);dirty=true},reset:()=>cutReset(cutCam()),tap:(sx,sy)=>{const b=cv.getBoundingClientRect();cutTap({clientX:b.left+sx/DPR,clientY:b.top+sy/DPR});renderPanel()},gr:()=>({...GR}),grc:()=>({...GRC}),W:()=>W,H:()=>H,btn:k=>$(k).hidden,click:k=>$(k).onclick(),key:k=>cutCam()&&(k==="+"||k==="-")?cutZoomAt(cutCam(),k==="-"?1/CUT.step:CUT.step,W/2,H/2,true):null},orbit:{board:()=>{orbBoard();renderPanel()},act:a=>{orbAct(a);renderPanel()},pick:k=>{selO=k;dirty=true;renderPanel()},checks:()=>orbBoardChecks(),why:k=>orbWhyNot(k),fit:(sl,k)=>orbFit(sl,k),tick:(dt,q)=>orbTick(dt,q!==false),info:()=>E.obx,lift:()=>orbLift(),parked:()=>orbParked(),anchorOk:i=>orbAnchorOk(i),anchor:i=>{sel=i;orbAct("anchor");renderPanel()},spinWhy:()=>orbSpinWhy(),dv:d=>orbDv(d),yard:()=>orbYardK(),lance:()=>orbLanceReady(),pos:()=>orbPos(ORBITERS[0],S.t),panel:()=>stationHTML(),tile:i=>orbTileHTML(i),pad:()=>orbPadHTML(),layout:()=>orbLayout(),lat:i=>orbLat(i),tileSel:i=>{sel=i;selOrb=-1;dirty=true;renderPanel()},selStation:()=>{sel=-1;selOrb=0;dirty=true;renderPanel()},look:i=>{focus=i}},def:{tick:dt=>defTick(dt),spawn:()=>raidSpawn(true),pick:()=>raidPick(),build:(i,k)=>{defBuild(i,k);renderPanel()},str:i=>defStr(i),P:i=>raidP(i),abs:i=>defAbs(i),fight:m=>{raidFight(m);renderPanel()},out:w=>raidOutcome(w,null),act:a=>{defAct(a);renderPanel()},open:i=>{sel=i;selOrb=-1;DEFP=i;renderPanel()},repair:i=>defRepair(i),border:()=>raidBorder(),alert:()=>raidAlert(),fix:i=>defFix(i),turOn:()=>defTurOn(),why:(i,k)=>defWhyNot(i,k),panel:i=>defPanelHTML(i),tile:i=>defTileHTML(i),alertNow:()=>alertText()},cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,uix:{st:()=>{const U=ui_();return{st:U.st,open:U.open,side:U.side,pre:U.pre,list:U.list,feed:U.feed.length}},feed:()=>ui_().feed.map(e=>({...e})),push:(t,k)=>uiFeed(t,k||"note"),list:o=>uiList(o),set:x=>uiSet(x),toggle:()=>uiToggle(),px:uiSheetPx,layout:()=>uiLayout(),poke:()=>{ui_().poke=uiNow()},subject:()=>uiSubject(),live:()=>uiEl("feedlive").innerHTML,listHTML:()=>uiEl("feedlist").innerHTML},zoomx:{cam:v=>CUTZ[v],at:(f,sx,sy)=>cutZoomAt(cutCam(),f,sx,sy,true),pan:(dx,dy)=>{cutPan(cutCam(),dx,dy);dirty=true},reset:()=>cutReset(cutCam()),tap:(sx,sy)=>{const b=cv.getBoundingClientRect();cutTap({clientX:b.left+sx/DPR,clientY:b.top+sy/DPR});renderPanel()},gr:()=>({...GR}),grc:()=>({...GRC}),W:()=>W,H:()=>H,btn:k=>$(k).hidden,click:k=>$(k).onclick(),key:k=>cutCam()&&(k==="+"||k==="-")?cutZoomAt(cutCam(),k==="-"?1/CUT.step:CUT.step,W/2,H/2,true):null},orbit:{board:()=>{orbBoard();renderPanel()},act:a=>{orbAct(a);renderPanel()},pick:k=>{selO=k;dirty=true;renderPanel()},checks:()=>orbBoardChecks(),why:k=>orbWhyNot(k),fit:(sl,k)=>orbFit(sl,k),tick:(dt,q)=>orbTick(dt,q!==false),info:()=>E.obx,lift:()=>orbLift(),parked:()=>orbParked(),anchorOk:i=>orbAnchorOk(i),anchor:i=>{sel=i;orbAct("anchor");renderPanel()},spinWhy:()=>orbSpinWhy(),dv:d=>orbDv(d),yard:()=>orbYardK(),lance:()=>orbLanceReady(),pos:()=>orbPos(ORBITERS[0],S.t),panel:()=>stationHTML(),tile:i=>orbTileHTML(i),pad:()=>orbPadHTML(),layout:()=>orbLayout(),lat:i=>orbLat(i),tileSel:i=>{sel=i;selOrb=-1;dirty=true;renderPanel()},selStation:()=>{sel=-1;selOrb=0;dirty=true;renderPanel()},look:i=>{focus=i}},def:{tick:dt=>defTick(dt),spawn:()=>raidSpawn(true),pick:()=>raidPick(),build:(i,k)=>{defBuild(i,k);renderPanel()},str:i=>defStr(i),P:i=>raidP(i),abs:i=>defAbs(i),fight:m=>{raidFight(m);renderPanel()},out:w=>raidOutcome(w,null),act:a=>{defAct(a);renderPanel()},open:i=>{sel=i;selOrb=-1;DEFP=i;renderPanel()},repair:i=>defRepair(i),border:()=>raidBorder(),alert:()=>raidAlert(),fix:i=>defFix(i),turOn:()=>defTurOn(),why:(i,k)=>defWhyNot(i,k),panel:i=>defPanelHTML(i),tile:i=>defTileHTML(i),alertNow:()=>alertText()},cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
