@@ -6,7 +6,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boot, readyBase } from './ashen-harness.mjs';
 
-const ROOMS = ['bunks', 'pump', 'hydro', 'shop', 'gen', 'store', 'med', 'radio', 'fuel', 'algae'];
+const ROOMS = ['bunks', 'pump', 'hydro', 'shop', 'gen', 'store', 'med', 'radio', 'fuel', 'algae', 'furnace', 'freezer'];
+const SPOTS = [0, 1, 2, 3, 5, 6, 7, 8];   // the columns either side of the shaft
 const BUILDINGS = ['camp', 'still', 'green', 'shelter', 'tower', 'wind', 'tank', 'garage'];
 
 test('every room, building, spire and kind of ground draws, by day and by night, with no part of a frame failing', () => {
@@ -14,7 +15,8 @@ test('every room, building, spire and kind of ground draws, by day and by night,
   readyBase(dev);
   const S = dev.S(), T = dev.home();
   // one of every room in the first rows (some powered, some not), and a dig going
-  ROOMS.forEach((room, n) => { const k = (1 + (n >= 4 ? 1 : 0)) + ',' + (n % 4 < 2 ? n % 4 : n % 4 + 3); S.ug[k] = { d: 1, room }; S.order.push('u:' + k); });
+  ROOMS.forEach((room, n) => { const k = (1 + (n / 8 | 0)) + ',' + SPOTS[n % 8]; S.ug[k] = { d: 1, room }; S.order.push('u:' + k); });
+  assert.equal(new Set(Object.values(S.ug).map(c => c.room).filter(r => ROOMS.includes(r))).size, ROOMS.length, 'every kind of room is in the base');
   S.ug['1,4'] = { d: 1 }; S.ug['2,4'] = { d: 1 }; S.dig = { k: '3,4', left: 5, total: 9 };
   // one of every building on land next to the base, every kind of ground in sight, and a spire
   const near = [...new Set([...S.owned].flatMap(i => T[i].n))].filter(j => !S.owned.has(j) && T[j].b !== 'sea' && !T[j].pent);
