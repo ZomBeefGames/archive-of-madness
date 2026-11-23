@@ -463,7 +463,7 @@ let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
   seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},bp:[],rs:null,h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:9,wear:S.wear,mats:S.mats,inside:S.inside,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function ser(){return{v:9,cbs:S.cbs,wear:S.wear,mats:S.mats,inside:S.inside,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
 function deser(o){MAPS.clear();AMAPS.clear();CMAPS.clear();if(typeof PMAPS!=="undefined")PMAPS.clear();if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
@@ -474,7 +474,7 @@ function deser(o){MAPS.clear();AMAPS.clear();CMAPS.clear();if(typeof PMAPS!=="un
     k:fixK(Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:null,dest:"mire",rations:40,crew:[]},o.k&&typeof o.k==="object"?o.k:{})),
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
     codex:fixCodex(o.codex),x:sanX(o.x),veh:o.veh&&typeof o.veh==="object"?Object.fromEntries(Object.keys(VEH).filter(k=>o.veh[k]).map(k=>[k,1])):{},
-    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,wear:o.wear&&typeof o.wear==="object"?o.wear:{},mats:o.mats&&typeof o.mats==="object"?o.mats:{},inside:o.inside&&typeof o.inside==="object"?o.inside:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
+    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,cbs:o.cbs&&typeof o.cbs==="object"?o.cbs:{},wear:o.wear&&typeof o.wear==="object"?o.wear:{},mats:o.mats&&typeof o.mats==="object"?o.mats:{},inside:o.inside&&typeof o.inside==="object"?o.inside:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
     h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
 const KEY="ashen-sphere-v9",OLD_KEYS=["ashen-sphere-v8","ashen-sphere-v7","ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
@@ -530,15 +530,15 @@ function econ(){
     if(room==="fuel"){if(S.k.fuel<fuelCap){fuelRate+=CFG.space.plant.fuel*m*(U.catalyst?1.5:1);wa-=CFG.space.plant.water}continue}
     if(room==="bunks")cap+=RC.bunks.cap;else if(room==="hydro")fo+=RC.hydro.food*m*(U.coldhydro?1.15:1)*grow*pmH;else if(room==="shop")sc+=RC.shop.scrap*m*(U.archive?1.1:1)*(hasBp("tools")?1.25:1);
     else if(room==="pump")wa+=(cell.f==="aquifer"?RC.pump.aquifer:RC.pump.water)*m*(U.filters?1.25:1)*(hasBp("deeppump")?1.5:1);else if(room==="algae"){fo+=RC.algae.food*m*grow*pm*(hasBp("vats")?2:1);wa-=RC.algae.water}else if(room==="med")med=true;else if(room==="radio")radio=true;else if(room==="lab")rsr+=.5*m}
-  if(dem>0)sc-=RC.gen.burn*gens*(hasBp("gen2")?.7:1);
+  if(dem>0)sc-=RC.gen.burn*gens*(hasBp("gen2")?.7:1);const CBX=cbEcon(genSup,grow);sc+=CBX.sc;wa+=CBX.wa;fo+=CBX.fo;store+=CBX.store;
   const eat=EAT*S.pop,frozen=nFrz*(hasBp("seals")?350:RC.freezer.keep),spoil=Math.max(0,S.res.food-TEMP.cellar-frozen)*TEMP.spoil*(hasBp("preserve")?.5:1);
-  return{rsRate:smartRate()*(1+rsr),labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1)-tideHome().length*EAT*TIDE.drink,fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
+  return{cbx:CBX.info,rsRate:smartRate()*(1+rsr),labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1)-tideHome().length*EAT*TIDE.drink,fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
 }
 let E;
 function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
 function step(dt,quiet){
   reconcile();if(!S.k.smart0&&S.people.length){S.people[0].iq=Math.max(1,S.people[0].iq|0);S.k.smart0=true}E=econ();
-  S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);mineTick(dt,quiet);
+  S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);mineTick(dt,quiet);cbTick(dt,quiet);
   S.res.scrap+=E.sc*dt;S.res.water+=E.wa*dt;S.res.food+=E.fo*dt;
   const dry=S.res.water<=0||S.res.food<=0;
   for(const k of["scrap","water","food"])S.res[k]=Math.max(0,Math.min(E.store,S.res[k]));
@@ -711,8 +711,8 @@ function draw(now){
     if(BLDS[i])obs.push([z,BLDS[i],x,y,s,a,dl,i,1]);else if(T[i].pent&&SEEN.has(i))obs.push([z,"spire",x,y,s*.9,a,dl,i,OWN.has(i)?1:.8]);
     else if(MP[i]&&OWN.has(i)&&LMOF(i))obs.push([z,"flag",x,y,s,a,dl,i,1]);
     else if(MP[i]&&!OWN.has(i)){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(x,y,Math.max(1.5*DPR,s*.22),0,6.2832);ctx.fill()}}
-  walkers(vis,cx,cy,r,tr,now,obs,AW);   // people out on your tiles (the WALK block)
-  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs){if(o[1]==="_w")drawWalker(o,now);else if(o[1]==="_f")wkFire(o,now);else if(o[1]==="village"||o[1]==="outpost")tideModel(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7]);else model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
+  walkers(vis,cx,cy,r,tr,now,obs,AW);if(!AW)cbMarks(vis,cx,cy,r,tr,obs);   // people out on your tiles (the WALK block)
+  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs){if(o[1]==="_w")drawWalker(o,now);else if(o[1]==="_cb")cbMark(o,now);else if(o[1]==="_f")wkFire(o,now);else if(o[1]==="village"||o[1]==="outpost")tideModel(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7]);else model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
   walkAfter(now,cx,cy,r,tr)}
   drawOrbits(true,cx,cy,r,now);if(!AW)drawFlight(cx,cy,r,now);
   if(ck){const p=applyM(R,T[START].c),a=1+Math.max(0,cp-.35)*1.4,x=cx+p[0]*r*a,y=cy-p[1]*r*a;if(p[2]>-.2){ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.arc(x,y,5*DPR,0,6.2832);ctx.fill();ctx.stroke()}
@@ -800,7 +800,7 @@ function jobName(id){if(typeof id==="number")return BLD[S.bld[id]]?BLD[S.bld[id]
   if(id.startsWith("pad2:"))return"the launch pad (tile "+id.slice(5)+")";const c=S.ug[id.slice(2)];return c&&c.room?ROOM[c.room].name.toLowerCase()+" below":"a job"}
 function workerNote(id){const p=E.who.get(id);if(!p)return"";const need=JOB_SKILL[typeof id==="number"?S.bld[id]:(S.ug[id.slice(2)]||{}).room];
   const pct=Math.round((E.bonus.get(id)-1)*100);return" "+p.name+" works here ("+SKILL[p.sk]+" "+p.lv+(p.sk===need?", the right skill":"")+")"+(pct?": +"+pct+"%":"")+"."}
-function peopleHTML(){const P=S.people;let h='<div class="meta">'+P.length+" people · "+E.st.size+" working · "+E.idle+" resting"+(S.exp&&!S.exp.away?" · "+XC.squad+" exploring":"")+(S.x?" · "+S.x.crew.length+" on the expedition":"")+'</div><div class="tile-h">Your people</div>'+smartHTML()+'<div class="plist">';
+function peopleHTML(){const P=S.people;let h='<div class="meta">'+P.length+" people · "+E.st.size+" working · "+E.idle+" resting"+(S.exp&&!S.exp.away?" · "+XC.squad+" exploring":"")+(S.x?" · "+S.x.crew.length+" on the expedition":"")+(S.cbs&&cbPeople()?" · "+cbPeople()+" in cave bunkers":"")+'</div><div class="tile-h">Your people</div>'+smartHTML()+'<div class="plist">';
   for(const p of P){const job=E.jobOf.get(p.id),sq=E.squad.includes(p);
     h+='<div class="prow"><div>'+personLine(p)+'</div><small>'+(smartOf(p)?IQNAME[smartOf(p)]+" · ":"")+(sq?"out with the squad":job!==undefined?"works the "+jobName(job):"resting")+" · "+TRAIT[p.tr].txt+"</small></div>"}
   if(S.x)for(const p of S.x.crew)h+='<div class="prow"><div>'+personLine(p)+'</div><small>on the expedition to '+XWORLDS[S.x.w].name+" · "+TRAIT[p.tr].txt+"</small></div>";
@@ -2263,6 +2263,146 @@ function tpIcon(p,x,y,cs,now,done){const s=cs*.3;ctx.save();ctx.translate(x,y);c
   else if(p.type==="note"){ctx.rotate(-.2);ctx.fillStyle="#efe2c4";ctx.fillRect(-s*.8,-s*.95,s*1.6,s*1.9);ctx.strokeRect(-s*.8,-s*.95,s*1.6,s*1.9);ctx.fillStyle="#8a7a5a";for(let q=0;q<4;q++)ctx.fillRect(-s*.55,-s*.6+q*s*.38,s*(q===3?.6:1.1),Math.max(1,s*.1))}
   ctx.restore()}
 // ==== MAPX (end) ====
+// ==== CAVE (start) ====
+// Cave bunkers: settle the cave under a tile you own (once your squad has seen its mouth) as a second bunker. It comes
+// with natural caverns already open (some with pools a pump works twice as hard on), and the rock round them is rich in
+// veins. You dig and fit it out like the home bunker, from a shorter list of rooms; the people you move in live and
+// work there, on their own power, and what they make goes into the colony's shared stores (they eat and drink from
+// them too). Up to three. State: S.cbs {tile: {ug:{"r,c":{d,room,vein,left,mp,pool}}, order:["r,c"], people:[...], dig}}.
+const CB_COLS=7,CB_ROWS=6,CB_IN=3,CB_MAX=3,CB_COST={scrap:150},CB_ROOMS=["bunks","gen","pump","hydro","shop","store","mine"];
+const cbsOf=()=>{if(!S.cbs||typeof S.cbs!=="object")S.cbs={};return S.cbs};
+const cbAt=i=>{const c=S.cbs&&S.cbs[i];if(!c||typeof c!=="object")return null;if(!c.ug||typeof c.ug!=="object")c.ug={};if(!Array.isArray(c.order))c.order=[];if(!Array.isArray(c.people))c.people=[];return c};
+const cbList=()=>Object.keys(S.cbs||{}).map(Number).filter(i=>cbAt(i));
+const cbPeople=()=>cbList().reduce((a,i)=>a+cbAt(i).people.length,0);
+function cbMake(i){const R=rng(i*7727+SEED+31),ug={},open=(r,c)=>{if(r>=0&&c>=0&&r<CB_ROWS&&c<CB_COLS)ug[r+","+c]={d:1}};
+  let r=0,c=CB_IN;open(r,c);   // a passage winding down from the rope, opening into chambers
+  for(let n=0;n<10;n++){const d=R();if(d<.42&&r<CB_ROWS-1)r++;else if(d<.71)c=Math.max(0,c-1);else c=Math.min(CB_COLS-1,c+1);open(r,c);if(R()<.4)open(r,c+(R()<.5?-1:1));if(R()<.2&&r<CB_ROWS-1)open(r+1,c)}
+  for(const k of Object.keys(ug))if(k!=="0,"+CB_IN&&R()<.22)ug[k].pool=1;
+  return{ug,order:[],people:[],dig:null}}
+// cave rock is rich: a vein in one cell in four, crystal and old circuits further down
+function cbVeinAt(i,r,c){if(h3(i*13+r,c,4421)>=.27)return null;const v=h3(i*17+c,r,4423),L=r<2?["bone","copper","copper"]:r<4?["copper","iron","iron"]:["iron","crystal","wire"];return L[v*L.length|0]}
+const cbVeinLeft=(cell,r)=>{if(!cell||!cell.vein||!MATS[cell.vein])return 0;if(typeof cell.left!=="number"||!isFinite(cell.left))cell.left=veinSize(r+3);return Math.max(0,Math.floor(cell.left))};
+const cbDug=(cb,r,c)=>!!(cb.ug[r+","+c]&&cb.ug[r+","+c].d);
+function cbDigWhy(cb,r,c){if(cbDug(cb,r,c))return"dug";if(!(cbDug(cb,r-1,c)||cbDug(cb,r+1,c)||cbDug(cb,r,c-1)||cbDug(cb,r,c+1)))return"far";return cb.dig?"busy":null}
+const cbDigCost=r=>({scrap:10+4*(r+1)}),cbDigTime=r=>4+1.5*(r+1);
+function cbRoomCost(cb,b,k){const r=+k.split(",")[0],n=Object.values(cb.ug).filter(x=>x.room===b).length;return{scrap:Math.ceil((RC[b].cost+CFG.roomPerRow*(r+1))*Math.pow(CFG.roomScale,n)*(hasBp("alloys")?.8:1))}}
+// ---- the cave's own small economy: residents staff its rooms, its generators power them; output goes to the shared stores
+function cbEcon(genSup,grow){const out={sc:0,wa:0,fo:0,store:0,info:{}};if(!S||!S.cbs)return out;
+  for(const i of cbList()){const cb=cbAt(i),pool=cb.people.slice(),on=new Set(),who=new Map(),bonus=new Map(),paused=new Map();let pw=0,dem=0,gens=0,bunks=0;
+    const rooms=cb.order.filter(k=>cb.ug[k]&&cb.ug[k].room).map(k=>[k,cb.ug[k].room]);
+    const hire=(k,room)=>{const need=JOB_SKILL[room];let bi=-1,bs=-1;pool.forEach((p,j)=>{const sc=(p.sk===need?p.lv:0)*10+(p.tr==="tinkerer"?1:0);if(sc>bs){bs=sc;bi=j}});if(bi<0)return false;
+      const p=pool.splice(bi,1)[0];who.set(k,p);bonus.set(k,1+(p.sk===need?.1*p.lv:0)+(p.tr==="tinkerer"?.1:0));return true};
+    for(const[k,room]of rooms)if(room==="gen"){if(hire(k,room)){on.add(k);pw+=genSup;gens++}else paused.set(k,"nobody free")}
+    for(const[k,room]of rooms)if(room==="store"){on.add(k);out.store+=CFG.storePerRoom}
+    for(const[k,room]of rooms.filter(([,r])=>r!=="gen"&&r!=="store").sort((a,b)=>(RC[a[1]].prio||0)-(RC[b[1]].prio||0))){const d=RC[room],p=d.power||0,r=+k.split(",")[0];
+      if(room==="mine"&&!cbVeinLeft(cb.ug[k],r)){paused.set(k,"worked out");continue}
+      if(dem+p>pw+1e-9){paused.set(k,"no power");continue}if(d.staff&&!hire(k,room)){paused.set(k,"nobody free");continue}dem+=p;on.add(k)}
+    bunks=rooms.filter(([,r])=>r==="bunks").length;
+    for(const k of on){const cell=cb.ug[k],room=cell.room,m=bonus.get(k)||1;
+      if(room==="hydro")out.fo+=RC.hydro.food*m*grow;else if(room==="shop")out.sc+=RC.shop.scrap*m;else if(room==="pump")out.wa+=(cell.pool?RC.pump.aquifer:RC.pump.water)*m}
+    if(dem>0)out.sc-=RC.gen.burn*gens;const n=cb.people.length;out.fo-=EAT*n;out.wa-=EAT*n;
+    out.info[i]={on,who,bonus,paused,power:{supply:pw,demand:Math.round(dem*10)/10},cap:2+bunks*RC.bunks.cap,idle:pool.length,idlers:pool}}
+  return out}
+// the clock: digs finish, mines dig, and a resident has to come home if there's nowhere left to sleep
+function cbTick(dt,quiet){if(!S.cbs||!E||!E.cbx)return;for(const i of cbList()){const cb=cbAt(i),info=E.cbx[i];
+  if(cb.dig){cb.dig.left-=dt;if(cb.dig.left<=0){const k=cb.dig.k,[r,c]=k.split(",").map(Number);cb.dig=null;cb.ug[k]={d:1};const v=cbVeinAt(i,r,c);
+    if(v){const n=4+2*r;matAdd(v,n);cb.ug[k].vein=v;cb.ug[k].left=veinSize(r+3);if(!quiet)say("The cave diggers hit a vein of "+matName(v)+": "+n+" "+matName(v)+". A Mine there would keep digging it out.")}
+    else if(!quiet)say("The cave bunker under tile "+i+" has a new chamber.");E=econ();dirty=true}}
+  if(!info)continue;
+  for(const k of info.on){const cell=cb.ug[k];if(!cell||cell.room!=="mine")continue;const r=+k.split(",")[0];if(!cbVeinLeft(cell,r))continue;
+    cell.mp=(+cell.mp||0)+RC.mine.rate*(info.bonus.get(k)||1)*(S.gear&&S.gear.drillbits?2:1)*dt;let got=0;while(cell.mp>=1&&cell.left>0){cell.mp-=1;cell.left--;got++}
+    if(got){matAdd(cell.vein,got);if(S.gear.drillbits)matWear("mine",got)}
+    if(cell.left<=0){cell.left=0;cell.mp=0;if(!quiet)say("A "+matName(cell.vein)+" vein in the cave bunker is worked out.");E=econ()}}
+  if(cb.people.length>Math.max(2,info.cap)){const p=cb.people.pop();S.people.push(p);S.pop=S.people.length;if(!quiet)say(p.name+" comes home from the cave bunker: there's no bed for them down there.")}}}
+// ---- what you can do there
+let CBI=-1,selC=null,GRC={cw:1,ch:1,gy:0};
+function cbCanFound(i){if(!S.owned.has(i)||T[i].b==="sea"||T[i].pent||S.bld[i]==="bunker"||cbAt(i))return false;const M=genMap(i),ms=S.maps[i];if(!ms)return false;
+  const k=M.pois.findIndex(p=>p.type==="cave");return k>=0&&ms.rev[M.pois[k].k]==="1"}
+function cbAct(a){
+  if(a==="found"){const i=sel;if(!cbCanFound(i)||cbList().length>=CB_MAX||S.pop<4||!afford(CB_COST))return;pay(CB_COST);const cb=cbsOf()[i]=cbMake(i);
+    for(let n=0;n<2;n++){const p=S.people.pop();if(p)cb.people.push(p)}S.pop=S.people.length;E=econ();say("A second bunker: "+cb.people.map(p=>p.name).join(" and ")+" move down into the caves under tile "+i+".");CBI=i;selC=null;setView("cave");dirty=true;save();return}
+  if(a==="open"){if(!cbAt(sel))return;CBI=sel;selC=null;setView("cave");return}
+  const cb=cbAt(CBI);if(!cb)return;const info=E.cbx&&E.cbx[CBI];
+  if(a==="up"){sel=CBI;setView("surface");return}
+  if(a==="send"){if(S.pop<=3||!info||cb.people.length>=info.cap)return;const p=S.people.pop();if(!p)return;cb.people.push(p);S.pop=S.people.length;say(p.name+" moves down to the cave bunker.")}
+  else if(a==="recall"){if(!cb.people.length)return;const p=cb.people.pop();S.people.push(p);S.pop=S.people.length;say(p.name+" comes back up to the home bunker.")}
+  else if(a==="dig"&&selC){const[r,c]=selC.split(",").map(Number),co=cbDigCost(r);if(cbDigWhy(cb,r,c)||!afford(co))return;pay(co);const tt=cbDigTime(r);cb.dig={k:selC,left:tt,total:tt}}
+  else if(a.startsWith("room:")&&selC){const b=a.slice(5),cell=cb.ug[selC],r=+selC.split(",")[0];if(!cell||!cell.d||cell.room||selC==="0,"+CB_IN||!CB_ROOMS.includes(b))return;
+    if(b==="mine"&&!cbVeinLeft(cell,r))return;const co=cbRoomCost(cb,b,selC);if(!afford(co))return;pay(co);cell.room=b;cb.order.push(selC);say("Fitted out "+ROOM[b].name.toLowerCase()+" in the cave bunker.")}
+  else if(a==="raze"&&selC){const cell=cb.ug[selC];if(!cell||!cell.room)return;const b=cell.room,co=cbRoomCost(cb,b,selC);delete cell.room;cb.order=cb.order.filter(x=>x!==selC);for(const x in co)S.res[x]+=Math.floor(co[x]/CFG.roomScale*.5);say("Stripped the "+ROOM[b].name.toLowerCase()+" in the cave bunker for parts.")}
+  else return;E=econ();dirty=true;save()}
+function cbTileHTML(i){const cb=cbAt(i);
+  if(cb){const info=E.cbx&&E.cbx[i];return"<p><b>Cave bunker below.</b> "+cb.people.length+" "+(cb.people.length===1?"person lives":"people live")+" down there"+(info?", "+info.on.size+" room"+(info.on.size===1?"":"s")+" running":"")+".</p>"+
+    '<div class="acts">'+btn("cb:open","Go down to the cave bunker","Its own rooms and people",null,"primary")+"</div>"}
+  if(!cbCanFound(i))return"";const full=cbList().length>=CB_MAX,few=S.pop<4;
+  return"<p>Your squad found a cave under this tile. You could settle it: a second bunker in the caverns, rich in veins.</p>"+
+    '<div class="acts">'+btn("cb:found","Start a cave bunker",full?"You have "+CB_MAX+" already":few?"You need 4 people: 2 move down":"Costs "+costText(CB_COST)+" · 2 people move down",full||few?null:CB_COST,"primary",full||few)+"</div>"}
+function caveHTML(){const cb=cbAt(CBI);if(!cb)return'<div class="tile-h">No cave bunker</div>';const info=E.cbx&&E.cbx[CBI]||{on:new Set(),paused:new Map(),who:new Map(),power:{supply:0,demand:0},cap:2,idle:0};
+  let h='<div class="row"><button class="linkbtn" data-act="cb:up">← Back to the surface</button><span class="meta">Power '+info.power.supply+" / "+info.power.demand+" used</span></div>";
+  h+='<div class="tile-h">The cave bunker under tile '+CBI+"</div><p>"+cb.people.length+" of "+info.cap+" beds taken"+(cb.people.length?": "+cb.people.map(p=>p.name).join(", "):"")+". "+(info.idle?info.idle+" with nothing to do. ":"")+
+    "What they make goes into the colony's stores, and they eat and drink from them. Tap a chamber to fit it out, or the rock next to one to dig.</p>"+
+    '<div class="acts">'+btn("cb:send","Send someone down","From the home bunker",null,"",S.pop<=3||cb.people.length>=info.cap)+btn("cb:recall","Bring someone home","Back to the home bunker",null,"",!cb.people.length)+"</div>";
+  if(!selC)return h;const[r,c]=selC.split(",").map(Number),cell=cb.ug[selC];h+='<div class="meta">'+((r+1)*3)+" m under the cave mouth</div>";
+  if(cell&&cell.d&&cell.room){const def=ROOM[cell.room],on=info.on.has(selC),why=info.paused.get(selC),p=info.who.get(selC),left=cell.room==="mine"?cbVeinLeft(cell,r):0;
+    h+='<div class="tile-h">'+def.name+"</div><p>"+def.what+". "+(def.power?"Uses "+def.power+" power. ":"")+(on?(p?p.name+" works here.":"Running."):why==="worked out"?"<b>The vein is worked out.</b>":why==="no power"?"<b>Paused: not enough power.</b> Fit out a generator down here.":"<b>Paused: nobody free to work here.</b> Send someone down.")+
+      (cell.pool&&cell.room==="pump"?" A pool in this chamber: the pump makes about twice as much.":"")+(cell.room==="mine"&&left?" A vein of "+matName(cell.vein)+": "+left+" left in it.":"")+"</p>";
+    return h+'<div class="acts">'+btn("cb:raze","Strip it","Get some parts back",null,"warn")+"</div>"}
+  if(cell&&cell.d){if(selC==="0,"+CB_IN)return h+'<div class="tile-h">The cave mouth</div><p>A rope and a ladder down from the surface. Everything goes up and down here.</p>';
+    const vl=cbVeinLeft(cell,r);h+='<div class="tile-h">An open chamber</div><p>'+(cell.pool?"A still, clear pool: a pump here makes about twice as much. ":"")+(vl?"A vein of "+matName(cell.vein)+" runs through the wall ("+vl+" left): a Mine here keeps digging it out. ":"")+"Fit it out.</p><div class=\"acts\">";
+    for(const b of CB_ROOMS){if(b==="mine"&&!vl)continue;const co=cbRoomCost(cb,b,selC),d=ROOM[b];h+=btn("cb:room:"+b,d.name,d.what+(d.power?" · "+d.power+" power":"")+(d.staff?" · 1 worker":"")+" · "+costText(co),co,b==="mine"?"primary":"")}
+    return h+"</div>"}
+  h+='<div class="tile-h">Cave rock</div>';if(cb.dig&&cb.dig.k===selC)return h+"<p>Digging. "+Math.ceil(cb.dig.left)+" s left.</p>";
+  const why=cbDigWhy(cb,r,c),v=cbVeinAt(CBI,r,c),co=cbDigCost(r);
+  return h+"<p>"+(v?"Coloured specks of "+matName(v)+" in the rock: a vein. ":"")+(why==="far"?"Dig next to an open chamber.":why==="busy"?"The diggers are busy with another chamber.":"Dig it out: "+costText(co)+", "+Math.round(cbDigTime(r))+" s.")+"</p>"+(why?"":'<div class="acts">'+btn("cb:dig","Dig","Opens a new chamber",co,"primary")+"</div>")}
+// ---- the cutaway: rock and caverns, veins, pools, rooms, people, the rope up to the surface
+function paintCaveRock(g,cb,cw,ch,i){const W0=CB_COLS*cw,H0=CB_ROWS*ch;g.fillStyle="#3b342d";g.fillRect(0,0,W0,H0+1);
+  for(let q=0;q<160;q++){g.fillStyle=h3(i,q,7)<.5?"rgba(20,16,12,.35)":"rgba(120,108,92,.18)";g.beginPath();g.arc(W0*h3(i,q,8),H0*h3(i,q,9),Math.max(1,cw*(.02+.04*h3(i,q,10))),0,6.2832);g.fill()}
+  const dug=(r,c)=>cbDug(cb,r,c),hole="#17130f";g.fillStyle=hole;
+  for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){if(!dug(r,c))continue;const x=c*cw,y=r*ch,j=(q,s)=>(h3(i*31+r*7+c,q,s)-.5)*cw*.08;
+    g.beginPath();g.moveTo(x+cw*.1+j(1,1),y+ch*.12+j(1,2));g.quadraticCurveTo(x+cw*.5,y+ch*.02+j(2,1),x+cw*.9+j(3,1),y+ch*.1+j(3,2));g.lineTo(x+cw*.96+j(4,1),y+ch*.88);g.quadraticCurveTo(x+cw*.5,y+ch*.98,x+cw*.04+j(5,1),y+ch*.9);g.closePath();g.fill();
+    if(dug(r,c+1))g.fillRect(x+cw*.8,y+ch*.2,cw*.4,ch*.68);if(dug(r+1,c))g.fillRect(x+cw*.22,y+ch*.8,cw*.56,ch*.4)}
+  g.fillStyle="#4a4138";for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){if(!dug(r,c))continue;const x=c*cw,y=r*ch;   // stalactites and stalagmites
+    for(let q=0;q<3;q++){const px=x+cw*(.2+.3*q+.08*h3(r,c,q)),L=ch*(.08+.1*h3(c,r,q+3));if(!dug(r-1,c)){g.beginPath();g.moveTo(px-cw*.03,y+ch*.08);g.lineTo(px+cw*.03,y+ch*.08);g.lineTo(px,y+ch*.08+L);g.closePath();g.fill()}
+      if(!dug(r+1,c)&&h3(r,c,q+9)<.5){g.beginPath();g.moveTo(px-cw*.035,y+ch*.92);g.lineTo(px+cw*.035,y+ch*.92);g.lineTo(px+cw*.01,y+ch*.92-L*.8);g.closePath();g.fill()}}}}
+function drawCave(now){const cb=cbAt(CBI);if(!cb){setView("surface");return}
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle="#0c0a08";ctx.fillRect(0,0,W,H);
+  const top=Math.max(46*DPR,H*.12),pad=22*DPR,cw=W/CB_COLS,ch=Math.min(cw*.82,(H-top-pad)/CB_ROWS),gy=top+Math.max(0,(H-top-pad-CB_ROWS*ch)/2);GRC={cw,ch,gy};
+  const t=T[CBI],dl=smooth(-.12,.3,dot(sunAt(S.t),t.c)),sky=ctx.createLinearGradient(0,0,0,top);sky.addColorStop(0,dl>.4?"#5a6a7a":"#14161c");sky.addColorStop(1,dl>.4?"#a8a090":"#2a2620");
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,top);ctx.fillStyle=col(t.base||[110,100,86],.6+.4*dl);ctx.fillRect(0,top-6*DPR,W,gy-top+6*DPR);
+  const sig=Object.keys(cb.ug).filter(k=>cb.ug[k].d).sort().join(";");
+  stamp("cbrock:"+CBI+":"+sig+":"+Math.round(cw*10)+":"+Math.round(ch*10),W,CB_ROWS*ch+1,0,gy,g=>paintCaveRock(g,cb,cw,ch,CBI),"cave");
+  const rx=(CB_IN+.5)*cw;ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,1.2*DPR);ctx.beginPath();ctx.moveTo(rx,top-6*DPR);ctx.lineTo(rx,gy+ch*.85);ctx.stroke();   // the rope
+  ctx.fillStyle="#2a2119";ctx.fillRect(rx-cw*.16,top-8*DPR,cw*.32,5*DPR);
+  const info=E.cbx&&E.cbx[CBI];
+  for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){const k=r+","+c,cell=cb.ug[k],x=c*cw,y=gy+r*ch;
+    if(!(cell&&cell.d)){const v=cbVeinAt(CBI,r,c);if(v)seamAt(x,y,cw,ch,r,c,v,.85,.7);continue}
+    if(cell.pool&&!cell.room){ctx.fillStyle="rgba(70,120,150,.75)";ctx.beginPath();ctx.ellipse(x+cw*.5,y+ch*.84,cw*.32,ch*.07,0,0,6.2832);ctx.fill();if(!reduced){ctx.strokeStyle="rgba(200,230,255,.35)";ctx.lineWidth=DPR;ctx.beginPath();ctx.ellipse(x+cw*.5,y+ch*.84,cw*.32*((now/1600)%1),ch*.07*((now/1600)%1),0,0,6.2832);ctx.stroke()}}
+    if(!cell.room&&cell.vein&&cbVeinLeft(cell,r))seamAt(x,y,cw,ch,r,c,cell.vein,.55,1)}
+  ctx.font=Math.round(Math.max(8*DPR,Math.min(ch*.2,11*DPR)))+'px "Courier Prime",monospace';ctx.textBaseline="top";
+  for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){const k=r+","+c,cell=cb.ug[k];if(!cell||!cell.room)continue;const x=c*cw,y=gy+r*ch,lit=!!(info&&info.on.has(k)),room=cell.room,def=ROOM[room];
+    stamp("room:"+room+":1:"+Math.round(cw*100)+":"+Math.round(ch*100)+":"+(lit?1:0),cw,ch,x,y,g=>paintRoom(g,room,cw,ch,lit,1));
+    if(lit)roomFx(room,x,y,cw,ch,1,now);if(room==="mine"){const L=cbVeinLeft(cell,r);if(L)seamAt(x,y,cw,ch,r,c,cell.vein,lit?1:.45,Math.min(1,L/veinSize(r+3)))}
+    const label=def.name.split(" ")[0].slice(0,7),tw=ctx.measureText(label).width;ctx.fillStyle="rgba(20,15,11,.72)";ctx.fillRect(x+3*DPR,y+ch*.1,tw+6*DPR,Math.max(8*DPR,Math.min(ch*.2,11*DPR))+4*DPR);ctx.fillStyle=lit?"#efe2c4":"#a99d86";ctx.fillText(label,x+6*DPR,y+ch*.1+2*DPR)}
+  if(info){let sd=0;for(const[k,p]of info.who){const[r,c]=k.split(",").map(Number),cell=cb.ug[k],sx=c*cw+cw*(cell.room==="mine"?.52:.25+.5*(.5+.5*Math.sin(now/1900+sd*2.1)*(reduced?0:1))),o=cell.room==="mine"?{act:"dig",f:-1}:undefined;
+      ctx.save();ctx.beginPath();ctx.rect(c*cw+DPR,gy+r*ch+ch*.08,cw-2*DPR,ch*.92);ctx.clip();person(sx,gy+r*ch+ch-3*DPR,ch*.5,sd++,now,lookOf(p),o);ctx.restore()}
+    const spots=Object.keys(cb.ug).filter(k=>cb.ug[k].d&&!cb.ug[k].room);info.idlers.forEach((p,j)=>{if(!spots.length)return;const[r,c]=spots[j%spots.length].split(",").map(Number);
+      ctx.save();ctx.beginPath();ctx.rect(c*cw+DPR,gy+r*ch,cw-2*DPR,ch);ctx.clip();person(c*cw+cw*(.25+.5*(.5+.5*Math.sin(now/2600+j*1.7)*(reduced?0:1))),gy+r*ch+ch*.92,ch*.46,j+30,now,lookOf(p));ctx.restore()})}
+  if(cb.dig){const[r,c]=cb.dig.k.split(",").map(Number),x=c*cw,y=gy+r*ch,p=1-cb.dig.left/cb.dig.total;ctx.fillStyle="rgba(240,164,58,.35)";ctx.fillRect(x,y,cw*p,ch);ctx.setLineDash([3*DPR,3*DPR]);ctx.strokeStyle="#f0a43a";ctx.lineWidth=DPR;ctx.strokeRect(x+DPR,y+DPR,cw-2*DPR,ch-2*DPR);ctx.setLineDash([])}
+  for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){const k=r+","+c,cell=cb.ug[k],x=c*cw,y=gy+r*ch;   // room frames, and rock you can dig
+    if(cell&&cell.room){ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1.5,2*DPR);ctx.strokeRect(x+DPR,y+DPR,cw-2*DPR,ch-2*DPR)}
+    else if(!(cell&&cell.d)&&!cbDigWhy(cb,r,c)){ctx.strokeStyle="rgba(240,164,58,.4)";ctx.lineWidth=DPR;ctx.strokeRect(x+1.5*DPR,y+1.5*DPR,cw-3*DPR,ch-3*DPR)}}
+  if(selC){const[r,c]=selC.split(",").map(Number);ctx.strokeStyle="#e8dcc2";ctx.lineWidth=Math.max(2,2*DPR);ctx.setLineDash([4*DPR,3*DPR]);ctx.strokeRect(c*cw+2*DPR,gy+r*ch+2*DPR,cw-4*DPR,ch-4*DPR);ctx.setLineDash([])}}
+const cbLegend=()=>{const cb=cbAt(CBI),info=E.cbx&&E.cbx[CBI];return cb&&info?"Cave bunker · "+cb.people.length+" people · power "+info.power.supply+"/"+info.power.demand:"Cave bunker"};
+// on the globe: a lit cave mouth beside the tile's own building, so you can find your cave bunkers
+function cbMarks(vis,cx,cy,r,tr,obs){if(!S.cbs)return;for(let v=0;v<vis.length;v+=3){const i=vis[v];if(!cbAt(i))continue;const z=vis[v+1],s=tr*.66*(.5+.5*z);if(s<4*DPR)continue;
+  const nx=dot([R[0],R[1],R[2]],T[i].c);obs.push([z+.001,"_cb",cx+nx*r,cy-dot([R[3],R[4],R[5]],T[i].c)*r,s,0,vis[v+2],i,1])}}
+function cbMark(o,now){const[,,x0,y0,s]=o,x=x0+s*.42,y=y0+s*.18,f=reduced?1:.8+.2*Math.sin(now/170+o[7]);
+  const g=ctx.createRadialGradient(x,y,0,x,y,s*.7);g.addColorStop(0,"rgba(255,190,90,"+(.35*f).toFixed(3)+")");g.addColorStop(1,"rgba(255,190,90,0)");ctx.fillStyle=g;ctx.fillRect(x-s*.7,y-s*.7,s*1.4,s*1.4);
+  ctx.fillStyle="#8a7f70";ctx.beginPath();ctx.moveTo(x-s*.34,y+s*.14);ctx.lineTo(x-s*.34,y-s*.02);ctx.arc(x,y-s*.02,s*.34,Math.PI,0);ctx.lineTo(x+s*.34,y+s*.14);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#0e0b08";ctx.beginPath();ctx.moveTo(x-s*.22,y+s*.14);ctx.lineTo(x-s*.22,y);ctx.arc(x,y,s*.22,Math.PI,0);ctx.lineTo(x+s*.22,y+s*.14);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#ffcf7a";ctx.beginPath();ctx.arc(x+s*.13,y-s*.08,Math.max(1,s*.06*f),0,6.2832);ctx.fill()}
+function cbTap(sx,sy){const c=Math.floor(sx/GRC.cw),r=Math.floor((sy-GRC.gy)/GRC.ch);if(r<0||c<0||r>=CB_ROWS||c>=CB_COLS)return;selC=r+","+c;dirty=true}
+// ==== CAVE (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const skyH=Math.max(54*DPR,H*.13),padB=24*DPR,cw=W/COLS,ch=Math.min(cw*.8,Math.max(28*DPR,(H-skyH-padB)/ROWS)),gy=skyH;
@@ -2336,7 +2476,7 @@ function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v==="fight"&&!FIGHT)
   $("sys").hidden=!sysOpen()||v==="map"||v==="below"||v==="fight";$("fdeck").hidden=v!=="fight";
   const d=$("dive");d.textContent=v==="below"?"⇧":"⇩";d.setAttribute("aria-label",v==="below"?"Back to the surface":"Go below the bunker");
   const sy=$("sys");sy.textContent=v==="stars"?"◉":"✦";sy.setAttribute("aria-label",v==="stars"?"Back to the planet":"System map");$("home").setAttribute("aria-label",v==="away"?"Turn to your ship":"Turn to your bunker");
-  cv.setAttribute("aria-label",v==="fight"?"A puppet fight on a board. The stick works your puppet's rod: up stands tall, down ducks, forward leans in. The button fires.":v==="below"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
+  cv.setAttribute("aria-label",v==="fight"?"A puppet fight on a board. The stick works your puppet's rod: up stands tall, down ducks, forward leans in. The button fires.":v==="below"||v==="cave"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
     v==="away"?"Another world. Drag to turn it, tap a tile to choose it.":"The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you.");dirty=true}
 
 // ---------------------------------------------------------------- tile maps: every tile is a small map you walk and clear
@@ -5843,6 +5983,7 @@ const pd=()=>{const p=[...ptrs.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-
 cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===1){downX=e.clientX;downY=e.clientY;moved=false;vel=[0,0]}if(ptrs.size===2)pinch=pd();focus=null;lastTouch=performance.now()});
 cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW==="fight")return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;lastTouch=performance.now();
   if(VIEW==="map"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)mapPan(dx,dy);return}
+  if(VIEW==="cave"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(VIEW==="below"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY-dy*DPR));return}
   if(VIEW==="stars"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(ptrs.size===1){if(Math.hypot(e.clientX-downX,e.clientY-downY)>6)moved=true;if(moved){spin(dx,dy);vel=[dx,dy]}}
@@ -5850,6 +5991,7 @@ cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW=
 const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;if(VIEW==="fight")return;
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="map"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<GM.w&&y<GM.h){const p=pathTo(y*GM.w+x);if(p){PATH=p;CAMM.px=CAMM.py=0}}return}
+  if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="cave"){const b=cv.getBoundingClientRect();cbTap((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="below"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const c=Math.floor(sx/GR.cw),r=Math.floor((sy-GR.gy)/GR.ch);if(c>=0&&c<COLS&&r>=0&&r<ROWS){selU=r+","+c;dirty=true}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="stars"&&ATL.open){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;let best=-1,bd=1e9;
@@ -5860,7 +6002,7 @@ const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.si
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b=cv.getBoundingClientRect();const i=pick((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);if(i>=0){sel=i;dirty=true}}
   if(reduced)vel=[0,0]};
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
-cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars"||VIEW==="fight")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
+cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars"||VIEW==="fight"||VIEW==="cave")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
 cv.addEventListener("keydown",e=>{
   if(VIEW==="fight")return;
   if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-GM.w,ArrowDown:GM.w}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
@@ -5897,7 +6039,7 @@ function panelHTML(){
     h+="<p>"+BLD[b].what+(m!==1&&BLD[b].staff?" (×"+m.toFixed(1)+" here)":"")+". "+(working?(BLD[b].staff?(workerNote(sel)||" Someone is working here.")+(b==="pad"&&E.who.get("pad2:"+sel)?" "+E.who.get("pad2:"+sel).name+" helps.":""):"No worker needed."):"<b>"+(b==="pad"?"The pad needs 2 free people.":"Nobody to work here.")+"</b> Grow your people or tear down something else.")+"</p>";
     if(b==="pad")h+=padHTML();if(b==="garage")h+=garageHTML();if(b==="tank")h+="<p>Fuel: <b>"+Math.floor(S.k.fuel)+" / "+E.fuelCap+"</b>"+(E.fuelRate?" · filling at "+E.fuelRate.toFixed(2)+"/s":"")+".</p>";
     const lmb=S.maps[sel]?landmarkOf(sel):null;if(lmb)h+="<p><b>Landmark: "+lmb.name+".</b> "+lmb.txt+"</p>";
-    return h+'<div class="acts">'+btn("walk","Walk this tile","Free on your land",null)+btn("raze","Tear down","Get some parts back",null,"warn")+"</div>"}
+    h+=cbTileHTML(sel);return h+'<div class="acts">'+btn("walk","Walk this tile","Free on your land",null)+btn("raze","Tear down","Get some parts back",null,"warn")+"</div>"}
   h+="<p>"+bi.desc+"</p>";
   if(t.b==="sea"){h+=t.n.some(j=>S.owned.has(j))?"<p>Your shore tiles next to this water make 60% more from a water still.</p>":"";   // slice 2: the diving bell
     return h+(S.veh.bell?seaHTML(sel):S.k.lantern?"<p>A diving bell from the garage could take a squad down there.</p>":"")}
@@ -5909,6 +6051,7 @@ function panelHTML(){
     if(blk)return h+"<p><b>"+blk+"</b></p>";
     return h+'<div class="acts">'+btn("explore",S.maps[sel]?"Send the squad back":"Send a squad","Costs "+costText(xcost())+" · "+tripSteps()+" steps",xcost(),"primary")+"</div>"}
   if(lm)h+="<p><b>Landmark: "+lm.name+".</b> "+lm.txt+"</p>";
+  h+=cbTileHTML(sel);
   h+='<div class="acts">'+walk;
   for(const k of BUILD_LIST.concat(["wind","pad","tank","garage"]).filter(k=>canBuild(sel,k))){const c=costAt(sel,k),m=mult(sel,k);h+=btn("build:"+k,BLD[k].name,BLD[k].what+(m!==1&&BLD[k].staff?" ×"+m.toFixed(1):"")+" · "+costText(c),c)}
   return h+"</div>";
@@ -5952,9 +6095,9 @@ let lastSubject="";
 function renderPanel(){
   const p=$("panel"),f=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.act:null;
   // a new subject (view, tile, card, world) starts at the top of the drawer; the same subject keeps its scroll
-  const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:""].join("|");
+  const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="cave"?CBI+":"+selC:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:""].join("|");
   if(subj!==lastSubject){lastSubject=subj;const d=$("drawer");if(d)d.scrollTop=0}
-  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?(showRs?researchHTML():peopleHTML()):VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
+  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?(showRs?researchHTML():peopleHTML()):VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():VIEW==="cave"?caveHTML():panelHTML();updateButtons();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
   $("goal").innerHTML=g?"<span>Goal: "+g.text+"</span><b>"+Math.min(g.p()[0],g.p()[1])+" / "+g.p()[1]+"</b>":"<span>Every goal met. The world remembers your lights.</span><b>✓</b>";
@@ -5963,7 +6106,7 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;doAct(b.dataset.act);renderPanel()});
 function doAct(a){
-  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("pl:")){placeAct(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}if(a.startsWith("tp:")){tpAct(a.slice(3));renderPanel();return}
+  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("pl:")){placeAct(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}if(a.startsWith("tp:")){tpAct(a.slice(3));renderPanel();return}if(a.startsWith("cb:")){cbAct(a.slice(3));renderPanel();return}
   if(a==="play"){threatFight("play");return}if(a==="fauto"){if(FIGHT)PUP.hand(FIGHT.g,0,FIGHT.lvYou);dirty=true;return}if(a==="fquit"){fightGiveUp();return}
   if(a==="fw"){const ws=fightWeapons();S.fw=ws[(ws.indexOf(fightWeapon())+1)%ws.length];dirty=true;return}
   if(a==="fab"){if(CARD)CARD.abPick=!CARD.abPick;dirty=true;return}if(a.startsWith("fab:")){abToggle(a.slice(4));dirty=true;return}   // abilities
@@ -6000,10 +6143,10 @@ function hud(){
   for(const[k,v]of[["scrap",E.sc],["water",E.wa],["food",E.fo]]){const el=$("d-"+k),have=S.res[k];
     let txt=rate(v);if(v<0&&have>0){const s=have/-v;txt+=" · "+(s>=3600?Math.floor(s/3600)+"h":s>=60?Math.floor(s/60)+"m":Math.ceil(s)+"s")+" left"}else if(v<0)txt="empty";else if(have>=E.store-.5)txt="full · "+E.store;
     el.textContent=txt;el.className=v<0?"neg":""}
-  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight";
+  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight"||VIEW==="cave";
   $("r-pop").textContent=S.pop+" / "+E.cap;matHud();
   const unstaffed=E.needStaff-E.st.size,dp=$("d-pop");dp.textContent=S.exp&&!S.exp.away?XC.squad+" out exploring":S.wounded>0?"squad resting":unstaffed>0?unstaffed+" job"+(unstaffed>1?"s":"")+" empty":
-    S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";dp.className=unstaffed>0?"neg":"";
+    S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";if(S.cbs&&cbPeople()&&dp.textContent==="all working")dp.textContent="+"+cbPeople()+" in caves";dp.className=unstaffed>0?"neg":"";
   $("clock").innerHTML=(S.world?WORLDS[Math.min(S.world,WORLDS.length-1)].name+" · ":"")+"Day <b>"+day()+"</b> · "+partOfDay()+(S.x?" · "+xShort():"")+(republicHere()&&S.h.secret?" · suspicion <b"+(S.h.susp>=50?' class="hot"':"")+">"+Math.round(S.h.susp)+"</b>":"");
   const al=alertText(),ab=$("alert");if(al){const sig=al.t+al.b.map(x=>x[0]).join();if(ab.dataset.sig!==sig){ab.dataset.sig=sig;ab.innerHTML="<span>"+al.t+"</span>"+al.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+x[1]+"</span></button>").join("")}ab.hidden=false}else ab.hidden=true;
   const tl=VIEW==="map"&&S.exp?xThreatsLeft(S.exp.i):0;
@@ -6011,7 +6154,7 @@ function hud(){
   $("legend").textContent=VIEW==="fight"&&FIGHT?(FIGHT.kind==="space"?"Space battle":"Fight")+" · "+PUP.WPN[FIGHT.wk].name.toLowerCase()+" · pop them "+FIGHT.g.needs[0]+"× before they pop you "+FIGHT.g.needs[1]+"×":VIEW==="map"&&S.exp?(S.exp.cave?(S.exp.cave.kind&&PLACES[S.exp.cave.kind]?"Inside the "+PLACES[S.exp.cave.kind].name.toLowerCase()+" · ":"In the cave · "):S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
     VIEW==="stars"&&ATL.open?"Library atlas · "+atlSys().star.name+" · "+atlSys().galaxy.name:
     VIEW==="stars"?"The Ashen system"+(S.x?" · "+xShort():"")+" · codex "+S.codex.found.length:
-    VIEW==="away"&&S.x?(S.x.phase==="orbit"?"In orbit over "+XWORLDS[S.x.w].name+" · tap a tile to land":XWORLDS[S.x.w].name+" · "+S.x.steps+" steps of rations · hold "+Math.floor(holdUsed())+"/"+S.x.cap):VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand+" · "+deg(E.temp)+" in, "+deg(E.tOut)+" out":S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
+    VIEW==="away"&&S.x?(S.x.phase==="orbit"?"In orbit over "+XWORLDS[S.x.w].name+" · tap a tile to land":XWORLDS[S.x.w].name+" · "+S.x.steps+" steps of rations · hold "+Math.floor(holdUsed())+"/"+S.x.cap):VIEW==="cave"?cbLegend():VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand+" · "+deg(E.temp)+" in, "+deg(E.tOut)+" out":S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
   const dlft=$("digleft");if(dlft&&S.dig)dlft.textContent=Math.ceil(S.dig.left);
   if(S.dig===null&&wasDigging){dirty=true}wasDigging=!!S.dig;
   if(S.pop!==lastPop){lastPop=S.pop;dirty=true}
@@ -6039,7 +6182,7 @@ function frame(now){
   guard("step",()=>{if(gap>1)catchUp(gap);else{if(!S.h.crack)step(gap);if(!document.hidden)tickActive(gap);tickCrack(gap)}});
   guard("view",()=>{
     if(VIEW==="map"){stepT+=Math.min(gap,.5);while(stepT>.13){stepT-=.13;stepOnce()}}
-    else if(VIEW==="below"||VIEW==="stars"){}
+    else if(VIEW==="below"||VIEW==="stars"||VIEW==="cave"){}
     else if(VIEW==="fight")fightTick(gap);
     else if(focus!==null){const p=applyM(R,T[focus].c),ax=cross(p,[0,0,1]),s=Math.hypot(ax[0],ax[1],ax[2]);
       if(s<1e-3&&p[2]>0)focus=null;else{const ang=Math.atan2(s,p[2]);R=orthonorm(mul(rot(s<1e-6?[0,1,0]:norm(ax),ang*Math.min(1,gap*6)),R))}}
@@ -6047,7 +6190,7 @@ function frame(now){
       if(Math.abs(vel[0])+Math.abs(vel[1])>.05){spin(vel[0],vel[1]);vel[0]*=.92;vel[1]*=.92}
       else if(now-lastTouch>6000)R=orthonorm(mul(rot([0,1,0],gap*.05),R));
     }});
-  guard("draw",()=>{if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="stars")drawStars(now);else if(VIEW==="fight")drawFight(gap);else draw(now)});
+  guard("draw",()=>{if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="cave")drawCave(now);else if(VIEW==="stars")drawStars(now);else if(VIEW==="fight")drawFight(gap);else draw(now)});
   guard("panel",()=>{hudT+=gap;if(hudT>.25){hudT=0;hud()}if(dirty){dirty=false;renderPanel()}});
   saveT+=gap;if(saveT>5){saveT=0;save()}
   requestAnimationFrame(frame);
@@ -6065,12 +6208,12 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
       atlas:{chart:chartSystem,page:libPage,names:libNames,code:atlCode,fromCode:atlFromCode,galaxy,tiles:worldTiles,act:a=>{atlAct(a);renderPanel()},ui:()=>ATL,LIB,GLYPHS,SKIND,WKIND,nameOk:libNameOk,hash:libHash,rng:libRng,fix:fixAtlas},
-      ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="stars")drawStars(n);else if(VIEW==="fight")drawFight(1/60);else draw(n)},
+      ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="cave")drawCave(n);else if(VIEW==="stars")drawStars(n);else if(VIEW==="fight")drawFight(1/60);else draw(n)},
       fight:{state:()=>FIGHT,tick:t=>fightTick(t),PUP,lookOf,fightLevels,threatFight,spaceFight,spaceRoll:()=>S.x&&spaceRoll(S.x),SPACE_FOES,FOES,foeOf,mutant,FOE_CAL,foeCal,abKnown,abBring,abLoadout,abCheck,abToggle,threatAbHTML,foePic,THREAT,ATHREAT}}};
   last=performance.now();requestAnimationFrame(frame);
   const sp=$("splash"),hadSave=!!loadSaved();
