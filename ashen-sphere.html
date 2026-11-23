@@ -2370,7 +2370,10 @@ function paintCaveRock(g,cb,cw,ch,i){const W0=CB_COLS*cw,H0=CB_ROWS*ch;g.fillSty
       if(!dug(r+1,c)&&h3(r,c,q+9)<.5){g.beginPath();g.moveTo(px-cw*.035,y+ch*.92);g.lineTo(px+cw*.035,y+ch*.92);g.lineTo(px+cw*.01,y+ch*.92-L*.8);g.closePath();g.fill()}}}}
 function drawCave(now){const cb=cbAt(CBI);if(!cb){setView("surface");return}
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle="#0c0a08";ctx.fillRect(0,0,W,H);
-  const top=Math.max(46*DPR,H*.12),pad=22*DPR,cw=W/CB_COLS,ch=Math.min(cw*.82,(H-top-pad)/CB_ROWS),gy=top+Math.max(0,(H-top-pad-CB_ROWS*ch)/2);GRC={cw,ch,gy};
+  // zoom and move around (the ZOOM block): laid out Z.rz times its zoom-1 size, stretched by Z.k, moved by Z.ox and Z.oy
+  const t1=Math.max(46*DPR,H*.12),p1=22*DPR,cw1=W/CB_COLS,ch1=Math.min(cw1*.82,(H-t1-p1)/CB_ROWS),g1=t1+Math.max(0,(H-t1-p1-CB_ROWS*ch1)/2),Z=cutFrame(CUTZ.cave,g1+CB_ROWS*ch1+p1),W0=W;
+  const top=t1*Z.rz,pad=p1*Z.rz,cw=cw1*Z.rz,ch=ch1*Z.rz,gy=g1*Z.rz;GRC={cw,ch,gy,k:Z.k,ox:Z.ox,oy:Z.oy};
+  ctx.setTransform(Z.k,0,0,Z.k,-Z.ox,-Z.oy);W=W0*Z.rz;try{   // inside the picture, W is its width
   const t=T[CBI],dl=smooth(-.12,.3,dot(sunAt(S.t),t.c)),sky=ctx.createLinearGradient(0,0,0,top);sky.addColorStop(0,dl>.4?"#5a6a7a":"#14161c");sky.addColorStop(1,dl>.4?"#a8a090":"#2a2620");
   ctx.fillStyle=sky;ctx.fillRect(0,0,W,top);ctx.fillStyle=col(t.base||[110,100,86],.6+.4*dl);ctx.fillRect(0,top-6*DPR,W,gy-top+6*DPR);
   const sig=Object.keys(cb.ug).filter(k=>cb.ug[k].d).sort().join(";");
@@ -2395,7 +2398,8 @@ function drawCave(now){const cb=cbAt(CBI);if(!cb){setView("surface");return}
   for(let r=0;r<CB_ROWS;r++)for(let c=0;c<CB_COLS;c++){const k=r+","+c,cell=cb.ug[k],x=c*cw,y=gy+r*ch;   // room frames, and rock you can dig
     if(cell&&cell.room){ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1.5,2*DPR);ctx.strokeRect(x+DPR,y+DPR,cw-2*DPR,ch-2*DPR)}
     else if(!(cell&&cell.d)&&!cbDigWhy(cb,r,c)){ctx.strokeStyle="rgba(240,164,58,.4)";ctx.lineWidth=DPR;ctx.strokeRect(x+1.5*DPR,y+1.5*DPR,cw-3*DPR,ch-3*DPR)}}
-  if(selC){const[r,c]=selC.split(",").map(Number);ctx.strokeStyle="#e8dcc2";ctx.lineWidth=Math.max(2,2*DPR);ctx.setLineDash([4*DPR,3*DPR]);ctx.strokeRect(c*cw+2*DPR,gy+r*ch+2*DPR,cw-4*DPR,ch-4*DPR);ctx.setLineDash([])}}
+  if(selC){const[r,c]=selC.split(",").map(Number);ctx.strokeStyle="#e8dcc2";ctx.lineWidth=Math.max(2,2*DPR);ctx.setLineDash([4*DPR,3*DPR]);ctx.strokeRect(c*cw+2*DPR,gy+r*ch+2*DPR,cw-4*DPR,ch-4*DPR);ctx.setLineDash([])}
+  }finally{W=W0}}   // the screen's width again, after the cave
 const cbLegend=()=>{const cb=cbAt(CBI),info=E.cbx&&E.cbx[CBI];return cb&&info?"Cave bunker · "+cb.people.length+" people · power "+info.power.supply+"/"+info.power.demand:"Cave bunker"};
 // on the globe: a lit cave mouth beside the tile's own building, so you can find your cave bunkers
 function cbMarks(vis,cx,cy,r,tr,obs){if(!S.cbs)return;for(let v=0;v<vis.length;v+=3){const i=vis[v];if(!cbAt(i))continue;const z=vis[v+1],s=tr*.66*(.5+.5*z);if(s<4*DPR)continue;
@@ -2405,7 +2409,7 @@ function cbMark(o,now){const[,,x0,y0,s]=o,x=x0+s*.42,y=y0+s*.18,f=reduced?1:.8+.
   ctx.fillStyle="#8a7f70";ctx.beginPath();ctx.moveTo(x-s*.34,y+s*.14);ctx.lineTo(x-s*.34,y-s*.02);ctx.arc(x,y-s*.02,s*.34,Math.PI,0);ctx.lineTo(x+s*.34,y+s*.14);ctx.closePath();ctx.fill();
   ctx.fillStyle="#0e0b08";ctx.beginPath();ctx.moveTo(x-s*.22,y+s*.14);ctx.lineTo(x-s*.22,y);ctx.arc(x,y,s*.22,Math.PI,0);ctx.lineTo(x+s*.22,y+s*.14);ctx.closePath();ctx.fill();
   ctx.fillStyle="#ffcf7a";ctx.beginPath();ctx.arc(x+s*.13,y-s*.08,Math.max(1,s*.06*f),0,6.2832);ctx.fill()}
-function cbTap(sx,sy){const c=Math.floor(sx/GRC.cw),r=Math.floor((sy-GRC.gy)/GRC.ch);if(r<0||c<0||r>=CB_ROWS||c>=CB_COLS)return;selC=r+","+c;dirty=true}
+function cbTap(sx,sy){const[r,c]=cutCell(sx,sy,GRC);if(r<0||c<0||r>=CB_ROWS||c>=CB_COLS)return;selC=r+","+c;dirty=true}
 // ==== CAVE (end) ====
 // ==== DEF (start) ====
 // Defenses and raids. Once your colony holds 9 tiles its lights draw raiders, mutant packs and feral dogs. Every few
@@ -2938,11 +2942,49 @@ function orbAnchorModel(s,F,fill,box,glow,side,sd,night,t,i){ctx.beginPath();ctx
   if(up){ctx.strokeStyle="rgba(220,240,248,.9)";ctx.lineWidth=Math.max(1,s*.06);ctx.beginPath();ctx.moveTo(0,-s*1.5);ctx.lineTo(0,-s*3.4);ctx.stroke();ctx.strokeStyle=INK}
   if(night)glow(0,-s*1.4,s*.8,"rgba(255,180,100,.4)");ctx.fillStyle=night||up?"#ffcf7a":"#6a5a40";ctx.beginPath();ctx.arc(0,-s*1.39,Math.max(1,s*.07),0,6.2832);ctx.fill()}
 // ==== ORBIT (end) ====
+// ==== ZOOM (start) ====
+// Zoom and move around the cutaways: the bunker below, and the cave bunkers. Pinch or the + and − buttons zoom (up to
+// 3x), drag moves around, the ⌂ button shows the whole thing again. A mouse wheel or a two-finger trackpad scroll moves
+// it; with Ctrl (a trackpad pinch) the wheel zooms. While a pinch is going, what's already drawn is stretched to fit; a
+// moment after it stops, it's drawn again, sharp, at the new size. Each view keeps its own zoom and place (not saved).
+const CUT={max:3,settle:180,step:1.4};
+const CUTZ={below:{z:1,ox:0,oy:0,rz:1,t:0},cave:{z:1,ox:0,oy:0,rz:1,t:0}};
+const cutCam=()=>CUTZ[VIEW]||null;
+// the frame about to be drawn: settle the drawing size once the zoom has stopped changing, keep the view on the picture.
+// Hc1 is the picture's height at zoom 1 (its width at zoom 1 is the screen's). Returns {rz, k, ox, oy}: the picture is
+// laid out rz times its zoom-1 size and drawn stretched by k (rz times k is the zoom), offset by ox, oy screen pixels.
+function cutFrame(cam,Hc1){cam.z=Math.max(1,Math.min(CUT.max,cam.z));
+  if(performance.now()-cam.t>=CUT.settle||Math.abs(cam.z-cam.rz)<1e-3)cam.rz=cam.z;
+  cam.ox=Math.max(0,Math.min(W*cam.z-W,cam.ox));cam.oy=Math.max(0,Math.min(Math.max(0,Hc1*cam.z-H),cam.oy));
+  return{rz:cam.rz,k:cam.z/cam.rz,ox:cam.ox,oy:cam.oy}}
+// zoom by f about a point on the screen (device pixels), keeping what is under that point where it is
+function cutZoomAt(cam,f,sx,sy,now){const z0=cam.z,z1=Math.max(1,Math.min(CUT.max,z0*f));if(Math.abs(z1-z0)<1e-6)return;
+  const px=(sx+cam.ox)/z0,py=(sy+cam.oy)/z0;cam.z=z1;cam.ox=px*z1-sx;cam.oy=py*z1-sy;cam.t=now?-1e9:performance.now();dirty=true}
+function cutPan(cam,dx,dy){cam.ox-=dx;cam.oy-=dy}
+function cutReset(cam){cam.z=1;cam.ox=0;cam.oy=0;cam.t=-1e9;dirty=true}
+// the cell under a point on the screen, from the frame last drawn (F: its cell size, top, stretch and offset)
+function cutCell(sx,sy,F){const k=F.k||1,x=(sx+(F.ox||0))/k,y=(sy+(F.oy||0))/k;return[Math.floor((y-F.gy)/F.ch),Math.floor(x/F.cw)]}
+// keep a cell on the screen (the arrow keys move the selection; the view follows it)
+function cutShow(cam,F,r,c){const k=F.k||1,x0=c*F.cw*k-cam.ox,y0=(F.gy+r*F.ch)*k-cam.oy,x1=x0+F.cw*k,y1=y0+F.ch*k,m=8*DPR;
+  if(x0<m)cam.ox+=x0-m;else if(x1>W-m)cam.ox+=x1-(W-m);if(y0<m)cam.oy+=y0-m;else if(y1>H-m)cam.oy+=y1-(H-m);dirty=true}
+// one finger drags the picture; two pinch it (about the point between them) and drag it along
+function cutMove(dx,dy){const cam=cutCam();if(!cam)return;
+  if(ptrs.size>=2){moved=true;const d=pd(),P=[...ptrs.values()],b=cv.getBoundingClientRect(),mx=((P[0].x+P[1].x)/2-b.left)*DPR,my=((P[0].y+P[1].y)/2-b.top)*DPR;
+    if(pinch)cutZoomAt(cam,d/pinch,mx,my);pinch=d;cutPan(cam,dx*DPR/2,dy*DPR/2);dirty=true;return}
+  if(Math.hypot(ptrs.values().next().value.x-downX,ptrs.values().next().value.y-downY)>10)moved=true;if(moved){cutPan(cam,dx*DPR,dy*DPR);dirty=true}}
+function cutWheel(e){const cam=cutCam(),b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
+  if(e.ctrlKey)cutZoomAt(cam,Math.exp(-e.deltaY*.01),sx,sy);else cutPan(cam,-e.deltaX*DPR*.6,-e.deltaY*DPR*.6);dirty=true}
+// a tap: the bunker picks a cell (rock, a room, the shaft), the cave bunker its own cells
+function cutTap(e){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
+  if(VIEW==="cave"){cbTap(sx,sy);return}
+  const[r,c]=cutCell(sx,sy,GR);if(c>=0&&c<COLS&&r>=0&&r<ROWS){selU=r+","+c;dirty=true}}
+// ==== ZOOM (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
-  const skyH=Math.max(54*DPR,H*.13),padB=24*DPR,cw=W/COLS,ch=Math.min(cw*.8,Math.max(28*DPR,(H-skyH-padB)/ROWS)),gy=skyH;
-  const maxScroll=Math.max(0,skyH+ROWS*ch+padB-H);scrollY=Math.max(0,Math.min(maxScroll,scrollY));GR={cw,ch,gy:gy-scrollY,maxScroll};
-  ctx.translate(0,-scrollY);
+  // zoom and move around (the ZOOM block): laid out Z.rz times its zoom-1 size, stretched by Z.k, moved by Z.ox and Z.oy
+  const sk1=Math.max(54*DPR,H*.13),pb1=24*DPR,cw1=W/COLS,ch1=Math.min(cw1*.8,Math.max(28*DPR,(H-sk1-pb1)/ROWS)),Z=cutFrame(CUTZ.below,sk1+ROWS*ch1+pb1),W0=W;
+  const skyH=sk1*Z.rz,padB=pb1*Z.rz,cw=cw1*Z.rz,ch=ch1*Z.rz,gy=skyH;GR={cw,ch,gy,k:Z.k,ox:Z.ox,oy:Z.oy,vr:Math.min(W0*Z.rz,(Z.ox+W0-(CUTZ.below.z>1?52*DPR:0))/Z.k),maxScroll:0};
+  ctx.setTransform(Z.k,0,0,Z.k,-Z.ox,-Z.oy);W=W0*Z.rz;try{   // inside the picture, W is its width
   const dl=smooth(-.12,.3,dot(sunAt(S.t),T[START].c));
   drawSurface(now,skyH,gy,cw,dl);
   const firstLocked=(()=>{for(let r=0;r<ROWS;r++)if(S.pop<rowNeed(r))return r;return ROWS})();
@@ -2979,10 +3021,10 @@ function drawBelow(now){
     ctx.setLineDash([3*DPR,3*DPR]);ctx.strokeStyle="#f0a43a";ctx.lineWidth=DPR;ctx.strokeRect(x+DPR,y+DPR,cw-2*DPR,ch-2*DPR);ctx.setLineDash([]);
   }
   // strata names, on the right (the status line sits on the bottom left on a phone)
-  ctx.textAlign="right";for(let s=0;s<4;s++){const y=gy+s*3*ch+ch*3-Math.max(11*DPR,ch*.32);ctx.fillStyle="rgba(10,8,6,.7)";ctx.fillText(STRATA[s].name,W-3*DPR+DPR,y+DPR);ctx.fillStyle="rgba(232,220,194,.7)";ctx.fillText(STRATA[s].name,W-3*DPR,y)}ctx.textAlign="left";
+  ctx.textAlign="right";for(let s=0;s<4;s++){const y=gy+s*3*ch+ch*3-Math.max(11*DPR,ch*.32);ctx.fillStyle="rgba(10,8,6,.7)";ctx.fillText(STRATA[s].name,GR.vr-3*DPR+DPR,y+DPR);ctx.fillStyle="rgba(232,220,194,.7)";ctx.fillText(STRATA[s].name,GR.vr-3*DPR,y)}ctx.textAlign="left";
   // depth gate
   if(firstLocked<ROWS){const y=gy+firstLocked*ch;ctx.strokeStyle="#c0623a";ctx.lineWidth=Math.max(1.5,1.5*DPR);ctx.setLineDash([6*DPR,4*DPR]);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();ctx.setLineDash([]);
-    const txt="Rows below need "+rowNeed(firstLocked)+" people",tw=ctx.measureText(txt).width;ctx.fillStyle="#15120e";ctx.fillRect(W-tw-10*DPR,y+2*DPR,tw+8*DPR,ch*.3+8*DPR);ctx.fillStyle="#e07a4f";ctx.fillText(txt,W-tw-6*DPR,y+5*DPR)}
+    const txt="Rows below need "+rowNeed(firstLocked)+" people",tw=ctx.measureText(txt).width;ctx.fillStyle="#15120e";ctx.fillRect(GR.vr-tw-10*DPR,y+2*DPR,tw+8*DPR,ch*.3+8*DPR);ctx.fillStyle="#e07a4f";ctx.fillText(txt,GR.vr-tw-6*DPR,y+5*DPR)}
   // people, over the room scenery and under the frames: each one clipped to its own cell, sized to stand inside it
   const inCell=(r,c,top,fn)=>{ctx.save();ctx.beginPath();ctx.rect(c*cw+DPR,gy+r*ch+top,cw-2*DPR,ch-top);ctx.clip();fn();ctx.restore()};
   let seed=0;for(const id of E.st){if(typeof id!=="string"||!id.startsWith("u:"))continue;const[r,c]=id.slice(2).split(",").map(Number),sd=seed++,x=c*cw+cw*(.25+.5*(.5+.5*Math.sin(now/1900+sd*2.1)*(reduced?0:1)));
@@ -3000,6 +3042,7 @@ function drawBelow(now){
     ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1.5,2*DPR);ctx.strokeRect(x+DPR,y+DPR,n*cw-2*DPR,ch-2*DPR)}
   // selection
   if(selU){const[r,c]=selU.split(",").map(Number);ctx.strokeStyle="#e8dcc2";ctx.lineWidth=Math.max(2,2*DPR);ctx.setLineDash([4*DPR,3*DPR]);ctx.strokeRect(c*cw+2*DPR,gy+r*ch+2*DPR,cw-4*DPR,ch-4*DPR);ctx.setLineDash([])}
+  }finally{W=W0}   // the screen's width again, after the bunker
 }
 // Each globe keeps its own camera (turn, zoom, chosen tile): the home world, and the world the expedition is on.
 let CAMS={surface:null,away:null},CAMV="surface";
@@ -3007,10 +3050,10 @@ function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v==="fight"&&!FIGHT)
   if(v==="away"&&!(S.x&&(S.x.phase==="orbit"||S.x.phase==="landed")))v="surface";if(v==="stars"&&!sysOpen())v="surface";
   if((v==="surface"||v==="away")&&v!==CAMV){CAMS[CAMV]={R,zoom,sel};const c=CAMS[v];
     if(c){R=c.R;zoom=c.zoom;sel=c.sel}else{const f=v==="away"?awayFace():START;R=faceR(T[f].c);zoom=1;sel=f}focus=null;vel=[0,0];selOrb=-1;CAMV=v}
-  VIEW=v;if(v==="below"&&!selU)selU="0,"+SHAFT;$("z-in").hidden=$("z-out").hidden=$("home").hidden=v!=="surface"&&v!=="away";$("dive").hidden=v!=="surface"&&v!=="below"||!S.hatch;
+  VIEW=v;if(v==="below"&&!selU)selU="0,"+SHAFT;$("z-in").hidden=$("z-out").hidden=$("home").hidden=v!=="surface"&&v!=="away"&&v!=="below"&&v!=="cave";if(CUTZ[v]&&CUTZ[v].z<=1)$("z-out").hidden=$("home").hidden=true;$("dive").hidden=v!=="surface"&&v!=="below"||!S.hatch;
   $("sys").hidden=!sysOpen()||v==="map"||v==="below"||v==="fight"||v==="station";$("fdeck").hidden=v!=="fight";
   const d=$("dive");d.textContent=v==="below"?"⇧":"⇩";d.setAttribute("aria-label",v==="below"?"Back to the surface":"Go below the bunker");
-  const sy=$("sys");sy.textContent=v==="stars"?"◉":"✦";sy.setAttribute("aria-label",v==="stars"?"Back to the planet":"System map");$("home").setAttribute("aria-label",v==="away"?"Turn to your ship":"Turn to your bunker");
+  const sy=$("sys");sy.textContent=v==="stars"?"◉":"✦";sy.setAttribute("aria-label",v==="stars"?"Back to the planet":"System map");$("home").setAttribute("aria-label",v==="below"||v==="cave"?"See all of it again":v==="away"?"Turn to your ship":"Turn to your bunker");
   cv.setAttribute("aria-label",v==="fight"?"A puppet fight on a board. The stick works your puppet's rod: up stands tall, down ducks, forward leans in. The button fires.":v==="station"?"Your space station: the truss, its modules and the tether down to the planet. Tap a bay, the hub or the tether.":v==="below"||v==="cave"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
     v==="away"?"Another world. Drag to turn it, tap a tile to choose it.":"The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you.");dirty=true}
 
@@ -6516,7 +6559,7 @@ function drawFight(dt){if(!FIGHT){setView("surface");return}PUP.draw(ctx,FIGHT.g
 const ptrs=new Map();let downX=0,downY=0,moved=false,pinch=0;
 const pd=()=>{const p=[...ptrs.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)};
 cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===1){downX=e.clientX;downY=e.clientY;moved=false;vel=[0,0]}if(ptrs.size===2)pinch=pd();focus=null;lastTouch=performance.now()});
-cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW==="fight")return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;lastTouch=performance.now();
+cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW==="fight")return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;lastTouch=performance.now();if(cutCam()){cutMove(dx,dy);return}
   if(VIEW==="map"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)mapPan(dx,dy);return}
   if(VIEW==="station"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(VIEW==="cave"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
@@ -6524,7 +6567,7 @@ cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW=
   if(VIEW==="stars"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(ptrs.size===1){if(Math.hypot(e.clientX-downX,e.clientY-downY)>6)moved=true;if(moved){spin(dx,dy);vel=[dx,dy]}}
   else if(ptrs.size===2){moved=true;const d=pd();if(pinch)zoom=Math.max(.7,Math.min(ZMAX,zoom*d/pinch));pinch=d;vel=[0,0]}});
-const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;if(VIEW==="fight")return;
+const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;if(VIEW==="fight")return;if(cutCam()){if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0)cutTap(e);return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="map"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<GM.w&&y<GM.h){const p=pathTo(y*GM.w+x);if(p){PATH=p;CAMM.px=CAMM.py=0}}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="station"){const b=cv.getBoundingClientRect();orbTap((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);return}
@@ -6539,23 +6582,23 @@ const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.si
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b=cv.getBoundingClientRect();const i=pick((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);if(i>=0){sel=i;dirty=true}}
   if(reduced)vel=[0,0]};
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
-cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="station")return;if(VIEW==="stars"||VIEW==="fight"||VIEW==="cave")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
+cv.addEventListener("wheel",e=>{e.preventDefault();if(cutCam()){cutWheel(e);return}if(VIEW==="station")return;if(VIEW==="stars"||VIEW==="fight"||VIEW==="cave")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
 cv.addEventListener("keydown",e=>{
-  if(VIEW==="fight")return;
+  if(VIEW==="fight")return;if(cutCam()&&(e.key==="+"||e.key==="="||e.key==="-")){e.preventDefault();cutZoomAt(cutCam(),e.key==="-"?1/CUT.step:CUT.step,W/2,H/2,true);return}
   if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-GM.w,ArrowDown:GM.w}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
     if(n>=0&&n<GM.w*GM.h&&!((mv===1&&p%GM.w===GM.w-1)||(mv===-1&&p%GM.w===0))){const q=pathTo(n);if(q)PATH=q}}return}
   if(VIEW==="stars"&&ATL.open){const n=atlSys().worlds.length,mv={ArrowLeft:-1,ArrowRight:1}[e.key];if(mv){e.preventDefault();ATL.w=(ATL.w+mv+n)%n;dirty=true}
     else if(e.key==="ArrowUp"||e.key==="ArrowDown"){e.preventDefault();atlAct(e.key==="ArrowUp"?"b-":"b+")}return}
   if(VIEW==="stars"){const ks=BODIES.map(b=>b.key),mv={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];if(mv){e.preventDefault();sBody=ks[(ks.indexOf(sBody)+mv+ks.length)%ks.length];dirty=true}return}
-  if(VIEW==="below"){const mv={ArrowLeft:[0,-1],ArrowRight:[0,1],ArrowUp:[-1,0],ArrowDown:[1,0]}[e.key];if(mv){e.preventDefault();const[r,c]=(selU||"0,"+SHAFT).split(",").map(Number);selU=Math.max(0,Math.min(ROWS-1,r+mv[0]))+","+Math.max(0,Math.min(COLS-1,c+mv[1]));dirty=true}return}
+  if(VIEW==="below"){const mv={ArrowLeft:[0,-1],ArrowRight:[0,1],ArrowUp:[-1,0],ArrowDown:[1,0]}[e.key];if(mv){e.preventDefault();const[r,c]=(selU||"0,"+SHAFT).split(",").map(Number);selU=Math.max(0,Math.min(ROWS-1,r+mv[0]))+","+Math.max(0,Math.min(COLS-1,c+mv[1]));dirty=true;const[r2,c2]=selU.split(",").map(Number);cutShow(CUTZ.below,GR,r2,c2)}return}
   const s=30;const m={ArrowLeft:[-s,0],ArrowRight:[s,0],ArrowUp:[0,-s],ArrowDown:[0,s]}[e.key];
   if(m){e.preventDefault();spin(m[0],m[1]);lastTouch=performance.now()}
   else if(e.key==="Enter"||e.key===" "){e.preventDefault();sel=pick(W/2,H/2);dirty=true}
   else if(e.key==="+"||e.key==="="){zoom=Math.min(ZMAX,zoom*1.2)}else if(e.key==="-"){zoom=Math.max(.7,zoom/1.2)}});
-document.getElementById("z-in").onclick=()=>{zoom=Math.min(ZMAX,zoom*1.25)};
-document.getElementById("z-out").onclick=()=>{zoom=Math.max(.7,zoom/1.25)};
+document.getElementById("z-in").onclick=()=>{if(cutCam()){cutZoomAt(cutCam(),CUT.step,W/2,H/2,true);return}zoom=Math.min(ZMAX,zoom*1.25)};
+document.getElementById("z-out").onclick=()=>{if(cutCam()){cutZoomAt(cutCam(),1/CUT.step,W/2,H/2,true);return}zoom=Math.max(.7,zoom/1.25)};
 document.getElementById("dive").onclick=()=>setView(VIEW==="below"?"surface":"below");
-document.getElementById("home").onclick=()=>{selOrb=-1;const f=VIEW==="away"&&S.x?awayFace():START;focus=f;sel=f;dirty=true;if(reduced){R=faceR(T[f].c);focus=null}};
+document.getElementById("home").onclick=()=>{if(cutCam()){cutReset(cutCam());return}selOrb=-1;const f=VIEW==="away"&&S.x?awayFace():START;focus=f;sel=f;dirty=true;if(reduced){R=faceR(T[f].c);focus=null}};
 document.getElementById("sys").onclick=()=>{if(VIEW==="stars")setView(CAMV==="away"&&S.x&&(S.x.phase==="orbit"||S.x.phase==="landed")?"away":"surface");else{if(S.x)sBody=S.x.w;showPeople=false;setView("stars")}};
 
 // ---------------------------------------------------------------- panel
@@ -6681,7 +6724,7 @@ function hud(){
   for(const[k,v]of[["scrap",E.sc],["water",E.wa],["food",E.fo]]){const el=$("d-"+k),have=S.res[k];
     let txt=rate(v);if(v<0&&have>0){const s=have/-v;txt+=" · "+(s>=3600?Math.floor(s/3600)+"h":s>=60?Math.floor(s/60)+"m":Math.ceil(s)+"s")+" left"}else if(v<0)txt="empty";else if(have>=E.store-.5)txt="full · "+E.store;
     el.textContent=txt;el.className=v<0?"neg":""}
-  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight"||VIEW==="cave";if(VIEW==="station")$("sys").hidden=true;
+  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");if(cutCam()){const cz=cutCam();$("z-out").hidden=$("home").hidden=cz.z<=1}$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight"||VIEW==="cave";if(VIEW==="station")$("sys").hidden=true;
   $("r-pop").textContent=S.pop+" / "+E.cap;matHud();
   const unstaffed=E.needStaff-E.st.size,dp=$("d-pop");dp.textContent=S.exp&&!S.exp.away?XC.squad+" out exploring":S.wounded>0?"squad resting":unstaffed>0?unstaffed+" job"+(unstaffed>1?"s":"")+" empty":
     S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";if(S.cbs&&cbPeople()&&dp.textContent==="all working")dp.textContent="+"+cbPeople()+" in caves";if(orbCrew().length&&dp.textContent==="all working")dp.textContent="+"+orbCrew().length+" on the station";dp.className=unstaffed>0?"neg":"";
@@ -6746,7 +6789,7 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,orbit:{board:()=>{orbBoard();renderPanel()},act:a=>{orbAct(a);renderPanel()},pick:k=>{selO=k;dirty=true;renderPanel()},checks:()=>orbBoardChecks(),why:k=>orbWhyNot(k),fit:(sl,k)=>orbFit(sl,k),tick:(dt,q)=>orbTick(dt,q!==false),info:()=>E.obx,lift:()=>orbLift(),parked:()=>orbParked(),anchorOk:i=>orbAnchorOk(i),anchor:i=>{sel=i;orbAct("anchor");renderPanel()},spinWhy:()=>orbSpinWhy(),dv:d=>orbDv(d),yard:()=>orbYardK(),lance:()=>orbLanceReady(),pos:()=>orbPos(ORBITERS[0],S.t),panel:()=>stationHTML(),tile:i=>orbTileHTML(i),pad:()=>orbPadHTML(),layout:()=>orbLayout(),lat:i=>orbLat(i),tileSel:i=>{sel=i;selOrb=-1;dirty=true;renderPanel()},selStation:()=>{sel=-1;selOrb=0;dirty=true;renderPanel()},look:i=>{focus=i}},def:{tick:dt=>defTick(dt),spawn:()=>raidSpawn(true),pick:()=>raidPick(),build:(i,k)=>{defBuild(i,k);renderPanel()},str:i=>defStr(i),P:i=>raidP(i),abs:i=>defAbs(i),fight:m=>{raidFight(m);renderPanel()},out:w=>raidOutcome(w,null),act:a=>{defAct(a);renderPanel()},open:i=>{sel=i;selOrb=-1;DEFP=i;renderPanel()},repair:i=>defRepair(i),border:()=>raidBorder(),alert:()=>raidAlert(),fix:i=>defFix(i),turOn:()=>defTurOn(),why:(i,k)=>defWhyNot(i,k),panel:i=>defPanelHTML(i),tile:i=>defTileHTML(i),alertNow:()=>alertText()},cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,zoomx:{cam:v=>CUTZ[v],at:(f,sx,sy)=>cutZoomAt(cutCam(),f,sx,sy,true),pan:(dx,dy)=>{cutPan(cutCam(),dx,dy);dirty=true},reset:()=>cutReset(cutCam()),tap:(sx,sy)=>{const b=cv.getBoundingClientRect();cutTap({clientX:b.left+sx/DPR,clientY:b.top+sy/DPR});renderPanel()},gr:()=>({...GR}),grc:()=>({...GRC}),W:()=>W,H:()=>H,btn:k=>$(k).hidden,click:k=>$(k).onclick(),key:k=>cutCam()&&(k==="+"||k==="-")?cutZoomAt(cutCam(),k==="-"?1/CUT.step:CUT.step,W/2,H/2,true):null},orbit:{board:()=>{orbBoard();renderPanel()},act:a=>{orbAct(a);renderPanel()},pick:k=>{selO=k;dirty=true;renderPanel()},checks:()=>orbBoardChecks(),why:k=>orbWhyNot(k),fit:(sl,k)=>orbFit(sl,k),tick:(dt,q)=>orbTick(dt,q!==false),info:()=>E.obx,lift:()=>orbLift(),parked:()=>orbParked(),anchorOk:i=>orbAnchorOk(i),anchor:i=>{sel=i;orbAct("anchor");renderPanel()},spinWhy:()=>orbSpinWhy(),dv:d=>orbDv(d),yard:()=>orbYardK(),lance:()=>orbLanceReady(),pos:()=>orbPos(ORBITERS[0],S.t),panel:()=>stationHTML(),tile:i=>orbTileHTML(i),pad:()=>orbPadHTML(),layout:()=>orbLayout(),lat:i=>orbLat(i),tileSel:i=>{sel=i;selOrb=-1;dirty=true;renderPanel()},selStation:()=>{sel=-1;selOrb=0;dirty=true;renderPanel()},look:i=>{focus=i}},def:{tick:dt=>defTick(dt),spawn:()=>raidSpawn(true),pick:()=>raidPick(),build:(i,k)=>{defBuild(i,k);renderPanel()},str:i=>defStr(i),P:i=>raidP(i),abs:i=>defAbs(i),fight:m=>{raidFight(m);renderPanel()},out:w=>raidOutcome(w,null),act:a=>{defAct(a);renderPanel()},open:i=>{sel=i;selOrb=-1;DEFP=i;renderPanel()},repair:i=>defRepair(i),border:()=>raidBorder(),alert:()=>raidAlert(),fix:i=>defFix(i),turOn:()=>defTurOn(),why:(i,k)=>defWhyNot(i,k),panel:i=>defPanelHTML(i),tile:i=>defTileHTML(i),alertNow:()=>alertText()},cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
