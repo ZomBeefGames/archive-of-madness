@@ -4280,7 +4280,7 @@ const GAME_TYPES=[
  {id:'horde',label:'THE LAST SHELF',desc:'Dead-letter depot · 6 spellbooks · word bullets · 10 waves'},
  // Ashen Sphere is its own page (ashen-sphere.html): a solo idle survival game on a round hex world.
  // It never enters the Library's MODE system; BEGIN shows its splash and hands over to that page.
- {id:'ashen',label:'ASHEN SPHERE',desc:'Solo idle survival on a round world · explore tiles · dig a bunker',external:'ashen-sphere.html'}
+ {id:'ashen',label:'ASHEN SPHERE',desc:'Solo idle survival on a round world · explore tiles · dig a bunker',v:'7',external:'ashen-sphere.html'}
 ];
 const MODE={
  type:'story',state:null,role:null,alive:true,tasks:[],done:[],hp:100,
@@ -5759,7 +5759,7 @@ function ashenLaunch(){
   const game=GAME_TYPES.find(t=>t.id==='ashen');
   if(typeof NET!=='undefined'&&NET.ws)NET.leave();
   snd('page');
-  if(typeof document!=='undefined'&&typeof location!=='undefined')location.href=game.external+'?from=archives';
+  if(typeof document!=='undefined'&&typeof location!=='undefined')location.href=game.external+'?from=archives'+(game.v?'&v='+game.v:'');   // v: a new address for each big update, past any old saved copy
 }
 function filmBeginStory(){
   FILM.help=false;
