@@ -4193,6 +4193,9 @@ const BALLOONS=["#7fb2ff","#ff8fb8","#86d98f","#b995ff","#ffb547","#ff7a45","#9b
 function lookOf(p){if(!p)return{name:"SQUAD",col:"#7fb2ff",hat:"",big:1};const nm=String(p.name||"").toUpperCase();let L=LOOKS.get(p.id);
   if(!L||L.name!==nm){L={name:nm,col:BALLOONS[(Math.imul((p.id|0)+1,2654435761)>>>0)%BALLOONS.length],hat:SKILL_HAT[p.sk]||"",big:1};LOOKS.set(p.id,L)}return L}
 const STRANGER={name:"SURVIVOR",col:"#c3ccd8",hat:"",big:1};
+// someone we can't name (the digger, a job with nobody in it yet, a lone squad's empty second place): a plain puppet
+// in one of the balloon colours. person() falls back to these, so they have to live here, in the block update.py swaps in.
+const ANON=BALLOONS.map(c=>({name:"",col:c,hat:"",big:1}));
 // who is out there: the squad on your land, the crew on another world
 const squadPeople=()=>S.exp&&S.exp.away&&S.x?S.x.crew:(E&&E.squad&&E.squad.length?E.squad:S.people.slice(0,2));
 // ---- the creatures: each fights its own way, with a body to match and abilities of its kind (Claude's first pass,
@@ -4568,22 +4571,28 @@ function catchUp(sec){const before={...S.res},p0=S.pop;sec=Math.min(sec,4*3600);
   refreshSeen();dirty=true}
 
 // ---------------------------------------------------------------- loop
-let last=performance.now(),hudT=0,saveT=0;
+// Each part of a frame runs on its own: if one part hits a bug (drawing someone, say), the rest of the frame still runs
+// and the next frame still comes, so the game keeps going instead of freezing. Each bug is noted once: in the console,
+// in a toast (so a screenshot of it says what broke) and in __ashen.bugs (the tests check it stays empty).
+let last=performance.now(),hudT=0,saveT=0;const BUGS=[];
+function guard(part,f){try{f()}catch(e){const m=part+": "+(e&&e.message||String(e));
+  if(part==="draw")try{for(let i=0;i<16;i++)ctx.restore();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.setLineDash([])}catch(_){}   // undo a drawing left half-done
+  if(!BUGS.includes(m)){BUGS.push(m);if(BUGS.length>20)BUGS.shift();try{console.error(e)}catch(_){}try{toast("Something broke ("+m+"). The game kept going.")}catch(_){}}}}
 function frame(now){
   const gap=(now-last)/1000;last=now;
-  if(gap>1)catchUp(gap);else{if(!S.h.crack)step(gap);if(!document.hidden)tickActive(gap);tickCrack(gap)}
-  if(VIEW==="map"){stepT+=Math.min(gap,.5);while(stepT>.13){stepT-=.13;stepOnce()}}
-  else if(VIEW==="below"||VIEW==="stars"){}
-  else if(VIEW==="fight")fightTick(gap);
-  else if(focus!==null){const p=applyM(R,T[focus].c),ax=cross(p,[0,0,1]),s=Math.hypot(ax[0],ax[1],ax[2]);
-    if(s<1e-3&&p[2]>0)focus=null;else{const ang=Math.atan2(s,p[2]);R=orthonorm(mul(rot(s<1e-6?[0,1,0]:norm(ax),ang*Math.min(1,gap*6)),R))}}
-  else if(ptrs.size===0&&!reduced){
-    if(Math.abs(vel[0])+Math.abs(vel[1])>.05){spin(vel[0],vel[1]);vel[0]*=.92;vel[1]*=.92}
-    else if(now-lastTouch>6000)R=orthonorm(mul(rot([0,1,0],gap*.05),R));
-  }
-  if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="stars")drawStars(now);else if(VIEW==="fight")drawFight(gap);else draw(now);
-  hudT+=gap;if(hudT>.25){hudT=0;hud()}
-  if(dirty){dirty=false;renderPanel()}
+  guard("step",()=>{if(gap>1)catchUp(gap);else{if(!S.h.crack)step(gap);if(!document.hidden)tickActive(gap);tickCrack(gap)}});
+  guard("view",()=>{
+    if(VIEW==="map"){stepT+=Math.min(gap,.5);while(stepT>.13){stepT-=.13;stepOnce()}}
+    else if(VIEW==="below"||VIEW==="stars"){}
+    else if(VIEW==="fight")fightTick(gap);
+    else if(focus!==null){const p=applyM(R,T[focus].c),ax=cross(p,[0,0,1]),s=Math.hypot(ax[0],ax[1],ax[2]);
+      if(s<1e-3&&p[2]>0)focus=null;else{const ang=Math.atan2(s,p[2]);R=orthonorm(mul(rot(s<1e-6?[0,1,0]:norm(ax),ang*Math.min(1,gap*6)),R))}}
+    else if(ptrs.size===0&&!reduced){
+      if(Math.abs(vel[0])+Math.abs(vel[1])>.05){spin(vel[0],vel[1]);vel[0]*=.92;vel[1]*=.92}
+      else if(now-lastTouch>6000)R=orthonorm(mul(rot([0,1,0],gap*.05),R));
+    }});
+  guard("draw",()=>{if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="stars")drawStars(now);else if(VIEW==="fight")drawFight(gap);else draw(now)});
+  guard("panel",()=>{hudT+=gap;if(hudT>.25){hudT=0;hud()}if(dirty){dirty=false;renderPanel()}});
   saveT+=gap;if(saveT>5){saveT=0;save()}
   requestAnimationFrame(frame);
 }
@@ -4592,13 +4601,13 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)save()});
 function start(data){
   const fromHot=data&&data.S?deser(data.S):null;
   if(fromHot){S=fromHot;if(Array.isArray(data.R)&&data.R.length===9)R=data.R;else R=faceR(T[START].c)}
-  else{const o=loadSaved(),d=deser(o);S=d||fresh();R=faceR(T[START].c);E=econ();if(d&&o.saved)catchUp(Math.max(0,(Date.now()-o.saved)/1000))}
+  else{const o=loadSaved(),d=deser(o);S=d||fresh();R=faceR(T[START].c);E=econ();if(d&&o.saved)guard("step",()=>catchUp(Math.max(0,(Date.now()-o.saved)/1000)))}
   if((S.world|0)!==WORLD){regen(S.world|0);if(!fromHot)R=faceR(T[START].c)}
   if(S.k.scout&&!S.h.secret)learnSecret(true);
   reconcile();if(S.k.flight)resolveFlight(true);if(S.x&&S.x.phase==="ascent"){S.x.phase="out";S.x.t=0}if(S.exp&&S.exp.away&&!(S.x&&S.x.phase==="landed"))S.exp=null;
   E=econ();if(S.h.crack)completeJump();refreshSeen();if(S.exp)setView("map");else setView("surface");hud();renderPanel();
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
-  window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,
+  window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
     dev:{S:()=>S,E:()=>E,act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
