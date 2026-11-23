@@ -226,6 +226,10 @@ body[data-view=fight] .feedlive{display:none}   /* a fight keeps its board clear
   .hud{padding-top:calc(var(--sat) + 3px);padding-bottom:3px;gap:2px}
   .hud .chip{padding:1px 7px 2px}
 }
+/* the start screen scrolls when it is taller than the screen (a short phone on its side, or a long list of choices),
+   from the top: centred when it fits */
+.splash{overflow-y:auto;overscroll-behavior:contain}
+.splash-in{margin:auto}
 /* ==== UI CSS (end) ==== */
 </style>
 
