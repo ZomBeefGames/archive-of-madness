@@ -27,23 +27,24 @@ export function boot(storage = new Map()) {
     });
     return els.get(id);
   };
-  let raf = null;
+  let raf = null, rafs = 0;
   const sandbox = {
     document: { getElementById: el, activeElement: { dataset: {} }, hidden: false, addEventListener: noop },
     matchMedia: () => ({ matches: false }),
     ResizeObserver: class { observe() {} },
     localStorage: { getItem: k => storage.has(k) ? storage.get(k) : null, setItem: (k, v) => storage.set(k, String(v)), removeItem: k => storage.delete(k) },
-    requestAnimationFrame: f => { raf = f; return 1; },
+    requestAnimationFrame: f => { raf = f; rafs++; return 1; },
     setTimeout: () => 0, clearTimeout: noop,
     performance: { now: () => 1000 }, location: { search: '' }, URLSearchParams, devicePixelRatio: 1,
     console, Math, JSON, Date, Map, Set, Array, Object, Number, String, Boolean, Error, Proxy,
+    addEventListener: noop, removeEventListener: noop,   // (the fight keys listen on the window)
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(script, sandbox);
   const A = sandbox.__ashen;
   assert.ok(A && A.dev, 'test hooks are exposed');
-  return { A, dev: A.dev, storage, els, frame: t => raf && raf(t) };
+  return { A, dev: A.dev, storage, els, frame: t => raf && raf(t), rafs: () => rafs };
 }
 
 // Put a base at the point the expedition opens up: Lantern-2 repaired, a crewed pad, fuel, storage, people.
