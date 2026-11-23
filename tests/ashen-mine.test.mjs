@@ -28,7 +28,9 @@ function atThreat(dev, S, T, key) {
   const i = [...S.owned].find(j => T[j].b !== 'sea'); dev.setView('surface'); dev.sel(i); dev.act('walk'); if (key) dev.place.enter(key);
   const M = dev.map(), ms = dev.mapState(); ms.rev = '1'.repeat(ms.rev.length);
   const ix = M.pois.findIndex((p, j) => p.type === 'threat' && !ms.got.includes(j)); assert.ok(ix >= 0, 'a threat to face');
-  dev.path(M.pois[ix].k); const c = dev.walk(); assert.ok(c && c.kind === 'threat', 'face to face'); return M.pois[ix];
+  let c = null;
+  for (let n = 0; n < 12; n++) { dev.path(M.pois[ix].k); c = dev.walk(); if (c && c.kind === 'threat') break; if (c) { dev.act(c.kind === 'event' ? 'ev:close' : c.kind === 'tp' ? 'tp:back' : 'ok'); if (dev.card()) dev.act('back'); } }
+  assert.ok(c && c.kind === 'threat', 'face to face'); return M.pois[ix];
 }
 
 test('a Mine built where a vein was dug out keeps digging it out, about one every 20 s, until it is worked out', () => {
