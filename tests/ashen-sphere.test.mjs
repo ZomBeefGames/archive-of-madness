@@ -63,7 +63,7 @@ test('slice 2 is wired in: garage, vehicles, caves, seabeds, artifacts, glyphs',
   for(const f of ['seaMap','caveMap','caveState','addCaveMouth','enterCave','exitCave','buildVeh','garageHTML','seaHTML','reachHome','reachAway'])
     assert.match(page,new RegExp('function '+f+'\\('),f);
   assert.match(page,/if\(T\[i\]\.b==="sea"\)\{const m=seaMap\(i,null\);MAPS\.set\(i,m\);return m\}/);   // seabeds for home sea tiles
-  assert.match(page,/const m=addCaveMouth\(\{g,pois,entry\},i,b,null\);MAPS\.set\(i,m\);return m\}/);   // the cave mouth is appended last
+  assert.match(page,/const m=addPlace\(addCaveMouth\(\{g,pois,entry\},i,b,null\),i,b,null\);MAPS\.set\(i,m\);return m\}/);   // the cave mouth, then a building, are appended last
   const arts=page.match(/const ARTS=\{([\s\S]*?)\n\};/)[1];
   assert.equal([...arts.matchAll(/^\s+(\w+):\s*\{name:/gm)].length,8,'eight rare artifacts');
 });

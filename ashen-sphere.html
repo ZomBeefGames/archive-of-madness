@@ -23,6 +23,7 @@
   --body:"Courier Prime","Courier New",ui-monospace,monospace;
   color-scheme:dark;
 }
+.mats{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--paper-dim);line-height:1.3}.mats i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}.mats b{color:var(--paper);margin-left:4px}
 html{box-sizing:border-box;height:100%;background:var(--soot)}
 *,*::before,*::after{box-sizing:inherit}
 body{height:100%;background:var(--soot);color:var(--paper);font-family:var(--body);font-size:14px;line-height:1.45;overflow:hidden}
@@ -155,6 +156,7 @@ button:disabled{opacity:.42;cursor:not-allowed}
     <div class="chip"><span class="lbl">Food</span><b id="r-food">0</b><small id="d-food">+0/s</small></div>
     <button class="chip chipbtn" id="people-chip" aria-label="Show your people"><span class="lbl">People ›</span><b id="r-pop">0</b><small id="d-pop">all working</small></button>
   </div>
+  <div class="mats" id="mats" hidden></div>
   <div class="main">
     <div class="stage" id="stage">
       <canvas id="globe" tabindex="0" aria-label="The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you."></canvas>
@@ -419,7 +421,7 @@ function teach(pid){const p=S.people.find(q=>q.id===pid);if(!p||!((S.k.lessons|0
 const hasBp=id=>!!(S&&S.bp&&S.bp.includes(id)),bpReady=id=>!hasBp(id)&&(BP[id].needs||[]).every(hasBp)&&smartMax()>=(BP[id].tier||1);
 const xcost=()=>{const c=CFG.explore.cost;return hasBp("rations")?{food:Math.max(0,c.food-2),water:Math.max(0,c.water-2)}:c};
 function startResearch(id){const B=BP[id];if(!B||S.rs||!bpReady(id)||!afford(B.cost))return;pay(B.cost);S.rs={id,left:B.pts};say("Research started: "+B.name+".")}
-function rsTick(dt,quiet){const r=S.rs;if(!r||!E||!(E.rsRate>0))return;r.left-=E.rsRate*dt;if(r.left>0)return;
+function rsTick(dt,quiet){const r=S.rs;if(!r||!E)return;if(S.k.rsBank>0){const u=Math.min(S.k.rsBank,r.left);r.left-=u;S.k.rsBank-=u}if(E.rsRate>0)r.left-=E.rsRate*dt;if(r.left>0)return;
   S.rs=null;if(!S.bp.includes(r.id))S.bp.push(r.id);const B=BP[r.id];dirty=true;say("Blueprint done: "+B.name+". "+B.what+".");if(!quiet)toast("Blueprint done: "+B.name)}
 function labHTML(){const r=S.rs,rate=E.rsRate||0;
   let h="<p>"+(r?"Researching <b>"+BP[r.id].name+"</b>: "+Math.round(100*(1-r.left/BP[r.id].pts))+"%"+(rate>0?", about "+Math.ceil(r.left/rate)+" s left.":". <b>Paused:</b> nobody smart is home."):"Pick a blueprint. Smart people research it; a Spire-taught mind can take on harder ones.")+"</p>";
@@ -461,7 +463,7 @@ let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
   seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},bp:[],rs:null,h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:9,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function ser(){return{v:9,wear:S.wear,mats:S.mats,inside:S.inside,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
 function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
@@ -472,7 +474,7 @@ function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o
     k:fixK(Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:null,dest:"mire",rations:40,crew:[]},o.k&&typeof o.k==="object"?o.k:{})),
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
     codex:fixCodex(o.codex),x:sanX(o.x),veh:o.veh&&typeof o.veh==="object"?Object.fromEntries(Object.keys(VEH).filter(k=>o.veh[k]).map(k=>[k,1])):{},
-    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
+    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,wear:o.wear&&typeof o.wear==="object"?o.wear:{},mats:o.mats&&typeof o.mats==="object"?o.mats:{},inside:o.inside&&typeof o.inside==="object"?o.inside:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
     h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
 const KEY="ashen-sphere-v9",OLD_KEYS=["ashen-sphere-v8","ashen-sphere-v7","ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
@@ -496,7 +498,7 @@ function econ(){
     if(b==="pad"){if(take(id)&&!take("pad2:"+id)){free++;st.delete(id);jobs.pop()}}else take(id)}
   if(S.hatch)for(const k in S.bld)if(S.bld[k]==="wind")pw+=CFG.wind.power*(hasBp("windgear")?1.5:1);
   if(S.hatch&&hasBp("capbank"))pw+=2;if(S.hatch&&hasBp("coil"))pw+=6;if(hasBp("turbine"))pw+=3*order.filter(([id])=>ugRoom(id)==="furnace").length;   // blueprints: more power for the grid
-  for(const[id,ix]of order){const room=ugRoom(id);if(!room||room==="gen")continue;
+  for(const[id,ix]of order){const room=ugRoom(id);if(!room||room==="gen")continue;if(room==="mine"&&mineOut(id)){paused.set(id,"worked out");continue}
     if(room==="store"){on.add(id);store+=CFG.storePerRoom+(ART("pearl")?100:0);continue}
     if(RC[room].staff)need++;pend.push([RC[room].prio,ix,id,room])}
   pend.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
@@ -518,7 +520,7 @@ function econ(){
   for(const k in S.bld){const id=+k,b=S.bld[k];
     if(b==="shelter"){cap+=SF.shelter.cap+lmAdd(id,"shelter");continue}
     if(!st.has(id))continue;const m=mult(id,b)*pb(id);
-    if(b==="camp")sc+=SF.camp.rate*m*(hasBp("sorting")?1.25:1);else if(b==="still")wa+=SF.still.rate*m*(U.filters?1.25:1);else if(b==="green")fo+=SF.green.rate*m*grow;else if(b==="tower")towers++}
+    if(b==="camp")sc+=SF.camp.rate*m*(hasBp("sorting")?1.25:1);else if(b==="still")wa+=SF.still.rate*m*(U.filters?1.25:1)*(U.firepump?1.15:1);else if(b==="green")fo+=SF.green.rate*m*grow;else if(b==="tower")towers++}
   // temperature (see TEMP): furnaces top the bunker up to the target and burn scrap for what they give; plants slow in the cold
   const tOut=outsideTemp(),nOn=r=>[...on].filter(id=>ugRoom(id)===r).length,nFurn=nOn("furnace"),nFrz=nOn("freezer");
   let tIn=TEMP.earth+(hasBp("insul")?2:0)+TEMP.seep*(hasBp("insul")?1/3:1)*tOut+gens*TEMP.gen*(hasBp("heatx")?2:1)+S.pop*TEMP.person+nOn("fuel")*TEMP.plant,rsr=0;
@@ -536,7 +538,7 @@ let E;
 function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
 function step(dt,quiet){
   reconcile();if(!S.k.smart0&&S.people.length){S.people[0].iq=Math.max(1,S.people[0].iq|0);S.k.smart0=true}E=econ();
-  S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);
+  S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);mineTick(dt,quiet);
   S.res.scrap+=E.sc*dt;S.res.water+=E.wa*dt;S.res.food+=E.fo*dt;
   const dry=S.res.water<=0||S.res.food<=0;
   for(const k of["scrap","water","food"])S.res[k]=Math.max(0,Math.min(E.store,S.res[k]));
@@ -577,7 +579,7 @@ function canBuild(i,b){if(b==="pad")return S.k.ping&&spiresOwned()>=2&&padTile()
   if(b==="garage")return!!S.k.lantern&&!Object.values(S.bld).includes("garage");return true}
 function build(i,b){if(!S.owned.has(i)||S.bld[i]||!canBuild(i,b))return;const c=costAt(i,b);if(!afford(c))return;pay(c);S.bld[i]=b;S.order.push(i);E=econ();refreshSeen();say("Built a "+BLD[b].name.toLowerCase()+".");dirty=true;save()}
 function startDig(k){const[r,c]=k.split(",").map(Number);if(digBlock(r,c))return;const co=digCost(r,c);if(!afford(co))return;pay(co);const tt=digTime(r,c);S.dig={k,left:tt,total:tt};for(const x of["survey","excav"])if(S.cnt[x]>0)S.cnt[x]--;if(c===SHAFT&&S.cnt.hoist>0)S.cnt.hoist--;dirty=true}
-function finishDig(k,quiet){const[r,c]=k.split(",").map(Number);let f=FIND(r,c);if(S.unl.luckydig>0&&c!==SHAFT&&f!=="relic"){S.unl.luckydig--;f="cache"}S.ug[k]={d:1,f};
+function finishDig(k,quiet){const[r,c]=k.split(",").map(Number);let f=FIND(r,c);if(S.unl.luckydig>0&&c!==SHAFT&&f!=="relic"){S.unl.luckydig--;f="cache"}S.ug[k]={d:1,f};if(!f&&matVein(r,c,k,quiet))return;
   if(f==="cache"){const g=30+r*10;S.res.scrap+=g;if(!quiet)say("The diggers broke into an old locker. "+g+" scrap.")}
   else if(f==="aquifer"){if(!quiet)say("Water seeps through the wall. A pump here works twice as hard.")}
   else if(f==="cave"){if(!quiet)say("The wall gave way into a dry cave. Free room.")}
@@ -585,7 +587,7 @@ function finishDig(k,quiet){const[r,c]=k.split(",").map(Number);let f=FIND(r,c);
   else if(!quiet)say(c===SHAFT?"The shaft reaches row "+(r+1)+".":"Dug out a space in the "+stratum(r).name.toLowerCase()+".");
   dirty=true}
 function ugCost(b,k){const r=k?+k.split(",")[0]:0,n=Object.values(S.ug).filter(x=>x.room===b).length;return{scrap:Math.ceil(Math.max(0,Math.ceil((RC[b].cost+CFG.roomPerRow*(r+1))*Math.pow(CFG.roomScale,n))-(b==="shop"&&S.cnt.techdisc>0?15:0))*(hasBp("alloys")?.8:1))}}
-function buildRoom(k,b){const cell=S.ug[k];if(!cell||!cell.d||cell.room||k.endsWith(","+SHAFT))return;const c=ugCost(b,k);if(!afford(c))return;pay(c);cell.room=b;if(b==="shop"&&S.cnt.techdisc>0)S.cnt.techdisc--;S.order.push("u:"+k);E=econ();say("Fitted out "+ROOM[b].name.toLowerCase()+" below.");dirty=true;save()}
+function buildRoom(k,b){const cell=S.ug[k];if(!cell||!cell.d||cell.room||k.endsWith(","+SHAFT))return;if(b==="mine"&&!veinLeft(k))return;const c=ugCost(b,k);if(!afford(c))return;pay(c);cell.room=b;if(b==="shop"&&S.cnt.techdisc>0)S.cnt.techdisc--;S.order.push("u:"+k);E=econ();say("Fitted out "+ROOM[b].name.toLowerCase()+" below.");dirty=true;save()}
 function ugRaze(k){const cell=S.ug[k];if(!cell||!cell.room)return;const b=cell.room;delete cell.room;S.order=S.order.filter(x=>x!=="u:"+k);const c=ugCost(b,k);for(const x in c)S.res[x]+=Math.floor(c[x]/CFG.roomScale*.5);say("Stripped the "+ROOM[b].name.toLowerCase()+" for parts.");dirty=true;save()}
 function raze(i){const b=S.bld[i];if(!b||b==="bunker")return;delete S.bld[i];S.order=S.order.filter(x=>x!==i);const c=cost(b);for(const k in c)S.res[k]+=Math.floor(c[k]/1.2*.5);say("Tore down the "+BLD[b].name.toLowerCase()+" for parts.");dirty=true;save()}
 
@@ -1354,7 +1356,7 @@ function mapRubble(g,x,y,cs,base,lit,i,k){for(let q=0;q<6;q++){const px=x+cs*(.1
     g.fillStyle=col(base,lit*1.25);g.fillRect(px-r*.4,py-r*.7,r,Math.max(1,r*.25))}}
 // the land (ground, rubble, what stands in the way) is painted for every cell, once per map and light; the fog on top is
 // its own picture, the only one repainted as cells are revealed (dark cells, and a soft edge where they meet open ground)
-function paintLand(g,i,M,b,base,lit,cs){const N=MW*MH;
+function paintLand(g,i,M,b,base,lit,cs){if(typeof b==="string"&&b.startsWith("place:")){placePaint(g,M,b.slice(6),lit,cs,i);return}const N=MW*MH;
   for(let k=0;k<N;k++)mapGround(g,b,(k%MW)*cs,((k/MW)|0)*cs,cs,base,lit,i,k);
   for(let k=0;k<N;k++){const x=(k%MW)*cs,y=((k/MW)|0)*cs;
     if(M.g[k]===2)mapRubble(g,x,y,cs,base,lit,i,k);
@@ -1537,6 +1539,7 @@ function tideMeet(){const t=tideOf(),w=xw("mire");if(t.met)return;t.met=true;t.s
 function tideCardHTML(){const t=tideOf(),x=S.x;if(!x)return"";const L=Math.floor(t.trust),get=TIDE.dealGet+TIDE.dealStep*L,full=x.cap-holdUsed()<XP.hold.unit,haveT=x.crew.some(p=>p.kin==="tide");
   let h='<div class="meta">The Tidefolk · '+tideWord(t.trust)+'</div><div class="tile-h">Stilt houses over the black water</div><p>'+TIDE_TXT[Math.min(3,L)]+"</p>";
   const a=[btn("tf:gift","Leave a gift",TIDE.gift+" steps of rations"+(t.trust<1?" · they might come down":" · they like you a little more"),null,t.trust<1?"primary":"",x.steps<TIDE.gift)];
+  if((S.k.charms|0)>0&&t.trust<3)a.push(btn("tf:charm","Give a copper charm","They love copper · their trust goes up a whole step · "+S.k.charms+" left",null,""));
   if(t.trust>=1){a.push(btn("tf:food","Trade "+TIDE.deal+" scrap for "+get+" food","From the hold · "+Math.floor(x.hold.scrap)+" scrap aboard",null,"primary",x.hold.scrap<TIDE.deal),btn("tf:water","Trade "+TIDE.deal+" scrap for "+get+" water","From the hold",null,"",x.hold.scrap<TIDE.deal))}
   if(t.trust>=2&&!S.codex.found.includes("tidegarden")&&!x.notes.includes("tidegarden"))a.push(btn("tf:recipe","Learn tide gardening",TIDE.recipe+" scrap from the hold · food grows 25% faster at home",null,"",x.hold.scrap<TIDE.recipe));
   if(t.trust>=2)a.push(btn("tf:join","Ask a grower to come with you",haveT?"One is already aboard":full?"No room in the hold: leave something behind":"They ride home in the hold (one slot) · they need lots of water at your base",null,"",full||haveT));
@@ -1552,9 +1555,9 @@ function tideTileNote(i){if(!S.x||S.x.w!=="mire")return"";const t=tideOf();if(i=
   const o=outOf();return o&&o.i===i?"<p><b>Your outpost</b> stands here.</p>":""}
 // the trade route: a hauler that flies to the outpost and back by itself
 function haulWhere(h){const tr=XWORLDS.mire.travel,left=Math.max(0,Math.ceil(tr-h.t));
-  return h.phase==="out"?"on its way to Mirewater, "+left+" s out":h.phase==="there"?"docked at your outpost, loading":h.phase==="back"?"on its way home, "+left+" s out":h.note==="fuel"?"on the pad, waiting for "+TIDE.haul.fuel+" fuel":h.note==="nopost"?"on the pad: there's no outpost to fly to":"on the pad, loading"}
+  return h.phase==="out"?"on its way to Mirewater, "+left+" s out":h.phase==="there"?"docked at your outpost, loading":h.phase==="back"?"on its way home, "+left+" s out":h.note==="fuel"?"on the pad, waiting for "+haulFuel()+" fuel":h.note==="nopost"?"on the pad: there's no outpost to fly to":"on the pad, loading"}
 function tideRouteHTML(){if(S.world!==0)return"";const o=outOf(),h=haulOf(),t=tideOf();if(!o&&!h)return"";let s='<p class="meta">Trade route · Mirewater</p>';
-  if(!h)return s+"<p>Your outpost on Mirewater has "+stockTxt(o.stock)+' waiting. A hauler is a second ship, small and uncrewed, that flies there and back on its own.</p><div class="acts">'+btn("tf:haul","Build a hauler",TIDE.haul.cost+" scrap · then "+TIDE.haul.fuel+" fuel a trip",null,"primary",S.res.scrap<TIDE.haul.cost||padTile()<0)+"</div>";
+  if(!h)return s+"<p>Your outpost on Mirewater has "+stockTxt(o.stock)+' waiting. A hauler is a second ship, small and uncrewed, that flies there and back on its own.</p><div class="acts">'+btn("tf:haul","Build a hauler",TIDE.haul.cost+" scrap · then "+haulFuel()+" fuel a trip",null,"primary",S.res.scrap<TIDE.haul.cost||padTile()<0)+"</div>";
   s+="<p>The hauler is "+haulWhere(h)+". "+h.trips+" trip"+(h.trips===1?"":"s")+" so far."+(o?" At the outpost: "+stockTxt(o.stock)+".":"")+(R3.some(k=>h.cargo[k]>=1)?" Aboard: "+stockTxt(h.cargo)+".":"")+"</p>";
   if(t.met)s+='<div class="acts">'+btn("tf:trade","Trade with the Tidefolk: "+(h.trade?"on":"off"),h.trade?TIDE.haul.give+" scrap out each trip, food back":"Tap to send scrap out for food",null,"")+"</div>";
   return s}
@@ -1571,6 +1574,8 @@ function tideAct(c){const x=S.x,t=tideOf();
   if(!CARD||CARD.kind!=="village")return;const e=S.exp,L=Math.floor(t.trust),get=TIDE.dealGet+TIDE.dealStep*L;
   if(c==="gift"){if(x.steps<TIDE.gift)return;x.steps-=TIDE.gift;if(e&&e.sup>=0)e.sup=x.steps;xw("mire").gifts++;const was=t.trust;t.trust=Math.min(3,t.trust<1?Math.max(1,t.trust+TIDE.trustGift):t.trust+TIDE.trustGift*.5);
     say(was<1?"You set a ration pack on the walkway and step back. A tall figure wades out, takes it, and beckons you up.":"They take the gift and press a cold, smooth stone into your hand.")}
+  else if(c==="charm"){if((S.k.charms|0)<1||t.trust>=3)return;S.k.charms--;const was=t.trust;t.trust=Math.min(3,Math.max(1,t.trust+1));
+    say(was<1?"You hold up a copper charm. A tall figure wades out, turns it in the light, and beckons you up.":"The copper charm goes from hand to hand. They look at you differently now.")}
   else if(c==="food"||c==="water"){if(t.trust<1||x.hold.scrap<TIDE.deal)return;x.hold.scrap-=TIDE.deal;say(holdMsg("Traded "+TIDE.deal+" scrap",c,get));t.trust=Math.min(3,t.trust+TIDE.trustDeal);t.deals++}
   else if(c==="recipe"){if(t.trust<2||x.hold.scrap<TIDE.recipe||x.notes.includes("tidegarden")||S.codex.found.includes("tidegarden"))return;x.hold.scrap-=TIDE.recipe;x.notes.push("tidegarden");say("An old grower shows the crew how they raise food on floating mats of reed, with no soil at all. It goes in the codex when you are home.")}
   else if(c==="join"){if(t.trust<2||x.cap-holdUsed()<XP.hold.unit||x.crew.some(p=>p.kin==="tide"))return;const p=tidePerson();x.crew.push(p);x.cap-=XP.hold.unit;t.joined++;say(p.name+", a Tidefolk grower, curls up in the cargo hold for the ride. At the base they will need lots of water.")}
@@ -1581,8 +1586,8 @@ function tickTide(dt,quiet){if(S.world!==0)return;const o=outOf();
     for(const k in R)o.stock[k]+=R[k]*dt;if(tideOf().trust>=1)o.stock.food+=TIDE.out.tideFood*dt;const s=tot();if(s>cap)for(const k of R3)o.stock[k]*=cap/s}
   if(tideHome().length){const dry=S.res.water<TIDE.dry;if(dry&&!S.k.tideDry){S.k.tideDry=true;if(!quiet)say("The Tidefolk are drying out. They stop work until the base has water to spare.")}else if(!dry&&S.k.tideDry)S.k.tideDry=false}
   const h=haulOf();if(!h)return;h.t+=dt;const tr=XWORLDS.mire.travel;
-  if(h.phase==="home"){if(h.t<TIDE.haul.load)return;if(!o){h.note="nopost";return}if(S.k.fuel<TIDE.haul.fuel){h.note="fuel";return}
-    S.k.fuel-=TIDE.haul.fuel;h.goods=0;if(h.trade&&tideOf().met&&S.res.scrap>=TIDE.haul.give){S.res.scrap-=TIDE.haul.give;h.goods=TIDE.haul.give}h.phase="out";h.t=0;h.note="";dirty=true}
+  if(h.phase==="home"){if(h.t<TIDE.haul.load)return;if(!o){h.note="nopost";return}if(S.k.fuel<haulFuel()){h.note="fuel";return}
+    S.k.fuel-=haulFuel();matWear("haul");h.goods=0;if(h.trade&&tideOf().met&&S.res.scrap>=TIDE.haul.give){S.res.scrap-=TIDE.haul.give;h.goods=TIDE.haul.give}h.phase="out";h.t=0;h.note="";dirty=true}
   else if(h.phase==="out"){if(h.t>=tr){h.phase="there";h.t=0}}
   else if(h.phase==="there"){if(h.t<TIDE.haul.dock)return;let room=TIDE.haul.cap;
     if(h.goods>0){const t=tideOf(),get=Math.min(room,TIDE.dealGet+TIDE.dealStep*Math.floor(t.trust));h.cargo.food+=get;room-=get;t.trust=Math.min(3,t.trust+.1);t.deals++;h.goods=0}
@@ -1628,6 +1633,348 @@ function tideHaulDraw(P,cx,cy,Rm,now){const h=haulOf();if(!h||!P.mire||!P.home)r
   else{const k=h.phase==="there"?"mire":"home",b=BODIES.find(b=>b.key===k),r=Math.max(5*DPR,b.s*Rm)+14*DPR,w=reduced?.8:now/2100+1;p=[P[k][0]+Math.cos(w)*r,P[k][1]+Math.sin(w)*r*.7];a=w+Math.PI/2}
   const s=5*DPR;ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(a);ctx.fillStyle="#5cc0a8";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.rect(-s,-s*.6,s*2,s*1.2);ctx.fill();ctx.stroke();ctx.restore()}
 // ==== TIDE (end) ====
+// ==== PLACE (start) ====
+// Buildings you can go into, like caves: a doorway on a tile map opens a map of its own inside. Each kind has its own
+// plan (wards and offices, an open hall with aisles, long tunnels, a street of houses), its own look, its own threats
+// and finds, and one prize: a trauma ward (people heal faster), an armoury (armour, then a gun), a fire engine pump
+// (stills make more water), fuel drums, a backup drive (research points), route maps (land on your map), a dead
+// colony's notebook (a blueprint). On Mirewater there is Kestrel's lost colony. What you take stays taken: the state
+// of each inside map is saved in S.inside (home) and S.xw[world].inside, the same way caves are.
+const PLACES={
+  hospital:  {name:"Hospital",door:"A hospital",plan:"rooms",style:"tile",floor:[196,202,196],wall:[118,128,124],seed:11,thr:["nest","crawlers"],
+    desc:"Three floors of wards behind chained doors. Someone thought they could wait it out in here.",inside:"Wards and corridors, beds pushed against the doors.",
+    loot:[["cache",2,{label:"a drugs cabinet",mat:"gel"}],["spring",1,{label:"a water tank"}],["meds",1],["survivor",.25]]},
+  police:    {name:"Police station",door:"A police station",plan:"rooms",style:"tile",floor:[150,160,170],wall:[70,82,104],seed:12,thr:["raiders","dogs"],
+    desc:"A squat station with mesh on the windows. The front desk has a sign: closed until further notice.",inside:"Offices, holding cells and a locked armoury at the back.",
+    loot:[["cache",2,{label:"an evidence locker",mat:"powder"}],["arms",1],["pack",.3,{label:"a squad car's ration box"}]]},
+  fire:      {name:"Fire station",door:"A fire station",plan:"rooms",style:"concrete",floor:[150,128,112],wall:[150,64,52],seed:13,thr:["dogs"],
+    desc:"Red doors, rolled down. One engine never made it out of its bay.",inside:"Engine bays, a hose tower and bunks upstairs.",
+    loot:[["spring",2,{label:"a water tender"}],["cache",1,{label:"a tool wall",mat:"iron"}],["hose",1]]},
+  market:    {name:"Supermarket",door:"A supermarket",plan:"hall",style:"check",floor:[188,182,166],wall:[118,108,92],seed:14,thr:["dogs","raiders"],
+    desc:"A big store with its trolleys still lined up out front. Most of the shelves were stripped years ago. Most.",inside:"Aisles of empty shelves, and a cold store at the back.",
+    loot:[["garden",3,{label:"tinned food",mul:1.6}],["spring",1,{label:"bottled water"}],["cache",1,{label:"the tills",mat:"wire"}]]},
+  garage:    {name:"Garage",door:"A garage",plan:"rooms",style:"concrete",floor:[124,120,112],wall:[92,86,78],seed:15,thr:["raiders"],
+    desc:"A workshop with three bays and an oil pit. The roller doors are bent but not locked.",inside:"Bays, an oil pit and a parts store.",
+    loot:[["cache",3,{label:"spare parts",mat:"iron"}],["fuel",1]]},
+  datacenter:{name:"Data center",door:"A data center",plan:"rooms",style:"deck",floor:[70,78,90],wall:[40,46,56],seed:16,racks:true,thr:["hunter","crawlers"],
+    desc:"A windowless block with cooling fans on the roof. A few of the lights inside are still blinking.",inside:"Rows of server racks in the cold dark, a few lights still blinking.",
+    loot:[["cache",2,{label:"copper cable",mat:"copper"}],["data",1]]},
+  subway:    {name:"Subway",door:"A subway entrance",plan:"tunnel",style:"tile",floor:[110,104,96],wall:[60,56,52],seed:17,rails:true,thr:["crawlers","hunter"],
+    desc:"Stairs down to the old underground. The tiled sign still says which line it was.",inside:"Platforms and tunnels, a stalled train in the dark.",
+    loot:[["cache",2,{label:"a ticket office",mat:"wire"}],["pack",1,{label:"a stalled train's snack cart"}],["survey",1,{r:3,title:"A map of the lines",text:"The map on the platform wall shows where the tunnels run, under the tiles all around."}]]},
+  station:   {name:"Train station",door:"A train station",plan:"hall",style:"stone",floor:[170,160,140],wall:[106,92,76],seed:18,rails:true,thr:["raiders","dogs"],
+    desc:"A long platform roof, half fallen in. Freight cars stand where they stopped.",inside:"A ticket hall, benches, and freight cars on the tracks.",
+    loot:[["cache",2,{label:"a freight car",mat:"iron"}],["garden",1,{label:"a dining car pantry"}],["survey",1,{r:5,title:"The timetable board",text:"The board still lists every stop on the line, out to the far towns."}]]},
+  sewer:     {name:"Sewers",door:"A sewer grate",plan:"tunnel",style:"brick",floor:[86,80,70],wall:[64,58,50],seed:19,water:true,thr:["crawlers","crab"],
+    desc:"A grate in the street with the bars rusted through, and a ladder going down.",inside:"Brick tunnels and channels of slow black water. Wading costs two steps.",
+    loot:[["spring",2,{label:"a clean overflow"}],["cache",1,{label:"a grate full of junk",mat:"bone"}],["artifact",.2]]},
+  homes:     {name:"Neighbourhood",door:"A street of houses",plan:"street",style:"road",floor:[86,84,80],wall:[150,120,96],seed:20,thr:["dogs"],
+    desc:"A street of houses half buried in ash. Some of the doors are still shut.",inside:"Front yards, garages and back gardens.",
+    loot:[["garden",2,{label:"a pantry"}],["cache",2,{label:"a workbench",mat:"copper"}],["survivor",.4]]},
+  colony:    {name:"Dead colony",door:"A dead colony",plan:"rooms",style:"deck",floor:[132,136,128],wall:[92,100,96],seed:21,thr:["nest","crawlers"],
+    desc:"Prefab domes in a ring, their solar panels smashed. Someone tried what you are trying, and it didn't work.",inside:"Bunk modules, a mess hall and a radio room gone quiet.",
+    loot:[["cache",2,{label:"a supply crate",mat:"wire"}],["log",1],["artifact",.25]]}
+};
+const PLACE_AT={ruins:[.85,["hospital","hospital","police","police","fire","fire","market","market","garage","datacenter","subway","subway","sewer","sewer","homes","station"]],
+  ash:[.3,["homes","homes","homes","market","garage","garage","station","police","fire","colony"]],
+  woods:[.2,["homes","colony"]],crags:[.2,["datacenter","colony"]],frost:[.25,["colony","station"]],shell:[.1,["colony"]],bog:[.1,["colony"]],reeds:[.05,["colony"]]};
+const COLONY_LOGS=["Day 212. The well went bad and nobody would say it first. We walk north tomorrow.",
+  "Day 340. The Republic ship took the young ones and the seed stock and promised to come back. That was in spring.",
+  "Day 96. Something knocks on the lower hatch at night. We have stopped opening it.",
+  "Day 501. The generator is dead. Writing this by the last lamp. Take what's left and do better than us."];
+// which building a tile has (if any): fixed by the tile, so a door is always where you left it
+function placeKind(i,b,key){const A=PLACE_AT[b];if(!A||h3(i,6007+(key?13:0),331)>=A[0])return null;const L=A[1];return L[h3(i,6011+(key?13:0),337)*L.length|0]}
+function addPlace(m,i,b,key){const kind=placeKind(i,b,key);if(!kind)return m;
+  const seen=new Set([m.entry]),q=[m.entry],taken=new Set(m.pois.map(p=>p.k)),cand=[];
+  while(q.length){const k=q.shift(),x=k%MW,y=(k/MW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=MW||ny>=MH)continue;const n=ny*MW+nx;
+    if(seen.has(n)||m.g[n]===1)continue;seen.add(n);q.push(n);if(!taken.has(n)&&ny<MH-2)cand.push(n)}}
+  if(cand.length)m.pois.push({k:cand[h3(i,6029+(key?7:0),17)*cand.length|0],type:"place",kind});return m}
+// the inside: walls everywhere, then a plan carved out of them
+const PMAPS=new Map();
+function placeMap(i,key,kind){if(!PLACES[kind])return caveMap(i,key);const id=(key||"home")+":"+i+":"+kind;if(PMAPS.has(id))return PMAPS.get(id);
+  const P=PLACES[kind],R=rng(i*130363+(key?XWORLDS[key].seed:SEED)+P.seed*977),g=new Array(MW*MH).fill(1),ex=MW>>1,ey=MH-1,entry=ey*MW+ex,at=(x,y)=>y*MW+x;
+  const open=(x0,y0,x1,y1,v)=>{for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(x>=0&&y>=0&&x<MW&&y<MH)g[at(x,y)]=v||0};
+  const rails=[],chan=[];
+  if(P.plan==="rooms"){open(ex,1,ex,MH-1);open(1,4,MW-2,4);   // a spine up from the door, a hall across, and four rooms with walls and doors
+    for(const[x0,y0]of[[1,1],[7,1],[1,6],[7,6]]){if(R()<.1)continue;open(x0,y0,x0+2,y0+1);const top=y0<4,left=x0<ex,dh=R()<.75,ds=!dh||R()<.5;
+      if(dh)g[at(x0+(R()*3|0),top?3:5)]=0;if(ds)g[at(left?4:6,y0+(R()*2|0))]=0}}
+  else if(P.plan==="hall"){open(1,1,MW-2,MH-2);open(ex,MH-1,ex,MH-1);
+    for(const y of[2,4,6]){const gap1=1+(R()*3|0),gap2=6+(R()*3|0);for(let x=2;x<=MW-3;x++)if(x!==gap1&&x!==gap2&&x!==ex)g[at(x,y)]=1}
+    if(P.rails){open(1,1,MW-2,1);rails.push(1)}}
+  else if(P.plan==="tunnel"){const ys=[2,5];for(const y of ys){open(0,y,MW-1,y);if(P.rails)rails.push(y)}open(ex,5,ex,MH-1);
+    for(const x of[1+(R()*3|0),7+(R()*3|0)])open(x,2,x,5);if(P.water)for(const y of ys)for(let x=0;x<MW;x++)if(x!==ex&&R()<.55){g[at(x,y)]=2;chan.push(at(x,y))}}
+  else{open(0,4,MW-1,4);open(ex,0,ex,MH-1);open(2,0,2,MH-2);open(8,0,8,MH-2);   // streets, and houses with yards between them
+    for(const[x0,y0]of[[0,0],[3,0],[6,0],[9,0],[0,5],[3,5],[6,5],[9,5]])for(let y=y0;y<y0+3&&y<MH-1;y++)for(let x=x0;x<x0+2&&x<MW;x++)if(g[at(x,y)]===1&&R()<.35)g[at(x,y)]=2}
+  g[entry]=0;
+  // rubble in the rooms (not on the way in, not in the tunnels' water)
+  for(let k=0;k<MW*MH;k++)if(g[k]===0&&k!==entry&&!rails.includes((k/MW)|0)&&R()<(P.plan==="street"?.03:.08))g[k]=2;
+  // finds and threats go on floor you can reach, away from the door
+  const seen=new Set([entry]),q=[entry],cells=[];while(q.length){const k=q.shift(),x=k%MW,y=(k/MW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=MW||ny>=MH)continue;const n=at(nx,ny);
+    if(seen.has(n)||g[n]===1)continue;seen.add(n);q.push(n);if(g[n]===0&&ny<MH-2)cells.push(n)}}
+  for(let j=cells.length-1;j>0;j--){const r=R()*(j+1)|0;[cells[j],cells[r]]=[cells[r],cells[j]]}
+  const pois=[],take=()=>cells.pop(),add=(type,extra)=>{const k=take();if(k!==undefined)pois.push(Object.assign({k,type},extra||{}))};
+  const nT=1+(R()*2|0);for(let n=0;n<nT;n++)add("threat",{t:key?["stalker","leech"][R()*2|0]:P.thr[R()*P.thr.length|0]});
+  for(const[type,n,extra]of P.loot){if(type==="survivor"&&key)continue;const cnt=n>=1?n:(R()<n?1:0);for(let c=0;c<cnt;c++){const o=Object.assign({},extra||{});
+    if(type==="cache"||type==="spring"||type==="garden"){o.amt=Math.round((8+(R()*14|0))*(o.mul||1));if(type==="cache")o.mul=2;else delete o.mul}
+    if(type==="artifact")o.art=pickArt(R,"cave",key);add(type,o)}}
+  if(key&&kind==="colony")add("garden",{amt:10+(R()*10|0),label:"a hydroponics tray"});
+  const c={g,pois,entry,rails,chan,kind};PMAPS.set(id,c);return c}
+function placeState(i,key,kind){kind=kind||(S.exp&&S.exp.cave&&S.exp.cave.kind)||"";const id=i+":"+kind,box=key?(xw(key).inside||(xw(key).inside={})):(S.inside||(S.inside={}));let ms=box[id];   // by tile and kind
+  if(!ms||typeof ms!=="object"||typeof ms.rev!=="string"||!Array.isArray(ms.got))ms=box[id]={rev:"0".repeat(MW*MH),got:[],att:{}};return ms}
+function enterPlace(kind){const e=S.exp;if(!e||e.cave||e.sea||!PLACES[kind])return;e.cave={pos:e.pos,kind};const C=xGen(e.i),ms=xMS(e.i);e.pos=C.entry;reveal(ms,C.entry,sightR(e.i));PATH=[];CARD=null;
+  say((e.away?"The crew":"The squad")+" goes into the "+PLACES[kind].name.toLowerCase()+".");dirty=true;save()}
+// each building's prize
+const PLACE_FX={
+  meds:()=>{if(!S.unl.ambulance){S.unl.ambulance=1;return["The trauma ward","A ward still stocked: dressings, splints, a stretcher and a binder of field medicine. Hurt people at your base heal twice as fast from now on.","Found a trauma ward. Hurt people heal faster now."]}
+    S.res.scrap+=40;return["Medical gear","Steel trolleys and instruments, good for parts: 40 scrap.",""]},
+  arms:()=>{const G=S.gear;if(!G.armor){G.armor=1;return["The armoury","Riot armour on the racks, still sealed in plastic. Your squad wears it from now on: +1 strength.","Found riot armour in an armoury."]}
+    if(!G.tackgun){G.tackgun=1;return["The armoury","A locker of riot guns. Your workshop turns them into tack guns: a new weapon for fights.","Found a tack gun in an armoury."]}S.res.scrap+=50;return["The armoury","Empty racks and good steel: 50 scrap.",""]},
+  hose:()=>{if(!S.unl.firepump){S.unl.firepump=1;return["The fire engine","An engine still in its bay, its pump in one piece. Fitted to your stills, they make 15% more water.","Found a fire engine pump: stills make more water."]}
+    S.res.water+=40;return["The water tender","The tender's tank is still half full: 40 water.",""]},
+  fuel:()=>{const cap=E?E.fuelCap:0;if(cap>0&&S.k.fuel<cap){const v=Math.min(40,cap-S.k.fuel);S.k.fuel+=v;return["Fuel drums","Sealed drums, still good: "+Math.round(v)+" fuel into your tanks.",""]}
+    S.res.scrap+=35;return["Fuel drums","No tanks to put it in, so the drums go for parts: 35 scrap.",""]},
+  data:()=>{if(S.rs&&BP[S.rs.id]){const u=Math.min(60,S.rs.left);S.rs.left-=u;return["A backup drive","A drive that lived through the dark. Your smart people pull "+Math.round(u)+" research points off it for "+BP[S.rs.id].name+".",""]}
+    S.k.rsBank=(S.k.rsBank|0)+60;return["A backup drive","A drive that lived through the dark. Its 60 research points go to the next blueprint you start.",""]},
+  survey:(p,e)=>{let k=0;for(const j of ring([e.i],p.r||3))if(!S.seen.has(j)){S.seen.add(j);k++}return[p.title||"A route map",(p.text||"A map of the old lines.")+" "+(k?k+" new tiles on your map.":"Nothing new for your map."),""]},
+  log:(p,e,aw)=>{if(aw){const t=tideOf();t.trust=Math.min(3,t.trust+.5);t.seen=true;
+      return["Kestrel's colony log","The last colonists lived beside the Tidefolk for a year and wrote down their clicks. Your crew learns a few: the Tidefolk will trust you more, and their village is marked on your map.","Found Kestrel's lost colony and its log."]}
+    const lore=COLONY_LOGS[h3(e.i,5,77)*COLONY_LOGS.length|0],pool=Object.keys(BP).filter(k=>!S.bp.includes(k)&&BP[k].tier<=2&&!(S.rs&&S.rs.id===k));
+    if(pool.length){const k=pool[h3(e.i,6,77)*pool.length|0];S.bp.push(k);return["The colony's last log","“"+lore+"” Their engineer's notebook lies under it: you learn "+BP[k].name+". "+BP[k].what+".","A dead colony's notebook: learned "+BP[k].name+"."]}
+    S.res.scrap+=60;return["The colony's last log","“"+lore+"” Their stores are yours: 60 scrap.",""]}};
+function placeFind(pi){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[pi],aw=!!e.away;ms.got.push(pi);const r=PLACE_FX[p.type](p,e,aw);PATH=[];CARD={kind:"find",pi,title:r[0],text:r[1]};say(r[2]||r[0]+".")}
+// the panels: the door, a prize, and what it's like inside
+function placeDoorHTML(p){const P=PLACES[p.kind],aw=!!(S.exp&&S.exp.away),own=xOwn(S.exp.i),down=P.plan==="tunnel";
+  return'<div class="meta">'+(down?"A way down":"A building")+'</div><div class="tile-h">'+(aw&&p.kind==="colony"?"Kestrel's lost colony":P.door)+"</div><p>"+(aw&&p.kind==="colony"?"Prefab domes sinking into the bog, a Kestrel flag gone grey. The colony the station sent, and never heard from again.":P.desc)+"</p><p>Inside it is dark: you see less. Walking in there uses the same "+(aw?"rations":"supplies")+(own?" (none, on your own land)":"")+".</p>"+
+    '<div class="acts">'+btn("enter",down?"Climb down":"Go in","Its threats and finds are its own",null,"primary")+btn("back","Not now","It stays here",null)+"</div>"}
+function placeFindHTML(){return'<div class="meta">Found inside</div><div class="tile-h">'+CARD.title+"</div><p>"+CARD.text+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
+function placeInsideHTML(e,i,M,sup,tl,q,aw){const P=PLACES[e.cave.kind],nm=aw&&e.cave.kind==="colony"?"Kestrel's lost colony":"the "+P.name.toLowerCase();
+  return'<div class="meta">Tile '+i+" · inside "+nm+" · "+Math.round(xExplored(i)*100)+"% explored</div>"+'<div class="tile-h">Inside '+nm+"</div>"+
+    "<p>"+P.inside+" "+sup+" "+(tl?tl+" threat"+(tl>1?"s":"")+" left.":"No threats left.")+(aw?" Hold "+holdUsed()+" / "+S.x.cap+".":"")+" "+(aw?"Crew":"Squad")+" strength "+q.P+".</p>"+
+    '<p class="meta">◆ threat · ▣ cache · drop = water · leaves = food · the red-and-white box = what this place is worth coming for</p>'+
+    '<div class="acts">'+btn("upcave",P.plan==="tunnel"?"Climb back up":"Go back outside","Back to the doorway",null)+"</div>"}
+// how they look: the door on the tile map, the prizes, and the inside (painted once per light, like the land)
+function placeIcon(kind,x,y,cs,now){const s=cs*.36,P=PLACES[kind];ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.045);ctx.strokeStyle=INK;ctx.lineJoin="round";
+  const wall=col(P.wall,1.15),door="#1c1612";
+  if(P.plan==="tunnel"){ctx.fillStyle=kind==="sewer"?"#5d6266":"#d8d2c4";ctx.beginPath();ctx.ellipse(0,s*.2,s*1.05,s*.75,0,0,6.2832);ctx.fill();ctx.stroke();
+    ctx.fillStyle=door;ctx.beginPath();ctx.ellipse(0,s*.28,s*.7,s*.45,0,0,6.2832);ctx.fill();
+    ctx.strokeStyle=kind==="sewer"?"#9aa0a4":"#8a7a5a";ctx.beginPath();for(const yy of[0,.22,.44]){ctx.moveTo(-s*.4,s*(yy-.02));ctx.lineTo(s*.4,s*(yy-.02))}ctx.stroke();
+    if(kind==="subway"){ctx.fillStyle="#c0392b";ctx.fillRect(-s*.32,-s*.95,s*.64,s*.5);ctx.fillStyle="#fff";ctx.font="bold "+Math.round(s*.42)+"px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("U",0,-s*.68)}}
+  else if(P.plan==="street"){for(const[hx,hs]of[[-.55,.8],[.5,1]]){const w=s*.62*hs,h=s*.6*hs,X=hx*s;ctx.fillStyle=wall;ctx.fillRect(X-w/2,s*.85-h,w,h);ctx.strokeRect(X-w/2,s*.85-h,w,h);
+      ctx.fillStyle=col([120,70,60]);ctx.beginPath();ctx.moveTo(X-w*.62,s*.85-h);ctx.lineTo(X,s*.85-h*1.7);ctx.lineTo(X+w*.62,s*.85-h);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle=door;ctx.fillRect(X-w*.14,s*.85-h*.5,w*.28,h*.5)}}
+  else{const w=s*2,h=s*1.35;ctx.fillStyle=wall;ctx.fillRect(-w/2,s*.85-h,w,h);ctx.strokeRect(-w/2,s*.85-h,w,h);
+    ctx.fillStyle=door;ctx.fillRect(-w*.16,s*.85-h*.5,w*.32,h*.5);
+    if(kind==="hospital"){ctx.fillStyle="#fff";ctx.fillRect(-w*.12,s*.85-h*.92,w*.24,h*.3);ctx.fillStyle="#d33a2c";ctx.fillRect(-w*.03,s*.85-h*.89,w*.06,h*.24);ctx.fillRect(-w*.1,s*.85-h*.8,w*.2,h*.06)}
+    else if(kind==="police"){ctx.fillStyle="#f2c230";ctx.beginPath();for(let j=0;j<10;j++){const a=-Math.PI/2+j*Math.PI/5,r=j%2?s*.12:s*.26;ctx.lineTo(Math.cos(a)*r,s*.85-h*.76+Math.sin(a)*r)}ctx.closePath();ctx.fill()}
+    else if(kind==="fire"){ctx.fillStyle="#7a2a22";for(const xx of[-.38,.22])ctx.fillRect(w*xx,s*.85-h*.55,w*.16,h*.55)}
+    else if(kind==="market"){ctx.fillStyle="#e2c26a";ctx.beginPath();ctx.moveTo(-w*.52,s*.85-h*.62);ctx.lineTo(w*.52,s*.85-h*.62);ctx.lineTo(w*.45,s*.85-h*.45);ctx.lineTo(-w*.45,s*.85-h*.45);ctx.closePath();ctx.fill();ctx.stroke()}
+    else if(kind==="garage"){ctx.fillStyle="#5a564e";ctx.fillRect(-w*.42,s*.85-h*.62,w*.84,h*.62);ctx.strokeStyle="#8a847a";ctx.beginPath();for(let j=1;j<4;j++){ctx.moveTo(-w*.42,s*.85-h*.62+j*h*.15);ctx.lineTo(w*.42,s*.85-h*.62+j*h*.15)}ctx.stroke()}
+    else if(kind==="datacenter"){ctx.fillStyle="#2a3038";ctx.fillRect(-w*.42,s*.85-h*.9,w*.84,h*.4);ctx.fillStyle=Math.floor(now/600)%2?"#6af08a":"#2e6a3a";for(let j=0;j<4;j++)ctx.fillRect(-w*.32+j*w*.2,s*.85-h*.75,w*.06,h*.08)}
+    else if(kind==="station"){ctx.fillStyle=col([80,70,60]);ctx.beginPath();ctx.moveTo(-w*.6,s*.85-h);ctx.lineTo(0,s*.85-h*1.4);ctx.lineTo(w*.6,s*.85-h);ctx.closePath();ctx.fill();ctx.stroke()}
+    else if(kind==="colony"){ctx.fillStyle=col(P.wall,1.3);ctx.beginPath();ctx.arc(-w*.22,s*.85-h*.55,h*.45,Math.PI,0);ctx.fill();ctx.stroke();ctx.beginPath();ctx.arc(w*.3,s*.85-h*.45,h*.35,Math.PI,0);ctx.fill();ctx.stroke()}}
+  ctx.restore()}
+function placePrize(type,x,y,cs){const s=cs*.28;ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.045);ctx.strokeStyle=INK;
+  ctx.fillStyle="#f4f0e6";ctx.fillRect(-s,-s*.8,s*2,s*1.6);ctx.strokeRect(-s,-s*.8,s*2,s*1.6);ctx.fillStyle="#d33a2c";
+  const ic={meds:()=>{ctx.fillRect(-s*.15,-s*.6,s*.3,s*1.2);ctx.fillRect(-s*.6,-s*.15,s*1.2,s*.3)},arms:()=>{ctx.fillRect(-s*.65,-s*.2,s*1.3,s*.22);ctx.fillRect(s*.2,-s*.2,s*.2,s*.6)},
+    hose:()=>{ctx.beginPath();ctx.arc(0,0,s*.5,0,6.2832);ctx.lineWidth=Math.max(1,s*.2);ctx.strokeStyle="#d33a2c";ctx.stroke()},fuel:()=>{ctx.fillRect(-s*.4,-s*.6,s*.8,s*1.2)},
+    data:()=>{ctx.fillStyle="#2a3038";ctx.fillRect(-s*.6,-s*.35,s*1.2,s*.7);ctx.fillStyle="#6af08a";ctx.fillRect(s*.25,-s*.1,s*.18,s*.18)},
+    survey:()=>{ctx.strokeStyle="#d33a2c";ctx.lineWidth=Math.max(1,s*.14);ctx.beginPath();ctx.moveTo(-s*.6,s*.4);ctx.lineTo(-s*.1,-s*.3);ctx.lineTo(s*.25,s*.2);ctx.lineTo(s*.65,-s*.45);ctx.stroke()},
+    log:()=>{ctx.fillStyle="#7a5a3a";ctx.fillRect(-s*.55,-s*.6,s*1.1,s*1.2);ctx.fillStyle="#f4f0e6";ctx.fillRect(-s*.4,-s*.4,s*.8,s*.12);ctx.fillRect(-s*.4,-s*.1,s*.8,s*.12)}};
+  (ic[type]||ic.meds)();ctx.restore()}
+function placePaint(g,M,kind,lit,cs,i){const P=PLACES[kind],L=lit,C=(a,m)=>col(a,(m||1)*L),F=P.floor,Wc=P.wall,N=MW*MH,hh=(k,s)=>h3(i*131+k,s,7);
+  for(let k=0;k<N;k++){const x=(k%MW)*cs,y=((k/MW)|0)*cs,h=hh(k,3);g.fillStyle=C(F,.9+.14*h);g.fillRect(x,y,cs,cs);
+    g.strokeStyle=C(F,.72);g.lineWidth=Math.max(1,cs*.02);
+    if(P.style==="tile"){g.beginPath();g.moveTo(x,y+cs/2);g.lineTo(x+cs,y+cs/2);g.moveTo(x+cs/2,y);g.lineTo(x+cs/2,y+cs);g.stroke()}
+    else if(P.style==="check"){if(((k%MW)+((k/MW)|0))%2){g.fillStyle=C(F,.8);g.fillRect(x,y,cs,cs)}}
+    else if(P.style==="deck"){g.strokeRect(x+cs*.06,y+cs*.06,cs*.88,cs*.88);g.fillStyle=C(F,.65);for(const[a,b]of[[.14,.14],[.86,.14],[.14,.86],[.86,.86]]){g.beginPath();g.arc(x+cs*a,y+cs*b,Math.max(1,cs*.03),0,6.2832);g.fill()}}
+    else if(P.style==="brick"){g.beginPath();for(let r=0;r<3;r++){const yy=y+cs*(r+1)/3;g.moveTo(x,yy);g.lineTo(x+cs,yy);const off=r%2?cs/2:0;g.moveTo(x+off+cs*.25,yy-cs/3);g.lineTo(x+off+cs*.25,yy)}g.stroke()}
+    else if(P.style==="stone"){g.strokeRect(x+.5,y+.5,cs-1,cs/2);g.strokeRect(x+.5,y+cs/2,cs-1,cs/2-1)}
+    else if(P.style==="road"){if(M.g[k]===0&&((k%MW)===2||(k%MW)===8||(k%MW)===(MW>>1)||((k/MW)|0)===4)){g.fillStyle=C([64,64,62]);g.fillRect(x,y,cs,cs);g.strokeStyle=C([200,190,120],.6);g.setLineDash([cs*.15,cs*.15]);g.beginPath();g.moveTo(x+cs/2,y+cs*.1);g.lineTo(x+cs/2,y+cs*.9);g.stroke();g.setLineDash([])}
+      else{g.fillStyle=C([96,110,72],.9+.1*h);g.fillRect(x,y,cs,cs)}}
+    else{g.beginPath();g.moveTo(x+cs*h,y+cs*.2);g.lineTo(x+cs*(h*.6+.2),y+cs*.55);g.stroke()}}
+  // rails along the tunnels and the platform edge
+  if(M.rails&&M.rails.length){g.strokeStyle=C([150,140,126]);g.lineWidth=Math.max(1,cs*.05);for(const r of M.rails){const y=r*cs;g.beginPath();g.moveTo(0,y+cs*.34);g.lineTo(MW*cs,y+cs*.34);g.moveTo(0,y+cs*.66);g.lineTo(MW*cs,y+cs*.66);g.stroke();
+    g.strokeStyle=C([92,70,52]);g.lineWidth=Math.max(1,cs*.06);g.beginPath();for(let x=cs*.15;x<MW*cs;x+=cs*.4){g.moveTo(x,y+cs*.26);g.lineTo(x,y+cs*.74)}g.stroke();g.strokeStyle=C([150,140,126]);g.lineWidth=Math.max(1,cs*.05)}}
+  for(let k=0;k<N;k++){const v=M.g[k],x=(k%MW)*cs,y=((k/MW)|0)*cs,h=hh(k,5);
+    if(v===1){if(P.plan==="street"){g.fillStyle=C(Wc,.9+.15*h);g.fillRect(x+cs*.08,y+cs*.3,cs*.84,cs*.66);g.strokeStyle=C([30,24,20]);g.lineWidth=Math.max(1,cs*.04);g.strokeRect(x+cs*.08,y+cs*.3,cs*.84,cs*.66);
+        g.fillStyle=C([120,62,52],.9+.2*h);g.beginPath();g.moveTo(x+cs*.02,y+cs*.32);g.lineTo(x+cs*.5,y+cs*.02);g.lineTo(x+cs*.98,y+cs*.32);g.closePath();g.fill();g.stroke();
+        g.fillStyle=L>.5?"#3a3028":"#e8c070";g.fillRect(x+cs*.4,y+cs*.55,cs*.2,cs*.2);continue}
+      g.fillStyle=C(Wc);g.fillRect(x,y,cs,cs);g.fillStyle=C(Wc,1.3);g.fillRect(x,y,cs,cs*.26);g.fillStyle="rgba(0,0,0,.25)";g.fillRect(x,y+cs*.9,cs,cs*.1);
+      if(P.racks){g.fillStyle=C([24,28,34]);g.fillRect(x+cs*.12,y+cs*.3,cs*.76,cs*.58);for(let r=0;r<4;r++){g.fillStyle=h3(k,r,9)<.45?"#5be07a":h3(k,r,10)<.2?"#e0a03a":"#1e3a26";g.fillRect(x+cs*(.2+r*.16),y+cs*.42,cs*.06,cs*.06);g.fillRect(x+cs*(.2+r*.16),y+cs*.64,cs*.06,cs*.06)}}
+      else if(kind==="market"){for(let r=0;r<3;r++){g.fillStyle=["#b85a4a","#5a8ab8","#d8b85a","#6aa86a"][(k+r)%4];if(h3(k,r,11)<.35)g.fillRect(x+cs*(.1+r*.28),y+cs*.36,cs*.2,cs*.2)}}}
+    else if(v===2){if(M.chan&&M.chan.includes(k)){g.fillStyle=C([40,60,58]);g.fillRect(x,y+cs*.18,cs,cs*.64);g.strokeStyle=C([120,160,150],.8);g.lineWidth=Math.max(1,cs*.03);g.beginPath();g.moveTo(x+cs*.1,y+cs*.45);g.quadraticCurveTo(x+cs*.3,y+cs*.35,x+cs*.5,y+cs*.45);g.quadraticCurveTo(x+cs*.7,y+cs*.55,x+cs*.9,y+cs*.45);g.stroke()}
+      else{g.fillStyle=C([90,80,70]);for(let r=0;r<3;r++){const a=hh(k,7+r),b=hh(k,11+r);g.beginPath();g.moveTo(x+cs*(.15+.6*a),y+cs*(.5+.3*b));g.lineTo(x+cs*(.3+.6*a),y+cs*(.3+.3*b));g.lineTo(x+cs*(.45+.5*a),y+cs*(.6+.3*b));g.closePath();g.fill()}}}
+    else if(k!==M.entry&&k>=MW&&M.g[k-MW]===1&&h<.4&&!(M.rails&&M.rails.includes((k/MW)|0))){   // furniture against the walls
+      g.strokeStyle=C([30,24,20]);g.lineWidth=Math.max(1,cs*.03);
+      if(kind==="hospital"){g.fillStyle=C([230,232,228]);g.fillRect(x+cs*.18,y+cs*.06,cs*.64,cs*.5);g.strokeRect(x+cs*.18,y+cs*.06,cs*.64,cs*.5);g.fillStyle=C([150,200,210]);g.fillRect(x+cs*.18,y+cs*.06,cs*.64,cs*.14)}
+      else if(kind==="police"||kind==="datacenter"){g.fillStyle=C([110,90,70]);g.fillRect(x+cs*.12,y+cs*.06,cs*.76,cs*.3);g.strokeRect(x+cs*.12,y+cs*.06,cs*.76,cs*.3)}
+      else if(kind==="fire"||kind==="garage"){g.fillStyle=C(kind==="fire"?[190,60,48]:[96,110,130]);g.beginPath();g.moveTo(x+cs*.1,y+cs*.5);g.lineTo(x+cs*.1,y+cs*.2);g.lineTo(x+cs*.7,y+cs*.2);g.lineTo(x+cs*.9,y+cs*.36);g.lineTo(x+cs*.9,y+cs*.5);g.closePath();g.fill();g.stroke();
+        g.fillStyle=C([30,28,26]);for(const xx of[.28,.72]){g.beginPath();g.arc(x+cs*xx,y+cs*.52,cs*.08,0,6.2832);g.fill()}}
+      else if(kind==="colony"){g.fillStyle=C([150,160,150]);g.fillRect(x+cs*.14,y+cs*.06,cs*.72,cs*.24);g.strokeRect(x+cs*.14,y+cs*.06,cs*.72,cs*.24)}
+      else if(kind==="station"){g.fillStyle=C([120,86,56]);g.fillRect(x+cs*.12,y+cs*.14,cs*.76,cs*.12);g.fillRect(x+cs*.18,y+cs*.26,cs*.06,cs*.18);g.fillRect(x+cs*.76,y+cs*.26,cs*.06,cs*.18)}}}}
+function placeExit(ox,oy,M,cs){const x=ox+(M.entry%MW)*cs,y=oy+((M.entry/MW)|0)*cs;ctx.fillStyle="rgba(255,214,140,.22)";ctx.fillRect(x+cs*.18,y+cs*.55,cs*.64,cs*.45);
+  ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,cs*.05);ctx.strokeRect(x+cs*.18,y+cs*.55,cs*.64,cs*.45)}   // the doorway out
+// ==== PLACE (end) ====
+// ==== MAT (start) ====
+// Materials. Beasts, mutants and raiders drop what they are made of when you beat them; veins run through the rock
+// under the bunker (bone in the topsoil, copper in the clay, iron in the bedrock, crystal and old circuits in the
+// old-world layer) and show as specks before you dig; buildings' caches hold some too. Dig into a vein and you get a
+// first haul, and a Mine built there keeps digging it out until it is worked out. A running Workshop turns materials
+// into gear (armour in steps, better weapons), vehicle parts, and things you use up (medkits, pipe bombs, stim shots,
+// copper charms for the Tidefolk). What the bench makes wears out with use and is repaired there for part of its cost.
+// State: S.mats {kind: count}; gear in S.gear (1 working, 0 worn through) with its condition in S.wear {key: 0-100};
+// S.k.medkits, bombs, stims, charms (and stimOn while a stim shot is working); a mined vein keeps left and mp in S.ug.
+const MATS={
+  hide:   {name:"Hide",     col:"#b08a5a"},bone:  {name:"Bone",    col:"#e6dcc4"},chitin:{name:"Chitin",col:"#7fa86e"},
+  gel:    {name:"Mutagel",  col:"#a6e06a"},powder:{name:"Powder",  col:"#6a6a74"},wire:  {name:"Circuits",col:"#4fb89a"},
+  copper: {name:"Copper",   col:"#d6874a"},iron:  {name:"Iron",    col:"#9aa0aa"},crystal:{name:"Crystal",col:"#9adcf4"}};
+const MAT_DROP={dogs:{hide:3,bone:2},raiders:{powder:3,wire:1,iron:1},nest:{gel:3,bone:2},crawlers:{chitin:3},hunter:{hide:2,chitin:2,bone:1},crab:{chitin:4},
+  eels:{hide:2,gel:1},jelly:{gel:2},warden:{iron:5,wire:3,crystal:2},leech:{gel:2},stalker:{hide:3,bone:2},wyrm:{hide:4,bone:3,gel:1},spores:{gel:1}};
+// made once at a running Workshop; each wears out with its own kind of use (dur: how long it lasts) and is repaired there
+const MAT_GEAR={
+  hidecoat:  {name:"Hide Coat",        cost:{hide:6,bone:1},          str:1,use:"fight",dur:1,what:"+1 squad strength"},
+  chitinarm: {name:"Chitin Plates",    cost:{chitin:8,hide:2,scrap:20},str:1,use:"fight",dur:1.5,needs:"hidecoat",what:"+1 squad strength, over the hide coat"},
+  steelarm:  {name:"Steel Plate",      cost:{iron:10,copper:3},       str:1,use:"fight",dur:2.5,needs:"chitinarm",what:"+1 squad strength, over the chitin"},
+  crystalmail:{name:"Crystal Mail",    cost:{crystal:4,iron:6,wire:2},str:1,use:"fight",dur:4,needs:"steelarm",what:"+1 squad strength, over the steel plate"},
+  boneblades:{name:"Bone Blades",      cost:{bone:6,hide:2},          str:1,use:"fight",dur:1,what:"+1 squad strength"},
+  ironhead:  {name:"Iron Spearhead",   cost:{iron:6,bone:2},          str:1,use:"fight",dur:2,needs:"spear",what:"+1 squad strength, on the Salvage Spear"},
+  rifle:     {name:"Powder Rifle",     cost:{powder:8,iron:4,wire:2}, str:1,use:"fight",dur:1.5,needs:"tackgun",what:"+1 squad strength, a step up from the tack gun"},
+  arcrifle:  {name:"Arc Rifle",        cost:{crystal:3,wire:4,copper:2},str:1,use:"fight",dur:3,needs:"rifle",what:"+1 squad strength, a step up from the powder rifle"},
+  crawlplate:{name:"Crawler Plating",  cost:{iron:8,chitin:4},        use:"crawl",dur:2,veh:"crawler",what:"The Ash Crawler gives +2 strength instead of +1"},
+  fans:      {name:"Skimmer Fans",     cost:{copper:6,wire:3},        use:"skim",dur:1,veh:"skimmer",what:"The Skimmer reaches 1 tile further"},
+  lamps:     {name:"Bell Floodlamps",  cost:{crystal:2,wire:2,copper:2},use:"deep",dur:1,veh:"bell",what:"See 1 cell further under water and in caves"},
+  frame:     {name:"Iron Cargo Frame", cost:{iron:12,copper:2},       use:"ship",dur:1,what:"The expedition ship's hold carries one more slot"},
+  haulx:     {name:"Hauler Engines",   cost:{copper:6,wire:4,crystal:1},use:"haul",dur:1,haul:true,what:"The hauler burns a third less fuel each trip"},
+  drillbits: {name:"Drill Bits",       cost:{iron:5,copper:2},        use:"mine",dur:1,mine:true,what:"Mines dig twice as fast"}};
+// made as many times as you like
+const MAT_USE={medkits:{name:"Medkit",cost:{gel:2,hide:1},what:"Patches up a hurt squad or crew at once. Used by itself when they get hurt"},
+  bombs:{name:"Pipe Bomb",cost:{powder:3,iron:1},what:"Clears a threat without a fight (not a Spire Warden). No loot from it"},
+  stims:{name:"Stim Shot",cost:{gel:2,bone:1},what:"+1 strength for one fight. Take it from the threat card"},
+  charms:{name:"Copper Charm",cost:{copper:3,bone:1},tide:true,what:"A gift the Tidefolk love: their trust goes up a whole step. The crew takes them along"}};
+const matsOf=()=>{if(!S.mats||typeof S.mats!=="object")S.mats={};return S.mats};
+const matName=k=>MATS[k]?MATS[k].name.toLowerCase():k;
+function matAdd(k,n){if(!MATS[k]||!(n>0))return;const m=matsOf();m[k]=(+m[k]||0)+n;dirty=true}
+const matCostTxt=c=>Object.keys(c).map(k=>c[k]+" "+(MATS[k]?matName(k):k)).join(" + ");
+function matAfford(c){const m=matsOf();for(const k in c){if(MATS[k]){if((+m[k]||0)<c[k])return false}else if((S.res[k]||0)<c[k])return false}return true}
+function matPay(c){const m=matsOf();for(const k in c){if(MATS[k])m[k]=(+m[k]||0)-c[k];else S.res[k]-=c[k]}}
+const matStr=()=>Object.keys(MAT_GEAR).reduce((a,k)=>a+(S.gear[k]?MAT_GEAR[k].str||0:0),0)+(S.k&&S.k.stimOn?1:0);
+const haulFuel=()=>Math.round(TIDE.haul.fuel*(S.gear&&S.gear.haulx?2/3:1));
+// what a beaten foe leaves behind
+function matDrop(t,name){const D=MAT_DROP[t];if(!D)return;const got=[];for(const k in D){const n=D[k]+(Math.random()<.5?1:0);matAdd(k,n);got.push(n+" "+matName(k))}
+  say("Taken from the "+String(name||"fight").toLowerCase()+": "+got.join(", ")+".")}
+function matHeal(where){if((S.k.medkits|0)<1)return"";S.k.medkits--;if(where==="x"&&S.x)S.x.hurt=0;else S.wounded=0;return" A medkit patches them up, and they are ready again."}
+function matBomb(p,th,ms){if(!(th.lvl>0)||p.t==="warden"||(S.k.bombs|0)<1)return;S.k.bombs--;ms.got.push(CARD.pi);CARD=null;say("A pipe bomb clears the "+th.name.toLowerCase()+" out of the way.");afterClear();dirty=true;save()}
+// the threat card's extra buttons: a pipe bomb, a stim shot
+const matBombBtn=th=>(th.lvl>0&&(S.k.bombs|0)>0&&th.name!=="Spire Warden"?btn("bomb","Throw a pipe bomb","Clears it, no fight and no loot · "+S.k.bombs+" left",null):"")+
+  (th.lvl>0&&(S.k.stims|0)>0&&!S.k.stimOn?btn("mx:stim","Take a stim shot","+1 strength for this fight · "+S.k.stims+" left",null):"");
+// veins in the rock: one cell in three in the clay and below has one; they show as specks before you dig
+function veinAt(r,c){if(c===SHAFT||FIND(r,c))return null;const h=h3(r,c,991);if(r<3)return h<.08?"bone":null;if(h>.3)return null;return r<6?"copper":r<9?"iron":h<.15?"crystal":"wire"}
+const veinSize=r=>30+6*r;   // what a Mine can still dig out of a vein after the first haul
+function matVein(r,c,k,quiet){const v=veinAt(r,c);if(!v)return false;const n=4+r;matAdd(v,n);S.ug[k].vein=v;S.ug[k].left=veinSize(r);
+  if(!quiet)say("The diggers hit a vein of "+matName(v)+" in the "+stratum(r).name.toLowerCase()+": "+n+" "+matName(v)+". A Mine built here would keep digging it out.");dirty=true;return true}
+function drawVeins(cw,ch,gy,firstLocked){for(let r=0;r<Math.min(ROWS,firstLocked);r++)for(let c=0;c<COLS;c++){const cell=S.ug[r+","+c];
+  if(cell&&cell.d){if(!cell.room&&cell.vein&&veinLeft(r+","+c))seamAt(c*cw,gy+r*ch,cw,ch,r,c,cell.vein,.55,1);continue}
+  const v=veinAt(r,c);if(!v)continue;
+  const x=c*cw,y=gy+r*ch;ctx.fillStyle=MATS[v].col;for(let q=0;q<5;q++){const a=h3(r*31+c,q,17),b=h3(r*31+c,q+7,17),s=Math.max(1.2*DPR,Math.min(cw,ch)*(.035+.03*h3(r,c+q,5)));
+    ctx.beginPath();ctx.moveTo(x+cw*(.15+.7*a),y+ch*(.2+.6*b)-s);ctx.lineTo(x+cw*(.15+.7*a)+s,y+ch*(.2+.6*b));ctx.lineTo(x+cw*(.15+.7*a),y+ch*(.2+.6*b)+s);ctx.lineTo(x+cw*(.15+.7*a)-s,y+ch*(.2+.6*b));ctx.closePath();ctx.fill()}}}
+// a seam of chunks slanting across a wall (an open vein cell, or a mine's rock face); frac = how much is left
+function seamAt(x,y,cw,ch,r,c,v,alpha,frac){const nb=Math.max(1,Math.round(8*frac));ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle=MATS[v].col;ctx.strokeStyle="rgba(20,15,11,.65)";ctx.lineWidth=Math.max(.6,.5*DPR);
+  for(let q=0;q<nb;q++){const a=(q+.5)/8,px=x+cw*(.05+.27*a)+cw*.04*(h3(r*13+c,q,3)-.5),py=y+ch*(.22+.52*a)+ch*.1*(h3(r,c+q,7)-.5),s=Math.max(1.5*DPR,ch*(.05+.035*h3(q,r+c,11)));
+    ctx.beginPath();ctx.moveTo(px,py-s);ctx.lineTo(px+s*1.25,py-s*.15);ctx.lineTo(px+s*.45,py+s);ctx.lineTo(px-s,py+s*.4);ctx.closePath();ctx.fill();ctx.stroke()}
+  ctx.restore()}
+
+// ---- the Mine: built where you dug out a vein. With power and a worker it keeps digging that vein's material out,
+// about one every 20 s (twice as fast with drill bits), until the vein is worked out. Then it stands idle until stripped.
+RC.mine={cost:110,staff:true,power:1,rate:.05,prio:3};
+ROOM.mine=Object.assign({name:"Mine",what:"Digs out the vein it is built on",col:[104,86,68]},RC.mine,{power:RC.mine.power});
+JOB_SKILL.mine="scav";
+function veinLeft(k){const c=S.ug[k];if(!c||!c.vein||!MATS[c.vein])return 0;if(typeof c.left!=="number"||!isFinite(c.left))c.left=veinSize(+k.split(",")[0]);return Math.max(0,Math.floor(c.left))}
+const mineOut=id=>!veinLeft(id.slice(2));
+const mineRate=id=>RC.mine.rate*((E&&E.bonus&&E.bonus.get(id))||1)*(S.gear&&S.gear.drillbits?2:1);
+function mineTick(dt,quiet){if(!E||!(dt>0))return;let out=false;
+  for(const id of E.on){if(typeof id!=="string"||!id.startsWith("u:"))continue;const k=id.slice(2),c=S.ug[k];if(!c||c.room!=="mine"||!veinLeft(k))continue;
+    c.mp=(+c.mp||0)+mineRate(id)*dt;let got=0;while(c.mp>=1&&c.left>0){c.mp-=1;c.left--;got++}
+    if(got){matAdd(c.vein,got);if(S.gear.drillbits)matWear("mine",got)}
+    if(c.left<=0){c.left=0;c.mp=0;out=true;if(!quiet)say("The "+matName(c.vein)+" vein in row "+(+k.split(",")[0]+1)+" is worked out. Strip the mine and dig for another vein.")}}
+  if(out)E=econ()}
+const mineOpen=k=>{const c=S.ug[k];if(!c||!c.vein)return"";const n=veinLeft(k);return n?"A vein of "+matName(c.vein)+" runs through this wall ("+n+" left): a Mine here keeps digging it out. ":"The "+matName(c.vein)+" vein here is worked out. "};
+const mineBtn=k=>{if(!veinLeft(k))return"";const co=ugCost("mine",k),d=ROOM.mine;return btn("room:mine",d.name,"+1 "+matName(S.ug[k].vein)+" about every "+Math.round(1/RC.mine.rate)+" s · "+d.power+" power · 1 worker · "+costText(co),co,"primary")};
+function mineNote(k){const c=S.ug[k];if(!c||!c.vein)return"";const id="u:"+k,n=veinLeft(k);if(!n)return"";
+  return" A vein of "+matName(c.vein)+": "+n+" left in it."+(E.on.has(id)?" Mining about 1 every "+Math.round(1/mineRate(id))+" s"+(S.gear.drillbits?", with drill bits":"")+".":"")}
+// a miner at the rock face with a pick
+function mineMan(id,c,cw){if(typeof id!=="string")return null;const cell=S.ug[id.slice(2)];if(!cell||cell.room!=="mine")return null;return{x:c*cw+cw*.52,o:{act:"dig",f:-1}}}
+ROOMART.mine=function(g,x,w,h,L){const u=h/10,fy=h*.86;g.strokeStyle=INK;g.lineWidth=Math.max(.8,.7*DPR);
+  g.fillStyle=col([84,72,60],L);g.beginPath();g.moveTo(x,u*.9);for(const[px,py]of[[.3,.9],[.36,2.2],[.33,3.4],[.4,4.6],[.35,5.9],[.41,7.1],[.37,8.6]])g.lineTo(x+w*px,u*py);g.lineTo(x,fy);g.closePath();g.fill();g.stroke();   // the rock face
+  g.strokeStyle=col([58,48,40],L);g.lineWidth=Math.max(.6,.5*DPR);g.beginPath();g.moveTo(x+w*.06,u*2);g.lineTo(x+w*.16,u*3.1);g.lineTo(x+w*.12,u*4);g.moveTo(x+w*.2,u*5.2);g.lineTo(x+w*.3,u*6.3);g.moveTo(x+w*.04,u*6.8);g.lineTo(x+w*.12,u*7.6);g.stroke();
+  g.strokeStyle=INK;g.lineWidth=Math.max(.8,.7*DPR);const wood=col([112,82,50],L);   // timber props under a cap beam
+  gRS(g,wood,x+w*.44,u*.9,u*.55,fy-u*.9);gRS(g,wood,x+w*.95-u*.55,u*.9,u*.55,fy-u*.9);gRS(g,wood,x+w*.42,u*.9,w*.55,u*.5);
+  gR(g,col([60,46,34],L),x+w*.4,fy-u*.3,w*.6,u*.3);for(let q=0;q<5;q++)gR(g,col([92,70,46],L),x+w*(.43+q*.12),fy-u*.32,u*.35,u*.32);gR(g,col([150,152,156],L),x+w*.4,fy-u*.42,w*.6,Math.max(1,u*.14));   // rails
+  const c0=x+w*.58,c1=x+w*.88;g.fillStyle=col([96,98,104],L);g.beginPath();g.moveTo(c0,fy-u*2.5);g.lineTo(c1,fy-u*2.5);g.lineTo(c1-u*.4,fy-u*.8);g.lineTo(c0+u*.4,fy-u*.8);g.closePath();g.fill();g.stroke();   // the ore cart
+  gR(g,col([70,72,78],L),c0+u*.25,fy-u*1.9,c1-c0-u*.5,Math.max(1,u*.18));gC(g,col([40,40,44],L),c0+u*.8,fy-u*.55,u*.42);gC(g,col([40,40,44],L),c1-u*.8,fy-u*.55,u*.42);
+  gL(g,col([120,88,54],L),Math.max(1,u*.22),[x+w*.9,fy-u*2.6,x+w*.84,fy-u*6.4]);g.fillStyle=col([140,144,150],L);g.beginPath();g.moveTo(x+w*.9-u*.35,fy-u*2.5);g.lineTo(x+w*.9+u*.35,fy-u*2.5);g.lineTo(x+w*.9+u*.2,fy-u*3.5);g.lineTo(x+w*.9-u*.25,fy-u*3.5);g.closePath();g.fill();g.stroke()};   // a shovel
+// live on top: the vein in the face (thinner as it's worked), the cart filling with the next load, chips flying
+function mineFx(r,c,n,x,y,cw,ch,lit,now){const t=now/1000,u=ch/10;
+  for(let j=0;j<n;j++){const k=r+","+(c+j),cell=S.ug[k];if(!cell||!cell.vein||!MATS[cell.vein])continue;const X=x+j*cw,left=veinLeft(k),colr=MATS[cell.vein].col;
+    if(left)seamAt(X,y,cw,ch,r,c+j,cell.vein,lit?1:.45,Math.min(1,left/veinSize(r)));
+    const mp=Math.max(0,Math.min(1,+cell.mp||0)),c0=X+cw*.58,c1=X+cw*.88,top=y+ch*.86-u*2.5;
+    if(mp>.04){ctx.save();ctx.globalAlpha=lit?1:.5;ctx.fillStyle=colr;ctx.strokeStyle="rgba(20,15,11,.7)";ctx.lineWidth=Math.max(.6,.5*DPR);ctx.beginPath();ctx.moveTo(c0+u*.15,top);
+      for(let q=0;q<=6;q++){const a=q/6;ctx.lineTo(c0+u*.15+(c1-c0-u*.3)*a,top-u*1.3*mp*Math.sin(a*Math.PI)*(.8+.2*h3(q,r+c+j,5)))}ctx.lineTo(c1-u*.15,top);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
+    if(lit&&left&&!reduced){ctx.save();ctx.fillStyle=colr;for(let q=0;q<3;q++){const k2=(t*1.3+q/3+j*.37)%1;ctx.globalAlpha=1-k2;
+      ctx.fillRect(X+cw*(.38+.1*k2+.02*q),y+ch*(.5+.02*q)-ch*.16*Math.sin(k2*Math.PI)+ch*.14*k2*k2,Math.max(1,DPR*1.5),Math.max(1,DPR*1.5))}ctx.restore()}}}
+
+// ---- wear: what the bench makes wears out with use and stops working when it is worn through, until it is repaired
+// at the bench for part of what it cost. Fights wear armour and weapons (a lost fight twice as much), fights in the
+// crawler its plating, trips with the skimmer its fans, dives the bell's lamps, launches the cargo frame, hauls the
+// hauler's engines, and what a mine digs the drill bits. Better pieces last longer (dur).
+const WEAR={fight:8,crawl:8,skim:5,deep:5,ship:10,haul:3,mine:1},WEAR_UNIT={fight:"fights",crawl:"fights",skim:"trips",deep:"dives",ship:"launches",haul:"hauls",mine:"loads"},REPAIR=.6;
+const wearOf=()=>{if(!S.wear||typeof S.wear!=="object")S.wear={};return S.wear};
+const matMade=k=>!!(S.gear&&S.gear[k])||!!(S.wear&&typeof S.wear[k]==="number");
+const matCond=k=>{if(!matMade(k))return 0;const v=wearOf()[k];return typeof v==="number"&&isFinite(v)?Math.max(0,Math.min(100,v)):100};
+const matLasts=k=>{const G=MAT_GEAR[k];return"lasts about "+Math.round(100*(G.dur||1)/WEAR[G.use])+" "+WEAR_UNIT[G.use]};
+function matWear(use,n){const W=wearOf(),broke=[];
+  for(const k in MAT_GEAR){const G=MAT_GEAR[k];if(G.use!==use||!S.gear[k])continue;const v=Math.max(0,matCond(k)-WEAR[use]*(n||1)/(G.dur||1));
+    W[k]=Math.round(v*10)/10;if(v<=0){W[k]=0;S.gear[k]=0;broke.push(G.name.toLowerCase())}}
+  if(broke.length){say("Worn through: "+broke.join(", ")+". "+(broke.length>1?"They don't":"It doesn't")+" work until "+(broke.length>1?"they're":"it's")+" repaired at the Workshop.");E=econ();dirty=true}}
+function matAfterFight(win){const n=win?1:2;matWear("fight",n);if(crawlOn()&&!(S.exp&&(S.exp.cave||S.exp.sea)))matWear("crawl",n);if(S.k.stimOn)S.k.stimOn=0}
+function matTrip(far,sea,veh){if(sea)matWear("deep");else if(far&&(veh!==undefined?veh==="skimmer":!!(S.veh&&S.veh.skimmer)))matWear("skim")}
+function repairCost(k){const G=MAT_GEAR[k],d=(100-matCond(k))/100,c={};if(!G||!(d>0))return c;for(const m in G.cost){const v=Math.ceil(G.cost[m]*d*REPAIR-1e-9);if(v>0)c[m]=v}
+  if(!Object.keys(c).length){c[Object.keys(G.cost)[0]]=1}return c}
+function matFix(k){if(!MAT_GEAR[k]||!matMade(k)||matCond(k)>=100)return false;const c=repairCost(k);if(!matAfford(c))return false;matPay(c);S.gear[k]=1;wearOf()[k]=100;return true}
+function matAct(a){
+  if(a==="stim"){if((S.k.stims|0)<1||S.k.stimOn||!(CARD&&CARD.kind==="threat"))return;S.k.stims--;S.k.stimOn=1;say("A stim shot: the "+(S.exp&&S.exp.away?"crew":"squad")+" fights at +1 strength this time.");dirty=true;save();return}
+  if(!matShopReady())return;
+  if(a==="fixall"){const done=Object.keys(MAT_GEAR).filter(k=>matMade(k)&&matCond(k)<100).sort((x,y)=>matCond(x)-matCond(y)).filter(matFix);if(!done.length)return;say("Repaired: "+done.map(k=>MAT_GEAR[k].name.toLowerCase()).join(", ")+".")}
+  else if(a.startsWith("fix:")){const k=a.slice(4);if(!matFix(k))return;say("Repaired the "+MAT_GEAR[k].name.toLowerCase()+". Good as new.")}
+  else return;E=econ();dirty=true;save()}
+
+// the Workshop's materials bench
+function matShopReady(){return[...E.on].some(id=>S.ug[id.slice(2)]&&S.ug[id.slice(2)].room==="shop")}
+function matWhyNot(k){const G=MAT_GEAR[k];if(!G)return"";if(G.needs&&!(MAT_GEAR[G.needs]?matMade(G.needs):S.gear[G.needs]))return"Needs the "+(MAT_GEAR[G.needs]?MAT_GEAR[G.needs].name:CFG.gear[G.needs]?CFG.gear[G.needs].name:G.needs)+" first";
+  if(G.veh&&!(S.veh&&S.veh[G.veh]))return"Needs the "+VEH[G.veh].name+" first";if(G.haul&&!haulOf())return"Needs a hauler first";
+  if(G.mine&&!Object.values(S.ug).some(c=>c&&c.room==="mine"))return"Needs a Mine first";return""}
+const tideSeen=()=>!!(S.xw&&S.xw.mire&&S.xw.mire.tide&&S.xw.mire.tide.seen);
+function matShopHTML(){const m=matsOf(),have=Object.keys(MATS).filter(k=>(+m[k]||0)>=1);
+  let h='<p class="meta">Materials bench</p><p>'+(have.length?"In stores: "+have.map(k=>Math.floor(m[k])+" "+matName(k)).join(", ")+".":"No materials yet. Beat beasts, mutants and raiders, dig into veins and mine them, and search buildings.")+"</p>";
+  const made=Object.keys(MAT_GEAR).filter(matMade),worn=made.filter(k=>matCond(k)<100).sort((a,b)=>matCond(a)-matCond(b));
+  if(made.length){h+="<p>Your gear: "+made.map(k=>MAT_GEAR[k].name+" "+(S.gear[k]?Math.floor(matCond(k))+"%":"<b>worn through</b>")).join(", ")+". It wears out with use and stops working when it's worn through.</p>";
+    if(worn.length){const all={};for(const k of worn){const c=repairCost(k);for(const x in c)all[x]=(all[x]||0)+c[x]}
+      h+='<div class="acts">'+worn.map(k=>{const c=repairCost(k);return btn("mx:fix:"+k,"Repair the "+MAT_GEAR[k].name.toLowerCase(),(S.gear[k]?"Worn to "+Math.floor(matCond(k))+"%":"Worn through, not working")+" · "+matCostTxt(c),null,S.gear[k]?"":"primary",!matAfford(c))}).join("")+
+        (worn.length>1?btn("mx:fixall","Repair everything you can",matCostTxt(all)+" for all of it",null,"",!worn.some(k=>matAfford(repairCost(k)))):"")+"</div>"}}
+  const left=Object.keys(MAT_GEAR).filter(k=>!matMade(k));
+  if(left.length)h+='<p class="meta">Make</p><div class="acts">'+left.map(k=>{const G=MAT_GEAR[k],why=matWhyNot(k);return btn("mk:"+k,G.name,(why||G.what+", "+matLasts(k))+" · "+matCostTxt(G.cost),null,"",!!why||!matAfford(G.cost))}).join("")+"</div>";
+  h+='<p class="meta">Use up</p><div class="acts">'+Object.keys(MAT_USE).filter(k=>!MAT_USE[k].tide||tideSeen()).map(k=>{const U=MAT_USE[k];return btn("mk:"+k,"Make a "+U.name.toLowerCase()+" ("+(S.k[k]|0)+" now)",U.what+" · "+matCostTxt(U.cost),null,"",!matAfford(U.cost))}).join("")+"</div>";
+  return h}
+function matCraft(k){if(!matShopReady())return;const G=MAT_GEAR[k],U=MAT_USE[k];
+  if(G){if(matMade(k)||matWhyNot(k)||!matAfford(G.cost))return;matPay(G.cost);S.gear[k]=1;wearOf()[k]=100;say("Made "+G.name.toLowerCase()+". "+G.what+".")}
+  else if(U){if(!matAfford(U.cost))return;matPay(U.cost);S.k[k]=(S.k[k]|0)+1;say("Made a "+U.name.toLowerCase()+". You have "+S.k[k]+".")}
+  else return;E=econ();dirty=true;save()}
+// what you have, under the supplies, and anything worn through
+let MAT_SIG="";
+function matHud(){const el=$("mats");if(!el)return;const m=matsOf(),ks=Object.keys(MATS).filter(k=>(+m[k]||0)>=1),U=Object.keys(MAT_USE).filter(k=>(S.k[k]|0)>0),bad=Object.keys(MAT_GEAR).filter(k=>matMade(k)&&!S.gear[k]),
+    sig=ks.map(k=>k+Math.floor(m[k])).join(",")+"|"+U.map(k=>k+S.k[k]).join(",")+"|"+bad.join(",");
+  if(sig===MAT_SIG)return;MAT_SIG=sig;el.hidden=!ks.length&&!U.length&&!bad.length;
+  el.innerHTML=ks.map(k=>'<span><i style="background:'+MATS[k].col+'"></i>'+MATS[k].name+"<b>"+Math.floor(m[k])+"</b></span>").join("")+
+    U.map(k=>"<span>"+MAT_USE[k].name+"s<b>"+S.k[k]+"</b></span>").join("")+(bad.length?'<span style="color:#e07a4f">Worn through<b style="color:#e07a4f">'+bad.length+"</b></span>":"")}
+// ==== MAT (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const skyH=Math.max(54*DPR,H*.13),padB=24*DPR,cw=W/COLS,ch=Math.min(cw*.8,Math.max(28*DPR,(H-skyH-padB)/ROWS)),gy=skyH;
@@ -1637,7 +1984,7 @@ function drawBelow(now){
   drawSurface(now,skyH,gy,cw,dl);
   const firstLocked=(()=>{for(let r=0;r<ROWS;r++)if(S.pop<rowNeed(r))return r;return ROWS})();
   // the rock, the tunnels and the shaft (painted once, until something new is dug)
-  drawRock(cw,ch,gy,firstLocked);
+  drawRock(cw,ch,gy,firstLocked);drawVeins(cw,ch,gy,firstLocked);
   // rooms, furnished, one picture per run of cells, with their moving parts live on top and a name tag
   ctx.font=Math.round(Math.max(8*DPR,Math.min(ch*.22,11*DPR)))+'px "Courier Prime",monospace';ctx.textBaseline="top";
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const k=r+","+c,cell=S.ug[k];if(!cell||!cell.room)continue;
@@ -1645,7 +1992,7 @@ function drawBelow(now){
     let n=1;while(c+n<COLS&&S.ug[r+","+(c+n)]&&S.ug[r+","+(c+n)].room===cell.room)n++;
     const x=c*cw,y=gy+r*ch,def=ROOM[cell.room],lit=E.on.has("u:"+k),room=cell.room;
     stamp("room:"+room+":"+n+":"+Math.round(cw*100)+":"+Math.round(ch*100)+":"+(lit?1:0),n*cw,ch,x,y,g=>paintRoom(g,room,n*cw,ch,lit,n));
-    if(lit)roomFx(room,x,y,n*cw,ch,n,now);
+    if(lit)roomFx(room,x,y,n*cw,ch,n,now);if(room==="mine")mineFx(r,c,n,x,y,cw,ch,lit,now);
     const label=n*cw>ctx.measureText(def.name).width+14*DPR?def.name:def.name.split(" ")[0].slice(0,5),tw=ctx.measureText(label).width,fh=Math.max(8*DPR,Math.min(ch*.22,11*DPR));
     ctx.fillStyle="rgba(20,15,11,.72)";ctx.fillRect(x+3*DPR,y+ch*.1,tw+6*DPR,fh+4*DPR);ctx.fillStyle=lit?"#efe2c4":"#a99d86";ctx.fillText(label,x+6*DPR,y+ch*.1+2*DPR)}
   if(E.temp<10){ctx.fillStyle="rgba(140,190,240,"+(Math.min(1,(10-E.temp)/12)*.16).toFixed(3)+")";ctx.fillRect(0,gy,W,ROWS*ch)}   // a cold bunker looks it
@@ -1676,7 +2023,7 @@ function drawBelow(now){
   // people, over the room scenery and under the frames: each one clipped to its own cell, sized to stand inside it
   const inCell=(r,c,top,fn)=>{ctx.save();ctx.beginPath();ctx.rect(c*cw+DPR,gy+r*ch+top,cw-2*DPR,ch-top);ctx.clip();fn();ctx.restore()};
   let seed=0;for(const id of E.st){if(typeof id!=="string"||!id.startsWith("u:"))continue;const[r,c]=id.slice(2).split(",").map(Number),sd=seed++,x=c*cw+cw*(.25+.5*(.5+.5*Math.sin(now/1900+sd*2.1)*(reduced?0:1)));
-    inCell(r,c,ch*.09,()=>person(x,gy+r*ch+ch-3*DPR,ch*.5,sd,now,E.who.get(id)?lookOf(E.who.get(id)):null))}
+    inCell(r,c,ch*.09,()=>{const mo=mineMan(id,c,cw);person(mo?mo.x:x,gy+r*ch+ch-3*DPR,ch*.5,sd,now,E.who.get(id)?lookOf(E.who.get(id)):null,mo?mo.o:undefined)})}
   const spots=Object.keys(S.ug).filter(k=>{const c=S.ug[k];return c.d&&!k.endsWith(","+SHAFT)&&(!c.room||c.room==="bunks")});
   const idleP=S.people.filter(p=>!E.jobOf.has(p.id)&&!E.squad.includes(p));
   for(let i=0;i<Math.min(E.idle,8)&&spots.length;i++){const[r,c]=spots[i%spots.length].split(",").map(Number),x=c*cw+cw*(.2+.6*(.5+.5*Math.sin(now/2600+i*1.7)*(reduced?0:1)));
@@ -1790,7 +2137,7 @@ function genMap(i){if(MAPS.has(i))return MAPS.get(i);
     if(R()<.75)add("event",{e:EV_KEYS[R()*EV_KEYS.length|0]});
     if(R()<({ruins:.7,spire:1}[b]??.4)){const fam=LMS[LM_FAMILY[b]];add("landmark",{lm:fam[R()*fam.length|0].name})}
   }
-  const m=addCaveMouth({g,pois,entry},i,b,null);MAPS.set(i,m);return m}   // the cave mouth goes last, so older saves keep their finds
+  const m=addPlace(addCaveMouth({g,pois,entry},i,b,null),i,b,null);MAPS.set(i,m);return m}   // the cave mouth goes last, so older saves keep their finds
 function mapState(i){let ms=S.maps[i];if(!ms){const M=genMap(i);ms=S.maps[i]={rev:"0".repeat(MW*MH),got:[],att:{}};
   if(S.owned.has(i))M.pois.forEach((p,ix)=>{if(p.type==="threat")ms.got.push(ix)})}return ms}
 function landmarkOf(i){const ms=S.maps[i];if(!ms)return null;const M=genMap(i),ix=M.pois.findIndex(p=>p.type==="landmark");return ix>=0&&ms.got.includes(ix)?LM_BY_NAME[M.pois[ix].lm]:null}
@@ -1802,15 +2149,15 @@ function reveal(ms,k,rad){const x0=k%MW,y0=(k/MW)|0,r=ms.rev.split("");
   for(let y=y0-rad;y<=y0+rad;y++)for(let x=x0-rad;x<=x0+rad;x++){if(x<0||y<0||x>=MW||y>=MH||Math.abs(x-x0)+Math.abs(y-y0)>rad+1)continue;r[y*MW+x]="1"}ms.rev=r.join("")}
 // sight: daylight, the lookout and the scanner on the surface; caves and seabeds are dark (slice 2: the skimmer, the Builder Lens and the Deep Lamp)
 const sightR=i=>{const e=S.exp,deep=!!(e&&(e.cave||e.sea));
-  return(hasBp("maps")?1:0)+(deep?1+(hasArt("lamp")?1:0):(smooth(-.12,.3,dot(sunAt(S.t),T[i].c))>.4?2:1)+(S.unl.lookout?1:0)+(skimOn()?1:0))+(S.gear.scanner?1:0)+(hasArt("lens")?1:0)};
-function squadP(){const base=Math.min(2,1+Math.floor(S.pop/8)),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0))+(crawlOn()&&!(S.exp&&(S.exp.cave||S.exp.sea))?1:0),morale=E&&(E.med||E.radio)?1:0;return{P:base+gear+morale+(hasBp("drills")?1:0),base,gear,morale}}
+  return(hasBp("maps")?1:0)+(deep?1+(hasArt("lamp")?1:0)+(S.gear.lamps?1:0):(smooth(-.12,.3,dot(sunAt(S.t),T[i].c))>.4?2:1)+(S.unl.lookout?1:0)+(skimOn()?1:0))+(S.gear.scanner?1:0)+(hasArt("lens")?1:0)};
+function squadP(){const base=Math.min(2,1+Math.floor(S.pop/8)),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0))+matStr()+(crawlOn()&&!(S.exp&&(S.exp.cave||S.exp.sea))?(S.gear.crawlplate?2:1):0),morale=E&&(E.med||E.radio)?1:0;return{P:base+gear+morale+(hasBp("drills")?1:0),base,gear,morale}}
 const tripSteps=()=>XC.steps+(hasBp("packs")?6:0)+(S.k.lantern?4:0)+(S.gear.pack?CFG.gear.pack.steps:0)+(S.gear.mule?CFG.gear.mule.steps:0)+(S.cnt.watch>0?6:0)-(S.cnt.decon>0?5:0);
 function sendBlock(){if(S.wounded>0)return"The squad is still recovering ("+Math.ceil(S.wounded)+" s).";if(S.pop<=XC.squad)return"You need more than "+XC.squad+" people to send a squad.";return null}
 let PATH=[],CARD=null,stepT=0,GM={cs:1,ox:0,oy:0};
 function startExp(i){if(S.exp)return;const sea=!land(i);if(sea&&!S.veh.bell)return;   // seas need the diving bell (slice 2)
   const own=sea?!!S.wet[i]:S.owned.has(i);if(!own&&!reachHome(i))return;if(sendBlock())return;
   let sup=-1;if(!own){if(!afford(xcost()))return;pay(xcost());sup=tripSteps();if(S.cnt.watch>0)S.cnt.watch--;if(S.cnt.decon>0)S.cnt.decon--}
-  const M=genMap(i),ms=mapState(i);S.exp={i,sup,pos:M.entry,sea};reveal(ms,M.entry,sightR(i));
+  const M=genMap(i),ms=mapState(i);S.exp={i,sup,pos:M.entry,sea};matTrip(!own,sea);reveal(ms,M.entry,sightR(i));
   if(S.gear.scanner){const ti=M.pois.findIndex((p,ix)=>p.type==="threat"&&!ms.got.includes(ix)&&ms.rev[p.k]!=="1");if(ti>=0)reveal(ms,M.pois[ti].k,0)}
   PATH=[];CARD=null;sel=i;setView("map");save()}
 function endExp(msg){if(msg)say(msg);const aw=!!(S.exp&&S.exp.away);S.exp=null;PATH=[];CARD=null;setView(aw?"away":"surface");save()}
@@ -1843,12 +2190,14 @@ function applyLandmark(i,L){switch(L.fx){
   default:return""}}
 function meet(pi){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[pi],aw=!!e.away;   // away, finds go into the ship's hold
   const L=p.label?"Found "+p.label:null;   // slice 2: wrecks, crystal seams, cave pools, air pockets
-  if(p.type==="cache"){ms.got.push(pi);const v=p.amt*(p.mul||2);if(aw)say(holdMsg(L||"Found a cache","scrap",v));else{S.res.scrap+=v;say((L||"Found a cache")+": "+v+" scrap.")}}
+  if(p.type==="cache"){ms.got.push(pi);if(p.mat){matAdd(p.mat,p.mn||3);say((p.mn||3)+" "+matName(p.mat)+" as well.")}const v=p.amt*(p.mul||2);if(aw)say(holdMsg(L||"Found a cache","scrap",v));else{S.res.scrap+=v;say((L||"Found a cache")+": "+v+" scrap.")}}
   else if(p.type==="spring"){ms.got.push(pi);if(aw)say(holdMsg(L||"Found a clean spring","water",p.amt));else{S.res.water+=p.amt;say((L||"Found a clean spring")+": "+p.amt+" water.")}}
   else if(p.type==="garden"){ms.got.push(pi);if(aw)say(holdMsg(L||"Found edible marsh weed","food",p.amt));else{S.res.food+=p.amt;say((L||"Found a wild garden")+": "+p.amt+" food.")}}
   else if(p.type==="pack"&&aw){ms.got.push(pi);S.x.steps+=XP.packSteps;if(e.sup>=0)e.sup=S.x.steps;say((L||"An old Kestrel supply drop, still sealed")+": "+XP.packSteps+" more steps of rations.")}
   else if(p.type==="pack"){ms.got.push(pi);if(e.sup>=0){e.sup+=XC.packSteps;say((L||"An old field camp with dry rations")+": "+XC.packSteps+" more steps.")}else{S.res.food+=6;say("An old field camp: 6 food.")}}
-  else if(p.type==="cave"){PATH=[];CARD={kind:"cave",pi}}   // never "got": a cave mouth stays open
+  else if(p.type==="cave"){PATH=[];CARD={kind:"cave",pi}}
+  else if(p.type==="place"){PATH=[];CARD={kind:"place",pi}}   // a building: never "got", you can go back in
+  else if(PLACE_FX[p.type])placeFind(pi);   // never "got": a cave mouth stays open
   else if(p.type==="artifact"){ms.got.push(pi);const k=p.art,have=S.arts.includes(k)||(aw&&S.x.arts.includes(k));let note="";
     if(have)note=aw?holdMsg("You already have one like it, so you strip it","scrap",CFG.veh.dupScrap):(S.res.scrap+=CFG.veh.dupScrap,"You already have one like it. It sells for "+CFG.veh.dupScrap+" scrap.");
     else if(aw)S.x.arts.push(k);else S.arts.push(k);
@@ -1895,13 +2244,14 @@ function evDo(code,e,ms,i){const steps=n=>{if(e.sup>=0){if(e.sup<n)return false;
   }return false}
 function resolve(act){const e=S.exp;if(!e||!CARD)return;const M=xGen(e.i),ms=xMS(e.i),aw=!!e.away;
   if(CARD.kind==="threat"){const p=M.pois[CARD.pi],th=thOf(p.t);
+    if(act==="bomb"){matBomb(p,th,ms);return}
     if(act==="fight"&&th.lvl>0){threatFight("quick");return}   // a quick fight: Stick 'Em Up, played out by bots on both sides
     else if(act==="pay"&&aw){if(S.x.steps<th.pay)return;S.x.steps-=th.pay;if(e.sup>=0)e.sup=S.x.steps;ms.got.push(CARD.pi);say(th.payTxt+": the "+th.name.toLowerCase()+" is behind you.");CARD=null;afterClear()}
     else if(act==="pay"&&th.pay&&afford(th.pay)){pay(th.pay);ms.got.push(CARD.pi);say(th.payTxt+": the "+th.name.toLowerCase()+" is behind you.");CARD=null;afterClear()}
     else if(act==="back")CARD=null}
   else if(CARD.kind==="event"){if(act!=="close"){if((aw?aEvDo:evDo)(act,e,ms,e.i))ms.got.push(CARD.pi);else return}CARD=null}
   else if(CARD.kind==="out"){endExp(aw?"The crew ran out of rations and walked back to the ship.":"The squad ran out of supplies and walked home.");return}
-  else if(CARD.kind==="cave"){if(act==="down"){enterCave();return}CARD=null}
+  else if(CARD.kind==="place"){if(act==="enter"){enterPlace(M.pois[CARD.pi].kind);return}CARD=null}else if(CARD.kind==="cave"){if(act==="down"){enterCave();return}CARD=null}
   else CARD=null;
   dirty=true;save()}
 function feature(b,x,y,cs,lit,g){g=g||ctx;g.save();g.translate(x,y);const ink="#16110c";g.strokeStyle=ink;g.lineWidth=Math.max(1,DPR);
@@ -1920,6 +2270,8 @@ function feature(b,x,y,cs,lit,g){g=g||ctx;g.save();g.translate(x,y);const ink="#
   g.restore()}
 function poiIcon(p,x,y,cs,done,now,ix){const s=cs*.3,ink="#16110c";
   if(p.type==="survivor"){person(x,y+cs*.36,cs*.7,7,now,STRANGER,{mood:"worry",f:-1});return}
+  if(p.type==="place"){placeIcon(p.kind,x,y,cs,now);return}
+  if(PLACE_FX[p.type]){placePrize(p.type,x,y,cs);return}
   if(p.type==="village"){tideIcon(x,y,cs,now);return}
   if(p.type==="landmark"){glyph("flag",x,y,cs*.42,done?.8:1);return}
   ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.05);ctx.strokeStyle=ink;
@@ -1939,10 +2291,10 @@ function poiIcon(p,x,y,cs,done,now,ix){const s=cs*.3,ink="#16110c";
   ctx.restore()}
 function drawMap(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle="#0c0a08";ctx.fillRect(0,0,W,H);
-  const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),deep=e.cave?"cave":e.sea?"kelp":"",b=deep||t.b;
+  const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),deep=e.cave?(e.cave.kind&&PLACES[e.cave.kind]?"place:"+e.cave.kind:"cave"):e.sea?"kelp":"",b=deep||t.b;
   const avH=H-24*DPR,cs=Math.floor(Math.min(W/MW,avH/MH)),ox=(W-cs*MW)/2|0,oy=Math.max(0,(avH-cs*MH)/2|0);GM={cs,ox,oy};
   // caves and seabeds have no day or night; their floor takes its own colour
-  const dl=deep?0:smooth(-.12,.3,dot(sunAt(S.t),t.c)),lit=deep?.7:.5+.5*dl,base=e.cave?[78,70,62]:e.sea?(e.away?[34,70,80]:[44,84,74]):t.base;
+  const dl=deep?0:smooth(-.12,.3,dot(sunAt(S.t),t.c)),lit=deep?.7:.5+.5*dl,base=e.cave?(e.cave.kind&&PLACES[e.cave.kind]?PLACES[e.cave.kind].floor:[78,70,62]):e.sea?(e.away?[34,70,80]:[44,84,74]):t.base;
   // the map: the land painted once per light; the fog drawn live on top (cheap, so revealing a cell costs nothing)
   {const lq=Math.round(lit*12)/12,mk=(e.away&&S.x?"a"+S.x.w:"h")+":"+i+":"+b+":"+(e.cave?"c":"")+(e.sea?"s":"")+":"+cs;
     stamp("land:"+mk+":"+lq,cs*MW,cs*MH+cs,ox,oy-cs,g=>{g.translate(0,cs);paintLand(g,i,M,b,base,lq,cs)},"land");   // a cell of margin on top, for the tops of trees
@@ -1954,11 +2306,12 @@ function drawMap(now){
   ctx.globalCompositeOperation="lighter";const lg=ctx.createRadialGradient(sx,sy,0,sx,sy,cs*2.4);lg.addColorStop(0,"rgba(240,164,58,"+(.22+.25*(1-dl)).toFixed(2)+")");lg.addColorStop(1,"rgba(240,164,58,0)");ctx.fillStyle=lg;ctx.fillRect(sx-cs*2.5,sy-cs*2.5,cs*5,cs*5);ctx.globalCompositeOperation="source-over";
   {const sq=squadPeople(),wk=PATH.length>0;person(sx+cs*.2,sy+cs*.42,cs*.64,2,now,sq[1]?lookOf(sq[1]):null,{walk:wk});person(sx-cs*.16,sy+cs*.4,cs*.78,1,now,lookOf(sq[0]),{walk:wk})}
   if(e.sea){ctx.strokeStyle="rgba(232,220,194,.8)";ctx.lineWidth=Math.max(1.5,cs*.05);ctx.beginPath();ctx.arc(sx,sy+cs*.42,cs*.5,Math.PI,0);ctx.stroke()}   // the diving bell
-  if(e.cave){const rx=ox+(M.entry%MW+.5)*cs,ry=oy+((M.entry/MW)|0)*cs;ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,cs*.04);ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx,ry+cs*.8);ctx.stroke()}   // the rope back up
+  if(e.cave&&e.cave.kind)placeExit(ox,oy,M,cs);else if(e.cave){const rx=ox+(M.entry%MW+.5)*cs,ry=oy+((M.entry/MW)|0)*cs;ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,cs*.04);ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx,ry+cs*.8);ctx.stroke()}   // the rope back up
   ctx.strokeStyle="#3a3127";ctx.lineWidth=DPR;ctx.strokeRect(ox+.5,oy+.5,cs*MW-1,cs*MH-1);
 }
 function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i),aw=!!e.away;
   if(CARD){
+    if(CARD.kind==="place")return placeDoorHTML(M.pois[CARD.pi]);if(CARD.kind==="find")return placeFindHTML();
     if(CARD.kind==="cave")return'<div class="meta">Cave mouth</div><div class="tile-h">A way down</div><p>Cold air breathes out of a crack in the ground, and it goes down a long way. Inside it is dark: you see less, and there is no day or night.</p>'+
       '<div class="acts">'+btn("down","Climb down","Walking down there uses the same "+(aw?"rations":"supplies"),null,"primary")+btn("back","Not now","It stays open",null)+"</div>";
     if(CARD.kind==="artifact"){const A=ARTS[CARD.art];return'<div class="meta">Rare artifact</div><div class="tile-h">'+A.name+"</div><p>"+A.desc+"</p><p><b>"+A.txt+"</b> "+(CARD.note||(aw?"It works once the crew brings it home.":"It works from now on."))+'</p><div class="acts">'+btn("ok","Keep exploring","",null,"primary")+"</div>"}
@@ -1970,7 +2323,7 @@ function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i)
       if(th.lvl>0)h+="<p>"+(aw?"Crew":"Squad")+" strength "+P+" ("+q.base+" from your people"+(q.gear?", "+q.gear+" from gear":"")+(q.morale?", "+q.morale+(aw?" from skill and rest":" from morale"):"")+") against danger "+th.lvl+": "+pct+"% to win. If you lose, the "+(aw?"crew goes back to the ship hurt":"squad comes home hurt")+" and rests for a while. The threat stays. Nobody dies.</p>";
       if(th.lvl>0)h=foePic(FO)+h+threatAbHTML(FO);
       const payB=aw?btn("pay",th.payTxt,"Costs "+th.pay+" steps of rations · always works",null,th.lvl>0?"":"primary",S.x.steps<th.pay):btn("pay",th.payTxt,"Costs "+costText(th.pay)+" · always works",th.pay,th.lvl>0?"":"primary");
-      h+='<div class="acts">'+(th.lvl>0?btn("play","Fight it out","You work the stick · "+FW[fightWeapon()].name.toLowerCase(),null,"primary")+btn("fight","Quick fight",pct+"% to win",null):"")+payB+btn("back","Step back","Deal with it later",null)+
+      h+='<div class="acts">'+(th.lvl>0?btn("play","Fight it out","You work the stick · "+FW[fightWeapon()].name.toLowerCase(),null,"primary")+btn("fight","Quick fight",pct+"% to win",null):"")+payB+matBombBtn(th)+btn("back","Step back","Deal with it later",null)+
         (th.lvl>0&&fightWeapons().length>1?btn("fw","Weapon: "+FW[fightWeapon()].name,"Tap to switch",null):"")+(th.lvl>0&&abKnown().some(abActive)?btn("fab","Abilities","Pick the two you bring",null):"")+"</div>";return h}
     if(CARD.kind==="village")return tideCardHTML();if(CARD.kind==="event"&&aw){const ev=AEVENTS[M.pois[CARD.pi].e];return'<div class="meta">Event</div><div class="tile-h">'+ev.title+"</div><p>"+ev.text+'</p><div class="acts">'+
       ev.opts.map((o,j)=>btn("ev:"+o[1],o[0],(o[2]?"Costs "+o[2]+" steps"+(o[3]?" · ":""):"")+(o[3]||(o[1]==="close"?"It stays here for later":"")),null,j===0?"primary":"",o[2]>S.x.steps)).join("")+"</div>"}
@@ -1983,6 +2336,7 @@ function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i)
     if(CARD.kind==="out")return'<div class="tile-h">Out of supplies</div><p>The squad has to turn back. What you found and cleared stays found and cleared.</p><div class="acts">'+btn("out","Head home","",null,"primary")+"</div>";
   }
   const own=xOwn(i),tl=xThreatsLeft(i),lm=aw?null:landmarkOf(i),q=aw?crewP():squadP(),sup=e.sup>=0?(aw?"Rations: <b>"+e.sup+"</b> steps.":"Supplies: <b>"+e.sup+"</b> steps."):(aw?"No rations needed here.":"No supplies needed here.");
+  if(e.cave&&e.cave.kind&&PLACES[e.cave.kind])return placeInsideHTML(e,i,M,sup,tl,q,aw);
   if(e.cave||e.sea){const where=e.cave?"The cave under the "+bi.name.toLowerCase():(own?"Charted water":"Diving the "+bi.name.toLowerCase());   // slice 2: underground and under water
     return'<div class="meta">Tile '+i+" · "+(e.cave?"cave":bi.name)+" · "+Math.round(xExplored(i)*100)+"% explored</div>"+'<div class="tile-h">'+where+"</div>"+
       "<p>"+sup+" "+(e.cave?"It's dark down here, so you see less.":"Silt slows you down. The bell's lamp is all the light there is.")+" "+(tl?tl+" threat"+(tl>1?"s":"")+" left"+(e.sea&&!own?" before the water is charted.":"."):"No threats left.")+(aw?" Hold "+holdUsed()+" / "+S.x.cap+".":"")+" "+(aw?"Crew":"Squad")+" strength "+q.P+".</p>"+
@@ -1992,7 +2346,7 @@ function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i)
     '<div class="tile-h">'+(own?(aw?"Walking charted land":"Walking your land"):"Exploring "+bi.name.toLowerCase())+"</div>"+
     "<p>"+(own?(aw?"No rations needed here.":"No supplies needed here."):aw?"Rations: <b>"+e.sup+"</b> steps. Mud costs 2. Going back to the ship is free.":"Supplies: <b>"+e.sup+"</b> steps. Rubble costs 2. Heading home is free.")+" "+
     (tl?tl+" threat"+(tl>1?"s":"")+" left"+(own?".":" to clear before it's "+(aw?"charted.":"yours.")):"No threats left.")+(lm?" Landmark: "+lm.name+".":"")+(aw?" Hold "+holdUsed()+" / "+S.x.cap+".":"")+" "+(aw?"Crew":"Squad")+" strength "+q.P+".</p>"+
-    '<p class="meta">◆ threat · ▣ cache · drop = spring · leaves = garden · ? = event · flag = '+(aw?"site · pack = supply drop":"landmark · figure = survivor · pack = field camp")+" · dark arch = cave mouth</p>"+
+    '<p class="meta">◆ threat · ▣ cache · drop = spring · leaves = garden · ? = event · flag = '+(aw?"site · pack = supply drop":"landmark · figure = survivor · pack = field camp")+" · dark arch = cave mouth · building = a place to go in</p>"+
     '<div class="acts">'+btn("leave",aw?"Back to the ship":"Head home","Progress here is kept",null)+"</div>"}
 
 // ---------------------------------------------------------------- expeditions: the ship, the Ashen system and a second world
@@ -2083,7 +2437,7 @@ function awayMap(key,i){const id=key+":"+i;if(AMAPS.has(id))return AMAPS.get(id)
     if(R()<(b==="spire"?1:.55)){const fam=A_LM[b];add("landmark",{cx:fam[R()*fam.length|0]})}
     if(key==="mire"&&i===tideTile())add("village");   // slice 3: the Tidefolk live here
   }
-  const m=addCaveMouth({g,pois,entry},i,b,key);AMAPS.set(id,m);return m}
+  const m=addPlace(addCaveMouth({g,pois,entry},i,b,key),i,b,key);AMAPS.set(id,m);return m}
 function aMapState(key,i){const w=xw(key);let ms=w.maps[i];if(!ms){const M=awayMap(key,i);ms=w.maps[i]={rev:"0".repeat(MW*MH),got:[],att:{}};
   if(w.charted[i])M.pois.forEach((p,ix)=>{if(p.type==="threat")ms.got.push(ix)})}return ms}
 const aThreats=(key,i)=>{const M=awayMap(key,i),ms=xw(key).maps[i];return M.pois.filter((p,ix)=>p.type==="threat"&&!(ms&&ms.got.includes(ix))).length};
@@ -2092,8 +2446,8 @@ const aSite=(key,i)=>{const M=awayMap(key,i),ix=M.pois.findIndex(p=>p.type==="la
 // routing for the tile-map code: the home world, or the world the crew is walking
 const XA=()=>!!(S.exp&&S.exp.away);
 const inCave=()=>!!(S.exp&&S.exp.cave);   // slice 2: a cave map under the tile the squad is on
-const xGen=i=>inCave()?caveMap(i,XA()?S.exp.w:null):XA()?awayMap(S.exp.w,i):genMap(i);
-const xMS=i=>inCave()?caveState(i,XA()?S.exp.w:null):XA()?aMapState(S.exp.w,i):S.maps[i];
+const xGen=i=>inCave()?(S.exp.cave.kind?placeMap(i,XA()?S.exp.w:null,S.exp.cave.kind):caveMap(i,XA()?S.exp.w:null)):XA()?awayMap(S.exp.w,i):genMap(i);
+const xMS=i=>inCave()?(S.exp.cave.kind?placeState(i,XA()?S.exp.w:null):caveState(i,XA()?S.exp.w:null)):XA()?aMapState(S.exp.w,i):S.maps[i];
 const xTile=i=>XA()?awayTiles(S.exp.w)[i]:T[i];
 const xBio=i=>XA()?ABIOME[xTile(i).b]:BIOME[T[i].b];
 const xOwn=i=>XA()?!!xw(S.exp.w).charted[i]:land(i)?S.owned.has(i):!!S.wet[i];
@@ -2103,7 +2457,7 @@ const xExplored=i=>{const ms=xMS(i);if(!ms)return 0;let n=0;for(const c of ms.re
 // the ship and the trip
 const crewNames=a=>a.length<2?(a[0]?a[0].name:"nobody"):a.slice(0,-1).map(p=>p.name).join(", ")+" and "+a.at(-1).name;
 const xDest=()=>XWORLDS[S.k.dest]||XWORLDS.mire;
-const holdCap=(d,veh)=>Math.max(0,XP.hold.base+XP.hold.perPod*Math.max(0,Math.min(XP.maxPods,d.pods|0))-(veh?CFG.veh.holdSlots:0))*XP.hold.unit;
+const holdCap=(d,veh)=>Math.max(0,XP.hold.base+(S.gear&&S.gear.frame?1:0)+XP.hold.perPod*Math.max(0,Math.min(XP.maxPods,d.pods|0))-(veh?CFG.veh.holdSlots:0))*XP.hold.unit;
 const holdUsed=()=>S.x?S.x.hold.scrap+S.x.hold.water+S.x.hold.food:0;
 const rationCost=n=>{const k=Math.ceil(n/XP.rations.pack);return{food:k*XP.rations.food,water:k*XP.rations.water}};
 const partsTotal=list=>list.reduce((a,p)=>a+SP.parts[p].cost,0);
@@ -2124,8 +2478,8 @@ function sanX(x){if(!x||typeof x!=="object"||!XWORLDS[x.w]||XWORLDS[x.w].drive||
     enc:x.enc&&typeof x.enc==="object"&&SPACE_FOES[x.enc.k]?{k:x.enc.k,t:+x.enc.t||0,seed:x.enc.seed>>>0,att:x.enc.att|0}:null,encLeg:typeof x.encLeg==="string"?x.encLeg:""}}
 function holdMsg(what,k,v){const x=S.x,take=Math.min(v,Math.max(0,x.cap-holdUsed()));x.hold[k]+=take;
   return what+(take>=v?": "+v+" "+k+" into the hold.":take>0?": "+take+" "+k+" into the hold, which is now full. You leave "+(v-take)+".":", but the hold is full. You leave the "+v+" "+k+".")}
-function crewP(){const c=S.x?S.x.crew:[],base=Math.min(2,c.length),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0)),scav=c.some(p=>p.sk==="scav"&&p.lv>=2)?1:0,
-  song=S.x&&S.exp&&S.x.boost===S.exp.i?1:0,veh=S.x&&S.x.veh==="crawler"&&!(S.exp&&(S.exp.cave||S.exp.sea))?1:0,shell=hasArt("shell")?1:0;
+function crewP(){const c=S.x?S.x.crew:[],base=Math.min(2,c.length),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0))+matStr(),scav=c.some(p=>p.sk==="scav"&&p.lv>=2)?1:0,
+  song=S.x&&S.exp&&S.x.boost===S.exp.i?1:0,veh=S.x&&S.x.veh==="crawler"&&!(S.exp&&(S.exp.cave||S.exp.sea))?(S.gear.crawlplate?2:1):0,shell=hasArt("shell")?1:0;
   return{P:base+gear+veh+scav+song+shell,base,gear:gear+veh,morale:scav+song+shell}}
 function defaultCrew(){return S.people.slice().sort((a,b)=>((b.sk==="scav")*b.lv-(a.sk==="scav")*a.lv)||a.id-b.id).slice(0,Math.min(SP.parts.capsule.seats,Math.max(0,S.people.length-2))).map(p=>p.id)}
 function xChecks(r){const d=r.d,D=xDest(),crew=S.people.filter(p=>(S.k.crew||[]).includes(p.id)),n=S.k.rations|0,rc=rationCost(n),out=[];
@@ -2150,7 +2504,7 @@ function launchExp(){if(mission()!=="exped"||S.k.flight||S.x)return;const d=S.k.
   S.people=S.people.filter(p=>!crew.includes(p));S.pop=S.people.length;CAMS.away=null;
   const veh=S.veh[S.k.veh]?S.k.veh:"";
   S.x={w:S.k.dest,phase:"ascent",t:0,total:XWORLDS[S.k.dest].travel,crew,steps:S.k.rations,hold:{scrap:0,water:0,food:0},cap:holdCap(d,veh),notes:[],site:-1,hurt:0,boost:-1,
-    paid:{parts:r.cost,rations:rc,fuel:r.fuelUnits},veh,arts:[],glyphs:0};
+    paid:{parts:r.cost,rations:rc,fuel:r.fuelUnits},veh,arts:[],glyphs:0};matWear("ship");
   const fail=r.margin<SP.riskMargin&&h3(S.k.launches,S.k.tele,909)<.5;
   S.k.flight={t:0,ms:"exped",fail,cost:partsTotal(r.list),pad:padTile()};focus=padTile();sel=padTile();selOrb=-1;showPeople=false;
   say("The expedition ship is on the pad with "+crewNames(crew)+" aboard. Ignition.");E=econ();dirty=true;save()}
@@ -2171,7 +2525,7 @@ function landAt(i){const x=S.x;if(!x||x.phase!=="orbit"||i<0)return;const A=away
   say("Landed on "+XWORLDS[x.w].name+", on the "+ABIOME[A[i].b].name.toLowerCase()+". "+crewNames(x.crew)+" step out.");sel=i;focus=i;dirty=true;save()}
 function startAwayExp(i){const x=S.x;if(!x||x.phase!=="landed"||S.exp||i<0||x.hurt>0)return;const w=xw(x.w),A=awayTiles(x.w),sea=A[i].b==="msea";if(sea&&x.veh!=="bell")return;
   const own=!!w.charted[i];if(!own&&(!reachAway(x.w,i,x.veh)||x.steps<=0))return;
-  const M=awayMap(x.w,i),ms=aMapState(x.w,i);S.exp={i,away:true,w:x.w,sup:own?-1:x.steps,pos:M.entry,sea};reveal(ms,M.entry,sightR(i));
+  const M=awayMap(x.w,i),ms=aMapState(x.w,i);S.exp={i,away:true,w:x.w,sup:own?-1:x.steps,pos:M.entry,sea};matTrip(!own,sea,x.veh||"");reveal(ms,M.entry,sightR(i));
   if(S.gear.scanner){const ti=M.pois.findIndex((p,ix)=>p.type==="threat"&&!ms.got.includes(ix)&&ms.rev[p.k]!=="1");if(ti>=0)reveal(ms,M.pois[ti].k,0)}
   PATH=[];CARD=null;sel=i;setView("map");save()}
 function flyHome(){const x=S.x;if(!x||(x.phase!=="landed"&&x.phase!=="orbit")||S.exp)return;x.phase="back";x.t=0;x.total=XWORLDS[x.w].travel;
@@ -2335,7 +2689,7 @@ const hasArt=k=>!!(S&&S.arts&&S.arts.includes(k));
 const skimOn=()=>S.exp&&S.exp.away?!!(S.x&&S.x.veh==="skimmer"):!!(S.veh&&S.veh.skimmer);
 const crawlOn=()=>S.exp&&S.exp.away?!!(S.x&&S.x.veh==="crawler"):!!(S.veh&&S.veh.crawler);
 const stepCost=(M,k)=>M.g[k]===2&&!(crawlOn()&&S.exp&&!S.exp.cave&&!S.exp.sea)?2:1;   // the crawler rolls over rough ground on the surface
-const reachN=sk=>sk?CFG.veh.reach+(hasArt("compass")?1:0):1;
+const reachN=sk=>sk?CFG.veh.reach+(hasArt("compass")?1:0)+(S.gear.fans?1:0):1;
 function reachHome(i){for(const j of ring([i],reachN(!!(S.veh&&S.veh.skimmer))))if(j!==i&&(S.owned.has(j)||S.wet[j]))return true;return false}
 function reachAway(key,i,veh){const w=xw(key);for(const j of ring([i],reachN(veh==="skimmer")))if(j!==i&&w.charted[j])return true;return false}
 // map makers for caves and seabeds (the home land generator stays as it was, so old saves keep their maps)
@@ -5109,10 +5463,10 @@ function threatFight(mode){const e=S.exp;if(!e||!CARD||CARD.kind!=="threat")retu
   fightIn()}
 // the fight is settled: the same results as before for winning and losing (and beating something teaches you)
 function threatOutcome(win,g){const e=S.exp;if(!e||!CARD||CARD.kind!=="threat")return;const M=xGen(e.i),ms=xMS(e.i),t=M.pois[CARD.pi].t,th=thOf(t),aw=!!e.away,
-    score=g?" "+g.wins[0]+"–"+g.wins[1]+".":"",nm=th.name.toLowerCase();
-  if(win){S.beat=S.beat||{};S.beat[t]=(S.beat[t]|0)+1;ms.got.push(CARD.pi);if(aw)say(holdMsg("Popped "+nm+score.replace(/\.$/,"")+" and drove them off","scrap",6*th.lvl));else{S.res.scrap+=6*th.lvl;say("Popped "+nm+score+" "+6*th.lvl+" scrap in what they left.")}CARD=null;afterClear()}
-  else if(aw){CARD=null;S.x.hurt=XP.hurtSecs*(S.x.crew.some(p=>p.tr==="cautious")?.5:1);endExp("The "+nm+" popped the crew"+score.replace(/\.$/,"")+". They limp back to the ship, hurt but alive.");return}
-  else{CARD=null;S.wounded=XC.woundedSecs*(E.squad.some(p=>p.tr==="cautious")?.5:1);endExp("The "+nm+" popped the squad"+score.replace(/\.$/,"")+". They limp home, hurt but alive.");return}
+    score=g?" "+g.wins[0]+"–"+g.wins[1]+".":"",nm=th.name.toLowerCase();matAfterFight(win,aw);
+  if(win){S.beat=S.beat||{};S.beat[t]=(S.beat[t]|0)+1;ms.got.push(CARD.pi);matDrop(t,th.name);if(aw)say(holdMsg("Popped "+nm+score.replace(/\.$/,"")+" and drove them off","scrap",6*th.lvl));else{S.res.scrap+=6*th.lvl;say("Popped "+nm+score+" "+6*th.lvl+" scrap in what they left.")}CARD=null;afterClear()}
+  else if(aw){CARD=null;S.x.hurt=XP.hurtSecs*(S.x.crew.some(p=>p.tr==="cautious")?.5:1);endExp("The "+nm+" popped the crew"+score.replace(/\.$/,"")+". They limp back to the ship, hurt but alive."+matHeal("x"));return}
+  else{CARD=null;S.wounded=XC.woundedSecs*(E.squad.some(p=>p.tr==="cautious")?.5:1);endExp("The "+nm+" popped the squad"+score.replace(/\.$/,"")+". They limp home, hurt but alive."+matHeal());return}
   dirty=true;save()}
 // ---- the fight view: the canvas is the stage, the drawer holds the stick, the button and the ability buttons
 const FK={up:0,down:0,left:0,right:0,btn:false},FT={x:0,y:0,id:null,btn:false};
@@ -5278,16 +5632,16 @@ function belowHTML(){
   let h=back+'<div class="meta">Row '+(r+1)+" · "+((r+1)*4)+" m down · "+st.name+"</div>";
   if(cell&&cell.d&&cell.room){const id="u:"+selU,def=ROOM[cell.room],on=E.on.has(id),why=E.paused.get(id),n=Math.min(CFG.mergeMax,runLen(selU));
     h+='<div class="tile-h">'+def.name+"</div><p>"+def.what+". "+(def.power?"Uses "+def.power+" power. ":"");
-    h+=on?(def.staff?(workerNote(id)||"Someone is working here."):"Running."):why==="no power"?"<b>Paused: not enough power.</b> Build or staff a generator. Its worker is free for other jobs.":"<b>Paused: nobody free to work here.</b>";
+    h+=on?(def.staff?(workerNote(id)||"Someone is working here."):"Running."):why==="worked out"?"<b>The vein is worked out.</b> Strip the mine for parts, then dig for another vein.":why==="no power"?"<b>Paused: not enough power.</b> Build or staff a generator. Its worker is free for other jobs.":"<b>Paused: nobody free to work here.</b>";
     if(n>1&&["hydro","pump","shop","algae"].includes(cell.room))h+=" Joined with "+(n-1)+" more of the same: +"+Math.round((n-1)*CFG.mergeBonus*100)+"%.";
-    if(cell.f==="aquifer")h+=" Water runs through this wall.";
+    if(cell.f==="aquifer")h+=" Water runs through this wall.";if(cell.room==="mine")h+=mineNote(selU);
     h+="</p>"+tempNote(cell.room);
     if(cell.room==="shop"){const left=Object.keys(CFG.gear).filter(g=>!S.gear[g]);
-      h+=on?(left.length?"<p>Craft gear for the squad. Each piece is made once and kept.</p><div class=\"acts\">"+left.map(g=>btn("gear:"+g,CFG.gear[g].name,CFG.gear[g].what+" · "+costText(CFG.gear[g].cost),CFG.gear[g].cost)).join("")+"</div>":"<p>All squad gear is made.</p>"):"<p>When this workshop is running you can craft squad gear here.</p>"}
+      h+=on?(left.length?"<p>Craft gear for the squad. Each piece is made once and kept.</p><div class=\"acts\">"+left.map(g=>btn("gear:"+g,CFG.gear[g].name,CFG.gear[g].what+" · "+costText(CFG.gear[g].cost),CFG.gear[g].cost)).join("")+"</div>":"<p>All squad gear is made.</p>"):"<p>When this workshop is running you can craft squad gear here.</p>";if(on)h+=matShopHTML()}
     return h+'<div class="acts">'+btn("uraze","Strip it","Get some parts back",null,"warn")+"</div>"}
   if(cell&&cell.d){
     if(shaft)return h+(S.h.secret?siloHTML():'<div class="tile-h">Elevator shaft</div><p>Connects every row. Dig the cell below it to open the next row down.</p>');
-    h+='<div class="tile-h">Open space</div><p>'+(cell.f==="aquifer"?"Water runs through this wall: a pump here makes about twice as much. ":"")+"Fit it out. Producing rooms of the same kind side by side work better together (up to 3). Power left: "+(E.power.supply-E.power.demand)+".</p><div class=\"acts\">";
+    h+='<div class="tile-h">Open space</div><p>'+(cell.f==="aquifer"?"Water runs through this wall: a pump here makes about twice as much. ":"")+mineOpen(selU)+"Fit it out. Producing rooms of the same kind side by side work better together (up to 3). Power left: "+(E.power.supply-E.power.demand)+".</p><div class=\"acts\">"+mineBtn(selU);
     for(const k of ROOM_LIST.filter(k=>(k!=="fuel"||padTile()>=0)&&(k!=="algae"||S.unl.algae))){const co=ugCost(k,selU),d=ROOM[k];h+=btn("room:"+k,d.name,d.what+(d.power?" · "+d.power+" power":"")+(d.staff?" · 1 worker":"")+" · "+costText(co),co)}
     return h+"</div>"}
   h+='<div class="tile-h">'+(shaft?"Shaft rock":st.name)+"</div>";
@@ -5314,7 +5668,7 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;doAct(b.dataset.act);renderPanel()});
 function doAct(a){
-  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}
+  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}
   if(a==="play"){threatFight("play");return}if(a==="fauto"){if(FIGHT)PUP.hand(FIGHT.g,0,FIGHT.lvYou);dirty=true;return}if(a==="fquit"){fightGiveUp();return}
   if(a==="fw"){const ws=fightWeapons();S.fw=ws[(ws.indexOf(fightWeapon())+1)%ws.length];dirty=true;return}
   if(a==="fab"){if(CARD)CARD.abPick=!CARD.abPick;dirty=true;return}if(a.startsWith("fab:")){abToggle(a.slice(4));dirty=true;return}   // abilities
@@ -5323,14 +5677,14 @@ function doAct(a){
   else if(a==="xlaunch")launchExp();else if(a==="land")landAt(sel);else if(a==="xexplore"||a==="xwalk")startAwayExp(VIEW==="away"&&S.x&&a==="xwalk"&&sel<0?S.x.site:sel);
   else if(a==="flyhome")flyHome();else if(a.startsWith("dump:"))dumpHold(a.slice(5));
   else if(a==="sys"){if(S.x)sBody=S.x.w;showPeople=false;setView("stars")}
-  else if(a==="down")resolve("down");else if(a==="upcave")exitCave();else if(a.startsWith("veh:"))buildVeh(a.slice(4));   // slice 2
+  else if(a==="down"||a==="enter")resolve(a);else if(a==="upcave")exitCave();else if(a.startsWith("veh:"))buildVeh(a.slice(4));   // slice 2
   else if(a==="view:home")setView("surface");else if(a==="view:away")setView("away");
   else if(a==="claim")claim(sel);else if(a==="raze")raze(sel);else if(a.startsWith("build:"))build(sel,a.slice(6));
   else if(a.startsWith("gear:"))craft(a.slice(5));else if(a.startsWith("silo:"))startSilo(a.slice(5));else if(a==="hide")hideAll();else if(a==="resume")resumeSilo();
   else if(a==="quota")payQuota();else if(a==="release")releaseDetained();else if(a.startsWith("hold:"))holdAct(a.slice(5));
   else if(a==="harvest-arm"){S.h.arming=1;dirty=true}else if(a==="harvest-cancel"){S.h.arming=0;dirty=true}else if(a==="harvest-go")harvestGo();else if(a.startsWith("rk:"))designAct(a.slice(3));else if(a==="launch")launch();else if(a==="survey")doSurvey();
   else if(a==="explore"||a==="walk")startExp(sel);else if(a==="leave")endExp(null);
-  else if(["fight","pay","back","ok","out"].includes(a))resolve(a);else if(a.startsWith("ev:"))resolve(a.slice(3));
+  else if(["fight","pay","back","ok","out","bomb"].includes(a))resolve(a);else if(a.startsWith("ev:"))resolve(a.slice(3));
   else if(a==="hatch"){openHatch(false);if(S.hatch)setView("below")}
   else if(a==="below")setView("below");else if(a==="surface")setView("surface");
   else if(a==="dig")startDig(selU);else if(a==="uraze")ugRaze(selU);else if(a.startsWith("room:"))buildRoom(selU,a.slice(5));else if(a.startsWith("bp:"))startResearch(a.slice(3));else if(a==="rs"){showPeople=true;showRs=true}else if(a==="rsback")showRs=false;else if(a.startsWith("teach:"))teach(+a.slice(6));else if(a==="rsstop"){S.rs=null;dirty=true}
@@ -5352,14 +5706,14 @@ function hud(){
     let txt=rate(v);if(v<0&&have>0){const s=have/-v;txt+=" · "+(s>=3600?Math.floor(s/3600)+"h":s>=60?Math.floor(s/60)+"m":Math.ceil(s)+"s")+" left"}else if(v<0)txt="empty";else if(have>=E.store-.5)txt="full · "+E.store;
     el.textContent=txt;el.className=v<0?"neg":""}
   $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight";
-  $("r-pop").textContent=S.pop+" / "+E.cap;
+  $("r-pop").textContent=S.pop+" / "+E.cap;matHud();
   const unstaffed=E.needStaff-E.st.size,dp=$("d-pop");dp.textContent=S.exp&&!S.exp.away?XC.squad+" out exploring":S.wounded>0?"squad resting":unstaffed>0?unstaffed+" job"+(unstaffed>1?"s":"")+" empty":
     S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";dp.className=unstaffed>0?"neg":"";
   $("clock").innerHTML=(S.world?WORLDS[Math.min(S.world,WORLDS.length-1)].name+" · ":"")+"Day <b>"+day()+"</b> · "+partOfDay()+(S.x?" · "+xShort():"")+(republicHere()&&S.h.secret?" · suspicion <b"+(S.h.susp>=50?' class="hot"':"")+">"+Math.round(S.h.susp)+"</b>":"");
   const al=alertText(),ab=$("alert");if(al){const sig=al.t+al.b.map(x=>x[0]).join();if(ab.dataset.sig!==sig){ab.dataset.sig=sig;ab.innerHTML="<span>"+al.t+"</span>"+al.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+x[1]+"</span></button>").join("")}ab.hidden=false}else ab.hidden=true;
   const tl=VIEW==="map"&&S.exp?xThreatsLeft(S.exp.i):0;
   if(VIEW==="fight"&&FIGHT){const g=FIGHT.g,sig=g.wins.join()+g.f[0].ctl+g.f.map(f=>Object.keys(f.abU).join("")).join("|");if(sig!==lastFSig){lastFSig=sig;dirty=true}}
-  $("legend").textContent=VIEW==="fight"&&FIGHT?(FIGHT.kind==="space"?"Space battle":"Fight")+" · "+PUP.WPN[FIGHT.wk].name.toLowerCase()+" · pop them "+FIGHT.g.needs[0]+"× before they pop you "+FIGHT.g.needs[1]+"×":VIEW==="map"&&S.exp?(S.exp.cave?"In the cave · ":S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
+  $("legend").textContent=VIEW==="fight"&&FIGHT?(FIGHT.kind==="space"?"Space battle":"Fight")+" · "+PUP.WPN[FIGHT.wk].name.toLowerCase()+" · pop them "+FIGHT.g.needs[0]+"× before they pop you "+FIGHT.g.needs[1]+"×":VIEW==="map"&&S.exp?(S.exp.cave?(S.exp.cave.kind&&PLACES[S.exp.cave.kind]?"Inside the "+PLACES[S.exp.cave.kind].name.toLowerCase()+" · ":"In the cave · "):S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
     VIEW==="stars"&&ATL.open?"Library atlas · "+atlSys().star.name+" · "+atlSys().galaxy.name:
     VIEW==="stars"?"The Ashen system"+(S.x?" · "+xShort():"")+" · codex "+S.codex.found.length:
     VIEW==="away"&&S.x?(S.x.phase==="orbit"?"In orbit over "+XWORLDS[S.x.w].name+" · tap a tile to land":XWORLDS[S.x.w].name+" · "+S.x.steps+" steps of rations · hold "+Math.floor(holdUsed())+"/"+S.x.cap):VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand+" · "+deg(E.temp)+" in, "+deg(E.tOut)+" out":S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
@@ -5416,7 +5770,7 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
