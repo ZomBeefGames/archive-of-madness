@@ -622,6 +622,7 @@ function partOfDay(){const l=dot(sunAt(S.t),T[START].c),l2=dot(sunAt(S.t+2),T[ST
 
 // ---------------------------------------------------------------- view
 const stage=document.getElementById("stage"),cv=document.getElementById("globe"),ctx=cv.getContext("2d");
+const ZMAX=5;   // how far the globe zooms in (people at work read well from about 3x)
 let W=1,H=1,DPR=1,zoom=1,R=[1,0,0,0,1,0,0,0,1],vel=[0,0],focus=null,lastTouch=0,sel=START;
 function faceR(c){const z=c,x=norm(cross([0,1,0],z)),y=cross(z,x);return[...x,...y,...z]}
 function resize(){const r=stage.getBoundingClientRect();DPR=Math.min(window.devicePixelRatio||1,2);W=Math.max(1,Math.round(r.width*DPR));H=Math.max(1,Math.round(r.height*DPR));cv.width=W;cv.height=H}
@@ -708,7 +709,9 @@ function draw(now){
     if(BLDS[i])obs.push([z,BLDS[i],x,y,s,a,dl,i,1]);else if(T[i].pent&&SEEN.has(i))obs.push([z,"spire",x,y,s*.9,a,dl,i,OWN.has(i)?1:.8]);
     else if(MP[i]&&OWN.has(i)&&LMOF(i))obs.push([z,"flag",x,y,s,a,dl,i,1]);
     else if(MP[i]&&!OWN.has(i)){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(x,y,Math.max(1.5*DPR,s*.22),0,6.2832);ctx.fill()}}
-  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs)model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
+  if(!AW)walkers(vis,cx,cy,r,tr,now,obs);   // people out on your tiles (the WALK block)
+  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs){if(o[1]==="_w")drawWalker(o,now);else if(o[1]==="_f")wkFire(o,now);else model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
+  if(!AW)walkAfter(now,cx,cy,r,tr)}
   drawOrbits(true,cx,cy,r,now);if(!AW)drawFlight(cx,cy,r,now);
   if(ck){const p=applyM(R,T[START].c),a=1+Math.max(0,cp-.35)*1.4,x=cx+p[0]*r*a,y=cy-p[1]*r*a;if(p[2]>-.2){ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.arc(x,y,5*DPR,0,6.2832);ctx.fill();ctx.stroke()}
     if(cp>.8){ctx.fillStyle="rgba(255,236,200,"+((cp-.8)*5).toFixed(2)+")";ctx.fillRect(0,0,W,H)}}
@@ -1365,6 +1368,125 @@ function drawFog(ox,oy,i,ms,cs){const N=MW*MH,A=[.5,.32,.18,.07],d=cs*.09,E=[[],
       for(let q=0;q<4;q++)E[q].push(dx?[dx>0?x+cs-d*(q+1):x+d*q,y,d,cs]:[x,dy>0?y+cs-d*(q+1):y+d*q,cs,d])}}
   for(let q=0;q<4;q++){if(!E[q].length)continue;ctx.fillStyle="rgba(21,18,14,"+A[q]+")";ctx.beginPath();for(const r of E[q])ctx.rect(r[0],r[1],r[2],r[3]);ctx.fill()}}
 // ==== GFX (end) ====
+// ==== WALK (start) ====
+// People out on your tiles. Each surface worker walks about the tile they work on, doing the job: a scavenger
+// digs in the rubble and carries scrap to the tent, a still-keeper fetches water, a grower tends the beds, the
+// tower hand hammers and listens to the radio, the pad crew haul rocket parts. Every few rounds a worker carries
+// the take home to the bunker across your land and walks back. Whoever has no job wanders near the hatch and sits
+// by a fire at night, and the squad marches on the tile it is exploring. Nothing here is saved: where someone is
+// comes from the clock, so it costs nothing to keep and never drifts. (Tile-local spots: u to the right on
+// screen, v toward the viewer, both in units of the tile's inner radius, so they sit around the building model.)
+const WK={size:.86,rho:.066,walk:2.4,leg:4.2,reps:3,maxIdle:6,tiny:7};
+const wkDot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+function wkBasis(c){   // a tangent frame at c lined up with the screen, so spots keep their place around the model
+  const rx=[R[0],R[1],R[2]],ry=[-R[3],-R[4],-R[5]],a=wkDot(rx,c),b=wkDot(ry,c);
+  let e=[rx[0]-c[0]*a,rx[1]-c[1]*a,rx[2]-c[2]*a],n=[ry[0]-c[0]*b,ry[1]-c[1]*b,ry[2]-c[2]*b];
+  const le=Math.hypot(e[0],e[1],e[2]),ln=Math.hypot(n[0],n[1],n[2]);if(le<1e-6||ln<1e-6)return null;
+  return[[e[0]/le,e[1]/le,e[2]/le],[n[0]/ln,n[1]/ln,n[2]/ln]]}
+function wkToward(i,j,B,f){const c=T[i].c,d=[T[j].c[0]-c[0],T[j].c[1]-c[1],T[j].c[2]-c[2]],u=wkDot(d,B[0]),v=wkDot(d,B[1]),l=Math.hypot(u,v)||1;return[u/l*f,v/l*f]}
+// the way home: the shortest walk to the bunker over your own land (kept until you claim more)
+let WK_PREV=null,WK_KEY="";
+function wkPath(i){const key=S.owned.size+"|"+START+"|"+(S.world|0);
+  if(key!==WK_KEY||!WK_PREV){const prev=new Map([[START,-1]]),q=[START];for(let h=0;h<q.length;h++){const a=q[h];for(const b of T[a].n)if(S.owned.has(b)&&!prev.has(b)){prev.set(b,a);q.push(b)}}WK_PREV=prev;WK_KEY=key}
+  if(i===START||!WK_PREV.has(i))return null;const p=[i];let a=i;while(a!==START){a=WK_PREV.get(a);p.push(a);if(p.length>5)return null}return p}
+// who is out there: workers at their tiles (the pad has two), up to six idle people at the hatch, the squad
+let WK_CREW=null;
+function wkCrew(){if(WK_CREW&&WK_CREW.E===E)return WK_CREW.list;const list=[],busy=new Set();
+  if(E&&E.who)for(const[id,p]of E.who){busy.add(p.id);
+    if(typeof id==="number"&&S.bld[id])list.push({p,i:id,job:S.bld[id],slot:0});
+    else if(typeof id==="string"&&id.startsWith("pad2:"))list.push({p,i:+id.slice(5),job:"pad",slot:1})}
+  const squad=E&&E.squad?E.squad:[];for(const p of squad)busy.add(p.id);
+  if(S.exp&&!S.exp.away&&!S.exp.sea&&S.exp.i>=0)squad.forEach((p,k)=>list.push({p,i:S.exp.i,job:"squad",slot:k}));
+  let n=0;for(const p of S.people){if(busy.has(p.id))continue;if(n>=WK.maxIdle)break;list.push({p,i:START,job:"idle",slot:n++})}
+  WK_CREW={E,list};return list}
+// a routine: steps of [seconds, from, to, act, item, facing]; from===to means standing there working
+const WK_LOAD={camp:"sack",still:"water",green:"food"};
+const WK_PIT=[.5,.78],WK_SEATS=[[.28,.82],[.72,.84],[.5,.98],[.7,.64],[.3,.66],[.5,.6]];   // the fire pit by the hatch, and seats round it
+function wkSteps(m,B,night){const i=m.i,h=k=>h3(i,k,97+m.slot*13+(m.p.id|0)%7),side=h(1)<.5?-1:1,go=WK.walk;
+  switch(m.job){
+    case"camp":{const D=[-.14,.56],Rb=[side*(.48+.16*h(2)),.66+.14*h(3)],F=[-.6,.62];
+      return[[go,D,Rb,"","",0],[5.5,Rb,Rb,"dig","",side],[go,Rb,D,"carry","scrap",0],[1.2,D,D,"carry","scrap",-side],[go*.6,D,F,"","",0],[2.4,F,F,night?"lamp":"","",-1],[go*.6,F,D,"","",0]]}
+    case"still":{const D=[.42,.52],sea=T[i].n.find(j=>T[j].b==="sea"),Wt=sea!==undefined&&B?wkToward(i,sea,B,.82):[side*.66,.78];
+      return[[go,D,Wt,"bucket","",0],[3.2,Wt,Wt,"fill","",Wt[0]>=D[0]?1:-1],[go,Wt,D,"bucket","",0],[2,D,D,"fill","",-1]]}
+    case"green":{const P=[[-.56,.64],[0,.76],[.56,.64]];
+      return[[3.4,P[0],P[0],night?"lamp":"tend","",1],[go*.7,P[0],P[1],"","",0],[3.4,P[1],P[1],"tend","",1],[go*.7,P[1],P[2],"","",0],[3.4,P[2],P[2],"tend","",-1],[go*1.2,P[2],P[0],"carry","food",0]]}
+    case"tower":{const A=[.3,.5],Bq=[.64,.7],C=[-.42,.66];
+      return[[4.5,A,A,"hammer","",-1],[go*.6,A,Bq,"","",0],[4,Bq,Bq,"radio","",side],[go,Bq,C,"","",0],[2.5,C,C,night?"lamp":"point","",-1],[go*1.2,C,A,"","",0]]}
+    case"pad":{if(m.slot===0){const Pl=[.7,.72],Rk=[.12,.52];return[[go,Pl,Rk,"haul","part",0],[4,Rk,Rk,"hammer","",-1],[go,Rk,Pl,"","",0],[1.5,Pl,Pl,"carry","part",1]]}
+      const A=[-.3,.58],Cq=[-.56,.76];return[[4.5,A,A,"hammer","",1],[go*.6,A,Cq,"","",0],[3.5,Cq,Cq,"radio","",1],[go*.6,Cq,A,"","",0]]}
+    case"idle":{const sp=[[-.74,.62],[-.1,.88],[.68,.72],[.38,.4],[-.44,.42],[.22,.66]],a=sp[(m.slot+(h(4)*6|0))%6],b=sp[(m.slot*2+1+(h(5)*6|0))%6];
+      const seat=WK_SEATS[m.slot%6],fs=seat[0]<WK_PIT[0]?1:-1;
+      return[[go*1.3,a,b,"","",0],[3+3*h(6),b,b,h(7)<.3?"wave":"","",h(8)<.5?-1:1],[go*1.2,b,seat,"","",0],[6+5*h(9),seat,seat,"sit","",fs],[go*1.2,seat,a,"","",0],[2+2*h(10),a,a,"","",h(11)<.5?-1:1]]}
+    case"squad":{const L=[],K=6;for(let q=0;q<K;q++){const t0=q/K*6.2832,t1=(q+1)/K*6.2832;L.push([go,[.74*Math.cos(t0),.1+.58*Math.sin(t0)],[.74*Math.cos(t1),.1+.58*Math.sin(t1)],q===0&&m.slot===0?"point":"","",0])}return L}
+    default:{const A=[.34,.58],Cq=[-.4,.66];return[[4,A,A,"hammer","",-1],[go,A,Cq,"","",0],[3,Cq,Cq,"","",1],[go,Cq,A,"","",0]]}}}
+// where one person is right now: a tile-local spot (with what they are doing), or a point on the walk home
+function wkWhere(m,B,night,t){
+  const steps=wkSteps(m,B,night),loop=steps.reduce((a,s)=>a+s[0],0),ph=h3(m.p.id|0,3,71)*40+m.slot*5.3;
+  const load=WK_LOAD[m.job],path=load&&!night&&m.job!=="idle"&&m.job!=="squad"?wkPath(m.i):null,trip=path?(path.length-1)*WK.leg:0;
+  const cyc=loop*WK.reps+(path?trip*2+2:0);
+  if(reduced){const s=steps.find(s=>s[1]===s[2])||steps[0];return{u:s[1][0],v:s[1][1],act:s[3],item:s[4],f:s[5]||1,walk:false}}
+  let tau=(t+ph)%cyc;
+  if(path&&tau>=loop*WK.reps){tau-=loop*WK.reps;   // out along your land with the load, a breath at the hatch, and back empty-handed
+    if(tau<trip)return wkTrip(path,tau/WK.leg,"carry",load==="sack"?"sack":load,m);
+    if(tau<trip+2)return wkTrip(path,path.length-1,"carry",load==="sack"?"sack":load,m,true);
+    return wkTrip(path,path.length-1-Math.min(path.length-1,(tau-trip-2)/WK.leg),"","",m,false,true)}
+  tau%=loop;
+  for(const s of steps){if(tau<s[0]){const f=tau/s[0],a=s[1],b=s[2],walk=a!==b;
+      return{u:a[0]+(b[0]-a[0])*f,v:a[1]+(b[1]-a[1])*f,act:s[3],item:s[4],f:s[5]||(b[0]>=a[0]?1:-1),walk}}tau-=s[0]}
+  const s=steps[0];return{u:s[1][0],v:s[1][1],act:s[3],item:s[4],f:1,walk:false}}
+function wkTrip(path,x,act,item,m,stop,back){const k=Math.min(path.length-2,Math.floor(x)),f=Math.min(1,x-k),a=T[path[k]].c,b=T[path[k+1]].c;
+  const w=[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f],side=(h3(m.p.id|0,5,11)-.5)*.03;
+  const d=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],sd=[w[1]*d[2]-w[2]*d[1],w[2]*d[0]-w[0]*d[2],w[0]*d[1]-w[1]*d[0]],ls=Math.hypot(sd[0],sd[1],sd[2])||1;
+  for(let q=0;q<3;q++)w[q]+=sd[q]/ls*side;let l=Math.hypot(w[0],w[1],w[2]);for(let q=0;q<3;q++)w[q]/=l;
+  const B=wkBasis(w);if(B){for(let q=0;q<3;q++)w[q]+=B[1][q]*WK.rho*.62;l=Math.hypot(w[0],w[1],w[2]);for(let q=0;q<3;q++)w[q]/=l}
+  return{w,dir:back?[-d[0],-d[1],-d[2]]:d,act,item,walk:!stop,f:0}}
+// called from draw(): put everyone visible into the same far-to-near list as the buildings
+let WK_SHOWN=[];
+function walkers(vis,cx,cy,r,tr,now,obs){WK_SHOWN=[];if(!E||!S.people.length)return;
+  const V=new Map();for(let v=0;v<vis.length;v+=3)V.set(vis[v],v);
+  const t=now/1000,rx=[R[0],R[1],R[2]],ry=[R[3],R[4],R[5]],rz=[R[6],R[7],R[8]],BS=new Map();
+  for(const m of wkCrew()){const vi=V.get(m.i);
+    const night=vis.length&&vi!==undefined?vis[vi+2]<.3:sunAt(S.t)&&dot(T[m.i].c,sunAt(S.t))<-.05;
+    let B=BS.get(m.i);if(B===undefined){B=vi!==undefined?wkBasis(T[m.i].c):null;BS.set(m.i,B)}
+    const P=wkWhere(m,B,night,t);let w,tz,dl;
+    if(P.w){w=P.w;tz=wkDot(rz,w);if(tz<=.04)continue;dl=Math.max(0,Math.min(1,(dot(w,sunAt(S.t))+.12)/.42))}
+    else{if(vi===undefined||!B)continue;const c=T[m.i].c,k=WK.rho;w=[c[0]+k*(P.u*B[0][0]+P.v*B[1][0]),c[1]+k*(P.u*B[0][1]+P.v*B[1][1]),c[2]+k*(P.u*B[0][2]+P.v*B[1][2])];
+      const l=Math.hypot(w[0],w[1],w[2]);w=[w[0]/l,w[1]/l,w[2]/l];tz=wkDot(rz,w);dl=vis[vi+2]}
+    const nx=wkDot(rx,w),x=cx+nx*r,y=cy-wkDot(ry,w)*r,s=tr*.66*(.5+.5*tz)*WK.size;if(s<2.5*DPR)continue;
+    let f=P.f;if(!f&&P.dir){const dx=wkDot(rx,P.dir);f=dx>=0?1:-1}if(!f)f=1;
+    const zt=vi!==undefined&&!P.w?vis[vi+1]:tz,key=zt+(P.w?0:(y-(cy-wkDot(ry,T[m.i].c)*r)-tr*.2)/r*.02);
+    const o=[key,"_w",x,y,s,gLean(nx),dl,m.i,1,{m,act:P.act,item:P.item,f,walk:P.walk}];obs.push(o);WK_SHOWN.push(o)}
+  const vs=V.get(START),idle=WK_SHOWN.find(o=>o[9].m.job==="idle");
+  if(vs!==undefined&&idle){const B=wkBasis(T[START].c);if(B){const c=T[START].c,k=WK.rho,u=WK_PIT[0],v=WK_PIT[1];let w=[c[0]+k*(u*B[0][0]+v*B[1][0]),c[1]+k*(u*B[0][1]+v*B[1][1]),c[2]+k*(u*B[0][2]+v*B[1][2])];
+    const l=Math.hypot(w[0],w[1],w[2]);w=[w[0]/l,w[1]/l,w[2]/l];const nx=wkDot(rx,w),x=cx+nx*r,y=cy-wkDot(ry,w)*r;
+    obs.push([vis[vs+1]+(y-(cy-wkDot(ry,T[START].c)*r)-tr*.2)/r*.02-1e-5,"_f",x,y,idle[4]*.5,gLean(nx),vis[vs+2],START,1,null])}}}
+function wkFire(o,now){const x=o[2],y=o[3],s=o[4],lit=o[6]<.45,fl=reduced?1:.8+.25*Math.sin(now/1000*13);
+  ctx.save();ctx.translate(x,y);ctx.rotate(o[5]);ctx.lineCap="round";
+  ctx.fillStyle="rgba(40,32,26,.55)";ctx.beginPath();ctx.ellipse(0,0,s*.95,s*.3,0,0,6.2832);ctx.fill();
+  ctx.strokeStyle="#3a2a1c";ctx.lineWidth=Math.max(1,s*.2);ctx.beginPath();ctx.moveTo(-s*.6,-s*.02);ctx.lineTo(s*.6,-s*.18);ctx.moveTo(-s*.6,-s*.18);ctx.lineTo(s*.6,-s*.02);ctx.stroke();
+  if(lit){ctx.globalCompositeOperation="lighter";const g=ctx.createRadialGradient(0,-s*.4,0,0,-s*.4,s*2.8);g.addColorStop(0,"rgba(255,160,70,.5)");g.addColorStop(1,"rgba(255,160,70,0)");ctx.fillStyle=g;ctx.fillRect(-s*2.8,-s*3.2,s*5.6,s*5.6);ctx.globalCompositeOperation="source-over";
+    ctx.fillStyle="#ffb050";ctx.beginPath();ctx.moveTo(-s*.42,-s*.08);ctx.quadraticCurveTo(-s*.36,-s*.72*fl,0,-s*1.15*fl);ctx.quadraticCurveTo(s*.36,-s*.72*fl,s*.42,-s*.08);ctx.closePath();ctx.fill();
+    ctx.fillStyle="#ffe2a0";ctx.beginPath();ctx.moveTo(-s*.2,-s*.08);ctx.quadraticCurveTo(0,-s*.5*fl,s*.2,-s*.08);ctx.closePath();ctx.fill()}
+  else{ctx.fillStyle="rgba(190,180,170,.5)";ctx.beginPath();ctx.ellipse(0,-s*.12,s*.36,s*.12,0,0,6.2832);ctx.fill()}
+  ctx.restore()}
+function drawWalker(o,now){const x=o[2],y=o[3],s=o[4],W=o[9],look=lookOf(W.m.p);
+  if(s<WK.tiny*DPR){ctx.strokeStyle="#e6d2a8";ctx.lineWidth=Math.max(1,s*.12);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-s*.6);ctx.stroke();
+    ctx.fillStyle=look.col||"#c3ccd8";ctx.beginPath();ctx.arc(x,y-s*.78,Math.max(1.2,s*.2),0,6.2832);ctx.fill();return}
+  ctx.save();ctx.translate(x,y);ctx.rotate(o[5]);
+  ctx.fillStyle="rgba(8,6,4,.3)";ctx.beginPath();ctx.ellipse(0,0,s*.24,s*.07,0,0,6.2832);ctx.fill();   // a little shadow, so they stand on the ground
+  PUP.mini(ctx,0,0,s,look,now/1000,{ph:(W.m.p.id|0)*1.7+W.m.slot,f:W.f,walk:W.walk,act:W.act,item:W.item});
+  ctx.restore()}
+// lanterns at night, a fire for the people resting at the hatch, and names over the people on the picked tile
+function walkAfter(now,cx,cy,r,tr){if(!WK_SHOWN.length)return;const t=now/1000;
+  ctx.globalCompositeOperation="lighter";
+  for(const o of WK_SHOWN){if(o[6]>=.35||o[4]<WK.tiny*DPR)continue;const a=(1-o[6]/.35)*.32,rr=o[4]*.9,x=o[2],y=o[3]-o[4]*.35;
+    const g=ctx.createRadialGradient(x,y,0,x,y,rr);g.addColorStop(0,"rgba(255,190,110,"+a.toFixed(3)+")");g.addColorStop(1,"rgba(255,190,110,0)");ctx.fillStyle=g;ctx.fillRect(x-rr,y-rr,rr*2,rr*2)}
+  ctx.globalCompositeOperation="source-over";
+  if(sel<0)return;const fs=Math.max(9*DPR,Math.min(13*DPR,tr*.18));ctx.font="600 "+Math.round(fs)+"px ui-monospace,Menlo,monospace";ctx.textAlign="center";ctx.textBaseline="bottom";ctx.lineJoin="round";
+  for(const o of WK_SHOWN){if(o[7]!==sel||o[4]<WK.tiny*DPR)continue;const nm=String(o[9].m.p.name||"");if(!nm)continue;const x=o[2],y=o[3]-o[4]*1.12;
+    ctx.lineWidth=Math.max(2,fs*.3);ctx.strokeStyle="rgba(14,11,8,.85)";ctx.strokeText(nm,x,y);ctx.fillStyle="#efe2c4";ctx.fillText(nm,x,y)}
+  ctx.textAlign="start";ctx.textBaseline="alphabetic"}
+// ==== WALK (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const skyH=Math.max(54*DPR,H*.13),padB=24*DPR,cw=W/COLS,ch=Math.min(cw*.8,Math.max(28*DPR,(H-skyH-padB)/ROWS)),gy=skyH;
@@ -4552,15 +4674,21 @@ function mini(c, x, y, s, look, t, o) {
   // a smart person has a bigger head (a body a little smaller, so they still stand as tall)
   o = o || {}; var L = shades(look), f = o.f || 1, br = 1 + 0.16 * Math.min(5, look.brain || 0); s = s * 345 / (210 + 135 * br); var k = s / 280, ph = o.ph || 0;
   var sw = o.walk && !REDUCED ? Math.sin(t * 8 + ph) : 0, bob = o.walk && !REDUCED ? Math.abs(sw) * 8 * k : (REDUCED ? 0 : Math.sin(t * 2 + ph) * 2 * k);
-  var hipX = x, hipY = y - 116 * k - bob, shX = x + f * 6 * k, shY = y - 196 * k - bob, nkY = shY - 14 * k;
+  // (Ashen Sphere) what a person is doing with their hands, out on the globe: a bend at the hips, or sitting down
+  var A = o.act || "", at = REDUCED ? 0.35 : t + ph * 0.61, sit = A === "sit", lean = A === "dig" ? 30 : A === "tend" ? 40 : A === "fill" ? 46 : A === "haul" ? 10 : 0;
+  var hipX = x, hipY = y - (sit ? 58 : 116) * k - bob, shX = x + f * (6 + lean) * k, shY = y - (sit ? 138 : 196 - lean * 0.7) * k - bob, nkY = shY - 14 * k;
   var lw = Math.max(1.6, 9 * k);
   var line = function (ax, ay, bx, by, w, col) { c.lineCap = "round"; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.strokeStyle = WOOD_E; c.lineWidth = w + Math.max(1, 2.2 * k); c.stroke(); c.strokeStyle = col; c.lineWidth = w; c.stroke(); };
-  line(x - f * (10 - sw * 14) * k, y, hipX, hipY, lw, WOOD2);
-  line(x + f * (12 + sw * 14) * k, y, hipX, hipY, lw, WOOD);
+  if (sit) { line(hipX, hipY, x + f * 40 * k, y - 50 * k, lw, WOOD2); line(x + f * 40 * k, y - 50 * k, x + f * 36 * k, y, lw, WOOD2);
+    line(hipX, hipY, x + f * 52 * k, y - 46 * k, lw, WOOD); line(x + f * 52 * k, y - 46 * k, x + f * 52 * k, y, lw, WOOD); }
+  else { line(x - f * (10 - sw * 14) * k, y, hipX, hipY, lw, WOOD2);
+    line(x + f * (12 + sw * 14) * k, y, hipX, hipY, lw, WOOD); }
   line(hipX, hipY, shX, shY, lw * 1.3, WOOD);
   line(shX, shY, shX, nkY, lw * 0.8, WOOD);
-  var hx = shX + f * 46 * k, hy = shY + (o.weapon ? 14 : 36) * k;
-  line(shX, shY, shX + f * 26 * k, shY + 26 * k, lw * 0.9, WOOD); line(shX + f * 26 * k, shY + 26 * k, hx, hy, lw * 0.9, WOOD);
+  var hx = shX + f * 46 * k, hy = shY + (o.weapon ? 14 : 36) * k, ex = shX + f * 26 * k, ey = shY + 26 * k, P = null;
+  if (A) { P = actPose(A, at, f, k, shX, shY, x, y); hx = P.hx; hy = P.hy; var el = elbow(shX, shY, hx, hy, 37 * k, f); ex = el[0]; ey = el[1]; }
+  line(shX, shY, ex, ey, lw * 0.9, WOOD); line(ex, ey, hx, hy, lw * 0.9, WOOD);
+  if (P) held(c, A, P, f, k, lw, o.item || "", x, y);
   if (o.weapon === "sword") { c.strokeStyle = "#f4f1ea"; c.lineWidth = Math.max(1.2, 6 * k); c.beginPath(); c.moveTo(hx, hy); c.lineTo(hx + f * 90 * k, hy - 40 * k); c.stroke(); }
   // the balloon, a little bigger than in a fight so a face still reads at map size
   var bs = clamp(2.2 - s / 150, 1.18, 1.9), rx = BRX * k * bs * br, ry = BRY * k * bs * br, bx = shX + f * 4 * k, by = nkY - ry * 0.92 + (REDUCED ? 0 : Math.sin(t * 2.6 + ph) * 1.5 * k);
@@ -4573,6 +4701,70 @@ function mini(c, x, y, s, look, t, o) {
   var sc = k * bs, FF = { look: L, f: f, b: { pr: 0 }, w: {}, btn: false, i: 0 };
   if (s >= 22) { miniFace(c, rx, ry, sc, o.mood || "", f, L); hat(c, { t: t }, FF, rx, ry, sc); }
   c.restore();
+}
+// (Ashen Sphere) where the hand goes for each thing a person can be doing, and the tool or load in it
+function actPose(A, at, f, k, sx, sy, x, y) {
+  var P = { hx: sx + f * 46 * k, hy: sy + 36 * k }, u, L, th;
+  if (A === "dig") {   // a pick: lift slowly, strike fast, a puff of dust when it bites
+    u = (at * 0.85) % 1; L = u < 0.7 ? smoothU(u / 0.7) : 1 - (u - 0.7) / 0.3;
+    P.hx = sx + f * (52 - 34 * L) * k; P.hy = sy + (48 - 88 * L) * k; P.th = 1.15 - 3.35 * L; P.dust = u > 0.97 || u < 0.12;
+  } else if (A === "hammer") {   // a hammer at chest height, a spark on each blow
+    u = (at * 2.1) % 1; th = u < 0.6 ? 0.35 - 2.25 * (u / 0.6) : -1.9 + 2.25 * ((u - 0.6) / 0.4);
+    P.hx = sx + f * 40 * k; P.hy = sy + 16 * k; P.th = th; P.spark = u > 0.94 || u < 0.05;
+  } else if (A === "carry") { P.hx = sx + f * 30 * k; P.hy = sy + 24 * k; }
+  else if (A === "haul") { P.hx = sx + f * 16 * k; P.hy = sy - 2 * k; }
+  else if (A === "bucket") { P.hx = sx + f * 20 * k; P.hy = sy + 70 * k; }
+  else if (A === "fill") { P.hx = sx + f * 30 * k; P.hy = y - 34 * k; P.tip = Math.sin(at * 2) > 0; }
+  else if (A === "tend") { P.hx = sx + f * 44 * k; P.hy = sy + 26 * k; P.drop = at; }
+  else if (A === "radio") { P.hx = sx + f * 18 * k; P.hy = sy - 24 * k; P.talk = Math.sin(at * 3) > 0.4; }
+  else if (A === "wave") { P.hx = sx + f * (26 + 14 * Math.sin(at * 9)) * k; P.hy = sy - 66 * k; }
+  else if (A === "lamp") { P.hx = sx + f * 34 * k; P.hy = sy + 30 * k; }
+  else if (A === "sit") { P.hx = x + f * 46 * k; P.hy = y - 54 * k; }
+  else if (A === "point") { P.hx = sx + f * 62 * k; P.hy = sy - 26 * k; }
+  return P;
+}
+function smoothU(u) { u = clamp(u, 0, 1); return u * u * (3 - 2 * u); }
+// two equal bones from the shoulder to the hand; the elbow bends down and back
+function elbow(sx, sy, hx, hy, L, f) {
+  var dx = hx - sx, dy = hy - sy, d = Math.hypot(dx, dy) || 1, mx = (sx + hx) / 2, my = (sy + hy) / 2;
+  if (d >= 2 * L) return [mx, my];
+  var h = Math.sqrt(L * L - d * d / 4), nx = -dy / d, ny = dx / d, sg = ny > 0.05 ? 1 : ny < -0.05 ? -1 : (nx * f < 0 ? 1 : -1);
+  return [mx + nx * h * sg, my + ny * h * sg];
+}
+var LOADS = { scrap: ["#8a6a48", "#5a4430"], water: ["#4f8fb8", "#2c5a78"], food: ["#7aa04e", "#4a6a2c"], part: ["#d8d4ca", "#8d8a82"], sack: ["#b89a6a", "#7a6444"] };
+function held(c, A, P, f, k, lw, item, x, y) {
+  k = k * 1.5;   // tools and loads drawn a size up, so what someone is doing reads next to a big balloon head
+  var ink = "#1d1512", w = Math.max(1.1, 4 * k);
+  c.lineCap = "round"; c.lineJoin = "round"; c.strokeStyle = ink; c.lineWidth = w;
+  var box = function (cx0, cy0, bw, bh, cols) { c.fillStyle = cols[0]; c.fillRect(cx0 - bw / 2, cy0 - bh / 2, bw, bh); c.strokeRect(cx0 - bw / 2, cy0 - bh / 2, bw, bh);
+    c.strokeStyle = cols[1]; c.beginPath(); c.moveTo(cx0 - bw / 2, cy0); c.lineTo(cx0 + bw / 2, cy0); c.stroke(); c.strokeStyle = ink; };
+  if (A === "dig" || A === "hammer") {   // a handle through the fist, the head at the far end
+    var cs = Math.cos(P.th) * f, sn = Math.sin(P.th), len = (A === "dig" ? 62 : 40) * k, tx = P.hx + cs * len, ty = P.hy + sn * len;
+    c.strokeStyle = "#7a5a36"; c.lineWidth = Math.max(1.5, 8 * k); c.beginPath(); c.moveTo(P.hx - cs * 12 * k, P.hy - sn * 12 * k); c.lineTo(tx, ty); c.stroke();
+    c.strokeStyle = "#9aa0a8"; c.lineWidth = Math.max(1.8, (A === "dig" ? 9 : 13) * k); var hw = (A === "dig" ? 18 : 9) * k;
+    c.beginPath(); c.moveTo(tx - sn * f * hw, ty + cs * hw); c.lineTo(tx + sn * f * hw, ty - cs * hw); c.stroke();
+    if (P.dust) { c.fillStyle = "rgba(200,186,160,.75)"; for (var q = 0; q < 3; q++) { c.beginPath(); c.arc(tx + (q - 1) * 12 * k, ty - (4 + 6 * q % 2) * k, (7 - q) * k, 0, TAU); c.fill(); } }
+    if (P.spark) { c.strokeStyle = "#ffd36a"; c.lineWidth = Math.max(1, 3 * k); c.beginPath(); for (var q2 = 0; q2 < 4; q2++) { var aa = q2 * 1.4 + 0.4; c.moveTo(tx, ty); c.lineTo(tx + Math.cos(aa) * 16 * k, ty - Math.abs(Math.sin(aa)) * 16 * k); } c.stroke(); }
+  } else if (A === "carry") box(P.hx + f * 8 * k, P.hy - 12 * k, 42 * k, 32 * k, LOADS[item] || LOADS.sack);
+  else if (A === "haul") { var cl = LOADS[item] || LOADS.part; c.fillStyle = cl[0]; c.beginPath(); c.rect(P.hx - f * 56 * k - (f < 0 ? 96 * k : 0), P.hy - 22 * k, 96 * k, 14 * k); c.fill(); c.stroke(); }
+  else if (A === "bucket" || A === "fill") {
+    var bx = P.hx, by = A === "fill" ? y - 12 * k : P.hy + 18 * k, bw2 = 26 * k;
+    if (A === "bucket") { c.beginPath(); c.moveTo(bx - bw2 / 2, by - 12 * k); c.quadraticCurveTo(bx, P.hy - 8 * k, bx + bw2 / 2, by - 12 * k); c.stroke(); }
+    c.fillStyle = "#7d858c"; c.beginPath(); c.moveTo(bx - bw2 / 2, by - 12 * k); c.lineTo(bx + bw2 / 2, by - 12 * k); c.lineTo(bx + bw2 * 0.38, by + 12 * k); c.lineTo(bx - bw2 * 0.38, by + 12 * k); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = "#6fb8e0"; c.fillRect(bx - bw2 * 0.42, by - 10 * k, bw2 * 0.84, 5 * k);
+    if (A === "fill" && P.tip) { c.strokeStyle = "#6fb8e0"; c.lineWidth = Math.max(1, 3 * k); c.beginPath(); c.moveTo(bx + f * 4 * k, by - 30 * k); c.lineTo(bx, by - 12 * k); c.stroke(); }
+  } else if (A === "tend") {   // a watering can, a few drops falling
+    c.fillStyle = "#6f8a6a"; c.fillRect(P.hx - 10 * k, P.hy - 4 * k, 24 * k, 18 * k); c.strokeRect(P.hx - 10 * k, P.hy - 4 * k, 24 * k, 18 * k);
+    var spx = P.hx + f * 26 * k, spy = P.hy + 14 * k; c.beginPath(); c.moveTo(P.hx + f * 12 * k, P.hy + 6 * k); c.lineTo(spx, spy); c.stroke();
+    c.fillStyle = "#8fd0f0"; for (var q3 = 0; q3 < 3; q3++) { var fall = ((P.drop * 1.6 + q3 / 3) % 1) * 40 * k; c.beginPath(); c.arc(spx + f * q3 * 3 * k, spy + 4 * k + fall, Math.max(0.8, 2.6 * k), 0, TAU); c.fill(); }
+  } else if (A === "radio") {
+    c.fillStyle = "#4a4e54"; c.fillRect(P.hx - 6 * k, P.hy - 12 * k, 12 * k, 20 * k); c.strokeRect(P.hx - 6 * k, P.hy - 12 * k, 12 * k, 20 * k);
+    c.beginPath(); c.moveTo(P.hx + 3 * k, P.hy - 12 * k); c.lineTo(P.hx + 3 * k, P.hy - 30 * k); c.stroke();
+    if (P.talk) { c.strokeStyle = "rgba(240,164,58,.9)"; c.lineWidth = Math.max(1, 2.5 * k); for (var r2 = 1; r2 < 3; r2++) { c.beginPath(); c.arc(P.hx + 3 * k, P.hy - 30 * k, r2 * 9 * k, -1.2, -0.2); c.stroke(); } }
+  } else if (A === "lamp") {
+    c.beginPath(); c.moveTo(P.hx, P.hy); c.lineTo(P.hx, P.hy + 6 * k); c.stroke();
+    c.fillStyle = "#ffd27a"; c.fillRect(P.hx - 7 * k, P.hy + 6 * k, 14 * k, 18 * k); c.strokeRect(P.hx - 7 * k, P.hy + 6 * k, 14 * k, 18 * k);
+  }
 }
 function miniFace(c, rx, ry, sc, m, f, L) {
   var fx = (f > 0 ? 1 : -1) * rx * 0.24, ex = rx * 0.2, ey = ry * 0.14, ink = "#1d1512";
@@ -4856,7 +5048,7 @@ cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW=
   if(VIEW==="below"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY-dy*DPR));return}
   if(VIEW==="stars"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(ptrs.size===1){if(Math.hypot(e.clientX-downX,e.clientY-downY)>6)moved=true;if(moved){spin(dx,dy);vel=[dx,dy]}}
-  else if(ptrs.size===2){moved=true;const d=pd();if(pinch)zoom=Math.max(.7,Math.min(3,zoom*d/pinch));pinch=d;vel=[0,0]}});
+  else if(ptrs.size===2){moved=true;const d=pd();if(pinch)zoom=Math.max(.7,Math.min(ZMAX,zoom*d/pinch));pinch=d;vel=[0,0]}});
 const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;if(VIEW==="fight")return;
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="map"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<MW&&y<MH){const p=pathTo(y*MW+x);if(p)PATH=p}return}
@@ -4870,7 +5062,7 @@ const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.si
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b=cv.getBoundingClientRect();const i=pick((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);if(i>=0){sel=i;dirty=true}}
   if(reduced)vel=[0,0]};
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
-cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars"||VIEW==="fight")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(3,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
+cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars"||VIEW==="fight")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
 cv.addEventListener("keydown",e=>{
   if(VIEW==="fight")return;
   if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-MW,ArrowDown:MW}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
@@ -4882,8 +5074,8 @@ cv.addEventListener("keydown",e=>{
   const s=30;const m={ArrowLeft:[-s,0],ArrowRight:[s,0],ArrowUp:[0,-s],ArrowDown:[0,s]}[e.key];
   if(m){e.preventDefault();spin(m[0],m[1]);lastTouch=performance.now()}
   else if(e.key==="Enter"||e.key===" "){e.preventDefault();sel=pick(W/2,H/2);dirty=true}
-  else if(e.key==="+"||e.key==="="){zoom=Math.min(3,zoom*1.2)}else if(e.key==="-"){zoom=Math.max(.7,zoom/1.2)}});
-document.getElementById("z-in").onclick=()=>{zoom=Math.min(3,zoom*1.25)};
+  else if(e.key==="+"||e.key==="="){zoom=Math.min(ZMAX,zoom*1.2)}else if(e.key==="-"){zoom=Math.max(.7,zoom/1.2)}});
+document.getElementById("z-in").onclick=()=>{zoom=Math.min(ZMAX,zoom*1.25)};
 document.getElementById("z-out").onclick=()=>{zoom=Math.max(.7,zoom/1.25)};
 document.getElementById("dive").onclick=()=>setView(VIEW==="below"?"surface":"below");
 document.getElementById("home").onclick=()=>{selOrb=-1;const f=VIEW==="away"&&S.x?awayFace():START;focus=f;sel=f;dirty=true;if(reduced){R=faceR(T[f].c);focus=null}};
@@ -5075,7 +5267,7 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
