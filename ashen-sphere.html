@@ -46,7 +46,7 @@ h1{font-family:var(--display);font-weight:400;font-size:24px;margin:0;letter-spa
 .prow small{color:var(--paper-dim);font-size:12px}
 .prow.ok{border-color:#7fa860}.prow.no{border-color:var(--rust)}
 .alert{position:absolute;left:0;right:0;bottom:22px;margin-inline:auto;width:min(100%,420px);background:var(--soot-2);border:1px solid var(--rust);padding:8px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
-.alert[hidden]{display:none}.alert span{flex:1;min-width:0}.alert button.act{padding:6px 10px}
+.alert[hidden]{display:none}.alert span{flex:1;min-width:0}.alert>span{flex:1 1 11em}.alert button.act{padding:6px 10px}
 .clock b.hot{color:var(--rust)}
 .main{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
 .stage{position:relative;flex:1;min-height:180px}
@@ -432,7 +432,7 @@ function labHTML(){const r=S.rs,rate=E.rsRate||0;
       return btn("bp:"+k,B.name+(B.tier>1?" \u00b7 "+["","","advanced","Builder"][B.tier]:""),B.what+" · "+(ready?costText(B.cost)+" · "+B.pts+" research":(mind?"needs someone "+IQNAME[B.tier]:"")+(mind&&need.length?", and ":"")+(need.length?"needs "+need.map(n=>BP[n].name).join(", "):"")),ready&&!r?B.cost:null,"",!ready||!!r)}).join("")+"</div>"}
   return h}
 function smartHTML(inRs){const sm=S.people.filter(p=>smartOf(p)>0).sort((a,b)=>smartOf(b)-smartOf(a)),left=(S.k.lessons|0)-(S.k.taught|0);
-  let h="<p>Research: <b>"+(E.rsRate||0).toFixed(1)+" a second</b> from "+(sm.length?sm.map(p=>p.name+" ("+IQNAME[smartOf(p)]+")").join(", "):"nobody")+(E.labBoost?", +"+Math.round(E.labBoost*100)+"% from labs":"")+". "+(S.rs?"Working on "+BP[S.rs.id].name+".":"Nothing being researched.")+"</p>"+(inRs?"":'<div class="acts">'+btn("rs","Blueprints","Research upgrades, in six branches",null,"primary")+"</div>");
+  let h="<p>Research: <b>"+(E.rsRate||0).toFixed(1)+" a second</b> from "+(sm.length?sm.map(p=>p.name+" ("+IQNAME[smartOf(p)]+")").join(", "):"nobody")+(E.labBoost?", +"+Math.round(E.labBoost*100)+"% from labs":"")+". "+(S.rs?"Working on "+BP[S.rs.id].name+".":"Nothing being researched.")+"</p>"+(inRs?"":'<div class="acts">'+btn("rs","Blueprints","Research upgrades, in "+["no","one","two","three","four","five","six","seven","eight","nine","ten"][Math.min(10,BRANCHES.length)]+" branches",null,"primary")+"</div>");
   if(left>0&&inRs)h+="<p><b>A Spire can teach someone.</b> Choose who in your People list.</p>";
   else if(left>0)h+="<p><b>A Spire can teach someone"+(left>1?" ("+left+" lessons waiting)":"")+".</b> Pick who studies it: they come back smarter, with a bigger head, and research faster.</p><div class=\"acts\">"+
     S.people.slice().sort((a,b)=>smartOf(b)-smartOf(a)).map(p=>btn("teach:"+p.id,p.name,IQNAME[smartOf(p)]+" \u2192 "+IQNAME[Math.min(5,Math.max(1,smartOf(p))+1)],null,"")).join("")+"</div>";
@@ -463,7 +463,7 @@ let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
   seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},bp:[],rs:null,h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:9,cbs:S.cbs,wear:S.wear,mats:S.mats,inside:S.inside,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function ser(){return{v:9,dfs:S.dfs,raid:S.raid,cbs:S.cbs,orb:S.orb,wear:S.wear,mats:S.mats,inside:S.inside,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
 function deser(o){MAPS.clear();AMAPS.clear();CMAPS.clear();if(typeof PMAPS!=="undefined")PMAPS.clear();if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
@@ -474,7 +474,7 @@ function deser(o){MAPS.clear();AMAPS.clear();CMAPS.clear();if(typeof PMAPS!=="un
     k:fixK(Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:null,dest:"mire",rations:40,crew:[]},o.k&&typeof o.k==="object"?o.k:{})),
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
     codex:fixCodex(o.codex),x:sanX(o.x),veh:o.veh&&typeof o.veh==="object"?Object.fromEntries(Object.keys(VEH).filter(k=>o.veh[k]).map(k=>[k,1])):{},
-    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,cbs:o.cbs&&typeof o.cbs==="object"?o.cbs:{},wear:o.wear&&typeof o.wear==="object"?o.wear:{},mats:o.mats&&typeof o.mats==="object"?o.mats:{},inside:o.inside&&typeof o.inside==="object"?o.inside:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
+    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,dfs:fixDfs(o.dfs),raid:fixRaid(o.raid),cbs:o.cbs&&typeof o.cbs==="object"?o.cbs:{},orb:fixOrb(o.orb),wear:o.wear&&typeof o.wear==="object"?o.wear:{},mats:o.mats&&typeof o.mats==="object"?o.mats:{},inside:o.inside&&typeof o.inside==="object"?o.inside:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
     h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
 const KEY="ashen-sphere-v9",OLD_KEYS=["ashen-sphere-v8","ashen-sphere-v7","ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
@@ -491,13 +491,13 @@ function econ(){
   const ART=k=>!!(S.arts&&S.arts.includes(k)),grow=(ART("seed")?1.2:1)*(U.tidegarden?1.25:1);   // rare artifacts found and brought home (slice 2)
   const genSup=RC.gen.supply+(U.geo?1:0)+(ART("ember")?1:0)+(hasBp("gen2")?2:0),powOf=room=>room==="hydro"?RC.hydro.power+(U.coldhydro?.5:0):RC[room].power;
   const jobs=[],take=id=>{need++;if(free>0){free--;st.add(id);jobs.push(id);return true}return false};
-  const order=S.order.map((id,ix)=>[id,ix]),ugRoom=id=>typeof id==="string"&&S.ug[id.slice(2)]?S.ug[id.slice(2)].room:null;
+  const order=S.order.filter(id=>!defWrecked(id)).map((id,ix)=>[id,ix]),ugRoom=id=>typeof id==="string"&&S.ug[id.slice(2)]?S.ug[id.slice(2)].room:null;
   for(const[id]of order)if(typeof id==="number"&&(S.bld[id]==="still"||S.bld[id]==="green"))take(id);
   for(const[id]of order)if(ugRoom(id)==="gen"&&take(id)){on.add(id);pw+=genSup;gens++}
   for(const[id]of order)if(typeof id==="number"){const b=S.bld[id];if(!b||b==="still"||b==="green"||!BLD[b]||!BLD[b].staff)continue;
     if(b==="pad"){if(take(id)&&!take("pad2:"+id)){free++;st.delete(id);jobs.pop()}}else take(id)}
-  if(S.hatch)for(const k in S.bld)if(S.bld[k]==="wind")pw+=CFG.wind.power*(hasBp("windgear")?1.5:1);
-  if(S.hatch&&hasBp("capbank"))pw+=2;if(S.hatch&&hasBp("coil"))pw+=6;if(hasBp("turbine"))pw+=3*order.filter(([id])=>ugRoom(id)==="furnace").length;   // blueprints: more power for the grid
+  if(S.hatch)for(const k in S.bld)if(S.bld[k]==="wind"&&!defWrecked(+k))pw+=CFG.wind.power*(hasBp("windgear")?1.5:1);
+  if(S.hatch&&hasBp("capbank"))pw+=2;if(S.hatch&&hasBp("coil"))pw+=6;if(hasBp("turbine"))pw+=3*order.filter(([id])=>ugRoom(id)==="furnace").length;const OBX=orbEcon();pw+=OBX.beam;   // blueprints: more power for the grid
   for(const[id,ix]of order){const room=ugRoom(id);if(!room||room==="gen")continue;if(room==="mine"&&mineOut(id)){paused.set(id,"worked out");continue}
     if(room==="store"){on.add(id);store+=CFG.storePerRoom+(ART("pearl")?100:0);continue}
     if(RC[room].staff)need++;pend.push([RC[room].prio,ix,id,room])}
@@ -509,6 +509,7 @@ function econ(){
   let siloRunning=false;const sj=S.h.silo.job;
   if(sj&&S.h.silo.power&&!S.h.sealed&&!sj.stashed&&!S.h.crack){const sp=HV.silo.find(p=>p.key===sj.key);if(free>=sp.workers&&pw-dem>=sp.power-1e-9){free-=sp.workers;dem+=sp.power;siloRunning=true}}
   // people: the squad goes out first (scavengers preferred), then each job gets the best-matching free person
+  for(const pi of defPills()){need++;if(free>0){free--;st.add("d:"+pi);jobs.push("d:"+pi)}}   // pillboxes (DEF): a guard each, after every other job
   const pool=S.people.filter(p=>!(p.kin==="tide"&&S.res.water<TIDE.dry)),squad=[],who=new Map(),jobOf=new Map(),bonus=new Map();
   if(S.exp&&!S.exp.away){pool.sort((a,b)=>((b.sk==="scav")*b.lv-(a.sk==="scav")*a.lv)||a.id-b.id);for(let j=0;j<XC.squad&&pool.length;j++)squad.push(pool.shift());pool.sort((a,b)=>a.id-b.id)}
   const org=S.people.some(p=>p.tr==="organizer"&&!squad.includes(p));
@@ -530,15 +531,15 @@ function econ(){
     if(room==="fuel"){if(S.k.fuel<fuelCap){fuelRate+=CFG.space.plant.fuel*m*(U.catalyst?1.5:1);wa-=CFG.space.plant.water}continue}
     if(room==="bunks")cap+=RC.bunks.cap;else if(room==="hydro")fo+=RC.hydro.food*m*(U.coldhydro?1.15:1)*grow*pmH;else if(room==="shop")sc+=RC.shop.scrap*m*(U.archive?1.1:1)*(hasBp("tools")?1.25:1);
     else if(room==="pump")wa+=(cell.f==="aquifer"?RC.pump.aquifer:RC.pump.water)*m*(U.filters?1.25:1)*(hasBp("deeppump")?1.5:1);else if(room==="algae"){fo+=RC.algae.food*m*grow*pm*(hasBp("vats")?2:1);wa-=RC.algae.water}else if(room==="med")med=true;else if(room==="radio")radio=true;else if(room==="lab")rsr+=.5*m}
-  if(dem>0)sc-=RC.gen.burn*gens*(hasBp("gen2")?.7:1);const CBX=cbEcon(genSup,grow);sc+=CBX.sc;wa+=CBX.wa;fo+=CBX.fo;store+=CBX.store;
+  if(dem>0)sc-=RC.gen.burn*gens*(hasBp("gen2")?.7:1);const CBX=cbEcon(genSup,grow);sc+=CBX.sc;wa+=CBX.wa;fo+=CBX.fo;store+=CBX.store;wa+=OBX.wa;fo+=OBX.fo;
   const eat=EAT*S.pop,frozen=nFrz*(hasBp("seals")?350:RC.freezer.keep),spoil=Math.max(0,S.res.food-TEMP.cellar-frozen)*TEMP.spoil*(hasBp("preserve")?.5:1);
-  return{cbx:CBX.info,rsRate:smartRate()*(1+rsr),labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1)-tideHome().length*EAT*TIDE.drink,fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
+  return{cbx:CBX.info,obx:OBX.info,obBeam:OBX.beam,rsRate:smartRate()*(1+rsr)+OBX.rs,labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1)-tideHome().length*EAT*TIDE.drink,fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
 }
 let E;
 function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
 function step(dt,quiet){
   reconcile();if(!S.k.smart0&&S.people.length){S.people[0].iq=Math.max(1,S.people[0].iq|0);S.k.smart0=true}E=econ();
-  S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);mineTick(dt,quiet);cbTick(dt,quiet);
+  S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);mineTick(dt,quiet);cbTick(dt,quiet);orbTick(dt,quiet);
   S.res.scrap+=E.sc*dt;S.res.water+=E.wa*dt;S.res.food+=E.fo*dt;
   const dry=S.res.water<=0||S.res.food<=0;
   for(const k of["scrap","water","food"])S.res[k]=Math.max(0,Math.min(E.store,S.res[k]));
@@ -589,7 +590,7 @@ function finishDig(k,quiet){const[r,c]=k.split(",").map(Number);let f=FIND(r,c);
 function ugCost(b,k){const r=k?+k.split(",")[0]:0,n=Object.values(S.ug).filter(x=>x.room===b).length;return{scrap:Math.ceil(Math.max(0,Math.ceil((RC[b].cost+CFG.roomPerRow*(r+1))*Math.pow(CFG.roomScale,n))-(b==="shop"&&S.cnt.techdisc>0?15:0))*(hasBp("alloys")?.8:1))}}
 function buildRoom(k,b){const cell=S.ug[k];if(!cell||!cell.d||cell.room||k.endsWith(","+SHAFT))return;if(b==="mine"&&!veinLeft(k))return;const c=ugCost(b,k);if(!afford(c))return;pay(c);cell.room=b;if(b==="shop"&&S.cnt.techdisc>0)S.cnt.techdisc--;S.order.push("u:"+k);E=econ();say("Fitted out "+ROOM[b].name.toLowerCase()+" below.");dirty=true;save()}
 function ugRaze(k){const cell=S.ug[k];if(!cell||!cell.room)return;const b=cell.room;delete cell.room;S.order=S.order.filter(x=>x!=="u:"+k);const c=ugCost(b,k);for(const x in c)S.res[x]+=Math.floor(c[x]/CFG.roomScale*.5);say("Stripped the "+ROOM[b].name.toLowerCase()+" for parts.");dirty=true;save()}
-function raze(i){const b=S.bld[i];if(!b||b==="bunker")return;delete S.bld[i];S.order=S.order.filter(x=>x!==i);const c=cost(b);for(const k in c)S.res[k]+=Math.floor(c[k]/1.2*.5);say("Tore down the "+BLD[b].name.toLowerCase()+" for parts.");dirty=true;save()}
+function raze(i){const b=S.bld[i];if(!b||b==="bunker"||b==="anchor"&&orbAnchorLocked(i))return;if(b==="anchor"&&orbOn()&&S.orb.anchor===i){S.orb.anchor=-1;S.orb.park=0}delete S.bld[i];if(S.raid&&S.raid.dmg)delete S.raid.dmg[i];S.order=S.order.filter(x=>x!==i);const c=cost(b);for(const k in c)S.res[k]+=Math.floor(c[k]/1.2*.5);say("Tore down the "+BLD[b].name.toLowerCase()+" for parts.");dirty=true;save()}
 
 // goals
 const GOALS=[
@@ -711,8 +712,8 @@ function draw(now){
     if(BLDS[i])obs.push([z,BLDS[i],x,y,s,a,dl,i,1]);else if(T[i].pent&&SEEN.has(i))obs.push([z,"spire",x,y,s*.9,a,dl,i,OWN.has(i)?1:.8]);
     else if(MP[i]&&OWN.has(i)&&LMOF(i))obs.push([z,"flag",x,y,s,a,dl,i,1]);
     else if(MP[i]&&!OWN.has(i)){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(x,y,Math.max(1.5*DPR,s*.22),0,6.2832);ctx.fill()}}
-  walkers(vis,cx,cy,r,tr,now,obs,AW);if(!AW)cbMarks(vis,cx,cy,r,tr,obs);   // people out on your tiles (the WALK block)
-  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs){if(o[1]==="_w")drawWalker(o,now);else if(o[1]==="_cb")cbMark(o,now);else if(o[1]==="_f")wkFire(o,now);else if(o[1]==="village"||o[1]==="outpost")tideModel(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7]);else model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
+  walkers(vis,cx,cy,r,tr,now,obs,AW);if(!AW)cbMarks(vis,cx,cy,r,tr,obs);if(!AW)defMarks(vis,cx,cy,r,tr,obs,now);   // people out on your tiles (the WALK block)
+  obs.sort((p,q)=>p[0]-q[0]);for(const o of obs){if(o[1]==="_w")drawWalker(o,now);else if(o[1]==="_cb")cbMark(o,now);else if(o[1]==="_df")defModel(o,now);else if(o[1]==="_rd")defBand(o,now);else if(o[1]==="_dw")defSmoke(o,now);else if(o[1]==="_f")wkFire(o,now);else if(o[1]==="village"||o[1]==="outpost")tideModel(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7]);else model(o[1],o[2],o[3],o[4],o[5],lx,o[6],now,o[7],o[8])}
   walkAfter(now,cx,cy,r,tr)}
   drawOrbits(true,cx,cy,r,now);if(!AW)drawFlight(cx,cy,r,now);
   if(ck){const p=applyM(R,T[START].c),a=1+Math.max(0,cp-.35)*1.4,x=cx+p[0]*r*a,y=cy-p[1]*r*a;if(p[2]>-.2){ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.beginPath();ctx.arc(x,y,5*DPR,0,6.2832);ctx.fill();ctx.stroke()}
@@ -735,13 +736,13 @@ const ORBITERS=[
    desc:"A relay satellite that bounces radio around the curve of the world. It is why your towers can hear strangers far away."}
 ].map(o=>{const n=norm(o.tilt),ref=Math.abs(n[1])<.9?[0,1,0]:[1,0,0],u=norm(cross(n,ref)),v=cross(n,u);return Object.assign(o,{u,v})});
 let selOrb=-1,ORB_SCREEN=[];
-const orbPos=(o,t)=>{const a=o.phase+o.speed*t,c=Math.cos(a)*o.r,s=Math.sin(a)*o.r;return[o.u[0]*c+o.v[0]*s,o.u[1]*c+o.v[1]*s,o.u[2]*c+o.v[2]*s]};
+const orbPos=(o,t)=>{if(o.kind==="station"&&S&&S.orb&&S.orb.anchor>=0)return orbParkPos(o,t);const a=o.phase+o.speed*t,c=Math.cos(a)*o.r,s=Math.sin(a)*o.r;return[o.u[0]*c+o.v[0]*s,o.u[1]*c+o.v[1]*s,o.u[2]*c+o.v[2]*s]};
 function drawOrbits(front,cx,cy,r,now){
   const sun=sunAt(S.t);
-  if(S.world>0||VIEW==="away")return;   // the station and satellites belong to the Ashen World
-  for(let oi=0;oi<ORBITERS.length;oi++){const o=ORBITERS[oi];if(o.kind==="scout"&&!S.k.scout)continue;
+  if(VIEW==="away")return;   // the station and satellites belong to the Ashen World (later worlds: only your own station)
+  for(let oi=0;oi<ORBITERS.length;oi++){const o=ORBITERS[oi];if(o.kind==="scout"&&!S.k.scout)continue;if(S.world>0&&!(o.kind==="station"&&orbOn()))continue;
     // faint orbit line, back half behind the globe, front half in front
-    ctx.strokeStyle=front?"rgba(232,220,194,.16)":"rgba(232,220,194,.07)";ctx.lineWidth=DPR;ctx.setLineDash([2*DPR,4*DPR]);ctx.beginPath();let pen=false;
+    ctx.strokeStyle="rgba(232,220,194,"+((front?.16:.07)*orbLineK(o)).toFixed(3)+")";ctx.lineWidth=DPR;ctx.setLineDash([2*DPR,4*DPR]);ctx.beginPath();let pen=false;
     for(let j=0;j<=72;j++){const a=j/72*6.2832,w=[o.u[0]*Math.cos(a)*o.r+o.v[0]*Math.sin(a)*o.r,o.u[1]*Math.cos(a)*o.r+o.v[1]*Math.sin(a)*o.r,o.u[2]*Math.cos(a)*o.r+o.v[2]*Math.sin(a)*o.r],p=applyM(R,w);
       const hidden=p[2]<0&&p[0]*p[0]+p[1]*p[1]<1;if((p[2]>=0)!==front||hidden){pen=false;continue}
       const x=cx+p[0]*r,y=cy-p[1]*r;if(pen)ctx.lineTo(x,y);else{ctx.moveTo(x,y);pen=true}}
@@ -751,7 +752,7 @@ function drawOrbits(front,cx,cy,r,now){
     ORB_SCREEN[oi]={x,y,s:Math.max(s,10*DPR)};
     ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(p[1],p[0]));ctx.globalAlpha=front?1:.6;
     ctx.strokeStyle="#16110c";ctx.lineWidth=Math.max(1,s*.12);const body=lit?"#efe2c4":"#8d846f",panel=lit?"#6f86a8":"#3d4658";
-    if(o.kind==="station"){
+    if(o.kind==="station"&&orbOn())orbGlobeStation(s,lit,now);else if(o.kind==="station"){
       ctx.fillStyle=panel;for(const sx of[-1,1]){ctx.fillRect(sx*s*.55-s*.22,-s*1.1,s*.44,s*.8);ctx.strokeRect(sx*s*.55-s*.22,-s*1.1,s*.44,s*.8);ctx.fillRect(sx*s*.55-s*.22,s*.3,s*.44,s*.8);ctx.strokeRect(sx*s*.55-s*.22,s*.3,s*.44,s*.8)}
       ctx.fillStyle=body;ctx.fillRect(-s*1.1,-s*.14,s*2.2,s*.28);ctx.strokeRect(-s*1.1,-s*.14,s*2.2,s*.28);
       ctx.beginPath();ctx.arc(0,0,s*.34,0,6.2832);ctx.fill();ctx.stroke();
@@ -763,9 +764,10 @@ function drawOrbits(front,cx,cy,r,now){
     }
     if(oi===selOrb&&VIEW==="surface"){ctx.rotate(-Math.atan2(p[1],p[0]));ctx.strokeStyle="#e8dcc2";ctx.setLineDash([3*DPR,3*DPR]);ctx.lineWidth=1.5*DPR;ctx.beginPath();ctx.arc(0,0,Math.max(s*1.8,12*DPR),0,6.2832);ctx.stroke();ctx.setLineDash([])}
     ctx.restore()}
+  orbTether(front,cx,cy,r,now);
 }
 function pickOrbit(sx,sy){let best=-1,bd=1e9;ORB_SCREEN.forEach((q,i)=>{if(!q)return;const d=Math.hypot(sx-q.x,sy-q.y);if(d<q.s*2.2&&d<bd){bd=d;best=i}});return best}
-function orbitHTML(){const o=ORBITERS[selOrb];const h0=dot(norm(orbPos(o,S.t)),sunAt(S.t))>-.2;
+function orbitHTML(){if(ORBITERS[selOrb]&&ORBITERS[selOrb].kind==="station"&&orbOn())return orbStationHTML();const o=ORBITERS[selOrb];const h0=dot(norm(orbPos(o,S.t)),sunAt(S.t))>-.2;
   let h='<div class="meta">In orbit · '+({station:"space station",survey:"survey satellite",weather:"weather satellite",relay:"relay satellite"}[o.kind])+" · "+(h0?"in sunlight":"in the planet's shadow")+'</div><div class="tile-h">'+o.name+"</div><p>"+o.desc+"</p>";
   const towerOn=Object.keys(S.bld).some(k=>S.bld[k]==="tower"&&E.st.has(+k));
   if(o.kind==="survey"){const ready=(S.cnt.survDay||0)<day();
@@ -773,7 +775,7 @@ function orbitHTML(){const o=ORBITERS[selOrb];const h0=dot(norm(orbPos(o,S.t)),s
     return h+(ready?'<div class="acts">'+btn("survey","Download a survey","Charts one nearby tile's map",null,"primary")+"</div>":"<p>Today's survey is done. Next one tomorrow (day "+(day()+1)+").</p>")}
   if(o.kind==="weather"){const l=dot(sunAt(S.t),T[START].c);let t=0;for(;t<DAY;t+=1){const l2=dot(sunAt(S.t+t),T[START].c);if((l>=-.05)!==(l2>=-.05))break}
     return h+"<p>Forecast for your bunker: "+(l>=-.05?"dark":"light")+" in about "+Math.round(t)+" s.</p>"}
-  if(o.kind==="station")return h+(S.k.lantern?"<p>Its first segment is lit again. One beacon is steady now.</p>":"<p>Nobody has been up there since the ash. Here is what it will take:</p>")+stagesHTML();
+  if(o.kind==="station")return h+(S.k.lantern?"<p>Its first segment is lit again. One beacon is steady now.</p>":"<p>Nobody has been up there since the ash. Here is what it will take:</p>")+stagesHTML()+orbPadHTML();
   if(o.kind==="scout")return h+"<p>Your own probe, the first thing to leave the planet since the ash.</p>"+stagesHTML();
   return h}
 function doSurvey(){const towerOn=Object.keys(S.bld).some(k=>S.bld[k]==="tower"&&E.st.has(+k));if(!towerOn||(S.cnt.survDay||0)>=day())return;
@@ -788,7 +790,7 @@ const SKILL={eng:"engineer",scav:"scavenger",grow:"grower"};
 const TRAIT={cautious:{name:"Cautious",txt:"comes home less hurt when a fight goes wrong"},tinkerer:{name:"Tinkerer",txt:"+10% at any job"},
   organizer:{name:"Organizer",txt:"everyone working makes 5% more"},stubborn:{name:"Stubborn",txt:"never the first to leave"}};
 const JOB_SKILL={camp:"scav",still:"eng",green:"grow",tower:"eng",pad:"eng",gen:"eng",pump:"eng",hydro:"grow",shop:"eng",med:"grow",radio:"eng",fuel:"eng",lab:"eng"};
-function newPerson(id){const n=NAMES.length,used=new Set(S.people.concat(S.x?S.x.crew:[],S.h&&S.h.detained?[S.h.detained.person]:[]).map(p=>p.name));let j=(id*17+(h3(id,3,61)*7|0))%n,name=null;
+function newPerson(id){const n=NAMES.length,used=new Set(S.people.concat(S.x?S.x.crew:[],S.h&&S.h.detained?[S.h.detained.person]:[],orbCrew()).map(p=>p.name));let j=(id*17+(h3(id,3,61)*7|0))%n,name=null;
   for(let t=0;t<n;t++){const c=NAMES[(j+t)%n];if(!used.has(c)){name=c;break}}
   if(!name)name=NAMES[j]+" "+String.fromCharCode(65+(id%26))+".";
   return{id,name,sk:["eng","scav","grow"][h3(id,1,61)*3|0],lv:1+(h3(id,4,61)*3|0),tr:Object.keys(TRAIT)[h3(id,2,61)*4|0]}}
@@ -796,14 +798,14 @@ function reconcile(){const P=S.people;let added=null;while(P.length<S.pop){const
   while(P.length>S.pop){let ix=-1;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"&&!(P[j].iq>0)){ix=j;break}if(ix<0)for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}P.splice(ix<0?P.length-1:ix,1)}return added}
 function leaveOne(){let ix=-1;const P=S.people;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"&&!(P[j].iq>0)){ix=j;break}if(ix<0)for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}if(ix<0)ix=P.length-1;const p=P.splice(ix,1)[0];S.pop=P.length;return p}
 const personLine=p=>PUP.faceSVG(lookOf(p),20)+"<b>"+p.name+"</b> · "+SKILL[p.sk]+" "+p.lv+" · "+TRAIT[p.tr].name+(p.kin==="tide"?" · Tidefolk":"");
-function jobName(id){if(typeof id==="number")return BLD[S.bld[id]]?BLD[S.bld[id]].name.toLowerCase()+" (tile "+id+")":"a job";
-  if(id.startsWith("pad2:"))return"the launch pad (tile "+id.slice(5)+")";const c=S.ug[id.slice(2)];return c&&c.room?ROOM[c.room].name.toLowerCase()+" below":"a job"}
+function jobName(id){if(typeof id==="string"&&id.startsWith("d:"))return"pillbox (tile "+id.slice(2)+")";if(typeof id==="number")return BLD[S.bld[id]]?BLD[S.bld[id]].name.toLowerCase()+" (tile "+id+")":"a job";
+  if(id.startsWith("pad2:"))return"launch pad (tile "+id.slice(5)+")";const c=S.ug[id.slice(2)];return c&&c.room?ROOM[c.room].name.toLowerCase()+" below":"a job"}
 function workerNote(id){const p=E.who.get(id);if(!p)return"";const need=JOB_SKILL[typeof id==="number"?S.bld[id]:(S.ug[id.slice(2)]||{}).room];
   const pct=Math.round((E.bonus.get(id)-1)*100);return" "+p.name+" works here ("+SKILL[p.sk]+" "+p.lv+(p.sk===need?", the right skill":"")+")"+(pct?": +"+pct+"%":"")+"."}
-function peopleHTML(){const P=S.people;let h='<div class="meta">'+P.length+" people · "+E.st.size+" working · "+E.idle+" resting"+(S.exp&&!S.exp.away?" · "+XC.squad+" exploring":"")+(S.x?" · "+S.x.crew.length+" on the expedition":"")+(S.cbs&&cbPeople()?" · "+cbPeople()+" in cave bunkers":"")+'</div><div class="tile-h">Your people</div>'+smartHTML()+'<div class="plist">';
+function peopleHTML(){const P=S.people;let h='<div class="meta">'+P.length+" people · "+E.st.size+" working · "+E.idle+" resting"+(S.exp&&!S.exp.away?" · "+XC.squad+" exploring":"")+(S.x?" · "+S.x.crew.length+" on the expedition":"")+(S.cbs&&cbPeople()?" · "+cbPeople()+" in cave bunkers":"")+(orbCrew().length?" · "+orbCrew().length+" on the station":"")+'</div><div class="tile-h">Your people</div>'+smartHTML()+'<div class="plist">';
   for(const p of P){const job=E.jobOf.get(p.id),sq=E.squad.includes(p);
     h+='<div class="prow"><div>'+personLine(p)+'</div><small>'+(smartOf(p)?IQNAME[smartOf(p)]+" · ":"")+(sq?"out with the squad":job!==undefined?"works the "+jobName(job):"resting")+" · "+TRAIT[p.tr].txt+"</small></div>"}
-  if(S.x)for(const p of S.x.crew)h+='<div class="prow"><div>'+personLine(p)+'</div><small>on the expedition to '+XWORLDS[S.x.w].name+" · "+TRAIT[p.tr].txt+"</small></div>";
+  for(const p of orbCrew())h+='<div class="prow"><div>'+personLine(p)+'</div><small>on '+S.orb.name+" · "+TRAIT[p.tr].txt+"</small></div>";if(S.x)for(const p of S.x.crew)h+='<div class="prow"><div>'+personLine(p)+'</div><small>on the expedition to '+XWORLDS[S.x.w].name+" · "+TRAIT[p.tr].txt+"</small></div>";
   return h+"</div><p class=\"meta\">Each job wants a skill. The right person adds 10% per skill level.</p>"}
 
 // ---------------------------------------------------------------- the Kestrel programme: reach the station (GPT G-126 stages 0-5)
@@ -817,7 +819,7 @@ function rocket(d,ms){const P=SP.parts,ex=ms==="exped",list=ex?["capsule","frame
     :["core","frame",...(d.antenna?["antenna"]:[]),...(d.arm?["arm"]:[]),...d.tanks,d.engine];
   let dry=0,fuel=0,cost=0;for(const p of list){dry+=P[p].mass;fuel+=P[p].fuel||0;cost+=P[p].cost}
   const eng=P[d.engine],m0=dry+fuel,isp=eng.isp*(1+.05*Math.min(4,S.k.tele))*(S.arts&&S.arts.includes("box")?1.05:1),twr=eng.thrust/(m0*SP.g),dv=fuel>0?isp*SP.g*Math.log(m0/dry):0;
-  const need=ex?(xDest().dv||0):ms==="rescue"?SP.rescueDv:SP.scoutDv,fuelUnits=Math.ceil(fuel*SP.fuelPerTonne),padOn=padTile()>=0&&E.st.has(padTile());
+  const need=ex?orbDv(xDest().dv||0):ms==="rescue"?SP.rescueDv:SP.scoutDv,fuelUnits=Math.ceil(fuel*SP.fuelPerTonne),padOn=padTile()>=0&&E.st.has(padTile());
   if(ex)cost=newPartsCost(list);   // the expedition ship is kept: pay only for parts it doesn't have yet
   const checks=ex?xChecks({d,twr,dv,fuelUnits,cost,padOn}):[["Thrust-to-weight over 1.2 (now "+twr.toFixed(2)+")",twr>1.2],["Delta-v "+Math.round(dv)+" of "+need+" m/s to reach "+(ms==="rescue"?"Lantern-2":"orbit"),dv>=need],
     ["Antenna to send telemetry home",!!d.antenna],...(ms==="rescue"?[["Repair arm to fix Lantern-2",!!d.arm]]:[]),
@@ -825,7 +827,7 @@ function rocket(d,ms){const P=SP.parts,ex=ms==="exped",list=ex?["capsule","frame
   return{list,dry,fuel,m0,twr,dv,need,cost,fuelUnits,checks,ok:checks.every(c=>c[1]),margin:need?dv/need-1:0}}
 function launch(){const ms=mission();if(ms==="crew"||ms==="exped"||S.k.flight)return;const r=rocket(S.k.design,ms);if(!r.ok)return;
   pay({scrap:r.cost});S.k.fuel-=r.fuelUnits;S.k.launches=(S.k.launches||0)+1;
-  const fail=r.margin<SP.riskMargin&&h3(S.k.launches,S.k.tele,909)<.5;
+  const fail=!orbLift()&&r.margin<SP.riskMargin&&h3(S.k.launches,S.k.tele,909)<.5;
   S.k.flight={t:0,ms,fail,cost:r.cost,pad:padTile()};focus=padTile();sel=padTile();selOrb=-1;showPeople=false;
   say((ms==="scout"?"Kestrel Scout":"Repair probe")+" is on the pad. Ignition.");dirty=true;save()}
 function flightStage(f){const t=f.t,L=SP.flightSecs;if(f.fail&&t>L*.55)return"Lost: the rocket broke apart";
@@ -837,7 +839,7 @@ function resolveFlight(quiet){const f=S.k.flight;S.k.flight=null;
       if(!quiet){say("The expedition ship is in orbit and burning for "+XWORLDS[S.x.w].name+".");sBody=S.x.w;if(VIEW==="surface")setView("stars")}}
     dirty=true;save();return}
   if(f.fail){S.res.scrap+=Math.floor(f.cost*SP.refund);S.k.tele++;if(!quiet)say("The rocket broke apart at Max Q. You salvage "+Math.round(SP.refund*100)+"% of the parts, and the telemetry makes your engines 5% better.")}
-  else if(f.ms==="scout"){S.k.scout=true;learnSecret(quiet)}
+  else if(f.ms==="scout"){S.k.scout=true;learnSecret(quiet)}else if(f.ms==="dock")orbDocked(f,quiet);
   else if(f.ms==="rescue"){S.k.lantern=true;if(!quiet){say("The repair probe reaches Lantern-2 and brings it back. Squads can walk 4 steps further, and a segment of Kestrel Station lights up.");
     say("Kestrel's relay sends down plans for the station's old tug engine, the Roc: enough to fly a crew to another world and back.");toast("Lantern-2 is back. Its relay sent plans for the Roc engine: your pad can now build an expedition ship. Tap ✦ to see the system.")}}
   dirty=true;save()}
@@ -848,12 +850,12 @@ function kestrelStages(){return[
   ["Make rocket fuel","An Electrolysis Plant below and a Fuel Tank on the surface",hasFuelChain()],
   ["Put a probe in orbit","Build and launch Kestrel Scout from the pad",S.k.scout],
   ["Repair Lantern-2","A second launch, with a repair arm",S.k.lantern],
-  S.world===0?["Send an expedition","A crewed ship to another world and home again",(S.xs.trips|0)>0]:["Crewed ascent","Coming next: capsule, life support, docking",false]]}
+  S.world===0?["Send an expedition","A crewed ship to another world and home again",(S.xs.trips|0)>0]:null,...orbStages()].filter(Boolean)}
 function stagesHTML(){return'<div class="plist">'+kestrelStages().map(s=>'<div class="prow"><div>'+(s[2]?"✓ ":"○ ")+"<b>"+s[0]+'</b></div><small>'+s[1]+"</small></div>").join("")+"</div>"}
 function padHTML(){const ms=mission();let h="";
   if(S.k.flight){const f=S.k.flight;return'<p class="meta">T+'+Math.floor(f.t)+" s</p><p><b>"+flightStage(f)+"</b></p><p>Watch the planet: the rocket is climbing out of the pad.</p>"}
-  if(ms==="crew")return"<p>Lantern-2 is back and Kestrel is waking up. A crewed ascent comes next: capsule, life support, docking.</p>";
-  if(ms==="exped")return tideRouteHTML()+expHTML();
+  if(ms==="crew")return orbPadHTML()||"<p>Lantern-2 is back. A crewed ascent comes next.</p>";
+  if(ms==="exped")return orbPadHTML()+tideRouteHTML()+expHTML();
   if(!hasFuelChain())h+="<p><b>No fuel yet.</b> Fit an Electrolysis Plant in the bunker and build a Fuel Tank on the surface.</p>";
   const d=S.k.design,r=rocket(d,ms),P=SP.parts;
   h+="<p>Mission: <b>"+(ms==="scout"?"Kestrel Scout: put a probe in orbit":"Rescue: carry a repair arm up to Lantern-2")+"</b>."+(S.k.tele?" Telemetry from "+S.k.tele+" lost rocket"+(S.k.tele>1?"s":"")+" makes engines "+5*Math.min(4,S.k.tele)+"% better.":"")+"</p>";
@@ -870,7 +872,7 @@ function designAct(a){const d=S.k.design;
   if(a==="engine")d.engine=d.engine==="spark"?"thud":"spark";else if(a==="small"&&d.tanks.length<5)d.tanks.push("small");else if(a==="large"&&d.tanks.length<5)d.tanks.push("large");
   else if(a==="drop")d.tanks.pop();else if(a==="antenna")d.antenna=!d.antenna;else if(a==="arm")d.arm=!d.arm;dirty=true;save()}
 function drawFlight(cx,cy,r,now){const f=S.k.flight;if(!f||f.pad<0)return;const L=SP.flightSecs,u=Math.min(1,f.t/L),c=T[f.pad].c;
-  const ax=norm(cross(c,[0,1,0]).map((v,i)=>v||[1e-3,0,0][i])),orbitR=f.ms==="rescue"?1.36:1.2;
+  const ax=norm(cross(c,[0,1,0]).map((v,i)=>v||[1e-3,0,0][i])),orbitR=f.ms==="rescue"?1.36:f.ms==="dock"?OB.r:1.2;
   const at=uu=>{const turn=rot(ax,-uu*1.1),p=applyM(turn,c),a=1+(orbitR-1)*(uu*uu*(3-2*uu));return applyM(R,[p[0]*a,p[1]*a,p[2]*a])};
   const dead=f.fail&&u>.55;const p=at(dead?.55:u);if(p[2]<0&&p[0]*p[0]+p[1]*p[1]<1)return;
   // trail
@@ -907,7 +909,7 @@ function evidence(){const ev=[],X=HV.susp;if(!S.h.secret)return ev;
   if(siloAny()&&!S.h.sealed&&!siloDone("floor"))ev.push(["The bunker hatch is open",X.hatch]);
   if(S.h.silo.power&&siloAny())ev.push(["The silo is drawing power",X.power]);
   if(S.h.silo.job&&!S.h.silo.job.stashed)ev.push(["Ship parts are lying in sight",X.crate]);
-  const surf=Object.keys(S.bld).filter(k=>BLD[S.bld[k]]&&BLD[S.bld[k]].staff&&!E.st.has(+k)).length;if(surf)ev.push([surf+" surface job"+(surf>1?"s":"")+" left empty",Math.min(X.workerMax,surf*X.worker)]);
+  const surf=Object.keys(S.bld).filter(k=>BLD[S.bld[k]]&&BLD[S.bld[k]].staff&&!E.st.has(+k)&&!defWrecked(+k)).length;if(surf)ev.push([surf+" surface job"+(surf>1?"s":"")+" left empty",Math.min(X.workerMax,surf*X.worker)]);
   if(S.k.fuel>50)ev.push(["The fuel tanks smell of rocket fuel",X.fuel]);return ev}
 function inspect(){const ev=evidence(),add=ev.reduce((a,e)=>a+e[1],0),X=HV.susp;S.h.susp=Math.min(100,S.h.susp+add*(hasBp("quiet")?.75:1));let out=[];
   if(S.h.susp>=X.raid){out.push("They open an investigation: a "+HV.raidFine+" scrap fine");S.res.scrap=Math.max(0,S.res.scrap-HV.raidFine);S.h.susp=80}
@@ -917,7 +919,7 @@ function inspect(){const ev=evidence(),add=ev.reduce((a,e)=>a+e[1],0),X=HV.susp;
     S.res.scrap=Math.max(0,S.res.scrap-HV.fine);out.push("a "+HV.fine+" scrap fine")}
   const msg=ev.length?"Republic inspectors found: "+ev.map(e=>e[0].toLowerCase()).join("; ")+"."+(out.length?" Result: "+out.join(", ")+".":" They leave with a warning."):"Republic inspectors walked the colony and found nothing.";
   say(msg);toast(msg);dirty=true;save()}
-function tickActive(dt){if(!S||S.h.crack)return;S.h.active+=dt;const a=S.h.active,I=S.h.insp;
+function tickActive(dt){if(!S||S.h.crack)return;S.h.active+=dt;defTick(dt);const a=S.h.active,I=S.h.insp;
   if(S.h.detained){S.h.detained.left-=dt;if(S.h.detained.left<=0)freeDetained()}
   if(!republicHere())return;
   const floor=siloAny()?25:0;if(S.h.susp>floor)S.h.susp=Math.max(floor,S.h.susp-dt*HV.susp.decayPerMin/60);
@@ -926,7 +928,7 @@ function tickActive(dt){if(!S||S.h.crack)return;S.h.active+=dt;const a=S.h.activ
     if(a>=at){I.phase="idle";I.i++;inspect()}}
   const q=S.h.quota;if(!q.due&&a>=q.next){q.due=true;q.deadline=a+HV.quotaGrace;q.amount=HV.quotaScrap;q.next=a+HV.quotaEvery;toast("The Republic wants its quota: "+q.amount+" scrap within "+HV.quotaGrace+" seconds.");dirty=true}
   if(q.due&&a>=q.deadline){q.due=false;S.h.susp=Math.min(100,S.h.susp+HV.susp.quotaMissed);say("You missed the Republic's quota. They will remember.");dirty=true}}
-function alertText(){if(!S||!S.h||S.h.crack)return null;const I=S.h.insp,a=S.h.active;
+function alertText(){if(!S||!S.h||S.h.crack)return null;{const ra=raidAlert();if(ra)return ra}const I=S.h.insp,a=S.h.active;
   if(S.x&&S.x.enc&&!FIGHT){const D=SPACE_FOES[S.x.enc.k];return{t:D.title+(D.plural?" are":" is")+" alongside the ship",b:[["sfight","Fight it out"],["squick","Quick fight"]]}}
   if(republicHere()&&I.phase==="warn"){const at=inspTimes().at(I.i);return{t:"Inspectors land in "+Math.max(0,Math.ceil(at-a))+" s",b:[["hide","Hide everything"+(siloDone("floor")||S.h.sealed?"":" ("+HV.hideCost+" scrap)")]]}}
   if(republicHere()&&S.h.quota.due)return{t:"Quota due: "+S.h.quota.amount+" scrap in "+Math.max(0,Math.ceil(S.h.quota.deadline-a))+" s",b:[["quota","Send it"]]};
@@ -1255,6 +1257,7 @@ function model(type,x,y,s,a,lx,dl,now,i,al){
     glow=(px,py,rr,c)=>{const g=ctx.createRadialGradient(px,py,0,px,py,rr);g.addColorStop(0,c);g.addColorStop(1,"rgba(255,170,90,0)");ctx.fillStyle=g;ctx.fillRect(px-rr,py-rr,rr*2,rr*2)},
     side=(c0,c1,w)=>{const g=ctx.createLinearGradient(-sd*w,0,sd*w,0);g.addColorStop(0,F(c0));g.addColorStop(1,F(c1));return g};
   ctx.fillStyle="rgba(8,6,4,"+(.28*D).toFixed(2)+")";ctx.beginPath();ctx.ellipse(-sd*s*.25,s*.42,s*1.05,s*.24,0,0,6.2832);ctx.fill();   // shadow, away from the sun
+  if(type==="anchor"){orbAnchorModel(s,F,fill,box,glow,side,sd,night,t,i);ctx.restore();return}
   switch(type){
     case"bunker":ctx.beginPath();ctx.moveTo(-s,s*.45);ctx.arc(0,s*.45,s,Math.PI,0);ctx.closePath();ctx.fillStyle=side([86,82,76],[200,192,174],s);ctx.fill();ctx.stroke();
       ctx.strokeStyle=F([96,90,82]);ctx.beginPath();ctx.arc(0,s*.45,s*.7,Math.PI*1.1,Math.PI*1.9);ctx.stroke();ctx.strokeStyle=INK;
@@ -1396,7 +1399,7 @@ let WK_CREW=null;
 function wkCrew(){if(WK_CREW&&WK_CREW.E===E)return WK_CREW.list;const list=[],busy=new Set();
   if(E&&E.who)for(const[id,p]of E.who){busy.add(p.id);
     if(typeof id==="number"&&S.bld[id])list.push({p,i:id,job:S.bld[id],slot:0});
-    else if(typeof id==="string"&&id.startsWith("pad2:"))list.push({p,i:+id.slice(5),job:"pad",slot:1})}
+    else if(typeof id==="string"&&id.startsWith("pad2:"))list.push({p,i:+id.slice(5),job:"pad",slot:1});else if(typeof id==="string"&&id.startsWith("d:"))list.push({p,i:+id.slice(2),job:"guard",slot:2})}
   const squad=E&&E.squad?E.squad:[];for(const p of squad)busy.add(p.id);
   if(S.exp&&!S.exp.away&&!S.exp.sea&&S.exp.i>=0)squad.forEach((p,k)=>list.push({p,i:S.exp.i,job:"squad",slot:k}));
   let n=0;for(const p of S.people){if(busy.has(p.id))continue;if(n>=WK.maxIdle)break;list.push({p,i:START,job:"idle",slot:n++})}
@@ -1423,6 +1426,7 @@ function wkSteps(m,B,night){const i=m.i,h=k=>h3(i,k,97+m.slot*13+(m.p.id|0)%7),s
       return[[go,D,Wt,"","",0],[4,Wt,Wt,"fill","",Wt[0]>=D[0]?1:-1],[go,Wt,D,"carry","food",0],[2.6,D,D,m.slot===0?"wave":"","",side],[go*.8,D,Hm,"","",0],[2.2,Hm,Hm,"","",-side],[go*.8,Hm,D,"","",0]]}
     case"crew":{const a=[-.56,.7],b=[.56,.72],c=[.02,.9];return[[go,a,b,"","",0],[2.5,b,b,"point","",1],[go,b,c,"","",0],[2,c,c,"","",-1],[go,c,a,"","",0],[2,a,a,"radio","",-1]]}
     case"squad":{const L=[],K=6;for(let q=0;q<K;q++){const t0=q/K*6.2832,t1=(q+1)/K*6.2832;L.push([go,[.74*Math.cos(t0),.1+.58*Math.sin(t0)],[.74*Math.cos(t1),.1+.58*Math.sin(t1)],q===0&&m.slot===0?"point":"","",0])}return L}
+    case"guard":{const A=[-.5,.52],Bq=[.5,.64];return[[go*1.4,A,Bq,"","",0],[2.6,Bq,Bq,"point","",1],[go*1.4,Bq,A,"","",0],[2.6,A,A,night?"lamp":"point","",-1]]}
     default:{const A=[.34,.58],Cq=[-.4,.66];return[[4,A,A,"hammer","",-1],[go,A,Cq,"","",0],[3,Cq,Cq,"","",1],[go,Cq,A,"","",0]]}}}
 // where one person is right now: a tile-local spot (with what they are doing), or a point on the walk home
 function wkWhere(m,B,night,t){
@@ -2403,6 +2407,533 @@ function cbMark(o,now){const[,,x0,y0,s]=o,x=x0+s*.42,y=y0+s*.18,f=reduced?1:.8+.
   ctx.fillStyle="#ffcf7a";ctx.beginPath();ctx.arc(x+s*.13,y-s*.08,Math.max(1,s*.06*f),0,6.2832);ctx.fill()}
 function cbTap(sx,sy){const c=Math.floor(sx/GRC.cw),r=Math.floor((sy-GRC.gy)/GRC.ch);if(r<0||c<0||r>=CB_ROWS||c>=CB_COLS)return;selC=r+","+c;dirty=true}
 // ==== CAVE (end) ====
+// ==== DEF (start) ====
+// Defenses and raids. Once your colony holds 9 tiles its lights draw raiders, mutant packs and feral dogs. Every few
+// minutes of play a band comes at one of your border tiles from the wild land next to it: you get a warning, then
+// they're at the wall and you choose: fight it out (you work the stick), let the defenses fight (it plays out on its
+// own), or strike them from orbit if the station has a charged Orbital Lance. Nobody answers in time and the defenses
+// fight on their own. Win and they leave what they carried (materials and scrap); lose and they take a share of your
+// stores and wreck the building on that tile, which does nothing until it's repaired.
+// Each tile can be fortified: a wall (a palisade, then concrete, then Builder alloy), a gate, up to two turrets (they
+// run on the bunker's spare power), a pillbox (a guard mans it: it takes a worker), a watchtower, barbed wire and a
+// minefield (used up by the raid that walks into it). Each adds strength to your side, and each does something in the
+// fight itself (the wall blocks a hit every round, the gate takes the first hit, turrets give covering fire, and so on).
+// Turrets cover the tiles next to them too. Raids only come while you're playing, never while you're away.
+// State: S.dfs {tile: {wall, wh, gate, tur, pill, tower, wire, mines}}, S.raid {on, t, next, n, won, lost, cur, dmg}.
+// Claude's first pass, for GPT's numbers pass.
+const DF={start:9,firstIn:150,every:[240,420],warn:45,towerWarn:30,decide:30,lvlEvery:3,coverK:1,repairK:.4,turMax:2};
+const DEFS={
+  wall:{name:"Wall",lv:["Palisade","Concrete wall","Builder wall"],cost:[{scrap:30},{scrap:70,iron:2},{scrap:140,iron:6,crystal:1}],bp:[null,"concrete","bwall"],str:[1,2,3],
+    what:["Sharpened posts round the tile","Poured concrete, head high","Builder alloy: it closes over its own cracks"]},
+  gate:{name:"Gate",cost:{scrap:35},str:1,what:"A gate in the wall, where your people come and go. Raiders hit it first"},
+  tur:{name:"Auto Turret",cost:{scrap:70,iron:3,copper:1},str:2,bp:"turrets",what:"Fires on its own. 1 power from the bunker's spare power. Covers the tiles next to it too"},
+  pill:{name:"Pillbox",cost:{scrap:90,iron:4},str:3,bp:"concrete",what:"A concrete gun nest. A guard mans it: it takes a worker"},
+  tower:{name:"Watchtower",cost:{scrap:50},str:1,what:"Raids near it are seen 30 s sooner. A lookout calls what's coming"},
+  wire:{name:"Barbed Wire",cost:{scrap:30},str:1,what:"Raiders get caught on it at the start of every round"},
+  mines:{name:"Minefield",cost:{scrap:40,powder:3},bp:"mines",what:"The next raid on this tile walks into it and comes in a level weaker. Used up"}};
+const DEF_LIST=["wall","gate","tur","pill","tower","wire","mines"];
+BRANCHES.push("Defense");
+Object.assign(BP,{
+  turrets:{br:"Defense",tier:1,name:"Auto Turrets",what:"Guns that aim and fire on their own: turrets for your tiles",cost:{scrap:120},pts:50},
+  concrete:{br:"Defense",tier:1,name:"Poured Concrete",what:"Concrete walls, and pillboxes for a guard to man",cost:{scrap:100},pts:45},
+  mines:{br:"Defense",tier:2,name:"Minefields",what:"Powder buried round a tile: the next raid there comes in a level weaker",cost:{scrap:120},pts:80,needs:["concrete"]},
+  arcturret:{br:"Defense",tier:3,name:"Arc Turrets",what:"Turrets fire arcs that curve onto their target: +1 strength each, and their shots curve in a fight",cost:{scrap:220},pts:180,needs:["turrets"]},
+  bwall:{br:"Defense",tier:3,name:"Builder Walls",what:"Walls of Builder alloy, the strongest there are",cost:{scrap:240},pts:190,needs:["concrete"]}});
+GOALS.push({text:"Drive off a raid",p:()=>[S.raid&&S.raid.won>0?1:0,1],reward:{scrap:150}});
+const dfsOf=()=>{if(!S.dfs||typeof S.dfs!=="object")S.dfs={};return S.dfs};
+const dfAt=i=>{const d=S.dfs&&S.dfs[i];return d&&typeof d==="object"?d:null};
+const dfGet=i=>{const D=dfsOf();if(!D[i]||typeof D[i]!=="object")D[i]={wall:0,wh:100,gate:0,tur:0,pill:0,tower:0,wire:0,mines:0};return D[i]};
+const raidOf=()=>{if(!S.raid||typeof S.raid!=="object")S.raid={on:false,t:0,next:0,n:0,won:0,lost:0,cur:null,dmg:{}};if(!S.raid.dmg||typeof S.raid.dmg!=="object")S.raid.dmg={};return S.raid};
+const defWrecked=id=>typeof id==="number"&&!!(S.raid&&S.raid.dmg&&S.raid.dmg[id]);
+function fixDfs(o){const out={};if(!o||typeof o!=="object")return out;for(const k in o){const i=+k,d=o[k];if(!Number.isInteger(i)||i<0||i>=T.length||!d||typeof d!=="object")continue;
+  out[i]={wall:Math.max(0,Math.min(3,d.wall|0)),wh:Math.max(0,Math.min(100,d.wh===undefined?100:+d.wh||0)),gate:d.gate?1:0,tur:Math.max(0,Math.min(DF.turMax,d.tur|0)),pill:d.pill?1:0,tower:d.tower?1:0,wire:d.wire?1:0,mines:d.mines?1:0}}return out}
+function fixRaid(o){if(!o||typeof o!=="object")return null;const dmg={};if(o.dmg&&typeof o.dmg==="object")for(const k in o.dmg)if(Number.isInteger(+k)&&o.dmg[k])dmg[+k]=1;
+  const c=o.cur&&typeof o.cur==="object"&&Number.isInteger(o.cur.i)&&o.cur.i>=0&&o.cur.i<T.length&&THREAT[o.cur.foe]?o.cur:null;
+  return{on:!!o.on,t:Math.max(0,+o.t||0),next:Math.max(0,+o.next||0),n:Math.max(0,o.n|0),won:Math.max(0,o.won|0),lost:Math.max(0,o.lost|0),dmg,
+    cur:c?{i:c.i,from:Number.isInteger(c.from)?c.from:c.i,foe:c.foe,lvl:Math.max(1,Math.min(4,c.lvl|0)),left:Math.max(0,+c.left||0),total:Math.max(1,+c.total||DF.warn),phase:c.phase==="here"?"here":"coming",wait:Math.max(0,+c.wait||DF.decide),seed:c.seed>>>0,att:c.att|0,mined:!!c.mined}:null}}
+// ---- strength: your people (the squad's strength, at home) and what stands on the tile, plus turrets next door
+const defTurOn=()=>{const tot=Object.values(S.dfs||{}).reduce((a,d)=>a+(d&&d.tur|0),0);if(!E||!tot)return 0;return Math.max(0,Math.min(tot,Math.floor(E.power.supply-E.power.demand+1e-9)))};
+// which turrets have power: the first ones built (by tile number) until the spare power runs out
+function defTurPowered(){const out=new Map();let left=defTurOn();for(const k of Object.keys(S.dfs||{}).map(Number).sort((a,b)=>a-b)){const n=Math.min(left,(S.dfs[k].tur|0));if(n>0)out.set(k,n);left-=n}return out}
+const defPills=()=>Object.keys(S.dfs||{}).map(Number).filter(i=>S.owned.has(i)&&S.dfs[i].pill);
+const defManned=i=>!!(E&&E.st&&E.st.has("d:"+i));
+function defStr(i,TP){const d=dfAt(i),tp=TP||defTurPowered();let s=0;const arc=hasBp("arcturret")?1:0;
+  if(d){if(d.wall>0&&d.wh>=35)s+=DEFS.wall.str[d.wall-1];if(d.gate&&d.wall>0)s+=DEFS.gate.str;s+=(tp.get(i)||0)*(DEFS.tur.str+arc);if(d.pill&&defManned(i))s+=DEFS.pill.str;if(d.tower)s+=DEFS.tower.str;if(d.wire)s+=DEFS.wire.str}
+  for(const j of T[i].n)if(S.owned.has(j))s+=(tp.get(j)||0)*DF.coverK;return s}
+const raidP=i=>squadP().P+defStr(i);
+const raidOdds=(i,L)=>{const P=raidP(i);return Math.round(100*P/(P+Math.max(1,L)))};
+// ---- in the fight: what each defense does (abilities on the defenders' side, always on, every round)
+const DEF_AB={dwall:{name:"THE WALL",k:"shield",t:99,n:1,when:"start",col:"#b8a890",say:"Blocks a hit every round"},
+  dwall2:{name:"CONCRETE WALL",k:"shield",t:99,n:2,when:"start",col:"#c8c4bc",say:"Blocks two hits every round"},
+  dwall3:{name:"BUILDER WALL",k:"shield",t:99,n:3,when:"start",col:"#9aa1ab",say:"Blocks three hits every round"},
+  dgate:{name:"THE GATE",k:"decoy",when:"start",col:"#a07850",say:"They hit the gate first"},
+  dturret:{name:"TURRETS",k:"auto",t:5,when:"start",col:"#ff7a45",say:"Covering fire at the start of every round"},
+  darc:{name:"ARC TURRETS",k:"magnet",t:5,when:"start",col:"#9adcf4",say:"Shots curve onto them"},
+  dpill:{name:"PILLBOX",k:"shrink",t:8,when:"start",col:"#9a968e",say:"Fighting from behind the slit"},
+  dtower:{name:"LOOKOUT",k:"ui",t:5,when:"start",col:"#d8ecff",say:"The lookout calls what's coming"},
+  dwire:{name:"BARBED WIRE",k:"freeze",t:1.1,fz:"grip",when:"start",col:"#8a7a6a",say:"Caught on the wire"}};
+function defAbInit(){if(PUP.ABIL.dwall)return;Object.assign(PUP.ABIL,DEF_AB)}
+function defAbs(i){defAbInit();const d=dfAt(i),out=[];if(!d)return out;const tp=defTurPowered();
+  if(d.wall>0&&d.wh>=35)out.push(["dwall","dwall2","dwall3"][d.wall-1]);if(d.gate&&d.wall>0)out.push("dgate");if(tp.get(i)){out.push("dturret");if(hasBp("arcturret"))out.push("darc")}
+  if(d.pill&&defManned(i))out.push("dpill");if(d.tower)out.push("dtower");if(d.wire)out.push("dwire");return out}
+// ---- the raids: when they come, where, who
+const raidFoeAt=j=>{const b=T[j].b;return b==="ruins"||b==="crags"||b==="spire"?"raiders":b==="woods"?"nest":b==="frost"?"dogs":(S.raid&&S.raid.n%2)?"raiders":"dogs"};
+const raidName=f=>({raiders:"a raider band",dogs:"a pack of feral dogs",nest:"a mutant pack"}[f]||"raiders");
+function raidBorder(){const out=[];for(const i of S.owned){if(T[i].b==="sea")continue;if(T[i].n.some(j=>land(j)&&!S.owned.has(j)))out.push(i)}return out}
+function raidPick(){const B=raidBorder();if(!B.length)return null;const R0=raidOf(),tp=defTurPowered();let tot=0;const w=B.map(i=>{const v=(S.bld[i]?3:1)/(1+defStr(i,tp));tot+=v;return v});
+  let x=h3(R0.n+1,S.owned.size,883)*tot,i=B[B.length-1];for(let q=0;q<B.length;q++){x-=w[q];if(x<=0){i=B[q];break}}
+  const src=T[i].n.filter(j=>land(j)&&!S.owned.has(j)),from=src[Math.floor(h3(R0.n+3,i,887)*src.length)];return{i,from}}
+function raidSpawn(quiet){const R0=raidOf(),pk=raidPick();if(!pk)return;const foe=raidFoeAt(pk.from),lvl=Math.max(1,Math.min(4,1+Math.floor(R0.n/DF.lvlEvery)+(foe==="nest"?1:0)));
+  const tw=[...ring([pk.i],2)].some(j=>S.owned.has(j)&&dfAt(j)&&dfAt(j).tower),left=DF.warn+(tw?DF.towerWarn:0);
+  R0.cur={i:pk.i,from:pk.from,foe,lvl,left,total:left,phase:"coming",wait:DF.decide,seed:(Math.imul(R0.n+1,2654435761)^Math.imul(pk.i+1,40503))>>>0,att:0,mined:false};R0.n++;
+  if(!quiet){say(raidName(foe).replace(/^./,m=>m.toUpperCase())+" is coming out of the "+BIOME[T[pk.from].b].name.toLowerCase()+" at tile "+pk.i+".");toast(raidName(foe).replace(/^./,m=>m.toUpperCase())+" is coming at tile "+pk.i+": "+Math.round(left)+" s. Tap Show me.")}dirty=true}
+// called from the clock while the game is on screen (raids never come while you're away)
+function defTick(dt){if(!S||S.h&&S.h.crack)return;const R0=raidOf();R0.t+=dt;
+  if(!R0.on){if(S.owned.size>=DF.start){R0.on=true;R0.next=R0.t+DF.firstIn;say("Smoke on the horizon. Your lights have been seen: raiders and worse will come at your border. Wall and arm the tiles at the edge.");
+      toast("Raids are coming. Open a border tile and tap Defenses to wall it and arm it.");dirty=true}return}
+  const c=R0.cur;
+  if(!c){if(R0.t>=R0.next)raidSpawn(false);return}
+  if(c.phase==="coming"){c.left-=dt;if(c.left<=0){c.left=0;c.phase="here";c.wait=DF.decide;const d=dfAt(c.i);
+      if(d&&d.mines){d.mines=0;c.mined=true;c.lvl=Math.max(1,c.lvl-1);say("The raid on tile "+c.i+" walks into the minefield. They come on, weaker.")}
+      toast(raidName(c.foe).replace(/^./,m=>m.toUpperCase())+" is at the wall of tile "+c.i+". Fight, or let the defenses fight.");dirty=true}return}
+  if(c.phase==="here"&&!FIGHT){c.wait-=dt;if(c.wait<=0)raidFight("quick")}}
+function raidNextIn(){const R0=raidOf(),[a,b]=DF.every;return a+(b-a)*h3(R0.n,R0.won+R0.lost,889)}
+// ---- settling it
+function defenderOf(i){const p=E&&E.who?[...E.who].find(([id])=>id==="d:"+i||id===i):null;return p?p[1]:S.people[0]||null}
+function raidFight(mode){const R0=raidOf(),c=R0.cur;if(!c||c.phase!=="here"||FIGHT)return;defAbInit();const P=raidP(c.i),L=c.lvl,F=foeOf(c.foe,c.i,7),wk=fightWeapon(),w1=F.wk==="same"?wk:F.wk,
+    lv=fightLevels(P,L,foeCal(F,wk)),att=c.att=(c.att|0)+1,seed=(c.seed+Math.imul(att,1299709))>>>0,dp=defenderOf(c.i),you={...lookOf(dp)},foe={big:1,...F.look},ab0=abBring().concat(defAbs(c.i));
+  if(mode==="quick"){const g=PUP.quick({weapon0:wk,weapon1:w1,seed,look0:you,look1:foe,ctl0:lv.you,ctl1:lv.foe,needs:[1,1],ab0,ab1:F.ab});raidOutcome(g.over.win===0,null);return}
+  FIGHT={kind:"raid",back:VIEW==="fight"?"surface":VIEW,lvYou:lv.you,foe:"the "+(c.foe==="nest"?"mutants":c.foe==="dogs"?"dogs":"raiders"),you:dp?dp.name:"Your people",wk,w1,does:F.does,
+    g:PUP.start({weapon0:wk,weapon1:w1,seed,look0:you,look1:foe,ctl0:"cab",ctl1:lv.foe,needs:[fightPops(L),fightLives(P)],ab0,ab1:F.ab}),done:false};fightIn()}
+function raidLance(){const R0=raidOf(),c=R0.cur;if(!c||c.phase!=="here"||typeof orbLanceFire!=="function"||!orbLanceFire(c.i))return;R0.cur=null;R0.won++;R0.next=R0.t+raidNextIn();
+  const loot=3*c.lvl;S.res.scrap+=loot;say("The Orbital Lance strikes from orbit. Whatever was at the wall of tile "+c.i+" is gone; "+loot+" scrap in the scorch.");toast("A strike from orbit: the raid is over.");dirty=true;save()}
+function raidSteal(c){const k=c.lvl,f=c.foe,take=(r,cap)=>{const v=Math.min(Math.floor(S.res[r]*.2),cap*k);if(v>0)S.res[r]-=v;return v>0?v+" "+r:""},bunk=S.bld[c.i]==="bunker"?1.5:1;
+  const got=(f==="dogs"?[take("food",25*bunk)]:f==="nest"?[take("food",20*bunk),take("water",15*bunk)]:[take("scrap",30*bunk),take("water",15*bunk)]).filter(Boolean);return got.length?got.join(" and "):"nothing much"}
+function raidOutcome(win,g){const R0=raidOf(),c=R0.cur;if(!c)return;R0.cur=null;R0.next=R0.t+raidNextIn();const i=c.i,sc=g?" "+g.wins[0]+"–"+g.wins[1]:"",nm=raidName(c.foe),d=dfAt(i);matAfterFight(win,false);
+  if(win){R0.won++;S.beat=S.beat||{};S.beat[c.foe]=(S.beat[c.foe]|0)+1;const loot=6*c.lvl;S.res.scrap+=loot;if(d&&d.wall)d.wh=Math.max(0,d.wh-8*c.lvl);
+    say("Drove off "+nm+" at tile "+i+(sc?","+sc:"")+". "+loot+" scrap in what they left.");matDrop(c.foe,c.foe==="nest"?"mutants":c.foe==="dogs"?"dogs":"raiders")}
+  else{R0.lost++;const took=raidSteal(c);if(d&&d.wall)d.wh=0;const b=S.bld[i],wreck=b&&b!=="bunker"&&b!=="anchor"&&BLD[b];if(wreck)R0.dmg[i]=1;
+    say(nm.replace(/^./,m=>m.toUpperCase())+" broke in at tile "+i+(sc?" ("+sc.trim()+")":"")+": they took "+took+(wreck?" and wrecked the "+BLD[b].name.toLowerCase()+". Repair it from the tile":"")+".");if(wreck)toast("The "+BLD[b].name.toLowerCase()+" on tile "+i+" is wrecked. Open the tile to repair it.")}
+  E=econ();dirty=true;save()}
+// ---- building and repairing
+function defWhyNot(i,k){const d=dfAt(i)||{wall:0,gate:0,tur:0,pill:0,tower:0,wire:0,mines:0},D=DEFS[k];
+  if(k==="wall"){if(d.wall>=3)return"The strongest wall there is";const bp=D.bp[d.wall];if(bp&&!hasBp(bp))return"Needs "+BP[bp].name;return matAfford(D.cost[d.wall])?"":"Costs "+matCostTxt(D.cost[d.wall])}
+  if(D.bp&&!hasBp(D.bp))return"Needs "+BP[D.bp].name;if(k==="gate"&&!d.wall)return"Build a wall first";
+  if(k==="tur"){if(d.tur>=DF.turMax)return"Two is as many as a tile takes"}else if(d[k])return"Built";
+  return matAfford(D.cost)?"":"Costs "+matCostTxt(D.cost)}
+function defBuild(i,k){if(!S.owned.has(i)||T[i].b==="sea"||!DEFS[k]||defWhyNot(i,k))return;const d=dfGet(i),D=DEFS[k];
+  if(k==="wall"){matPay(D.cost[d.wall]);d.wall++;d.wh=100;say("Tile "+i+": "+(d.wall>1?"the wall is now a "+D.lv[d.wall-1].toLowerCase():"a palisade goes up")+".")}
+  else{matPay(D.cost);if(k==="tur")d.tur++;else d[k]=1;say("Tile "+i+": "+(k==="tur"?"an auto turret":k==="mines"?"a minefield":"a "+D.name.toLowerCase())+(k==="pill"?" is built. It needs a guard: someone free will man it.":" is built."))}
+  E=econ();dirty=true;save()}
+const wallFixCost=d=>{const c=DEFS.wall.cost[Math.max(0,d.wall-1)],f=(100-d.wh)/100*.5,o={};for(const k in c){const v=Math.ceil(c[k]*f);if(v>0)o[k]=v}return o};
+function defFix(i){const d=dfAt(i);if(!d||!d.wall||d.wh>=100)return;const c=wallFixCost(d);if(!matAfford(c))return;matPay(c);d.wh=100;say("Tile "+i+": the wall is patched up.");dirty=true;save()}
+const repairCostOf=i=>{const b=S.bld[i];if(!b||!BLD[b]||!BLD[b].cost)return{scrap:20};const c={};for(const k in BLD[b].cost)c[k]=Math.max(1,Math.ceil(BLD[b].cost[k]*DF.repairK));return c};
+function defRepair(i){if(!defWrecked(i))return;const c=repairCostOf(i);if(!afford(c))return;pay(c);delete S.raid.dmg[i];say("The "+(BLD[S.bld[i]]?BLD[S.bld[i]].name.toLowerCase():"building")+" on tile "+i+" is repaired.");E=econ();dirty=true;save()}
+// ---- the panels: the alert bar, the tile's own line, and the defenses list for a tile
+const raidWho=f=>({raiders:"Raiders",dogs:"Feral dogs",nest:"Mutants"}[f]||"Raiders");
+function raidAlert(){const c=S.raid&&S.raid.cur;if(!c||FIGHT)return null;
+  if(c.phase==="coming")return{t:raidWho(c.foe)+" coming at tile "+c.i+" · "+Math.ceil(c.left)+" s",b:[["df:look","Show me"]]};
+  const b=[["df:fight","Fight it out"],["df:quick","Defenses fight"]];if(typeof orbLanceReady==="function"&&orbLanceReady())b.push(["df:lance","Strike from orbit"]);
+  return{t:raidWho(c.foe)+" at tile "+c.i+(FIGHT?"":" · "+Math.ceil(c.wait)+" s"),b}}
+let DEFP=-1;
+function defLine(i){const d=dfAt(i);if(!d)return"no defenses";const L=[];if(d.wall)L.push(DEFS.wall.lv[d.wall-1].toLowerCase()+(d.wh<100?" ("+Math.round(d.wh)+"%)":""));if(d.gate)L.push("a gate");
+  if(d.tur)L.push(d.tur+" turret"+(d.tur>1?"s":""));if(d.pill)L.push("a pillbox"+(defManned(i)?"":" (no guard)"));if(d.tower)L.push("a watchtower");if(d.wire)L.push("wire");if(d.mines)L.push("mines");return L.length?L.join(", "):"no defenses"}
+function defTileHTML(i){if(!S.owned.has(i)||T[i].b==="sea")return"";const R0=S.raid,c=R0&&R0.cur&&R0.cur.i===i?R0.cur:null;let h="";
+  if(c){const odds=raidOdds(i,c.lvl);h+='<div class="plist"><div class="prow no"><div><b>'+raidName(c.foe).replace(/^./,m=>m.toUpperCase())+(c.phase==="coming"?" coming: "+Math.ceil(c.left)+" s":" at the wall")+"</b></div><small>Level "+c.lvl+(c.mined?" (the mines took one)":"")+" · your strength here "+raidP(i)+" · about "+odds+"% to hold"+(c.phase==="coming"?" · build now and it counts":"")+"</small></div></div>"}
+  if(defWrecked(i)){const rc=repairCostOf(i);h+="<p><b>Wrecked by raiders.</b> It does nothing until it's repaired.</p>"+'<div class="acts">'+btn("df:rep","Repair it","Costs "+costText(rc),rc,"primary")+"</div>"}
+  if(!(R0&&R0.on)&&!dfAt(i)&&S.owned.size<DF.start-3)return h;const border=T[i].n.some(j=>land(j)&&!S.owned.has(j)),s=defStr(i);
+  return h+"<p><b>Defenses:</b> "+defLine(i)+(s?" (+"+s+" strength)":"")+"."+(border?"":" Not on the border: raids come at tiles next to wild land.")+"</p>"+'<div class="acts">'+btn("df:open","Defenses","Walls, gates, turrets, a pillbox…",null,c?"primary":"")+"</div>"}
+function defPanelHTML(i){const d=dfAt(i)||{wall:0,wh:100,gate:0,tur:0,pill:0,tower:0,wire:0,mines:0},R0=S.raid,c=R0&&R0.cur&&R0.cur.i===i?R0.cur:null,tp=defTurPowered(),q=squadP().P,s=defStr(i,tp);
+  let h='<div class="row"><button class="linkbtn" data-act="df:close">← Back to the tile</button><span class="meta">Tile '+i+"</span></div>"+'<div class="tile-h">Defenses</div>';
+  h+="<p>Strength here: <b>"+(q+s)+"</b> ("+q+" from your people and their gear, "+s+" from defenses"+(T[i].n.some(j=>S.owned.has(j)&&tp.get(j))?", turrets next door included":"")+"). "+
+    (c?"<b>"+raidName(c.foe).replace(/^./,m=>m.toUpperCase())+", level "+c.lvl+", "+(c.phase==="coming"?"coming in "+Math.ceil(c.left)+" s":"at the wall")+": about "+raidOdds(i,c.lvl)+"% to hold.</b>":
+      R0&&R0.on?"Raids come at tiles next to wild land, and pick the weak ones.":"No raids yet: they start when your colony holds "+DF.start+" tiles.")+"</p>";
+  const row=(k,label,sub,why,act)=>btn("df:b:"+k,label,sub+(why?" · "+why:""),null,"",!!why);
+  const W0=DEFS.wall,wn=d.wall<3?W0.lv[d.wall]:null;
+  h+='<div class="acts">'+(wn?row("wall",d.wall?"Raise it to a "+wn.toLowerCase():"Build a palisade",W0.what[d.wall]+" · +"+W0.str[d.wall]+" strength · in a fight: blocks "+(d.wall+1)+" hit"+(d.wall?"s":"")+" every round · "+matCostTxt(W0.cost[d.wall]),defWhyNot(i,"wall")):"");
+  if(d.wall&&d.wh<100){const fc=wallFixCost(d);h+=btn("df:fix","Patch the wall",Math.round(d.wh)+"% left"+(d.wh<35?": too broken to count":"")+" · "+matCostTxt(fc),null,"primary",!matAfford(fc))}
+  for(const k of DEF_LIST){if(k==="wall")continue;const D=DEFS[k],why=defWhyNot(i,k);if(why==="Built")continue;if(D.bp&&!hasBp(D.bp)&&!d[k])continue;
+    const fx={gate:"they hit the gate first",tur:"covering fire"+(hasBp("arcturret")?", shots curve":""),pill:"a smaller target",tower:"someone calls what's coming",wire:"caught on the wire"}[k];
+    h+=row(k,(k==="tur"&&d.tur?"Another turret ("+(d.tur+1)+" of "+DF.turMax+")":D.name),D.what+(D.str?" · +"+(k==="tur"?D.str+(hasBp("arcturret")?1:0):D.str)+" strength":"")+(fx?" · in a fight: "+fx:"")+" · "+matCostTxt(D.cost),why)}
+  h+="</div>";const locked=DEF_LIST.filter(k=>DEFS[k].bp&&!hasBp(DEFS[k].bp)&&!d[k]).map(k=>DEFS[k].name+" ("+BP[DEFS[k].bp].name+")");if(d.wall<3&&W0.bp[d.wall]&&!hasBp(W0.bp[d.wall]))locked.unshift(W0.lv[d.wall]+" ("+BP[W0.bp[d.wall]].name+")");
+  if(locked.length)h+='<p class="meta">Blueprints open more: '+locked.join(", ")+".</p>";
+  const tt=Object.values(S.dfs||{}).reduce((a,x)=>a+(x.tur|0),0);if(tt)h+='<p class="meta">Turrets run on the bunker\'s spare power: '+defTurOn()+" of "+tt+" powered.</p>";
+  return h}
+function defAct(a){
+  if(a==="open"){DEFP=sel;dirty=true;return}if(a==="close"){DEFP=-1;dirty=true;return}
+  if(a.startsWith("b:")){defBuild(DEFP>=0?DEFP:sel,a.slice(2));return}if(a==="fix"){defFix(DEFP>=0?DEFP:sel);return}if(a==="rep"){defRepair(sel);return}
+  const c=S.raid&&S.raid.cur;
+  if(a==="look"){if(!c)return;showPeople=false;if(VIEW!=="surface"&&VIEW!=="fight")setView("surface");if(VIEW==="surface"){sel=c.i;selOrb=-1;focus=c.i;DEFP=-1}dirty=true;return}
+  if(a==="fight"){raidFight("play");return}if(a==="quick"){raidFight("quick");return}if(a==="lance"){raidLance();return}}
+// ---- on the globe: walls round the tile, a gate, wire and mines; turrets, the pillbox and the watchtower as little
+// models; a raid band walking in from the wild and massing at the wall; smoke over a wrecked building
+function defMarks(vis,cx,cy,r,tr,obs,now){const R0=S.raid,has=S.dfs&&Object.keys(S.dfs).length;if(!has&&!(R0&&(R0.cur||R0.dmg&&Object.keys(R0.dmg).length)))return;
+  const Rx=[R[0],R[1],R[2]],Ry=[R[3],R[4],R[5]],V=new Map();for(let v=0;v<vis.length;v+=3)V.set(vis[v],v);const t=reduced?0:now/1000,tp=has?defTurPowered():new Map();
+  const c=R0&&R0.cur;
+  if(has)for(const k in S.dfs){const i=+k,vi=V.get(i);if(vi===undefined||!S.owned.has(i))continue;const d=S.dfs[k],z=vis[vi+1],dl=vis[vi+2],tt=T[i],X=cx+dot(Rx,tt.c)*r,Y=cy-dot(Ry,tt.c)*r,s=tr*.66*(.5+.5*z),n=tt.k.length;
+    const P=(j,f)=>{const q=tt.k[((j%n)+n)%n];return[X+(PX[q]-X)*f,Y+(PY[q]-Y)*f]},D=.42+.58*dl;
+    if(d.wire){ctx.strokeStyle="rgba(150,140,128,"+(.5+.3*D).toFixed(2)+")";ctx.lineWidth=Math.max(.6,s*.035);ctx.beginPath();for(let j=0;j<n;j++){const[a0,b0]=P(j,.95),[a1,b1]=P(j+1,.95);for(let q=0;q<=6;q++){const f=q/6,o=(q%2?1:-1)*s*.035;ctx[q?"lineTo":"moveTo"](a0+(a1-a0)*f+o,b0+(b1-b0)*f-o)}}ctx.stroke()}
+    if(d.mines&&s>5*DPR){for(let j=0;j<n;j++){const[a0,b0]=P(j,.9),[a1,b1]=P(j+1,.9);ctx.fillStyle="rgba(40,34,28,.8)";ctx.beginPath();ctx.arc((a0+a1)/2,(b0+b1)/2,Math.max(1,s*.05),0,6.2832);ctx.fill();ctx.fillStyle="#e0503c";ctx.beginPath();ctx.arc((a0+a1)/2,(b0+b1)/2,Math.max(.6,s*.02),0,6.2832);ctx.fill()}}
+    if(d.wall){const lw=Math.max(1,s*[.12,.17,.2][d.wall-1]),cl=[[118,84,52],[168,164,156],[70,64,78]][d.wall-1],broken=d.wh<35;
+      ctx.lineJoin="round";ctx.lineCap="butt";if(broken)ctx.setLineDash([lw*1.6,lw*1.3]);
+      ctx.strokeStyle="rgba(14,11,8,.7)";ctx.lineWidth=lw+Math.max(1,DPR);ctx.beginPath();for(let j=0;j<=n;j++){const[a,b]=P(j,.84);ctx[j?"lineTo":"moveTo"](a,b)}ctx.stroke();
+      ctx.strokeStyle=col(cl,D);ctx.lineWidth=lw;ctx.beginPath();for(let j=0;j<=n;j++){const[a,b]=P(j,.84);ctx[j?"lineTo":"moveTo"](a,b)}ctx.stroke();ctx.setLineDash([]);
+      if(d.wall===3){ctx.strokeStyle="rgba(240,164,58,"+(.35+.25*(reduced?1:Math.sin(t*2+i))).toFixed(2)+")";ctx.lineWidth=Math.max(.6,lw*.25);ctx.beginPath();for(let j=0;j<=n;j++){const[a,b]=P(j,.84);ctx[j?"lineTo":"moveTo"](a,b)}ctx.stroke()}
+      if(d.wall===1&&s>6*DPR){const st=Math.max(2,s*.16);ctx.lineWidth=Math.max(.8,s*.035);for(let j=0;j<n;j++)for(let q=0;q<4;q++){const f=(q+.5)/4,[a0,b0]=P(j,.84),[a1,b1]=P(j+1,.84),x=a0+(a1-a0)*f,y=b0+(b1-b0)*f;   // sharpened stakes along it
+          ctx.fillStyle=col([150,112,70],D);ctx.strokeStyle="rgba(14,11,8,.8)";ctx.beginPath();ctx.moveTo(x-st*.22,y);ctx.lineTo(x-st*.22,y-st*.7);ctx.lineTo(x,y-st);ctx.lineTo(x+st*.22,y-st*.7);ctx.lineTo(x+st*.22,y);ctx.closePath();ctx.fill();ctx.stroke()}}
+      if(d.wall===2&&s>6*DPR){ctx.strokeStyle=col([206,202,194],D);ctx.lineWidth=Math.max(.6,lw*.3);ctx.beginPath();for(let j=0;j<=n;j++){const[a,b]=P(j,.84);ctx[j?"lineTo":"moveTo"](a,b-lw*.35)}ctx.stroke()}
+      if(d.gate){let m=0,best=-9;for(let j=0;j<n;j++){const e=tt.e[j];const v=S.owned.has(e)?2-(e===START?0:.5):0;if(v>best){best=v;m=j}}const[a0,b0]=P(m,.84),[a1,b1]=P(m+1,.84),mx=(a0+a1)/2,my=(b0+b1)/2,dx=(a1-a0)*.18,dy=(b1-b0)*.18;
+        const gh=Math.max(lw*1.6,s*.2);ctx.fillStyle="rgba(14,11,8,.9)";ctx.beginPath();ctx.moveTo(mx-dx*1.15,my-dy*1.15+gh*.2);ctx.lineTo(mx-dx*1.15,my-dy*1.15-gh);ctx.lineTo(mx+dx*1.15,my+dy*1.15-gh);ctx.lineTo(mx+dx*1.15,my+dy*1.15+gh*.2);ctx.closePath();ctx.fill();   // the gate: two doors between two posts
+        ctx.fillStyle=col([168,120,70],D);for(const sg of[-1,1]){ctx.beginPath();ctx.moveTo(mx,my);ctx.lineTo(mx,my-gh*.85);ctx.lineTo(mx+dx*sg*.95,my+dy*sg*.95-gh*.85);ctx.lineTo(mx+dx*sg*.95,my+dy*sg*.95);ctx.closePath();ctx.fill()}
+        ctx.strokeStyle="rgba(14,11,8,.85)";ctx.lineWidth=Math.max(.6,s*.025);ctx.beginPath();ctx.moveTo(mx,my);ctx.lineTo(mx,my-gh*.85);ctx.stroke();
+        ctx.fillStyle=col([90,86,80],D);for(const sg of[-1,1]){const px=mx+dx*sg*1.15,py=my+dy*sg*1.15;ctx.fillRect(px-gh*.16,py-gh*1.1,gh*.32,gh*1.2);ctx.strokeRect(px-gh*.16,py-gh*1.1,gh*.32,gh*1.2)}}}
+    if(s<4.5*DPR)continue;const nx=dot(Rx,tt.c),a=gLean(nx),tgt=c&&(c.i===i||T[i].n.includes(c.i))?c:null;
+    const put=(kind,j,f,extra)=>{const[x,y]=P(j,f);obs.push([z+.0004,"_df",x,y,s*.62,a,dl,i,1,Object.assign({kind,tgt},extra||{})])};
+    for(let q=0;q<d.tur;q++)put("tur",q?4:1,.62,{on:(tp.get(i)||0)>q,q});if(d.pill)put("pill",n>5?3:2,.56,{on:defManned(i)});if(d.tower)put("tower",n>5?5:4,.6,{})}
+  if(R0&&R0.dmg)for(const k in R0.dmg){const i=+k,vi=V.get(i);if(vi===undefined||!S.bld[i])continue;const z=vis[vi+1],s=tr*.66*(.5+.5*z);if(s<4*DPR)continue;
+    obs.push([z+.0008,"_dw",cx+dot(Rx,T[i].c)*r,cy-dot(Ry,T[i].c)*r,s,gLean(dot(Rx,T[i].c)),vis[vi+2],i,1,null])}
+  if(!c)return;const ti=V.get(c.i);
+  if(ti!==undefined){const tt=T[c.i],n=tt.k.length,X=cx+dot(Rx,tt.c)*r,Y=cy-dot(Ry,tt.c)*r,pu=reduced?.7:.5+.5*Math.sin(t*5);   // the tile under attack: a pulsing red ring
+    ctx.strokeStyle="rgba(224,80,60,"+(.45+.45*pu).toFixed(2)+")";ctx.lineWidth=Math.max(1.5,2.2*DPR);ctx.beginPath();for(let j=0;j<=n;j++){const q=tt.k[j%n],a=X+(PX[q]-X)*1.02,b=Y+(PY[q]-Y)*1.02;ctx[j?"lineTo":"moveTo"](a,b)}ctx.stroke()}
+  // the band: from the middle of the wild tile to the wall that faces it
+  const c0=T[c.from].c,c1=T[c.i].c,wall=norm([c1[0]+(c0[0]-c1[0])*.38,c1[1]+(c0[1]-c1[1])*.38,c1[2]+(c0[2]-c1[2])*.38]),p=c.phase==="coming"?1-c.left/c.total:1;
+  const at=norm([c0[0]+(wall[0]-c0[0])*p,c0[1]+(wall[1]-c0[1])*p,c0[2]+(wall[2]-c0[2])*p]),rz=[R[6],R[7],R[8]],tz=dot(rz,at);if(tz<=.04)return;
+  const B=wkBasis(at),F=foeOf(c.foe,c.i,7),look={...F.look,name:""},nx=dot(Rx,at),x0=cx+nx*r,y0=cy-dot(Ry,at)*r,s=tr*.66*(.5+.5*tz)*WK.size,dir=dot(Rx,[c1[0]-c0[0],c1[1]-c0[1],c1[2]-c0[2]])>=0?1:-1,N=2+Math.min(3,c.lvl);
+  if(s<3*DPR||!B){ctx.fillStyle="#e0503c";for(let q=0;q<N;q++){ctx.beginPath();ctx.arc(x0+(q-N/2)*3*DPR,y0,Math.max(1.5,1.6*DPR),0,6.2832);ctx.fill()}return}
+  for(let q=0;q<N;q++){const u=(q-(N-1)/2)*.5,v=(q%2?.25:-.15),w=[at[0]+WK.rho*(u*B[0][0]+v*B[1][0]),at[1]+WK.rho*(u*B[0][1]+v*B[1][1]),at[2]+WK.rho*(u*B[0][2]+v*B[1][2])],l=Math.hypot(w[0],w[1],w[2]);
+    const W2=[w[0]/l,w[1]/l,w[2]/l],z2=dot(rz,W2),nx2=dot(Rx,W2);obs.push([z2+.0006,"_rd",cx+nx2*r,cy-dot(Ry,W2)*r,s*(.92+.1*(q%2)),gLean(nx2),1,c.i,1,{look,f:dir,walk:c.phase==="coming",q,here:c.phase==="here"}])}}
+function defModel(o,now){const[,,x,y,s,a,dl,i,,X]=o,D=.42+.58*dl,F=cl=>col(cl,D),t=reduced?0:now/1000,night=dl<.4;ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.lineJoin="round";ctx.lineCap="round";ctx.strokeStyle=INK;ctx.lineWidth=Math.max(.8,s*.1);
+  ctx.fillStyle="rgba(8,6,4,"+(.25*D).toFixed(2)+")";ctx.beginPath();ctx.ellipse(0,s*.35,s*.8,s*.2,0,0,6.2832);ctx.fill();
+  if(X.kind==="tur"){ctx.fillStyle=F([120,116,108]);ctx.fillRect(-s*.45,-s*.1,s*.9,s*.45);ctx.strokeRect(-s*.45,-s*.1,s*.9,s*.45);
+    const Rx=[R[0],R[1],R[2]],sd=X.tgt?(dot(Rx,T[X.tgt.from].c)>=dot(Rx,T[i].c)?1:-1):(Math.sin(t*.4+i+X.q*2)>=0?1:-1),ang=(X.tgt?-.3:Math.sin(t*1.3+i)*.15)*sd;
+    ctx.save();ctx.translate(0,-s*.18);ctx.fillStyle=X.on?F([176,172,164]):F([110,106,100]);ctx.beginPath();ctx.arc(0,0,s*.32,Math.PI,0);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.rotate(ang);ctx.fillStyle=F([70,66,62]);ctx.fillRect(0,-s*.06,s*.62*sd,s*.12);ctx.strokeRect(0,-s*.06,s*.62*sd,s*.12);
+    if(X.on&&X.tgt&&X.tgt.phase==="here"&&Math.floor(t*9+X.q*3+i)%3===0){ctx.fillStyle="#ffd166";ctx.beginPath();ctx.arc(s*.7*sd,0,s*.13,0,6.2832);ctx.fill()}ctx.restore();
+    if(X.on){ctx.fillStyle=night?"#ff6a4a":"#8a3a2a";ctx.beginPath();ctx.arc(-s*.3,s*.1,Math.max(.8,s*.06),0,6.2832);ctx.fill()}}
+  else if(X.kind==="pill"){ctx.beginPath();ctx.moveTo(-s*.62,s*.32);ctx.lineTo(-s*.5,-s*.12);ctx.quadraticCurveTo(0,-s*.42,s*.5,-s*.12);ctx.lineTo(s*.62,s*.32);ctx.closePath();ctx.fillStyle=F([154,150,142]);ctx.fill();ctx.stroke();
+    ctx.fillStyle=X.on&&night?"#ffcf7a":"#1a140e";ctx.fillRect(-s*.32,-s*.06,s*.64,s*.1);if(X.on&&X.tgt&&X.tgt.phase==="here"&&Math.floor(t*8+i)%2===0){ctx.fillStyle="#ffd166";ctx.beginPath();ctx.arc(s*.4,-s*.01,s*.1,0,6.2832);ctx.fill()}}
+  else if(X.kind==="tower"){const top=-s*1.7;ctx.strokeStyle=F([140,104,70]);ctx.lineWidth=Math.max(.8,s*.09);ctx.beginPath();ctx.moveTo(-s*.32,s*.3);ctx.lineTo(-s*.12,top);ctx.moveTo(s*.32,s*.3);ctx.lineTo(s*.12,top);ctx.moveTo(-s*.26,0);ctx.lineTo(s*.22,top*.55);ctx.moveTo(s*.26,0);ctx.lineTo(-s*.22,top*.55);ctx.stroke();
+    ctx.strokeStyle=INK;ctx.lineWidth=Math.max(.8,s*.08);ctx.fillStyle=F([120,90,60]);ctx.fillRect(-s*.3,top-s*.32,s*.6,s*.34);ctx.strokeRect(-s*.3,top-s*.32,s*.6,s*.34);ctx.beginPath();ctx.moveTo(-s*.38,top-s*.32);ctx.lineTo(0,top-s*.6);ctx.lineTo(s*.38,top-s*.32);ctx.closePath();ctx.fillStyle=F([90,70,50]);ctx.fill();ctx.stroke();
+    if(night){const sw=reduced?0:Math.sin(t*.8+i)*.9;ctx.globalCompositeOperation="lighter";ctx.fillStyle="rgba(255,240,190,.16)";ctx.beginPath();ctx.moveTo(0,top-s*.15);ctx.lineTo(Math.sin(sw)*s*3-s*.5,top+s*2.4);ctx.lineTo(Math.sin(sw)*s*3+s*.5,top+s*2.4);ctx.closePath();ctx.fill();ctx.globalCompositeOperation="source-over"}
+    ctx.fillStyle=night?"#fff3b0":"#6a5a40";ctx.beginPath();ctx.arc(0,top-s*.15,Math.max(.8,s*.08),0,6.2832);ctx.fill()}
+  ctx.restore()}
+function defBand(o,now){const[,,x,y,s,a,,,,X]=o;ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.fillStyle="rgba(8,6,4,.3)";ctx.beginPath();ctx.ellipse(0,0,s*.24,s*.07,0,0,6.2832);ctx.fill();
+  PUP.mini(ctx,0,0,s,X.look,now/1000,{ph:X.q*1.9,f:X.f,walk:X.walk,act:X.here?(X.q%2?"point":"hammer"):""});ctx.restore()}
+function defSmoke(o,now){const[,,x,y,s]=o,t=reduced?0:now/1000;for(let q=0;q<3;q++){const k=(t*.35+q/3)%1,px=x+Math.sin(t+q*2)*s*.2+(q-1)*s*.2,py=y-s*(.4+k*1.6),rr=s*(.2+.35*k);
+  ctx.fillStyle="rgba(60,56,52,"+(.55*(1-k)).toFixed(2)+")";ctx.beginPath();ctx.arc(px,py,rr,0,6.2832);ctx.fill()}
+  if(Math.floor(t*6+o[7])%4){ctx.fillStyle="rgba(255,140,60,.7)";ctx.beginPath();ctx.arc(x-s*.15,y-s*.1,s*.09,0,6.2832);ctx.fill()}}
+// ==== DEF (end) ====
+// ==== ORBIT (start) ====
+// The space station and the space elevator. Once Lantern-2 is back, a crew of two can ride a capsule up from the pad
+// and board Kestrel Station (on a later world, where there is no Kestrel, they take a new station core up with them).
+// From then on the station is yours: fit modules onto its truss (solar wings, a habitat ring, a garden, an observatory,
+// a shipyard, a tether spool, an orbital lance), move people up to live and work there, and what they make comes down
+// to the colony. Each module goes up on a supply rocket from your pad, until the space elevator runs: research Tether
+// Weave, fit the spool, build the anchor on a tile near the equator, lower the tether a segment at a time (crystal and
+// circuits), then build the climber. After that everything rides up and down for free, the station stays parked over
+// the anchor, all its spare power comes down the tether, and expedition ships leave from the top (less fuel, and a
+// launch can't fail). State: S.orb {name, mods:{slot:key}, crew:[people], lift, anchor, tether, spin, climber, park,
+// lance, beam} (no S.orb until it's boarded). Claude's first pass, for GPT's numbers pass.
+const OB={slots:8,boardFuel:40,coreFuel:60,boardCost:{scrap:120},coreCost:{scrap:380,iron:12,copper:6},sendFuel:8,liftFuel:15,liftSecs:14,climbSecs:7,
+  tetherN:6,seg:{scrap:50,crystal:3,wire:2},segSecs:24,climber:{scrap:140,iron:8,copper:4,wire:2},anchor:{scrap:260,iron:16,copper:8},equator:16,
+  parkSecs:30,beamDown:.5,dvK:.6,yardK:2/3,hubBeds:2,hubPower:3,r:1.3,top:1.44};
+const OMOD={
+  solar:{name:"Solar Wings",short:"Solar",cost:{scrap:150,copper:6,wire:2},supply:6,max:3,what:"+6 power on the station. What the station doesn't use is beamed down to the bunker's grid"},
+  hab:{name:"Habitat Ring",short:"Ring",cost:{scrap:170,iron:8},power:1,beds:4,max:2,what:"Beds for 4 more crew. It turns, so there's weight in the ring"},
+  garden:{name:"Orbital Garden",short:"Garden",cost:{scrap:160,water:40,copper:2},power:2,staff:"grow",food:.6,bp:"ecology",what:"+0.6 food a second, grown in sunlight that never sets"},
+  scope:{name:"Observatory",short:"Scope",cost:{scrap:190,crystal:2,wire:2},power:2,staff:"eng",rs:1.5,what:"+1.5 research a second, from charting the sky"},
+  yard:{name:"Shipyard",short:"Yard",cost:{scrap:240,iron:12,copper:4},power:3,staff:"eng",bp:"yard",what:"The expedition ship's new parts cost a third less"},
+  spool:{name:"Tether Spool",short:"Spool",cost:{scrap:220,iron:10,crystal:4},power:3,staff:"eng",bp:"tether",what:"Spins crystal into tether, to lower the space elevator"},
+  lance:{name:"Orbital Lance",short:"Lance",cost:{scrap:280,crystal:6,copper:6,wire:4},power:4,staff:"eng",bp:"lance",what:"Charges over a day, then strikes a raid from orbit"}};
+const OMOD_LIST=["solar","hab","garden","scope","yard","spool","lance"];
+// research: a new branch for the station (the Orbital Lance also needs Auto Turrets, from Defense)
+BRANCHES.push("Orbit");
+Object.assign(BP,{
+  ecology:{br:"Orbit",tier:1,name:"Closed Ecology",what:"A garden that lives on its own air and water: the Orbital Garden, for the station",cost:{scrap:110,water:30},pts:60},
+  yard:{br:"Orbit",tier:2,name:"Orbital Shipyard",what:"Build where nothing weighs anything: the Shipyard, for the station",cost:{scrap:190},pts:110,needs:["ecology"]},
+  tether:{br:"Orbit",tier:3,name:"Tether Weave",what:"Crystal spun fine and strong enough to hang from orbit: the Tether Spool, and the space elevator",cost:{scrap:260,water:40},pts:220,needs:["yard"]},
+  lance:{br:"Orbit",tier:3,name:"Orbital Lance",what:"A charge beamed down from the station onto raiders: the Orbital Lance, for the station",cost:{scrap:280},pts:200,needs:["turrets"]}});
+// the elevator's foot is a building on the globe (its materials are paid by the anchor button, not through build())
+BLD.anchor={name:"Elevator Anchor",cost:{scrap:OB.anchor.scrap},staff:false,what:"The foot of the space elevator, where the tether is made fast"};
+GOALS.push({text:"Put a crew aboard a space station",p:()=>[orbOn()?1:0,1],reward:{scrap:300}},
+  {text:"Ride the space elevator",p:()=>[orbLift()?1:0,1],reward:{scrap:500}});
+const orbOn=()=>!!(S&&S.orb&&typeof S.orb==="object"&&S.orb.mods);
+const orbCrew=()=>orbOn()?S.orb.crew:[];
+const orbLift=()=>orbOn()&&!!S.orb.climber;   // the elevator runs
+const orbMods=()=>orbOn()?Object.keys(S.orb.mods).map(Number).sort((a,b)=>a-b).map(sl=>[sl,S.orb.mods[sl]]):[];
+const orbHas=k=>orbMods().some(m=>m[1]===k);
+const orbCount=k=>orbMods().filter(m=>m[1]===k).length;
+const orbRunning=k=>{const I=E&&E.obx;if(!I)return false;for(const[sl,mk]of orbMods())if(mk===k&&I.on.has(sl))return true;return false};
+const orbParked=()=>orbOn()&&S.orb.anchor>=0&&S.orb.park>=1;
+const orbName=()=>orbOn()?S.orb.name:S.world>0?"a new station":"Kestrel Station";
+const orbLat=i=>Math.asin(Math.max(-1,Math.min(1,T[i].c[1])))*180/Math.PI;
+function fixOrb(o){if(!o||typeof o!=="object")return null;const mods={};
+  if(o.mods&&typeof o.mods==="object")for(const k in o.mods){const sl=+k;if(Number.isInteger(sl)&&sl>=0&&sl<OB.slots&&OMOD[o.mods[k]])mods[sl]=o.mods[k]}
+  const L=o.lift&&typeof o.lift==="object"&&OMOD[o.lift.mod]&&Number.isInteger(o.lift.slot)&&o.lift.slot>=0&&o.lift.slot<OB.slots&&!mods[o.lift.slot]?o.lift:null;
+  return{name:typeof o.name==="string"&&o.name?o.name:"Kestrel Station",mods,crew:Array.isArray(o.crew)?o.crew.filter(p=>p&&typeof p==="object"&&typeof p.name==="string"):[],
+    lift:L?{slot:L.slot,mod:L.mod,t:Math.max(0,+L.t||0),total:Math.max(1,+L.total||OB.liftSecs),by:L.by==="climber"?"climber":"rocket"}:null,
+    anchor:Number.isInteger(o.anchor)&&o.anchor>=0&&o.anchor<T.length?o.anchor:-1,tether:Math.max(0,Math.min(OB.tetherN,o.tether|0)),
+    spin:o.spin&&typeof o.spin==="object"?{t:Math.max(0,+o.spin.t||0),total:Math.max(1,+o.spin.total||OB.segSecs)}:null,climber:!!o.climber,
+    park:Math.max(0,Math.min(1,+o.park||0)),lance:Math.max(0,+o.lance||0),since:+o.since||0,beam:null}}
+// ---- the station's own small economy: its crew staff the modules, its panels power them; food and research come down
+function orbEcon(){const out={beam:0,fo:0,wa:0,rs:0,info:null};if(!orbOn())return out;const O=S.orb,pool=O.crew.slice(),on=new Set(),who=new Map(),bonus=new Map(),paused=new Map(),mods=orbMods();
+  let pw=OB.hubPower,dem=0,beds=OB.hubBeds;
+  for(const[sl,k]of mods){const M=OMOD[k];if(M.supply){pw+=M.supply;on.add(sl)}if(M.beds)beds+=M.beds}
+  const hire=(sl,sk)=>{let bi=-1,bs=-1;pool.forEach((p,j)=>{const sc=(p.sk===sk?p.lv:0)*10+(p.tr==="tinkerer"?1:0);if(sc>bs){bs=sc;bi=j}});if(bi<0)return false;
+    const p=pool.splice(bi,1)[0];who.set(sl,p);bonus.set(sl,1+(p.sk===sk?.1*p.lv:0)+(p.tr==="tinkerer"?.1:0));return true};
+  for(const k of["hab","garden","scope","spool","yard","lance"])for(const[sl,mk]of mods){if(mk!==k)continue;const M=OMOD[k],p=M.power||0;
+    if(dem+p>pw+1e-9){paused.set(sl,"no power");continue}if(M.staff&&!hire(sl,M.staff)){paused.set(sl,"nobody free");continue}dem+=p;on.add(sl)}
+  for(const sl of on){const M=OMOD[O.mods[sl]],m=bonus.get(sl)||1;if(M.food)out.fo+=M.food*m;if(M.rs)out.rs+=M.rs*m}
+  const n=O.crew.length;out.fo-=EAT*n;out.wa-=EAT*n;out.beam=Math.round(Math.max(0,pw-dem)*(orbLift()?1:OB.beamDown)*10)/10;
+  out.info={on,who,bonus,paused,power:{supply:pw,demand:Math.round(dem*10)/10},beds,idle:pool.length,idlers:pool};return out}
+const orbDv=dv=>orbLift()?Math.round(dv*OB.dvK):dv;   // ships that ride the elevator up leave from the top
+const orbDvNote=()=>orbLift()?" (leaving from the top of the elevator)":"";
+const orbYardK=()=>orbRunning("yard")?OB.yardK:1;
+// ---- the clock: modules arrive, the spool lowers tether, the station parks over the anchor, the lance charges
+function orbTick(dt,quiet){if(!orbOn()||!E)return;const O=S.orb,I=E.obx;
+  if(O.lift){O.lift.t+=dt;if(O.lift.t>=O.lift.total){const L=O.lift;O.lift=null;if(!O.mods[L.slot]){O.mods[L.slot]=L.mod;if(!quiet)say((L.by==="climber"?"The climber brings up":"The supply rocket docks with")+" the "+OMOD[L.mod].name.toLowerCase()+". It's fitted to "+O.name+".")}E=econ();dirty=true}}
+  if(O.anchor>=0&&O.park<1){O.park=Math.min(1,O.park+dt/OB.parkSecs);if(O.park>=1&&!quiet)say(O.name+" has parked above the anchor on tile "+O.anchor+". The spool can lower the tether now.");dirty=true}
+  if(O.spin){if(orbRunning("spool")&&orbParked()){O.spin.t+=dt*(I?Math.max(1,orbSpoolBonus()):1);if(O.spin.t>=O.spin.total){O.spin=null;O.tether=Math.min(OB.tetherN,O.tether+1);
+      if(!quiet)say(O.tether>=OB.tetherN?"The tether touches down at the anchor. Build the climber and the elevator runs.":"Another segment of tether is lowered: "+O.tether+" of "+OB.tetherN+".");dirty=true;save()}}}
+  if(orbRunning("lance")&&O.lance<DAY){O.lance=Math.min(DAY,O.lance+dt);if(O.lance>=DAY&&!quiet){say("The Orbital Lance is charged.");dirty=true}}
+  if(I&&O.crew.length>Math.max(OB.hubBeds,I.beds)){const p=O.crew.pop();S.people.push(p);S.pop=S.people.length;if(!quiet)say(p.name+" comes home from the station: there's no bed for them up there.");E=econ();dirty=true}}
+const orbSpoolBonus=()=>{const I=E&&E.obx;if(!I)return 1;for(const[sl,mk]of orbMods())if(mk==="spool"&&I.on.has(sl))return I.bonus.get(sl)||1;return 1};
+// ---- getting there: a capsule from the pad, crew of two
+function orbPickCrew(){const P=S.people.slice().sort((a,b)=>((b.sk==="eng")*b.lv-(a.sk==="eng")*a.lv)||((b.sk==="grow")-(a.sk==="grow"))||a.id-b.id);
+  const busy=new Set((S.k.crew||[]));const pick=P.filter(p=>!busy.has(p.id)).slice(0,2);return pick.length<2?P.slice(0,2):pick}
+function orbBoardChecks(){const nw=S.world>0,c=nw?OB.coreCost:OB.boardCost,fuel=nw?OB.coreFuel:OB.boardFuel,padOn=padTile()>=0&&E.st.has(padTile());
+  return[[nw?"Your relay satellite is up":"Lantern-2 is back: Kestrel's docking port has power again",!!S.k.lantern],["Launch pad crewed by 2 people",padOn],
+    ["Fuel loaded: "+Math.floor(S.k.fuel)+" of "+fuel,S.k.fuel>=fuel],[(nw?"The station core: ":"Patch kits and air for the crew: ")+matCostTxt(c),matAfford(c)],
+    ["4 people at home, so 2 can go and 2 stay",S.people.length>=4],["Nothing else on the pad",!S.k.flight]]}
+function orbBoard(){if(orbOn()||S.k.flight||!orbBoardChecks().every(c=>c[1]))return;const nw=S.world>0;matPay(nw?OB.coreCost:OB.boardCost);S.k.fuel-=nw?OB.coreFuel:OB.boardFuel;
+  const crew=orbPickCrew();S.people=S.people.filter(p=>!crew.includes(p));S.pop=S.people.length;S.k.crew=(S.k.crew||[]).filter(id=>S.people.some(p=>p.id===id));
+  S.k.flight={t:0,ms:"dock",fail:false,cost:0,pad:padTile(),crew};S.k.launches=(S.k.launches||0)+1;focus=padTile();sel=padTile();selOrb=-1;showPeople=false;
+  say(crewNames(crew)+" strap into the capsule"+(nw?" with a station core in the hold":"")+". Ignition.");E=econ();dirty=true;save()}
+function orbDocked(f,quiet){const crew=Array.isArray(f.crew)?f.crew.filter(p=>p&&typeof p==="object"):[];if(orbOn()){S.orb.crew.push(...crew);return}
+  const nw=S.world>0;S.orb={name:nw?"Waystation "+(["","II","III","IV","V"][Math.min(4,S.world)]||S.world):"Kestrel Station",mods:{},crew,lift:null,anchor:-1,tether:0,spin:null,climber:false,park:0,lance:0,since:S.t,beam:null};
+  if(!quiet){say(nw?"The core is in orbit and pressurised. "+crewNames(crew)+" switch on the lights: your own space station.":crewNames(crew)+" dock with Kestrel Station, get the air going and light the hub. Kestrel is yours.");
+    toast((nw?"Your space station":"Kestrel Station is yours")+". Tap it in orbit, or the launch pad, to open it and fit modules.")}
+  sel=-1;selOrb=0;E=econ();dirty=true;save()}
+// ---- fitting modules and moving people
+function orbWhyNot(k){const M=OMOD[k],O=S.orb;if(!M||!O)return"";if(M.bp&&!hasBp(M.bp))return"Needs the "+BP[M.bp].name+" blueprint";
+  if(orbCount(k)+(O.lift&&O.lift.mod===k?1:0)>=(M.max||1))return(M.max||1)>1?"You have "+(M.max||1)+" already":"You have one already";
+  if(O.lift)return"A module is already on its way up";if(!orbLift()){if(!(padTile()>=0&&E.st.has(padTile())))return"The launch pad needs its crew to send it up";if(S.k.fuel<OB.liftFuel)return"Needs "+OB.liftFuel+" fuel for the supply rocket"}
+  if(!matAfford(M.cost))return"Costs "+matCostTxt(M.cost);return""}
+function orbFit(sl,k){const O=S.orb,M=OMOD[k];if(!O||!M||O.mods[sl]||!(sl>=0&&sl<OB.slots)||orbWhyNot(k))return;matPay(M.cost);
+  const lift=orbLift();if(!lift)S.k.fuel-=OB.liftFuel;O.lift={slot:sl,mod:k,t:0,total:lift?OB.climbSecs:OB.liftSecs,by:lift?"climber":"rocket"};
+  say(lift?"The "+M.name.toLowerCase()+" rides the climber up.":"A supply rocket lifts off with the "+M.name.toLowerCase()+".");E=econ();dirty=true;save()}
+function orbStrip(sl){const O=S.orb,k=O&&O.mods[sl];if(!k)return;delete O.mods[sl];const c=OMOD[k].cost;for(const m in c){const v=Math.floor(c[m]*.5);if(MATS[m])matAdd(m,v);else if(S.res[m]!==undefined)S.res[m]+=v}
+  say("Took the "+OMOD[k].name.toLowerCase()+" off "+O.name+" for parts.");E=econ();dirty=true;save()}
+const orbSendWhy=()=>{const I=E&&E.obx;if(!orbOn()||!I)return"";if(S.people.length<=2)return"Keep at least 2 at home";if(S.orb.crew.length>=I.beds)return"No free bed up there";
+  if(!orbLift()){if(!(padTile()>=0&&E.st.has(padTile())))return"The pad needs its crew";if(S.k.fuel<OB.sendFuel)return"Needs "+OB.sendFuel+" fuel"}return""};
+function orbSend(){if(orbSendWhy())return;const pool=S.people.filter(p=>!(S.k.crew||[]).includes(p.id)),p=(pool.length?pool:S.people).slice().sort((a,b)=>((b.sk==="eng")-(a.sk==="eng"))||b.id-a.id)[0];if(!p)return;
+  if(!orbLift())S.k.fuel-=OB.sendFuel;S.people.splice(S.people.indexOf(p),1);S.pop=S.people.length;S.orb.crew.push(p);say(p.name+(orbLift()?" rides the climber up to ":" flies up to ")+S.orb.name+".");E=econ();dirty=true;save()}
+function orbRecall(){if(!orbOn()||!S.orb.crew.length)return;const p=S.orb.crew.pop();S.people.push(p);S.pop=S.people.length;say(p.name+(orbLift()?" rides the climber down":" comes home in a re-entry capsule")+".");E=econ();dirty=true;save()}
+// ---- the space elevator
+const orbWantAnchor=()=>orbOn()&&hasBp("tether")&&S.orb.anchor<0;
+function orbAnchorOk(i){return orbWantAnchor()&&S.owned.has(i)&&land(i)&&!S.bld[i]&&!T[i].pent&&Math.abs(orbLat(i))<=OB.equator}
+function orbAnchorWhy(i){if(!orbWantAnchor())return"";if(Math.abs(orbLat(i))>OB.equator)return"Too far from the equator: an elevator has to stand within "+OB.equator+"° of it (the dashed line).";
+  if(S.bld[i])return"Clear this tile first: the anchor needs it to itself.";if(T[i].pent)return"Not on a Spire.";return""}
+function orbBuildAnchor(i){if(!orbAnchorOk(i)||!matAfford(OB.anchor))return;matPay(OB.anchor);S.bld[i]="anchor";S.order.push(i);S.orb.anchor=i;S.orb.park=0;
+  say("The elevator anchor is set in the ground on tile "+i+". "+S.orb.name+" fires its old thrusters to park above it.");E=econ();refreshSeen();dirty=true;save()}
+function orbSpinWhy(){const O=S.orb;if(!O)return"";if(O.anchor<0)return"Build the anchor on a tile near the equator first";if(!orbParked())return"The station is still moving into place over the anchor";
+  if(!orbHas("spool"))return"Fit a Tether Spool to the station";if(!orbRunning("spool"))return"The Tether Spool needs power and someone to run it";if(O.spin)return"A segment is being lowered";
+  if(O.tether>=OB.tetherN)return"The tether is all the way down";if(!matAfford(OB.seg))return"Each segment: "+matCostTxt(OB.seg);return""}
+function orbSpin(){if(orbSpinWhy())return;matPay(OB.seg);S.orb.spin={t:0,total:OB.segSecs};say("The spool starts lowering segment "+(S.orb.tether+1)+" of the tether.");dirty=true;save()}
+function orbClimber(){const O=S.orb;if(!O||O.climber||O.tether<OB.tetherN||!matAfford(OB.climber))return;matPay(OB.climber);O.climber=true;
+  say("The climber grips the tether and starts up. The space elevator runs: modules and people ride up for free, and ships leave from the top.");toast("The space elevator runs.");E=econ();dirty=true;save()}
+const orbAnchorLocked=i=>orbOn()&&S.orb.anchor===i&&(S.orb.tether>0||!!S.orb.spin);
+// ---- the lance (the raids, in the DEF block, ask for it)
+const orbLanceReady=()=>orbRunning("lance")&&S.orb.lance>=DAY;
+function orbLanceFire(i){if(!orbLanceReady())return false;S.orb.lance=0;S.orb.beam={i,t0:performance.now()};dirty=true;return true}
+// ---- the launch pad and the station in orbit: what the panels say
+function orbStages(){return[["Board a space station",S.world>0?"Fly a crew of 2 up with a station core":"Fly a crew of 2 up to Kestrel Station",orbOn()],["Raise a space elevator","Tether Weave, an anchor near the equator, the tether, the climber",orbLift()]]}
+function orbPadHTML(){if(orbOn()){const O=S.orb,I=E.obx;return'<p class="meta">'+O.name+"</p><p>"+O.crew.length+" crew, "+orbMods().length+" module"+(orbMods().length===1?"":"s")+(O.lift?", the "+OMOD[O.lift.mod].name.toLowerCase()+" on its way up":"")+"."+(orbLift()?" The elevator runs: nothing needs the pad to go up.":"")+"</p>"+
+    '<div class="acts">'+btn("orb:open","Open the station","Fit modules, move people up",null,"primary")+"</div>"}
+  if(!S.k.lantern)return"";const ck=orbBoardChecks(),ok=ck.every(c=>c[1]),nw=S.world>0;
+  return'<p class="meta">'+(nw?"A space station":"Kestrel Station")+"</p><p>"+(nw?"There's no station over this world. A crew of 2 can take a station core up and switch it on.":"Kestrel's hub has power again. A crew of 2 can fly up in a capsule, dock and take it over.")+"</p>"+
+    '<div class="plist">'+ck.map(c=>'<div class="prow '+(c[1]?"ok":"no")+'"><div>'+(c[1]?"✓ ":"✗ ")+c[0]+"</div></div>").join("")+"</div>"+
+    '<div class="acts"><button class="act primary" data-act="orb:board"'+(ok?"":" disabled")+"><span>"+(nw?"Launch the station core":"Fly a crew up to Kestrel")+"</span><small>"+(ok?crewNames(orbPickCrew())+" go":"Fix the red checks first")+"</small></button></div>"}
+function orbStationHTML(){const O=S.orb,I=E.obx;if(!O||!I)return"";
+  return'<div class="meta">In orbit · your space station · '+O.crew.length+" crew · power "+I.power.supply+" / "+I.power.demand+'</div><div class="tile-h">'+O.name+"</div><p>"+
+    (O.crew.length?O.crew.map(p=>p.name).join(", ")+" live"+(O.crew.length===1?"s":"")+" up here. ":"Nobody aboard. ")+(I.beam>0?I.beam+" spare power is beamed down to the bunker. ":"")+(orbLift()?"The space elevator runs.":O.anchor>=0?"The elevator's tether: "+O.tether+" of "+OB.tetherN+" segments.":"")+"</p>"+
+    '<div class="acts">'+btn("orb:open","Open the station","Fit modules, move people up",null,"primary")+"</div>"}
+// ---- the tile panel: build the anchor here, or the anchor's own panel
+function orbTileHTML(i){if(!orbOn())return"";const O=S.orb;
+  if(S.bld[i]==="anchor"&&O.anchor===i){const st=orbLift()?"The space elevator runs. The climber goes up and down all day.":O.tether>=OB.tetherN?"The tether is down and made fast. Build the climber to run it.":!orbParked()?O.name+" is moving into place overhead.":"The tether: "+O.tether+" of "+OB.tetherN+" segments lowered"+(O.spin?", another on its way down":"")+".";
+    return"<p><b>"+st+"</b></p>"+'<div class="acts">'+btn("orb:open","Open the station","The tether, the climber, the modules",null,"primary")+"</div>"}
+  if(!orbWantAnchor()||!S.owned.has(i)||!land(i)||T[i].pent||Math.abs(orbLat(i))>OB.equator)return"";
+  if(S.bld[i])return S.bld[i]==="bunker"?"":"<p>This tile is near the equator. Cleared, it could take the space elevator's anchor.</p>";
+  return"<p>This tile is near the equator: the space elevator's anchor could stand here, right under "+O.name+".</p>"+'<div class="acts">'+btn("orb:anchor","Build the elevator anchor","Costs "+matCostTxt(OB.anchor),null,"primary",!matAfford(OB.anchor))+"</div>"}
+// ---- the station view: the truss, the hub, the modules, the crew, the planet below and the tether down to it
+let selO=null,GRO={slots:[],hub:null,teth:null};
+function orbLayout(){const ty=H*.4,th=Math.max(6*DPR,H*.026),hw=Math.max(40*DPR,W*.13),gap=Math.max(4*DPR,W*.012),x0=W*.03,cw=(W/2-hw/2-gap-x0)/2,mh=Math.min(H*.27,cw*1.7);
+  const slots=[];for(let k=0;k<OB.slots;k++){const c=k>>1,u=k&1,x=c<2?x0+c*cw:W/2+hw/2+gap+(c-2)*cw;slots.push({k,x:x+gap*.5,y:u?ty+th/2+gap*.4:ty-th/2-gap*.4-mh,w:cw-gap,h:mh,up:!u})}
+  return{ty,th,hw,x0,cw,mh,slots,hub:{x:W/2-hw/2,y:ty-mh*.95,w:hw,h:mh*1.9},ground:H*.87}}
+function stationLegend(){const O=S.orb,I=E&&E.obx;return O&&I?O.name+" · "+O.crew.length+" crew · power "+I.power.supply+"/"+I.power.demand+(O.anchor>=0&&!O.climber?" · tether "+O.tether+"/"+OB.tetherN:""):"Space station"}
+function drawStation(now){if(!orbOn()){setView("surface");return}const O=S.orb,I=E.obx,t=reduced?0:now/1000,L=orbLayout(),pos=orbPos(ORBITERS[0],S.t),lit=dot(norm(pos),sunAt(S.t))>-.2;
+  GRO={slots:L.slots,hub:L.hub,teth:{x:W/2-L.hw*.4,y:L.hub.y+L.hub.h,w:L.hw*.8,h:L.ground-(L.hub.y+L.hub.h)}};
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle="#06060a";ctx.fillRect(0,0,W,H);
+  for(const s of stars){const a=.2+.35*s.s+(reduced?0:.12*Math.sin(now/900+s.p));ctx.fillStyle="rgba(232,220,194,"+a.toFixed(3)+")";const z=(s.s>.92?2:1)*DPR;ctx.fillRect(s.x*W,s.y*H*.85,z,z)}
+  // the planet: a curve of ash and sea at the bottom, lit from the sun's side, with the orange haze of the ash at its rim
+  const WD=WORLDS[Math.min(S.world,WORLDS.length-1)],PR=W*1.5,pcx=W*.5,pcy=L.ground+PR,tint=WD.tint;
+  const halo=ctx.createRadialGradient(pcx,pcy,PR*.985,pcx,pcy,PR*1.06);halo.addColorStop(0,"rgba(240,164,58,.32)");halo.addColorStop(1,"rgba(240,164,58,0)");ctx.fillStyle=halo;ctx.beginPath();ctx.arc(pcx,pcy,PR*1.06,0,6.2832);ctx.fill();
+  const pg=ctx.createLinearGradient(0,L.ground,0,H);pg.addColorStop(0,col([136*tint[0],124*tint[1],103*tint[2]],lit?1:.45));pg.addColorStop(1,col([60*tint[0],56*tint[1],50*tint[2]],lit?1:.5));
+  ctx.fillStyle=pg;ctx.beginPath();ctx.arc(pcx,pcy,PR,0,6.2832);ctx.fill();
+  ctx.fillStyle="rgba(44,72,68,"+(lit?.75:.4)+")";for(let q=0;q<5;q++){const x=W*(h3(q,S.world,51)),w=W*(.12+.2*h3(q,S.world,52));ctx.beginPath();ctx.ellipse(x,L.ground+(H-L.ground)*(.35+.4*h3(q,S.world,53)),w,(H-L.ground)*.12,0,0,6.2832);ctx.fill()}
+  ctx.fillStyle="rgba(200,190,170,"+(lit?.14:.06)+")";for(let q=0;q<7;q++){const x=((h3(q,7,54)*W+t*W*.004*(1+q%3))%(W*1.2))-W*.1;ctx.beginPath();ctx.ellipse(x,L.ground+(H-L.ground)*(.2+.6*h3(q,7,55)),W*.1,(H-L.ground)*.05,0,0,6.2832);ctx.fill()}
+  {const fd=ctx.createLinearGradient(0,H*.9,0,H);fd.addColorStop(0,"rgba(6,6,10,0)");fd.addColorStop(1,"rgba(6,6,10,.8)");ctx.fillStyle=fd;ctx.fillRect(0,H*.9,W,H*.1)}
+  // the tether, down from the hub to the anchor (lowered so far), and the climber on it
+  if(O.anchor>=0){const top=L.hub.y+L.hub.h,bot=L.ground+2*DPR,f=Math.min(1,(O.tether+(O.spin?O.spin.t/O.spin.total:0))/OB.tetherN),end=O.park>=1?top+(bot-top)*f:top;
+    ctx.strokeStyle="rgba(210,236,245,.85)";ctx.lineWidth=Math.max(1.2,1.6*DPR);ctx.beginPath();ctx.moveTo(W/2,top);ctx.lineTo(W/2,end);ctx.stroke();
+    ctx.strokeStyle="rgba(160,220,240,.25)";ctx.lineWidth=Math.max(3,5*DPR);ctx.beginPath();ctx.moveTo(W/2,top);ctx.lineTo(W/2,end);ctx.stroke();
+    if(f<1&&O.park>=1){ctx.fillStyle="#9adcf4";ctx.beginPath();ctx.arc(W/2,end,Math.max(2,2.4*DPR),0,6.2832);ctx.fill()}
+    if(f>=1){ctx.fillStyle=col([150,146,138],lit?1:.6);ctx.fillRect(W/2-L.hw*.5,bot-4*DPR,L.hw,6*DPR);ctx.strokeStyle=INK;ctx.lineWidth=DPR;ctx.strokeRect(W/2-L.hw*.5,bot-4*DPR,L.hw,6*DPR)}
+    if(O.climber){const ph=reduced?.5:(t/22)%2,u=ph<1?ph:2-ph,cy=bot-(bot-top)*(.04+.9*(u*u*(3-2*u))),cs=Math.max(7*DPR,L.hw*.24);
+      ctx.fillStyle="#d8d2c4";ctx.strokeStyle=INK;ctx.lineWidth=DPR;ctx.fillRect(W/2-cs/2,cy-cs*.7,cs,cs*1.4);ctx.strokeRect(W/2-cs/2,cy-cs*.7,cs,cs*1.4);
+      ctx.fillStyle=lit?"#6f86a8":"#ffcf7a";ctx.fillRect(W/2-cs*.32,cy-cs*.45,cs*.64,cs*.4);if(O.lift&&O.lift.by==="climber"){ctx.fillStyle="#b8874b";ctx.fillRect(W/2-cs*.35,cy+cs*.05,cs*.7,cs*.5);ctx.strokeRect(W/2-cs*.35,cy+cs*.05,cs*.7,cs*.5)}}}
+  // the truss, end to end
+  ctx.fillStyle=col([150,146,138],lit?1:.55);ctx.fillRect(L.x0,L.ty-L.th/2,W-2*L.x0,L.th);ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1,DPR);ctx.strokeRect(L.x0,L.ty-L.th/2,W-2*L.x0,L.th);
+  ctx.strokeStyle=col([96,92,86],lit?1:.6);ctx.beginPath();for(let x=L.x0;x<W-L.x0-1;x+=L.th){ctx.moveTo(x,L.ty-L.th/2);ctx.lineTo(x+L.th,L.ty+L.th/2);ctx.moveTo(x,L.ty+L.th/2);ctx.lineTo(x+L.th,L.ty-L.th/2)}ctx.stroke();
+  // the modules
+  const fs=Math.round(Math.max(8*DPR,Math.min(L.cw*.13,11*DPR)));ctx.font=fs+'px "Courier Prime",monospace';ctx.textBaseline="top";
+  for(const sl of L.slots){const k=O.mods[sl.k],on=!!(I&&I.on.has(sl.k)),incoming=O.lift&&O.lift.slot===sl.k;
+    ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1,DPR);
+    if(k){const sy=sl.up?sl.y+sl.h:sl.y;ctx.fillStyle=col([120,116,110],lit?1:.6);ctx.fillRect(sl.x+sl.w*.44,sl.up?sy-2*DPR:L.ty+L.th/2,sl.w*.12,Math.abs(sy-(sl.up?L.ty-L.th/2:L.ty+L.th/2))+2*DPR);
+      orbArt(k,sl,on,lit,now,O);const nm=OMOD[k].short,tw=ctx.measureText(nm).width;const ly=sl.up?sl.y+2*DPR:sl.y+sl.h-fs-6*DPR;
+      ctx.fillStyle="rgba(20,15,11,.72)";ctx.fillRect(sl.x+2*DPR,ly,tw+6*DPR,fs+4*DPR);ctx.fillStyle=on?"#efe2c4":"#a99d86";ctx.fillText(nm,sl.x+5*DPR,ly+2*DPR)}
+    else{ctx.setLineDash([3*DPR,3*DPR]);ctx.strokeStyle=incoming?"#f0a43a":"rgba(240,164,58,.35)";ctx.strokeRect(sl.x+2*DPR,sl.y+2*DPR,sl.w-4*DPR,sl.h-4*DPR);ctx.setLineDash([]);
+      if(incoming){const p=Math.min(1,O.lift.t/O.lift.total);ctx.fillStyle="rgba(240,164,58,.22)";ctx.fillRect(sl.x+2*DPR,sl.up?sl.y+sl.h-2*DPR-(sl.h-4*DPR)*p:sl.y+2*DPR,sl.w-4*DPR,(sl.h-4*DPR)*p);
+        ctx.globalAlpha=.35+.3*p;orbArt(O.lift.mod,sl,false,lit,now,O);ctx.globalAlpha=1}
+      else{ctx.strokeStyle="rgba(240,164,58,.5)";ctx.lineWidth=Math.max(1,1.5*DPR);const cx=sl.x+sl.w/2,cy=sl.y+sl.h/2,a=Math.min(sl.w,sl.h)*.12;ctx.beginPath();ctx.moveTo(cx-a,cy);ctx.lineTo(cx+a,cy);ctx.moveTo(cx,cy-a);ctx.lineTo(cx,cy+a);ctx.stroke()}}}
+  orbHub(L.hub,lit,now,O);
+  // the crew: at work in their modules, the rest at the hub's windows
+  if(I){let n=0;for(const[sl,p]of I.who){const S0=L.slots[sl],bx=S0.x+S0.w*(.3+.4*(.5+.5*Math.sin(now/2100+n*1.9)*(reduced?0:1))),by=S0.up?S0.y+S0.h*.78:S0.y+S0.h*.62;
+      ctx.save();ctx.beginPath();ctx.rect(S0.x,S0.y,S0.w,S0.h);ctx.clip();person(bx,by,Math.min(S0.h*.3,S0.w*.5),n+40,now,lookOf(p),{f:n%2?1:-1});ctx.restore();n++}
+    I.idlers.slice(0,3).forEach((p,j)=>{const hb=L.hub,bx=hb.x+hb.w*(.3+.2*j),by=hb.y+hb.h*(.3+.17*j);ctx.save();ctx.beginPath();ctx.rect(hb.x,hb.y,hb.w,hb.h);ctx.clip();person(bx,by,hb.w*.42,j+60,now,lookOf(p),{f:j%2?-1:1});ctx.restore()})}
+  // a supply rocket on its way up from the pad, or the lance firing
+  if(O.lift&&O.lift.by==="rocket"){const p=Math.min(1,O.lift.t/O.lift.total),sl=L.slots[O.lift.slot],x=sl.x+sl.w/2,y0=H+20*DPR,y1=sl.y+sl.h/2,y=y0+(y1-y0)*(p*p*(3-2*p)),s=Math.max(5*DPR,L.cw*.07);
+    if(p<.92){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.moveTo(x-s*.3,y+s*.9);ctx.lineTo(x,y+s*(1.7+(reduced?0:Math.sin(now/40)*.3)));ctx.lineTo(x+s*.3,y+s*.9);ctx.fill();
+      ctx.fillStyle="#efe2c4";ctx.strokeStyle=INK;ctx.lineWidth=DPR;ctx.beginPath();ctx.moveTo(x,y-s);ctx.lineTo(x+s*.35,y-s*.3);ctx.lineTo(x+s*.35,y+s*.9);ctx.lineTo(x-s*.35,y+s*.9);ctx.lineTo(x-s*.35,y-s*.3);ctx.closePath();ctx.fill();ctx.stroke()}}
+  if(selO!==null){ctx.strokeStyle="#e8dcc2";ctx.lineWidth=Math.max(2,2*DPR);ctx.setLineDash([4*DPR,3*DPR]);const b=selO==="hub"?L.hub:selO==="tether"?GRO.teth:L.slots[selO];if(b)ctx.strokeRect(b.x+1*DPR,b.y+1*DPR,b.w-2*DPR,b.h-2*DPR);ctx.setLineDash([])}}
+// the hub: Kestrel's old core, a docking port on top with the capsule, windows, the beacon
+function orbHub(b,lit,now,O){const D=lit?1:.55,x=b.x,y=b.y,w=b.w,h=b.h;ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1,DPR);
+  const g=ctx.createLinearGradient(x,0,x+w,0);g.addColorStop(0,col([120,116,108],D));g.addColorStop(.6,col([226,220,204],D));g.addColorStop(1,col([150,144,132],D));
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x,y+w*.3);ctx.quadraticCurveTo(x+w/2,y-w*.05,x+w,y+w*.3);ctx.lineTo(x+w,y+h-w*.2);ctx.quadraticCurveTo(x+w/2,y+h+w*.05,x,y+h-w*.2);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.fillStyle=col([206,96,62],D);ctx.fillRect(x,y+h*.47,w,h*.06);ctx.strokeRect(x,y+h*.47,w,h*.06);
+  const win=lit?"#2a3a4a":"#ffcf7a";ctx.fillStyle=win;for(let r=0;r<4;r++)for(let c=0;c<2;c++){const wx=x+w*(.22+.36*c),wy=y+h*(.16+.18*r+(r>1?.08:0));ctx.fillRect(wx,wy,w*.2,h*.06);ctx.strokeRect(wx,wy,w*.2,h*.06)}
+  ctx.fillStyle=col([170,166,158],D);ctx.fillRect(x+w*.36,y-w*.18,w*.28,w*.22);ctx.strokeRect(x+w*.36,y-w*.18,w*.28,w*.22);   // the docking port and the capsule
+  ctx.beginPath();ctx.moveTo(x+w*.3,y-w*.18);ctx.lineTo(x+w*.5,y-w*.62);ctx.lineTo(x+w*.7,y-w*.18);ctx.closePath();ctx.fillStyle=col([236,232,220],D);ctx.fill();ctx.stroke();
+  ctx.strokeStyle=col([200,196,186],D);ctx.beginPath();ctx.moveTo(x+w*.85,y+w*.2);ctx.lineTo(x+w*1.12,y-w*.25);ctx.stroke();
+  const on=reduced||Math.floor(now/900)%2===0;ctx.fillStyle=on?"#f0a43a":"#6a3a1a";ctx.beginPath();ctx.arc(x+w*1.12,y-w*.25,Math.max(1.5*DPR,w*.05),0,6.2832);ctx.fill();
+  ctx.save();ctx.translate(x+w*.5,y+h*.66);ctx.rotate(-Math.PI/2);ctx.font=Math.round(Math.max(7*DPR,w*.13))+'px "Courier Prime",monospace';ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle=col([90,84,76],D);
+  ctx.fillText((O.name.split(" ")[0]||"").toUpperCase().slice(0,9),0,0);ctx.restore();ctx.textAlign="start";ctx.textBaseline="top"}
+// each module drawn in its slot, attached to the truss at its near edge
+function orbArt(k,sl,on,lit,now,O){const D=lit?1:.55,x=sl.x,y=sl.y,w=sl.w,h=sl.h,cx=x+w/2,up=sl.up,t=reduced?0:now/1000,F=(c,m)=>col(c,(m||1)*D);ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1,DPR);
+  const near=up?y+h:y,far=up?y:y+h,dir=up?-1:1;
+  if(k==="solar"){ctx.strokeStyle=F([180,176,168]);ctx.lineWidth=Math.max(1.5,2*DPR);ctx.beginPath();ctx.moveTo(cx,near);ctx.lineTo(cx,far);ctx.stroke();ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1,DPR);
+    for(const f of[.3,.68]){const py=near+dir*h*f-h*.15,pw=w*.92,ph=h*.3;ctx.fillStyle=F([60,84,120]);ctx.fillRect(cx-pw/2,py,pw,ph);ctx.strokeRect(cx-pw/2,py,pw,ph);
+      ctx.strokeStyle=F([110,140,180]);ctx.beginPath();for(let q=1;q<6;q++){ctx.moveTo(cx-pw/2+pw*q/6,py);ctx.lineTo(cx-pw/2+pw*q/6,py+ph)}ctx.moveTo(cx-pw/2,py+ph/2);ctx.lineTo(cx+pw/2,py+ph/2);ctx.stroke();ctx.strokeStyle=INK;
+      if(lit){const gx=cx-pw/2+pw*((t*.15+f)%1);ctx.fillStyle="rgba(255,255,255,.18)";ctx.fillRect(gx,py,pw*.12,ph)}}return}
+  if(k==="hab"){const rx=Math.min(w*.47,h*.45),ry=rx*.42,cy=y+h/2,spin=t*.6;ctx.lineWidth=Math.max(3,rx*.2);ctx.strokeStyle=F([210,204,190]);ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,6.2832);ctx.stroke();
+    ctx.lineWidth=Math.max(1,DPR);ctx.strokeStyle=INK;ctx.beginPath();ctx.ellipse(cx,cy,rx+rx*.1,ry+rx*.1,0,0,6.2832);ctx.stroke();ctx.beginPath();ctx.ellipse(cx,cy,rx-rx*.1,ry-rx*.1,0,0,6.2832);ctx.stroke();
+    ctx.strokeStyle=F([150,146,138]);ctx.beginPath();for(let q=0;q<4;q++){const a=spin+q*Math.PI/2;ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*rx*.88,cy+Math.sin(a)*ry*.88)}ctx.stroke();
+    ctx.fillStyle=lit?"#2a3a4a":"#ffcf7a";for(let q=0;q<10;q++){const a=spin+q*.628,s2=Math.sin(a);if(s2<0)continue;ctx.fillRect(cx+Math.cos(a)*rx-1.5*DPR,cy+s2*ry-1.5*DPR,3*DPR,3*DPR)}
+    ctx.fillStyle=F([170,166,158]);ctx.beginPath();ctx.arc(cx,cy,rx*.16,0,6.2832);ctx.fill();ctx.strokeStyle=INK;ctx.stroke();ctx.fillRect(cx-w*.05,up?cy:near,w*.1,Math.abs(near-cy));return}
+  if(k==="garden"){const gw=w*.66,gh=h*.84,gx=cx-gw/2,gy=y+(h-gh)/2;ctx.fillStyle=F([200,196,186]);ctx.beginPath();ctx.roundRect?ctx.roundRect(gx,gy,gw,gh,gw*.4):ctx.rect(gx,gy,gw,gh);ctx.fill();ctx.stroke();
+    const glass=ctx.createLinearGradient(gx,0,gx+gw,0);glass.addColorStop(0,on?"rgba(120,190,150,.9)":"rgba(70,90,80,.9)");glass.addColorStop(1,on?"rgba(170,230,190,.9)":"rgba(90,110,100,.9)");ctx.fillStyle=glass;ctx.fillRect(gx+gw*.14,gy+gh*.12,gw*.72,gh*.76);ctx.strokeRect(gx+gw*.14,gy+gh*.12,gw*.72,gh*.76);
+    ctx.fillStyle=on?"#4f9a46":"#3d5a38";for(let r=0;r<4;r++)for(let c=0;c<3;c++){ctx.beginPath();ctx.ellipse(gx+gw*(.27+.23*c),gy+gh*(.22+.2*r)+Math.sin(t+r+c)*DPR*.5,gw*.08,gh*.05,0,0,6.2832);ctx.fill()}
+    if(on){ctx.fillStyle="rgba(230,140,240,.25)";ctx.fillRect(gx+gw*.14,gy+gh*.12,gw*.72,gh*.05)}return}
+  if(k==="scope"){const bw=w*.5,bh=h*.34,by=up?y+h-bh:y;ctx.fillStyle=F([190,186,176]);ctx.fillRect(cx-bw/2,by,bw,bh);ctx.strokeRect(cx-bw/2,by,bw,bh);
+    ctx.save();ctx.translate(cx,up?by:by+bh);ctx.rotate(dir*(-.38+(reduced?0:Math.sin(t*.07)*.1))+(up?0:Math.PI));ctx.fillStyle=F([236,232,222]);const L=h*.46,R=w*.16;
+    ctx.fillRect(-R,-L,R*2,L);ctx.strokeRect(-R,-L,R*2,L);ctx.fillStyle="#141a24";ctx.beginPath();ctx.ellipse(0,-L,R,R*.35,0,0,6.2832);ctx.fill();ctx.stroke();ctx.fillStyle=F([206,96,62]);ctx.fillRect(-R,-L*.35,R*2,L*.08);ctx.restore();
+    if(on&&(reduced||Math.floor(now/600)%3)){ctx.fillStyle="#9adcf4";ctx.beginPath();ctx.arc(cx+bw*.3,by+bh*.3,Math.max(1.5,1.6*DPR),0,6.2832);ctx.fill()}return}
+  if(k==="yard"){const fx=x+w*.06,fw=w*.88,fy=y+h*.08,fh=h*.84;ctx.strokeStyle=F([206,96,62]);ctx.lineWidth=Math.max(1.5,2*DPR);ctx.strokeRect(fx,fy,fw,fh);ctx.beginPath();for(let q=1;q<4;q++){ctx.moveTo(fx,fy+fh*q/4);ctx.lineTo(fx+fw,fy+fh*q/4)}ctx.moveTo(fx,fy);ctx.lineTo(fx+fw,fy+fh);ctx.stroke();
+    ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1,DPR);ctx.beginPath();ctx.moveTo(cx,fy+fh*.12);ctx.lineTo(cx+fw*.18,fy+fh*.4);ctx.lineTo(cx+fw*.18,fy+fh*.86);ctx.lineTo(cx-fw*.18,fy+fh*.86);ctx.lineTo(cx-fw*.18,fy+fh*.4);ctx.closePath();
+    ctx.fillStyle=F([226,222,210],.85);ctx.fill();ctx.stroke();ctx.strokeStyle=F([150,146,138]);ctx.beginPath();for(let q=1;q<4;q++){ctx.moveTo(cx-fw*.18,fy+fh*(.4+.115*q));ctx.lineTo(cx+fw*.18,fy+fh*(.4+.115*q))}ctx.stroke();
+    if(on&&!reduced){ctx.fillStyle="#fff3b0";for(let q=0;q<4;q++){const a=h3(Math.floor(t*8),q,77);ctx.fillRect(cx+fw*(.18+(a-.5)*.1),fy+fh*(.45+.35*h3(Math.floor(t*8),q,78)),2*DPR,2*DPR)}}return}
+  if(k==="spool"){const R=Math.min(w,h)*.36,cy=y+h/2,spin=O.spin&&on?t*3:0;ctx.fillStyle=F([170,166,158]);ctx.beginPath();ctx.arc(cx,cy,R,0,6.2832);ctx.fill();ctx.stroke();
+    const n=2+Math.round(4*(1-(O.tether||0)/OB.tetherN));ctx.strokeStyle=F([180,228,244]);ctx.lineWidth=Math.max(1,DPR*1.2);for(let q=0;q<n;q++){ctx.beginPath();ctx.arc(cx,cy,R*(.45+.1*q),0,6.2832);ctx.stroke()}
+    ctx.strokeStyle=INK;ctx.lineWidth=Math.max(1,DPR);ctx.beginPath();for(let q=0;q<3;q++){const a=spin+q*2.094;ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*R*.95,cy+Math.sin(a)*R*.95)}ctx.stroke();
+    ctx.fillStyle=F([90,86,80]);ctx.beginPath();ctx.arc(cx,cy,R*.18,0,6.2832);ctx.fill();ctx.stroke();return}
+  if(k==="lance"){const ch=O.lance/DAY,bw=w*.22,bl=h*.88,by=up?y+h*.06:y+h*.06;ctx.fillStyle=F([110,106,100]);ctx.fillRect(cx-bw*.8,up?y+h-h*.3:y,bw*1.6,h*.3);ctx.strokeRect(cx-bw*.8,up?y+h-h*.3:y,bw*1.6,h*.3);
+    ctx.fillStyle=F([200,196,186]);ctx.fillRect(cx-bw/2,by,bw,bl);ctx.strokeRect(cx-bw/2,by,bw,bl);for(let q=0;q<5;q++){const ry=by+bl*(.12+.17*q),lit2=q/5<ch;ctx.fillStyle=lit2?"#9adcf4":F([90,86,80]);ctx.fillRect(cx-bw*.75,ry,bw*1.5,bl*.05);ctx.strokeRect(cx-bw*.75,ry,bw*1.5,bl*.05)}
+    if(ch>=1){const g=ctx.createRadialGradient(cx,up?by:by+bl,0,cx,up?by:by+bl,w*.5);g.addColorStop(0,"rgba(154,220,244,.6)");g.addColorStop(1,"rgba(154,220,244,0)");ctx.fillStyle=g;ctx.fillRect(x,y,w,h)}return}}
+function orbTap(sx,sy){const L=orbLayout();for(const sl of L.slots)if(sx>=sl.x&&sx<=sl.x+sl.w&&sy>=sl.y&&sy<=sl.y+sl.h){selO=sl.k;dirty=true;return}
+  const hb=L.hub;if(sx>=hb.x-8*DPR&&sx<=hb.x+hb.w+8*DPR&&sy>=hb.y-hb.w*.6&&sy<=hb.y+hb.h){selO="hub";dirty=true;return}
+  if(S.orb.anchor>=0&&Math.abs(sx-W/2)<Math.max(22*DPR,L.hw*.5)&&sy>hb.y+hb.h){selO="tether";dirty=true;return}selO=null;dirty=true}
+// the station view's panel
+function stationHTML(){const O=S.orb,I=E.obx;if(!O||!I)return'<div class="tile-h">No station</div>';
+  let h='<div class="row"><button class="linkbtn" data-act="orb:back">← Back to the planet</button><span class="meta">Power '+I.power.supply+" / "+I.power.demand+" used</span></div>";
+  h+='<div class="tile-h">'+O.name+"</div><p>"+O.crew.length+" of "+I.beds+" beds taken"+(O.crew.length?": "+O.crew.map(p=>p.name).join(", "):"")+". "+(I.idle?I.idle+" with nothing to do. ":"")+
+    "What they make comes down to the colony, and they eat and drink from its stores."+(I.beam>0?" "+I.beam+" spare power is beamed down to the bunker"+(orbLift()?" through the tether.":" (half of it is lost on the way until the elevator's tether carries it)."):"")+" Tap an empty bay to fit a module.</p>";
+  const sw=orbSendWhy();h+='<div class="acts">'+btn("orb:send","Send someone up",sw||(orbLift()?"Rides the climber, free":"A capsule from the pad: "+OB.sendFuel+" fuel"),null,"",!!sw)+btn("orb:recall","Bring someone home",orbLift()?"Rides the climber down":"A re-entry capsule",null,"",!O.crew.length)+"</div>";
+  if(selO==="hub")return h+'<div class="meta">The hub</div><div class="tile-h">'+(S.world>0?"The station core":"Kestrel's hub")+"</div><p>Docking, air, water and "+OB.hubBeds+" beds. Its old panels give "+OB.hubPower+" power. "+(S.world>0?"":"Someone kept it alive up here for a long time after the ash: there are names scratched by the hatch.")+"</p>";
+  if(selO==="tether"||selO===null&&O.anchor>=0&&!orbLift())return h+orbTetherHTML();
+  if(selO===null||selO===undefined)return h+(hasBp("tether")&&O.anchor<0?"<p><b>The space elevator:</b> fit a Tether Spool, then build the anchor on one of your tiles near the equator (the dashed line on the globe).</p>":!hasBp("tether")&&!orbLift()?"<p>One day a tether could hang from here to the ground: a space elevator. It starts with the Tether Weave blueprint.</p>":"");
+  const sl=selO,k=O.mods[sl],M=k?OMOD[k]:null;h+='<div class="meta">Bay '+(sl+1)+" of "+OB.slots+"</div>";
+  if(M){const on=I.on.has(sl),why=I.paused.get(sl),p=I.who.get(sl);
+    h+='<div class="tile-h">'+M.name+"</div><p>"+M.what+". "+(M.supply?"":M.power?"Uses "+M.power+" power. ":"")+(M.supply?"":on?(p?p.name+" works here.":"Running."):why==="no power"?"<b>Paused: not enough power.</b> Fit more solar wings.":M.staff?"<b>Paused: nobody free to work here.</b> Send someone up.":"")+"</p>";
+    if(k==="spool")h+=orbTetherHTML();if(k==="lance")h+="<p>"+(O.lance>=DAY?"<b>Charged.</b> When raiders come, you can strike them from orbit.":"Charging: "+Math.round(100*O.lance/DAY)+"%.")+"</p>";
+    return h+'<div class="acts">'+btn("orb:strip","Take it off","Get half its parts back",null,"warn")+"</div>"}
+  if(O.lift&&O.lift.slot===sl)return h+'<div class="tile-h">'+OMOD[O.lift.mod].name+"</div><p>On its way up: "+Math.max(0,Math.ceil(O.lift.total-O.lift.t))+" s.</p>";
+  h+='<div class="tile-h">An empty bay</div><p>'+(orbLift()?"Modules ride the climber up: no fuel, and quicker.":"Each module goes up on a supply rocket from your pad: "+OB.liftFuel+" fuel, and the pad needs its crew.")+"</p><div class=\"acts\">";
+  for(const m of OMOD_LIST){const M2=OMOD[m],why=orbWhyNot(m);if(M2.bp&&!hasBp(M2.bp))continue;h+=btn("orb:fit:"+m,M2.name,M2.what+(M2.power?" · "+M2.power+" power":"")+(M2.staff?" · 1 crew":"")+" · "+(why||matCostTxt(M2.cost)),null,"",!!why)}
+  const locked=OMOD_LIST.filter(m=>OMOD[m].bp&&!hasBp(OMOD[m].bp));if(locked.length)h+="</div><p class=\"meta\">Blueprints open more: "+locked.map(m=>OMOD[m].name+" ("+BP[OMOD[m].bp].name+")").join(", ")+".</p><div>";
+  return h+"</div>"}
+function orbTetherHTML(){const O=S.orb;let h='<div class="meta">The space elevator</div><div class="tile-h">'+(orbLift()?"The elevator runs":"The tether")+"</div>";
+  if(!hasBp("tether"))return h+"<p>Research Tether Weave first.</p>";
+  if(orbLift())return h+"<p>The climber runs up and down the tether all day. Modules and people ride it for free, all the station's spare power comes down it, and the expedition ship leaves from the top: it needs "+Math.round((1-OB.dvK)*100)+"% less delta-v, and a launch can't fail.</p>";
+  if(O.anchor<0)return h+"<p>Build the anchor on one of your tiles within "+OB.equator+"° of the equator (the dashed line on the globe): open the tile and it's in the list. The station will park right above it.</p>";
+  h+='<div class="plist">'+[...Array(OB.tetherN)].map((_,q)=>'<div class="prow '+(q<O.tether?"ok":"")+'"><div>'+(q<O.tether?"✓ ":O.spin&&q===O.tether?"⚙ ":"○ ")+"Segment "+(q+1)+"</div><small>"+(q<O.tether?"lowered":O.spin&&q===O.tether?Math.max(0,Math.ceil(O.spin.total-O.spin.t))+" s left"+(orbRunning("spool")?"":" (paused: the spool isn't running)"):matCostTxt(OB.seg))+"</small></div>").join("")+"</div>";
+  if(O.tether<OB.tetherN){const why=orbSpinWhy();return h+'<div class="acts">'+btn("orb:spin","Lower the next segment",why||matCostTxt(OB.seg)+" · "+OB.segSecs+" s",null,"primary",!!why)+"</div>"}
+  return h+"<p>The tether is down and made fast to the anchor.</p>"+'<div class="acts">'+btn("orb:climber","Build the climber",matAfford(OB.climber)?matCostTxt(OB.climber):"Costs "+matCostTxt(OB.climber),null,"primary",!matAfford(OB.climber))+"</div>"}
+function orbAct(a){
+  if(a==="board"){orbBoard();return}
+  if(a==="open"){if(!orbOn())return;showPeople=false;selO=null;setView("station");return}
+  if(a==="back"){setView("surface");selOrb=orbOn()?0:-1;dirty=true;return}
+  if(a==="anchor"){orbBuildAnchor(sel);return}
+  if(!orbOn())return;
+  if(a.startsWith("fit:")&&typeof selO==="number")orbFit(selO,a.slice(4));else if(a==="strip"&&typeof selO==="number")orbStrip(selO);
+  else if(a==="send")orbSend();else if(a==="recall")orbRecall();else if(a==="spin")orbSpin();else if(a==="climber")orbClimber()}
+// ---- on the globe: your station (bigger, with what's fitted), parked over the anchor; the tether and the climber;
+// supply rockets on their way up; the lance's strike; the equator, dashed, while you look for where the anchor goes
+function orbParkPos(o,t){const a=o.phase+o.speed*t,c=Math.cos(a)*o.r,s=Math.sin(a)*o.r,p=[o.u[0]*c+o.v[0]*s,o.u[1]*c+o.v[1]*s,o.u[2]*c+o.v[2]*s];
+  const O=S.orb,k=Math.max(0,Math.min(1,O.park));if(O.anchor<0||k<=0)return p;const q=T[O.anchor].c,e=k*k*(3-2*k);
+  const m=[p[0]*(1-e)+q[0]*OB.r*e,p[1]*(1-e)+q[1]*OB.r*e,p[2]*(1-e)+q[2]*OB.r*e],l=Math.hypot(m[0],m[1],m[2])||1,rr=o.r*(1-e)+OB.r*e;return[m[0]/l*rr,m[1]/l*rr,m[2]/l*rr]}
+const orbLineK=o=>o.kind==="station"&&orbOn()&&S.orb.anchor>=0?1-Math.max(0,Math.min(1,S.orb.park)):1;
+function orbGlobeStation(s,lit,now){const O=S.orb,D=lit?1:.55,F=c=>col(c,D);ctx.lineWidth=Math.max(1,s*.1);ctx.strokeStyle="#16110c";
+  const ms=orbMods(),nSol=ms.filter(m=>m[1]==="solar").length;
+  ctx.fillStyle=F([150,146,138]);ctx.fillRect(-s*1.5,-s*.08,s*3,s*.16);ctx.strokeRect(-s*1.5,-s*.08,s*3,s*.16);
+  for(let q=0;q<Math.max(1,nSol);q++){const sx=(q%2?1:-1)*s*(1.15+.35*(q>>1));ctx.fillStyle=lit?"#6f86a8":"#3d4658";ctx.fillRect(sx-s*.16,-s*1.05,s*.32,s*.85);ctx.strokeRect(sx-s*.16,-s*1.05,s*.32,s*.85);ctx.fillRect(sx-s*.16,s*.2,s*.32,s*.85);ctx.strokeRect(sx-s*.16,s*.2,s*.32,s*.85)}
+  if(ms.some(m=>m[1]==="hab")){ctx.strokeStyle=F([220,214,200]);ctx.lineWidth=Math.max(1.2,s*.16);ctx.beginPath();ctx.ellipse(s*.62,0,s*.38,s*.5,0,0,6.2832);ctx.stroke();ctx.lineWidth=Math.max(1,s*.1);ctx.strokeStyle="#16110c"}
+  let px=-s*.75;for(const[,k]of ms){if(k==="solar"||k==="hab")continue;ctx.fillStyle=k==="garden"?F([120,180,130]):k==="lance"?F([170,210,226]):k==="yard"?F([206,96,62]):F([220,214,200]);ctx.fillRect(px-s*.13,-s*.3,s*.26,s*.6);ctx.strokeRect(px-s*.13,-s*.3,s*.26,s*.6);px+=s*.3;if(px>-s*.2)px=s*.3}
+  ctx.fillStyle=F([239,226,196]);ctx.beginPath();ctx.ellipse(0,0,s*.3,s*.42,0,0,6.2832);ctx.fill();ctx.stroke();
+  if(reduced||Math.floor(now/700)%2===0){ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(0,-s*.42,Math.max(1.5*DPR,s*.1),0,6.2832);ctx.fill()}}
+function orbTether(front,cx,cy,r,now){if(!orbOn())return;const O=S.orb,sp=orbPos(ORBITERS[0],S.t);
+  const vis=w=>{const p=applyM(R,w);const hidden=p[2]<0&&p[0]*p[0]+p[1]*p[1]<1;return{p,ok:!hidden&&((p[2]>=0)===front)}};
+  const line=(pts,style,lw)=>{ctx.strokeStyle=style;ctx.lineWidth=lw;ctx.beginPath();let pen=false;for(const w of pts){const v=vis(w);if(!v.ok){pen=false;continue}const x=cx+v.p[0]*r,y=cy-v.p[1]*r;if(pen)ctx.lineTo(x,y);else{ctx.moveTo(x,y);pen=true}}ctx.stroke()};
+  if(front&&orbWantAnchor()&&VIEW==="surface"){const pts=[];for(let j=0;j<=96;j++){const a=j/96*6.2832;pts.push([Math.cos(a)*1.002,0,Math.sin(a)*1.002])}ctx.setLineDash([3*DPR,4*DPR]);line(pts,"rgba(240,164,58,.45)",Math.max(1,1.2*DPR));ctx.setLineDash([])}
+  if(O.anchor>=0&&O.park>=1){const c=T[O.anchor].c,f=Math.min(1,(O.tether+(O.spin?O.spin.t/O.spin.total:0))/OB.tetherN),lo=OB.r-(OB.r-1)*f,pts=[];
+    for(let j=0;j<=24;j++){const k=OB.top-(OB.top-lo)*j/24;pts.push([c[0]*k,c[1]*k,c[2]*k])}
+    line(pts,"rgba(160,220,240,.22)",Math.max(2.5,4*DPR));line(pts,"rgba(220,240,248,.9)",Math.max(1,1.2*DPR));
+    if(front){const cw=[c[0]*OB.top,c[1]*OB.top,c[2]*OB.top],v=vis(cw);if(v.ok){ctx.fillStyle="#8d846f";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;const x=cx+v.p[0]*r,y=cy-v.p[1]*r;ctx.beginPath();ctx.arc(x,y,Math.max(2*DPR,r*.012),0,6.2832);ctx.fill();ctx.stroke()}}
+    if(O.climber){const ph=reduced?.5:(now/1000/22)%2,u=ph<1?ph:2-ph,k=1.004+(OB.r-1.004)*(u*u*(3-2*u)),w=[c[0]*k,c[1]*k,c[2]*k],v=vis(w);
+      if(v.ok){const x=cx+v.p[0]*r,y=cy-v.p[1]*r,s=Math.max(2.5*DPR,r*.014);ctx.fillStyle="#efe2c4";ctx.strokeStyle="#16110c";ctx.lineWidth=DPR;ctx.fillRect(x-s/2,y-s/2,s,s);ctx.strokeRect(x-s/2,y-s/2,s,s);
+        if(reduced||Math.floor(now/500)%2===0){ctx.fillStyle="#ffcf7a";ctx.beginPath();ctx.arc(x,y-s*.8,Math.max(1,s*.22),0,6.2832);ctx.fill()}}}}
+  if(front&&O.lift&&O.lift.by==="rocket"){const pad=padTile();if(pad>=0){const u=Math.min(1,O.lift.t/O.lift.total);if(u<.92){const a=T[pad].c,e=u*u*(3-2*u),w=[a[0]+(sp[0]-a[0])*e,a[1]+(sp[1]-a[1])*e,a[2]+(sp[2]-a[2])*e],l=Math.hypot(...w),rr=1+(Math.hypot(...sp)-1)*e,q=[w[0]/l*rr,w[1]/l*rr,w[2]/l*rr],v=vis(q);
+    if(v.ok){const x=cx+v.p[0]*r,y=cy-v.p[1]*r;ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.arc(x,y,Math.max(1.5*DPR,r*.008),0,6.2832);ctx.fill();ctx.fillStyle="#efe2c4";ctx.beginPath();ctx.arc(x,y,Math.max(1,r*.005),0,6.2832);ctx.fill()}}}}
+  if(front&&O.beam){const dt=performance.now()-O.beam.t0;if(dt>1600){O.beam=null;return}const a=vis(sp),b=vis(T[O.beam.i].c);if(a.ok||b.ok){const k=1-dt/1600,x0=cx+a.p[0]*r,y0=cy-a.p[1]*r,x1=cx+b.p[0]*r,y1=cy-b.p[1]*r;
+    ctx.globalCompositeOperation="lighter";ctx.strokeStyle="rgba(154,220,244,"+(.9*k).toFixed(2)+")";ctx.lineWidth=Math.max(2,4*DPR*k);ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+    const g=ctx.createRadialGradient(x1,y1,0,x1,y1,r*.12*k+2);g.addColorStop(0,"rgba(220,245,255,"+(.8*k).toFixed(2)+")");g.addColorStop(1,"rgba(154,220,244,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(x1,y1,r*.12*k+2,0,6.2832);ctx.fill();ctx.globalCompositeOperation="source-over"}}}
+// the anchor as a model on its tile: a ring of concrete, a gantry, and the tether going straight up out of it
+function orbAnchorModel(s,F,fill,box,glow,side,sd,night,t,i){ctx.beginPath();ctx.ellipse(0,s*.38,s*1.05,s*.3,0,0,6.2832);fill([150,146,138]);ctx.beginPath();ctx.ellipse(0,s*.38,s*.55,s*.15,0,0,6.2832);fill([96,92,86]);
+  for(const m of[-1,1]){ctx.beginPath();ctx.moveTo(m*s*.5,s*.36);ctx.lineTo(m*s*.14,-s*1.3);ctx.stroke()}
+  ctx.beginPath();for(let q=1;q<5;q++){const yy=s*.36-q*s*.38,ww=.5-.09*q;ctx.moveTo(-s*ww,yy);ctx.lineTo(s*ww,yy)}ctx.stroke();
+  box(-s*.22,-s*1.5,s*.44,s*.22,[206,96,62]);const up=orbOn()&&S.orb.anchor===i&&S.orb.tether>=OB.tetherN;
+  if(up){ctx.strokeStyle="rgba(220,240,248,.9)";ctx.lineWidth=Math.max(1,s*.06);ctx.beginPath();ctx.moveTo(0,-s*1.5);ctx.lineTo(0,-s*3.4);ctx.stroke();ctx.strokeStyle=INK}
+  if(night)glow(0,-s*1.4,s*.8,"rgba(255,180,100,.4)");ctx.fillStyle=night||up?"#ffcf7a":"#6a5a40";ctx.beginPath();ctx.arc(0,-s*1.39,Math.max(1,s*.07),0,6.2832);ctx.fill()}
+// ==== ORBIT (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const skyH=Math.max(54*DPR,H*.13),padB=24*DPR,cw=W/COLS,ch=Math.min(cw*.8,Math.max(28*DPR,(H-skyH-padB)/ROWS)),gy=skyH;
@@ -2473,10 +3004,10 @@ function setView(v){if(v==="below"&&!S.hatch)v="surface";if(v==="fight"&&!FIGHT)
   if((v==="surface"||v==="away")&&v!==CAMV){CAMS[CAMV]={R,zoom,sel};const c=CAMS[v];
     if(c){R=c.R;zoom=c.zoom;sel=c.sel}else{const f=v==="away"?awayFace():START;R=faceR(T[f].c);zoom=1;sel=f}focus=null;vel=[0,0];selOrb=-1;CAMV=v}
   VIEW=v;if(v==="below"&&!selU)selU="0,"+SHAFT;$("z-in").hidden=$("z-out").hidden=$("home").hidden=v!=="surface"&&v!=="away";$("dive").hidden=v!=="surface"&&v!=="below"||!S.hatch;
-  $("sys").hidden=!sysOpen()||v==="map"||v==="below"||v==="fight";$("fdeck").hidden=v!=="fight";
+  $("sys").hidden=!sysOpen()||v==="map"||v==="below"||v==="fight"||v==="station";$("fdeck").hidden=v!=="fight";
   const d=$("dive");d.textContent=v==="below"?"⇧":"⇩";d.setAttribute("aria-label",v==="below"?"Back to the surface":"Go below the bunker");
   const sy=$("sys");sy.textContent=v==="stars"?"◉":"✦";sy.setAttribute("aria-label",v==="stars"?"Back to the planet":"System map");$("home").setAttribute("aria-label",v==="away"?"Turn to your ship":"Turn to your bunker");
-  cv.setAttribute("aria-label",v==="fight"?"A puppet fight on a board. The stick works your puppet's rod: up stands tall, down ducks, forward leans in. The button fires.":v==="below"||v==="cave"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
+  cv.setAttribute("aria-label",v==="fight"?"A puppet fight on a board. The stick works your puppet's rod: up stands tall, down ducks, forward leans in. The button fires.":v==="station"?"Your space station: the truss, its modules and the tether down to the planet. Tap a bay, the hub or the tether.":v==="below"||v==="cave"?"Cutaway of the ground under your bunker. Tap a cell to dig or build.":v==="stars"?(ATL.open?"The Library atlas: the star system charted by one book. Tap a world to look at it; left and right arrows move between worlds, up and down flip through the books.":"The Ashen system. Tap a world to choose it; arrow keys move between worlds."):
     v==="away"?"Another world. Drag to turn it, tap a tile to choose it.":"The planet. Drag to turn it, tap a tile to choose it. Arrow keys turn it, Enter picks the tile facing you.");dirty=true}
 
 // ---------------------------------------------------------------- tile maps: every tile is a small map you walk and clear
@@ -2896,7 +3427,7 @@ const holdCap=(d,veh)=>Math.max(0,XP.hold.base+(S.gear&&S.gear.frame?1:0)+XP.hol
 const holdUsed=()=>S.x?S.x.hold.scrap+S.x.hold.water+S.x.hold.food:0;
 const rationCost=n=>{const k=Math.ceil(n/XP.rations.pack);return{food:k*XP.rations.food,water:k*XP.rations.water}};
 const partsTotal=list=>list.reduce((a,p)=>a+SP.parts[p].cost,0);
-function newPartsCost(list){const have=(S.xs.built||[]).slice();let c=0;for(const p of list){const j=have.indexOf(p);if(j>=0)have.splice(j,1);else c+=SP.parts[p].cost}return c}
+function newPartsCost(list){const have=(S.xs.built||[]).slice();let c=0;for(const p of list){const j=have.indexOf(p);if(j>=0)have.splice(j,1);else c+=Math.round(SP.parts[p].cost*orbYardK())}return c}
 const sysOpen=()=>S.world===0&&(!!S.k.lantern||!!S.x||(S.xs.trips|0)>0);
 function fixK(k){const P=CFG.space.parts,s=k.ship;
   if(!s||typeof s!=="object"||!P[s.engine]||!P[s.engine].thrust||!Array.isArray(s.tanks))k.ship={engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true};
@@ -2918,7 +3449,7 @@ function crewP(){const c=S.x?S.x.crew:[],base=Math.min(2,c.length),gear=Math.min
   return{P:base+gear+veh+scav+song+shell,base,gear:gear+veh,morale:scav+song+shell}}
 function defaultCrew(){return S.people.slice().sort((a,b)=>((b.sk==="scav")*b.lv-(a.sk==="scav")*a.lv)||a.id-b.id).slice(0,Math.min(SP.parts.capsule.seats,Math.max(0,S.people.length-2))).map(p=>p.id)}
 function xChecks(r){const d=r.d,D=xDest(),crew=S.people.filter(p=>(S.k.crew||[]).includes(p.id)),n=S.k.rations|0,rc=rationCost(n),out=[];
-  out.push(D.drive?["A drive that can reach "+D.name+": no rocket carries that much fuel there and back",false]:["Delta-v "+Math.round(r.dv)+" of "+D.dv+" m/s to reach "+D.name+" and come home",r.dv>=D.dv]);
+  out.push(D.drive?["A drive that can reach "+D.name+": no rocket carries that much fuel there and back",false]:["Delta-v "+Math.round(r.dv)+" of "+orbDv(D.dv)+" m/s to reach "+D.name+" and come home"+orbDvNote(),r.dv>=orbDv(D.dv)]);
   out.push(["Thrust-to-weight over 1.2 (now "+r.twr.toFixed(2)+")",r.twr>1.2],["Antenna to call home",!!d.antenna],
     ["Crew aboard: "+crew.length+" of "+SP.parts.capsule.seats+", with at least 2 people staying home",crew.length>0&&S.people.length-crew.length>=2],
     ["Rations: "+n+" steps ("+costText(rc)+")",n>0&&afford(rc)],["Fuel loaded: "+Math.floor(S.k.fuel)+" of "+r.fuelUnits,S.k.fuel>=r.fuelUnits],
@@ -2940,7 +3471,7 @@ function launchExp(){if(mission()!=="exped"||S.k.flight||S.x)return;const d=S.k.
   const veh=S.veh[S.k.veh]?S.k.veh:"";
   S.x={w:S.k.dest,phase:"ascent",t:0,total:XWORLDS[S.k.dest].travel,crew,steps:S.k.rations,hold:{scrap:0,water:0,food:0},cap:holdCap(d,veh),notes:[],site:-1,hurt:0,boost:-1,
     paid:{parts:r.cost,rations:rc,fuel:r.fuelUnits},veh,arts:[],glyphs:0};matWear("ship");
-  const fail=r.margin<SP.riskMargin&&h3(S.k.launches,S.k.tele,909)<.5;
+  const fail=!orbLift()&&r.margin<SP.riskMargin&&h3(S.k.launches,S.k.tele,909)<.5;
   S.k.flight={t:0,ms:"exped",fail,cost:partsTotal(r.list),pad:padTile()};focus=padTile();sel=padTile();selOrb=-1;showPeople=false;
   say("The expedition ship is on the pad with "+crewNames(crew)+" aboard. Ignition.");E=econ();dirty=true;save()}
 function abortExp(f,quiet){const x=S.x;S.x=null;if(!x)return;for(const p of x.crew)S.people.push(p);S.pop=S.people.length;
@@ -5910,13 +6441,13 @@ function fightCtl(){const kx=FK.right-FK.left,ky=FK.down-FK.up;let x=kx+FT.x,y=k
 function fightTick(dt){const F=FIGHT;if(!F)return;fightCtl();if(!F.done){PUP.run(F.g,dt);F.t+=dt}fabsSync();
   const g=F.g;if(g.over&&!F.done&&g.t-g.over.t>1.4){F.done=true;fightEnd(g.over.win===0)}}
 function fightEnd(win){const F=FIGHT,g=F.g;FIGHT=null;PUP.CTL.x=PUP.CTL.y=0;PUP.CTL.btn=false;PUP.CTL.q.length=0;
-  if(F.kind==="threat"){setView(F.back);threatOutcome(win,g)}else if(F.kind==="space"){setView("stars");spaceOutcome(win,g)}
+  if(F.kind==="threat"){setView(F.back);threatOutcome(win,g)}else if(F.kind==="space"){setView("stars");spaceOutcome(win,g)}else if(F.kind==="raid"){setView(F.back);raidOutcome(win,g)}
   toast((win?"Won ":"Lost ")+g.wins[0]+"–"+g.wins[1]+" against "+F.foe+".");dirty=true}
 function fightGiveUp(){const F=FIGHT;if(!F||F.done)return;F.done=true;F.g.over={win:1,t:F.g.t};fightEnd(false)}
 // the abilities a side has in this fight, and whether each is still to use this round
 function fightAbs(f){return f.ab.map(id=>abChip(id,!PUP.ABIL[id].when&&f.abU[id])+abName(id)+(PUP.ABIL[id].when?" <span class=\"dim\">(always on)</span>":f.abU[id]?" <span class=\"dim\">(used)</span>":"")).join(", ")}
 function fightHTML(){const F=FIGHT;if(!F)return"";const g=F.g,A=g.f[0],B=g.f[1],W0=PUP.WPN[F.wk],auto=A.ctl!=="cab";
-  return'<div class="meta">'+(F.kind==="space"?"Space battle":"Fight")+" · "+W0.name.toLowerCase()+'</div><div class="tile-h">'+F.you+" against "+F.foe+"</div>"+
+  return'<div class="meta">'+(F.kind==="space"?"Space battle":F.kind==="raid"?"Raid":"Fight")+" · "+W0.name.toLowerCase()+'</div><div class="tile-h">'+F.you+" against "+F.foe+"</div>"+
     '<p class="fscore">Pops: <b>'+g.wins[0]+"</b> of "+g.needs[0]+" · they need <b>"+(g.needs[1]-g.wins[1])+"</b> more</p>"+
     "<p>"+(auto?"Your puppet is fighting on its own now.":"The stick is your rod: up stands tall and aims high, down ducks, forward leans in. "+W0.tip)+"</p>"+
     (F.does?"<p>"+F.does+"</p>":"")+
@@ -5983,6 +6514,7 @@ const pd=()=>{const p=[...ptrs.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-
 cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===1){downX=e.clientX;downY=e.clientY;moved=false;vel=[0,0]}if(ptrs.size===2)pinch=pd();focus=null;lastTouch=performance.now()});
 cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW==="fight")return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;lastTouch=performance.now();
   if(VIEW==="map"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)mapPan(dx,dy);return}
+  if(VIEW==="station"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(VIEW==="cave"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(VIEW==="below"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY-dy*DPR));return}
   if(VIEW==="stars"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
@@ -5991,6 +6523,7 @@ cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW=
 const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;if(VIEW==="fight")return;
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="map"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<GM.w&&y<GM.h){const p=pathTo(y*GM.w+x);if(p){PATH=p;CAMM.px=CAMM.py=0}}return}
+  if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="station"){const b=cv.getBoundingClientRect();orbTap((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="cave"){const b=cv.getBoundingClientRect();cbTap((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="below"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const c=Math.floor(sx/GR.cw),r=Math.floor((sy-GR.gy)/GR.ch);if(c>=0&&c<COLS&&r>=0&&r<ROWS){selU=r+","+c;dirty=true}return}
@@ -6002,7 +6535,7 @@ const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.si
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0){const b=cv.getBoundingClientRect();const i=pick((e.clientX-b.left)*DPR,(e.clientY-b.top)*DPR);if(i>=0){sel=i;dirty=true}}
   if(reduced)vel=[0,0]};
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
-cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars"||VIEW==="fight"||VIEW==="cave")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
+cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="station")return;if(VIEW==="stars"||VIEW==="fight"||VIEW==="cave")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
 cv.addEventListener("keydown",e=>{
   if(VIEW==="fight")return;
   if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-GM.w,ArrowDown:GM.w}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
@@ -6027,19 +6560,20 @@ let dirty=true;
 const latlon=c=>{const la=Math.asin(c[1])*180/Math.PI,lo=Math.atan2(c[0],c[2])*180/Math.PI;return Math.abs(la).toFixed(0)+"°"+(la>=0?"N":"S")+" "+Math.abs(lo).toFixed(0)+"°"+(lo>=0?"E":"W")};
 function btn(act,label,sub,c,cls,dis){return'<button class="act '+(cls||"")+'" data-act="'+act+'"'+(c?" data-cost='"+JSON.stringify(c)+"'":"")+(dis?" disabled":"")+"><span>"+label+"</span><small>"+sub+"</small></button>"}
 function panelHTML(){
+  if(DEFP>=0&&DEFP===sel&&S.owned.has(sel)&&VIEW==="surface")return defPanelHTML(sel);if(DEFP!==sel)DEFP=-1;
   if(sel<0)return'<div class="tile-h">Nothing chosen</div><p>Drag to turn the world. Tap a tile next to your amber border to claim it.</p>';
   const t=T[sel],bi=BIOME[t.b],seen=S.seen.has(sel),own=S.owned.has(sel),b=S.bld[sel];
   let h='<div class="meta">Tile '+sel+" · "+(t.pent?"five sides":"six sides")+" · "+latlon(t.c)+(t.coast&&seen?" · shore":"")+"</div>";
   if(!seen)return h+'<div class="tile-h">Unexplored</div><p>Too far to see. Claim land closer to it, or raise a radio tower.</p>';
   h+='<div class="tile-h">'+(b?BLD[b].name+" on "+bi.name.toLowerCase():bi.name)+"</div>";
-  if(b==="bunker")return h+(S.h.secret?harvestHTML():"")+"<p>Where you started. It sleeps "+CFG.bunker.cap+" and scrapes together a little scrap. Under it is an old hatch to the ground below.</p>"+
+  if(b==="bunker")return h+defTileHTML(sel)+(S.h.secret?harvestHTML():"")+"<p>Where you started. It sleeps "+CFG.bunker.cap+" and scrapes together a little scrap. Under it is an old hatch to the ground below.</p>"+
     (S.hatch?'<div class="acts">'+btn("below","Go below","See the cutaway and dig",null,"primary")+"</div>"
      :"<p>The hatch is rusted shut. Pay to force it, or wait until "+CFG.hatch.freeAt+" people live here and pry it open together.</p>"+'<div class="acts">'+btn("hatch","Force the hatch","Costs "+costText(CFG.hatch.cost),CFG.hatch.cost,"primary")+"</div>");
   if(b){const working=!BLD[b].staff||E.st.has(sel),m=mult(sel,b);
     h+="<p>"+BLD[b].what+(m!==1&&BLD[b].staff?" (×"+m.toFixed(1)+" here)":"")+". "+(working?(BLD[b].staff?(workerNote(sel)||" Someone is working here.")+(b==="pad"&&E.who.get("pad2:"+sel)?" "+E.who.get("pad2:"+sel).name+" helps.":""):"No worker needed."):"<b>"+(b==="pad"?"The pad needs 2 free people.":"Nobody to work here.")+"</b> Grow your people or tear down something else.")+"</p>";
     if(b==="pad")h+=padHTML();if(b==="garage")h+=garageHTML();if(b==="tank")h+="<p>Fuel: <b>"+Math.floor(S.k.fuel)+" / "+E.fuelCap+"</b>"+(E.fuelRate?" · filling at "+E.fuelRate.toFixed(2)+"/s":"")+".</p>";
     const lmb=S.maps[sel]?landmarkOf(sel):null;if(lmb)h+="<p><b>Landmark: "+lmb.name+".</b> "+lmb.txt+"</p>";
-    h+=cbTileHTML(sel);return h+'<div class="acts">'+btn("walk","Walk this tile","Free on your land",null)+btn("raze","Tear down","Get some parts back",null,"warn")+"</div>"}
+    h+=cbTileHTML(sel);h+=orbTileHTML(sel);h+=defTileHTML(sel);return h+'<div class="acts">'+btn("walk","Walk this tile","Free on your land",null)+(b==="anchor"&&orbAnchorLocked(sel)?"":btn("raze","Tear down","Get some parts back",null,"warn"))+"</div>"}
   h+="<p>"+bi.desc+"</p>";
   if(t.b==="sea"){h+=t.n.some(j=>S.owned.has(j))?"<p>Your shore tiles next to this water make 60% more from a water still.</p>":"";   // slice 2: the diving bell
     return h+(S.veh.bell?seaHTML(sel):S.k.lantern?"<p>A diving bell from the garage could take a squad down there.</p>":"")}
@@ -6051,7 +6585,7 @@ function panelHTML(){
     if(blk)return h+"<p><b>"+blk+"</b></p>";
     return h+'<div class="acts">'+btn("explore",S.maps[sel]?"Send the squad back":"Send a squad","Costs "+costText(xcost())+" · "+tripSteps()+" steps",xcost(),"primary")+"</div>"}
   if(lm)h+="<p><b>Landmark: "+lm.name+".</b> "+lm.txt+"</p>";
-  h+=cbTileHTML(sel);
+  h+=cbTileHTML(sel);h+=orbTileHTML(sel);h+=defTileHTML(sel);
   h+='<div class="acts">'+walk;
   for(const k of BUILD_LIST.concat(["wind","pad","tank","garage"]).filter(k=>canBuild(sel,k))){const c=costAt(sel,k),m=mult(sel,k);h+=btn("build:"+k,BLD[k].name,BLD[k].what+(m!==1&&BLD[k].staff?" ×"+m.toFixed(1):"")+" · "+costText(c),c)}
   return h+"</div>";
@@ -6095,9 +6629,9 @@ let lastSubject="";
 function renderPanel(){
   const p=$("panel"),f=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.act:null;
   // a new subject (view, tile, card, world) starts at the top of the drawer; the same subject keeps its scroll
-  const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="cave"?CBI+":"+selC:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:""].join("|");
+  const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="cave"?CBI+":"+selC:VIEW==="station"?"st:"+selO:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:"",DEFP].join("|");
   if(subj!==lastSubject){lastSubject=subj;const d=$("drawer");if(d)d.scrollTop=0}
-  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?(showRs?researchHTML():peopleHTML()):VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():VIEW==="cave"?caveHTML():panelHTML();updateButtons();
+  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?(showRs?researchHTML():peopleHTML()):VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():VIEW==="cave"?caveHTML():VIEW==="station"?stationHTML():panelHTML();updateButtons();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
   $("goal").innerHTML=g?"<span>Goal: "+g.text+"</span><b>"+Math.min(g.p()[0],g.p()[1])+" / "+g.p()[1]+"</b>":"<span>Every goal met. The world remembers your lights.</span><b>✓</b>";
@@ -6106,7 +6640,7 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;doAct(b.dataset.act);renderPanel()});
 function doAct(a){
-  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("pl:")){placeAct(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}if(a.startsWith("tp:")){tpAct(a.slice(3));renderPanel();return}if(a.startsWith("cb:")){cbAct(a.slice(3));renderPanel();return}
+  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("pl:")){placeAct(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}if(a.startsWith("tp:")){tpAct(a.slice(3));renderPanel();return}if(a.startsWith("cb:")){cbAct(a.slice(3));renderPanel();return}if(a.startsWith("orb:")){orbAct(a.slice(4));renderPanel();return}if(a.startsWith("df:")){defAct(a.slice(3));renderPanel();return}
   if(a==="play"){threatFight("play");return}if(a==="fauto"){if(FIGHT)PUP.hand(FIGHT.g,0,FIGHT.lvYou);dirty=true;return}if(a==="fquit"){fightGiveUp();return}
   if(a==="fw"){const ws=fightWeapons();S.fw=ws[(ws.indexOf(fightWeapon())+1)%ws.length];dirty=true;return}
   if(a==="fab"){if(CARD)CARD.abPick=!CARD.abPick;dirty=true;return}if(a.startsWith("fab:")){abToggle(a.slice(4));dirty=true;return}   // abilities
@@ -6143,18 +6677,18 @@ function hud(){
   for(const[k,v]of[["scrap",E.sc],["water",E.wa],["food",E.fo]]){const el=$("d-"+k),have=S.res[k];
     let txt=rate(v);if(v<0&&have>0){const s=have/-v;txt+=" · "+(s>=3600?Math.floor(s/3600)+"h":s>=60?Math.floor(s/60)+"m":Math.ceil(s)+"s")+" left"}else if(v<0)txt="empty";else if(have>=E.store-.5)txt="full · "+E.store;
     el.textContent=txt;el.className=v<0?"neg":""}
-  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight"||VIEW==="cave";
+  $("dive").hidden=!S.hatch||(VIEW!=="surface"&&VIEW!=="below");$("sys").hidden=!sysOpen()||VIEW==="map"||VIEW==="below"||VIEW==="fight"||VIEW==="cave";if(VIEW==="station")$("sys").hidden=true;
   $("r-pop").textContent=S.pop+" / "+E.cap;matHud();
   const unstaffed=E.needStaff-E.st.size,dp=$("d-pop");dp.textContent=S.exp&&!S.exp.away?XC.squad+" out exploring":S.wounded>0?"squad resting":unstaffed>0?unstaffed+" job"+(unstaffed>1?"s":"")+" empty":
-    S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";if(S.cbs&&cbPeople()&&dp.textContent==="all working")dp.textContent="+"+cbPeople()+" in caves";dp.className=unstaffed>0?"neg":"";
+    S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";if(S.cbs&&cbPeople()&&dp.textContent==="all working")dp.textContent="+"+cbPeople()+" in caves";if(orbCrew().length&&dp.textContent==="all working")dp.textContent="+"+orbCrew().length+" on the station";dp.className=unstaffed>0?"neg":"";
   $("clock").innerHTML=(S.world?WORLDS[Math.min(S.world,WORLDS.length-1)].name+" · ":"")+"Day <b>"+day()+"</b> · "+partOfDay()+(S.x?" · "+xShort():"")+(republicHere()&&S.h.secret?" · suspicion <b"+(S.h.susp>=50?' class="hot"':"")+">"+Math.round(S.h.susp)+"</b>":"");
   const al=alertText(),ab=$("alert");if(al){const sig=al.t+al.b.map(x=>x[0]).join();if(ab.dataset.sig!==sig){ab.dataset.sig=sig;ab.innerHTML="<span>"+al.t+"</span>"+al.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+x[1]+"</span></button>").join("")}ab.hidden=false}else ab.hidden=true;
   const tl=VIEW==="map"&&S.exp?xThreatsLeft(S.exp.i):0;
   if(VIEW==="fight"&&FIGHT){const g=FIGHT.g,sig=g.wins.join()+g.f[0].ctl+g.f.map(f=>Object.keys(f.abU).join("")).join("|");if(sig!==lastFSig){lastFSig=sig;dirty=true}}
-  $("legend").textContent=VIEW==="fight"&&FIGHT?(FIGHT.kind==="space"?"Space battle":"Fight")+" · "+PUP.WPN[FIGHT.wk].name.toLowerCase()+" · pop them "+FIGHT.g.needs[0]+"× before they pop you "+FIGHT.g.needs[1]+"×":VIEW==="map"&&S.exp?(S.exp.cave?(S.exp.cave.kind&&PLACES[S.exp.cave.kind]?"Inside the "+PLACES[S.exp.cave.kind].name.toLowerCase()+" · ":"In the cave · "):S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
+  $("legend").textContent=VIEW==="fight"&&FIGHT?(FIGHT.kind==="space"?"Space battle":FIGHT.kind==="raid"?"Defending tile "+(S.raid&&S.raid.cur?S.raid.cur.i:""):"Fight")+" · "+PUP.WPN[FIGHT.wk].name.toLowerCase()+" · pop them "+FIGHT.g.needs[0]+"× before they pop you "+FIGHT.g.needs[1]+"×":VIEW==="map"&&S.exp?(S.exp.cave?(S.exp.cave.kind&&PLACES[S.exp.cave.kind]?"Inside the "+PLACES[S.exp.cave.kind].name.toLowerCase()+" · ":"In the cave · "):S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
     VIEW==="stars"&&ATL.open?"Library atlas · "+atlSys().star.name+" · "+atlSys().galaxy.name:
     VIEW==="stars"?"The Ashen system"+(S.x?" · "+xShort():"")+" · codex "+S.codex.found.length:
-    VIEW==="away"&&S.x?(S.x.phase==="orbit"?"In orbit over "+XWORLDS[S.x.w].name+" · tap a tile to land":XWORLDS[S.x.w].name+" · "+S.x.steps+" steps of rations · hold "+Math.floor(holdUsed())+"/"+S.x.cap):VIEW==="cave"?cbLegend():VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand+" · "+deg(E.temp)+" in, "+deg(E.tOut)+" out":S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
+    VIEW==="away"&&S.x?(S.x.phase==="orbit"?"In orbit over "+XWORLDS[S.x.w].name+" · tap a tile to land":XWORLDS[S.x.w].name+" · "+S.x.steps+" steps of rations · hold "+Math.floor(holdUsed())+"/"+S.x.cap):VIEW==="cave"?cbLegend():VIEW==="station"?stationLegend():VIEW==="below"?"Shaft "+(maxShaft()+1)+" of "+ROWS+" rows · power "+E.power.supply+"/"+E.power.demand+" · "+deg(E.temp)+" in, "+deg(E.tOut)+" out":S.owned.size+" of 642 tiles · "+[...S.owned].filter(i=>T[i].pent).length+" of 12 spires";
   const dlft=$("digleft");if(dlft&&S.dig)dlft.textContent=Math.ceil(S.dig.left);
   if(S.dig===null&&wasDigging){dirty=true}wasDigging=!!S.dig;
   if(S.pop!==lastPop){lastPop=S.pop;dirty=true}
@@ -6182,7 +6716,7 @@ function frame(now){
   guard("step",()=>{if(gap>1)catchUp(gap);else{if(!S.h.crack)step(gap);if(!document.hidden)tickActive(gap);tickCrack(gap)}});
   guard("view",()=>{
     if(VIEW==="map"){stepT+=Math.min(gap,.5);while(stepT>.13){stepT-=.13;stepOnce()}}
-    else if(VIEW==="below"||VIEW==="stars"||VIEW==="cave"){}
+    else if(VIEW==="station"){}else if(VIEW==="below"||VIEW==="stars"||VIEW==="cave"){}
     else if(VIEW==="fight")fightTick(gap);
     else if(focus!==null){const p=applyM(R,T[focus].c),ax=cross(p,[0,0,1]),s=Math.hypot(ax[0],ax[1],ax[2]);
       if(s<1e-3&&p[2]>0)focus=null;else{const ang=Math.atan2(s,p[2]);R=orthonorm(mul(rot(s<1e-6?[0,1,0]:norm(ax),ang*Math.min(1,gap*6)),R))}}
@@ -6190,7 +6724,7 @@ function frame(now){
       if(Math.abs(vel[0])+Math.abs(vel[1])>.05){spin(vel[0],vel[1]);vel[0]*=.92;vel[1]*=.92}
       else if(now-lastTouch>6000)R=orthonorm(mul(rot([0,1,0],gap*.05),R));
     }});
-  guard("draw",()=>{if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="cave")drawCave(now);else if(VIEW==="stars")drawStars(now);else if(VIEW==="fight")drawFight(gap);else draw(now)});
+  guard("draw",()=>{if(VIEW==="map"&&S.exp)drawMap(now);else if(VIEW==="below")drawBelow(now);else if(VIEW==="cave")drawCave(now);else if(VIEW==="station")drawStation(now);else if(VIEW==="stars")drawStars(now);else if(VIEW==="fight")drawFight(gap);else draw(now)});
   guard("panel",()=>{hudT+=gap;if(hudT>.25){hudT=0;hud()}if(dirty){dirty=false;renderPanel()}});
   saveT+=gap;if(saveT>5){saveT=0;save()}
   requestAnimationFrame(frame);
@@ -6208,12 +6742,12 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,orbit:{board:()=>{orbBoard();renderPanel()},act:a=>{orbAct(a);renderPanel()},pick:k=>{selO=k;dirty=true;renderPanel()},checks:()=>orbBoardChecks(),why:k=>orbWhyNot(k),fit:(sl,k)=>orbFit(sl,k),tick:(dt,q)=>orbTick(dt,q!==false),info:()=>E.obx,lift:()=>orbLift(),parked:()=>orbParked(),anchorOk:i=>orbAnchorOk(i),anchor:i=>{sel=i;orbAct("anchor");renderPanel()},spinWhy:()=>orbSpinWhy(),dv:d=>orbDv(d),yard:()=>orbYardK(),lance:()=>orbLanceReady(),pos:()=>orbPos(ORBITERS[0],S.t),panel:()=>stationHTML(),tile:i=>orbTileHTML(i),pad:()=>orbPadHTML(),layout:()=>orbLayout(),lat:i=>orbLat(i),tileSel:i=>{sel=i;selOrb=-1;dirty=true;renderPanel()},selStation:()=>{sel=-1;selOrb=0;dirty=true;renderPanel()},look:i=>{focus=i}},def:{tick:dt=>defTick(dt),spawn:()=>raidSpawn(true),pick:()=>raidPick(),build:(i,k)=>{defBuild(i,k);renderPanel()},str:i=>defStr(i),P:i=>raidP(i),abs:i=>defAbs(i),fight:m=>{raidFight(m);renderPanel()},out:w=>raidOutcome(w,null),act:a=>{defAct(a);renderPanel()},open:i=>{sel=i;selOrb=-1;DEFP=i;renderPanel()},repair:i=>defRepair(i),border:()=>raidBorder(),alert:()=>raidAlert(),fix:i=>defFix(i),turOn:()=>defTurOn(),why:(i,k)=>defWhyNot(i,k),panel:i=>defPanelHTML(i),tile:i=>defTileHTML(i)},cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
       atlas:{chart:chartSystem,page:libPage,names:libNames,code:atlCode,fromCode:atlFromCode,galaxy,tiles:worldTiles,act:a=>{atlAct(a);renderPanel()},ui:()=>ATL,LIB,GLYPHS,SKIND,WKIND,nameOk:libNameOk,hash:libHash,rng:libRng,fix:fixAtlas},
-      ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="cave")drawCave(n);else if(VIEW==="stars")drawStars(n);else if(VIEW==="fight")drawFight(1/60);else draw(n)},
+      ser,deser,frame:t=>frame(t),draw:()=>{const n=performance.now();if(VIEW==="map"&&S.exp)drawMap(n);else if(VIEW==="below")drawBelow(n);else if(VIEW==="cave")drawCave(n);else if(VIEW==="station")drawStation(n);else if(VIEW==="stars")drawStars(n);else if(VIEW==="fight")drawFight(1/60);else draw(n)},
       fight:{state:()=>FIGHT,tick:t=>fightTick(t),PUP,lookOf,fightLevels,threatFight,spaceFight,spaceRoll:()=>S.x&&spaceRoll(S.x),SPACE_FOES,FOES,foeOf,mutant,FOE_CAL,foeCal,abKnown,abBring,abLoadout,abCheck,abToggle,threatAbHTML,foePic,THREAT,ATHREAT}}};
   last=performance.now();requestAnimationFrame(frame);
   const sp=$("splash"),hadSave=!!loadSaved();
