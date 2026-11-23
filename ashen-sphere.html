@@ -251,7 +251,8 @@ const CFG={
     fuel: {cost:140,staff:true, power:2,prio:2},
     algae:{cost:120,staff:false,power:1,food:.3,water:.1,prio:1},   // (C) codex from Mirewater: food with nobody working it
     furnace:{cost:90,staff:false,power:0,heat:9,burn:.06,prio:0},   // heats the bunker, burning scrap only as hard as it has to
-    freezer:{cost:110,staff:false,power:1,keep:200,prio:2}   // keeps food from spoiling
+    freezer:{cost:110,staff:false,power:1,keep:200,prio:2},   // keeps food from spoiling
+    lab:{cost:150,staff:true,power:2,prio:2,rate:1}   // researches blueprints: research points a second
   },
   roomPerRow:4,roomScale:1.15,mergeBonus:.15,mergeMax:3,
   // tile expeditions (GPT G-125)
@@ -368,15 +369,67 @@ const ROOM={
   fuel: {name:"Electrolysis Plant",what:"Splits water into rocket fuel: "+CFG.space.plant.fuel+" fuel/s for "+CFG.space.plant.water+" water/s",col:[150,98,140]},
   algae:{name:"Algae Vat",what:"+"+RC.algae.food+" food/s from "+RC.algae.water+" water/s, with nobody working it",col:[64,128,112]},
   furnace:{name:"Furnace",what:"Heats the bunker by up to "+RC.furnace.heat+"°C, burning a little scrap while it's cold",col:[150,74,44]},
-  freezer:{name:"Freezer",what:"Keeps "+RC.freezer.keep+" food from spoiling",col:[110,146,170]}
+  freezer:{name:"Freezer",what:"Keeps "+RC.freezer.keep+" food from spoiling",col:[110,146,170]},
+  lab:{name:"Lab",what:"Smart people research half again as fast for each working lab",col:[86,104,140]}
 };
 for(const k in ROOM)Object.assign(ROOM[k],RC[k],{power:RC[k].power||0});
-const ROOM_LIST=["bunks","pump","hydro","gen","furnace","shop","store","freezer","med","radio","fuel","algae"];
+const ROOM_LIST=["bunks","pump","hydro","gen","furnace","shop","store","freezer","med","radio","lab","fuel","algae"];
 // Temperature (°C). Outside: the ash winter, colder at night and toward the poles. In the bunker: the earth holds it cool,
 // the night seeps in, and generators, people, the electrolysis plant and furnaces warm it. Furnaces burn only as hard as it
 // takes to reach the target. Plants below grow slower in the cold. Food above a cellar's worth spoils slowly unless freezers keep it.
 const TEMP={day:6,night:-14,lat:-12,earth:11,seep:.2,gen:2.5,person:.12,plant:1,target:20,plantOk:14,plantMin:2,cellar:100,spoil:.0005};
 function outsideTemp(){const dl=smooth(-.12,.3,dot(sunAt(S.t),T[START].c));return TEMP.night+(TEMP.day-TEMP.night)*dl+TEMP.lat*Math.abs(T[START].c[1])}
+// ---- research: a Lab works on one blueprint at a time (1 research point a second per working lab; more with an engineer
+// and labs side by side). Blueprints are upgrades in five branches, each kept forever. A first pass, for GPT's content pass.
+const BRANCHES=["Power","Heat","Food & Water","Scrap","Exploration"];
+const BP={
+  turbine: {br:"Power",tier:1,name:"Steam Turbine",what:"Furnaces drive turbines: each adds 3 power to the bunker's grid, burning flat out while it does",cost:{scrap:120},pts:50},
+  capbank: {br:"Power",tier:1,name:"Capacitor Bank",what:"+2 power to the bunker",cost:{scrap:100},pts:40},
+  windgear:{br:"Power",tier:1,name:"Wind Gearing",what:"Wind turbines give half as much power again",cost:{scrap:90},pts:35},
+  gen2:    {br:"Power",tier:2,name:"Generator Mk II",what:"Generators give 2 more power each and burn 30% less scrap",cost:{scrap:180,water:20},pts:90,needs:["capbank"]},
+  coil:    {br:"Power",tier:3,name:"Spire Coil",what:"A coil wound the way the Spires are: +6 power to the bunker",cost:{scrap:260,water:40},pts:200,needs:["gen2"]},
+  insul:   {br:"Heat",tier:1,name:"Insulation",what:"The night seeps in a third as much, and the bunker sits 2\u00b0C warmer",cost:{scrap:80},pts:35},
+  seals:   {br:"Heat",tier:1,name:"Freezer Seals",what:"Freezers keep 350 food each instead of 200",cost:{scrap:90},pts:40},
+  heatx:   {br:"Heat",tier:2,name:"Heat Exchangers",what:"Generators warm the bunker twice as much",cost:{scrap:110},pts:80,needs:["insul"]},
+  climate: {br:"Heat",tier:3,name:"Climate Engine",what:"The bunker holds 20\u00b0C on its own, whatever the night does",cost:{scrap:240},pts:180,needs:["heatx"]},
+  preserve:{br:"Food & Water",tier:1,name:"Preserves",what:"Food spoils half as fast",cost:{scrap:70,food:10},pts:35},
+  growlamp:{br:"Food & Water",tier:2,name:"Grow Lamps",what:"Hydroponics make 25% more food, and grow at full speed down to 8\u00b0C",cost:{scrap:110,water:10},pts:80},
+  recycler:{br:"Food & Water",tier:2,name:"Water Recycler",what:"People drink 20% less water",cost:{scrap:120},pts:80},
+  deeppump:{br:"Food & Water",tier:2,name:"Deep Pumps",what:"Water pumps draw half as much again",cost:{scrap:130},pts:90},
+  vats:    {br:"Food & Water",tier:3,name:"Vat Cultures",what:"Algae vats make twice the food",cost:{scrap:200,water:60},pts:180,needs:["growlamp"]},
+  tools:   {br:"Scrap",tier:1,name:"Better Tools",what:"Workshops make 25% more scrap",cost:{scrap:100},pts:45},
+  sorting: {br:"Scrap",tier:1,name:"Salvage Sorting",what:"Scav camps make 25% more scrap",cost:{scrap:100},pts:45},
+  smelter: {br:"Scrap",tier:2,name:"Furnace Smelter",what:"Furnaces melt down what they burn: half of it comes back as scrap",cost:{scrap:140},pts:90,needs:["tools"]},
+  packs:   {br:"Exploration",tier:1,name:"Light Packs",what:"+6 steps of supplies on tile expeditions",cost:{scrap:90},pts:40},
+  rations: {br:"Exploration",tier:1,name:"Field Rations",what:"Exploring a tile costs 2 less food and 2 less water",cost:{scrap:80,food:10},pts:35},
+  maps:    {br:"Exploration",tier:3,name:"Builder Maps",what:"Read the land the way the Builders drew it: see one cell further on tile maps",cost:{scrap:200},pts:160,needs:["packs"]}
+};
+// smart people: they do the research. You start with one; every Spire you claim teaches someone (they come back smarter,
+// with a bigger head). Each level researches faster and can work on harder blueprints.
+const IQNAME=["ordinary","smart","spire-taught","taught by two Spires","taught by three Spires","Builder-minded"],IQRATE=[0,.4,1,1.8,2.8,4];
+const smartOf=p=>Math.min(5,(p&&p.iq)|0),smartMax=()=>S.people.reduce((m,p)=>Math.max(m,smartOf(p)),0),smartRate=()=>S.people.reduce((a,p)=>a+IQRATE[smartOf(p)],0);
+function teach(pid){const p=S.people.find(q=>q.id===pid);if(!p||!((S.k.lessons|0)>(S.k.taught|0)))return;p.iq=Math.max(1,p.iq|0)+1;S.k.taught=(S.k.taught|0)+1;
+  say(p.name+" studied the Spire and came back changed: "+IQNAME[smartOf(p)]+", "+IQRATE[smartOf(p)]+" research a second.");dirty=true}
+const hasBp=id=>!!(S&&S.bp&&S.bp.includes(id)),bpReady=id=>!hasBp(id)&&(BP[id].needs||[]).every(hasBp)&&smartMax()>=(BP[id].tier||1);
+const xcost=()=>{const c=CFG.explore.cost;return hasBp("rations")?{food:Math.max(0,c.food-2),water:Math.max(0,c.water-2)}:c};
+function startResearch(id){const B=BP[id];if(!B||S.rs||!bpReady(id)||!afford(B.cost))return;pay(B.cost);S.rs={id,left:B.pts};say("Research started: "+B.name+".")}
+function rsTick(dt,quiet){const r=S.rs;if(!r||!E||!(E.rsRate>0))return;r.left-=E.rsRate*dt;if(r.left>0)return;
+  S.rs=null;if(!S.bp.includes(r.id))S.bp.push(r.id);const B=BP[r.id];dirty=true;say("Blueprint done: "+B.name+". "+B.what+".");if(!quiet)toast("Blueprint done: "+B.name)}
+function labHTML(){const r=S.rs,rate=E.rsRate||0;
+  let h="<p>"+(r?"Researching <b>"+BP[r.id].name+"</b>: "+Math.round(100*(1-r.left/BP[r.id].pts))+"%"+(rate>0?", about "+Math.ceil(r.left/rate)+" s left.":". <b>Paused:</b> nobody smart is home."):"Pick a blueprint. Smart people research it; a Spire-taught mind can take on harder ones.")+"</p>";
+  if(r)h+='<div class="acts">'+btn("rsstop","Stop","Drop it (the cost isn't refunded)",null,"warn")+"</div>";
+  for(const br of BRANCHES){const ids=Object.keys(BP).filter(k=>BP[k].br===br),done=ids.filter(hasBp),open=ids.filter(k=>!hasBp(k));
+    h+='<div class="meta">'+br+(done.length?" · done: "+done.map(k=>BP[k].name).join(", "):"")+"</div>";
+    if(open.length)h+='<div class="acts">'+open.map(k=>{const B=BP[k],ready=bpReady(k),need=(B.needs||[]).filter(n=>!hasBp(n)),mind=smartMax()<(B.tier||1);
+      return btn("bp:"+k,B.name+(B.tier>1?" \u00b7 "+["","","advanced","Builder"][B.tier]:""),B.what+" · "+(ready?costText(B.cost)+" · "+B.pts+" research":(mind?"needs someone "+IQNAME[B.tier]:"")+(mind&&need.length?", and ":"")+(need.length?"needs "+need.map(n=>BP[n].name).join(", "):"")),ready&&!r?B.cost:null,"",!ready||!!r)}).join("")+"</div>"}
+  return h}
+function smartHTML(inRs){const sm=S.people.filter(p=>smartOf(p)>0).sort((a,b)=>smartOf(b)-smartOf(a)),left=(S.k.lessons|0)-(S.k.taught|0);
+  let h="<p>Research: <b>"+(E.rsRate||0).toFixed(1)+" a second</b> from "+(sm.length?sm.map(p=>p.name+" ("+IQNAME[smartOf(p)]+")").join(", "):"nobody")+(E.labBoost?", +"+Math.round(E.labBoost*100)+"% from labs":"")+". "+(S.rs?"Working on "+BP[S.rs.id].name+".":"Nothing being researched.")+"</p>"+(inRs?"":'<div class="acts">'+btn("rs","Blueprints","Research upgrades, in five branches",null,"primary")+"</div>");
+  if(left>0&&inRs)h+="<p><b>A Spire can teach someone.</b> Choose who in your People list.</p>";
+  else if(left>0)h+="<p><b>A Spire can teach someone"+(left>1?" ("+left+" lessons waiting)":"")+".</b> Pick who studies it: they come back smarter, with a bigger head, and research faster.</p><div class=\"acts\">"+
+    S.people.slice().sort((a,b)=>smartOf(b)-smartOf(a)).map(p=>btn("teach:"+p.id,p.name,IQNAME[smartOf(p)]+" \u2192 "+IQNAME[Math.min(5,Math.max(1,smartOf(p))+1)],null,"")).join("")+"</div>";
+  return h}
+function researchHTML(){return'<div class="row"><button class="linkbtn" data-act="rsback">\u2190 Back to your people</button></div><div class="tile-h">Blueprints</div>'+smartHTML(true)+labHTML()}
 const deg=v=>String(Math.round(v)).replace("-","\u2212")+"\u00b0C";
 function FIND(r,c){if(c===SHAFT)return null;const h=h3(r,c,77);if(r>=3&&r<=8&&h<.22)return"aquifer";if(r>=9&&h>.86)return"relic";if(h>.78)return"cache";if(h>.68&&h<.76)return"cave";return null}
 const rowNeed=r=>{const b=Math.min(3,Math.floor(r/3));return b===3&&S.unl.skywell?30:CFG.rowGates[b]};
@@ -400,9 +453,9 @@ const pickStarters=()=>{const nb=T[START].n.filter(land).filter(j=>!T[j].pent);
   const w=nb.find(j=>T[j].coast)??nb[0],f=nb.filter(j=>j!==w).sort((a,b)=>(T[b].b==="woods")-(T[a].b==="woods"))[0];return[[w,"still"],[f,"green"]]};
 let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
-  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
+  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},bp:[],rs:null,h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
-function ser(){return{v:9,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
+function ser(){return{v:9,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
 function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
@@ -413,7 +466,7 @@ function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o
     k:fixK(Object.assign({fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:null,dest:"mire",rations:40,crew:[]},o.k&&typeof o.k==="object"?o.k:{})),
     unl:o.unl&&typeof o.unl==="object"?o.unl:{},cnt:o.cnt&&typeof o.cnt==="object"?o.cnt:{},gear:o.gear&&typeof o.gear==="object"?o.gear:{},wounded:+o.wounded||0,world:o.world|0,
     codex:fixCodex(o.codex),x:sanX(o.x),veh:o.veh&&typeof o.veh==="object"?Object.fromEntries(Object.keys(VEH).filter(k=>o.veh[k]).map(k=>[k,1])):{},
-    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
+    arts:Array.isArray(o.arts)?o.arts.filter(k=>ARTS[k]):[],glyphs:Math.max(0,Math.min(CFG.veh.glyphs,o.glyphs|0)),wet:o.wet&&typeof o.wet==="object"?o.wet:{},caves:o.caves&&typeof o.caves==="object"?o.caves:{},atlas:fixAtlas(o.atlas),fw:typeof o.fw==="string"?o.fw:"",fab:Array.isArray(o.fab)?o.fab.filter(k=>typeof k==="string"):[],abk:Array.isArray(o.abk)?o.abk.filter(k=>typeof k==="string"):null,beat:o.beat&&typeof o.beat==="object"?o.beat:{},bp:Array.isArray(o.bp)?o.bp.filter(k=>BP[k]):[],rs:o.rs&&BP[o.rs.id]?{id:o.rs.id,left:Math.max(0,+o.rs.left||0)}:null,xw:o.xw&&typeof o.xw==="object"?o.xw:{},xs:Object.assign({built:[],trips:0},o.xs&&typeof o.xs==="object"?o.xs:{}),
     h:(()=>{const d=JSON.parse('{"secret":false,"active":0,"susp":0,"sealed":false,"arming":0,"crack":null,"detained":null,"silo":{"parts":{},"job":null,"power":true},"insp":{"i":0,"phase":"idle"},"quota":{"next":1800,"due":false,"deadline":0,"amount":0},"hold":{"people":[],"pallets":{"scrap":0,"water":0,"food":0}}}'),x=o.h&&typeof o.h==="object"?o.h:{};const m=Object.assign(d,x);m.silo=Object.assign(d.silo,x.silo||{});m.insp=Object.assign({i:0,phase:"idle"},x.insp||{});m.quota=Object.assign({next:1800,due:false,deadline:0,amount:0},x.quota||{});m.hold=Object.assign({people:[],pallets:{scrap:0,water:0,food:0}},x.hold||{});return m})(),log:Array.isArray(o.log)?o.log.slice(0,4):[]}}
 const KEY="ashen-sphere-v9",OLD_KEYS=["ashen-sphere-v8","ashen-sphere-v7","ashen-sphere-v6","ashen-sphere-v5"];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ser()))}catch(e){}}
@@ -428,14 +481,15 @@ function econ(){
   let free=Math.max(0,S.pop-(S.exp&&!S.exp.away?XC.squad:0)),pw=S.hatch?CFG.bunker.power+(U.vent?1:0):0;
   const st=new Set(),on=new Set(),paused=new Map(),pend=[];
   const ART=k=>!!(S.arts&&S.arts.includes(k)),grow=ART("seed")?1.2:1;   // rare artifacts found and brought home (slice 2)
-  const genSup=RC.gen.supply+(U.geo?1:0)+(ART("ember")?1:0),powOf=room=>room==="hydro"?RC.hydro.power+(U.coldhydro?.5:0):RC[room].power;
+  const genSup=RC.gen.supply+(U.geo?1:0)+(ART("ember")?1:0)+(hasBp("gen2")?2:0),powOf=room=>room==="hydro"?RC.hydro.power+(U.coldhydro?.5:0):RC[room].power;
   const jobs=[],take=id=>{need++;if(free>0){free--;st.add(id);jobs.push(id);return true}return false};
   const order=S.order.map((id,ix)=>[id,ix]),ugRoom=id=>typeof id==="string"&&S.ug[id.slice(2)]?S.ug[id.slice(2)].room:null;
   for(const[id]of order)if(typeof id==="number"&&(S.bld[id]==="still"||S.bld[id]==="green"))take(id);
   for(const[id]of order)if(ugRoom(id)==="gen"&&take(id)){on.add(id);pw+=genSup;gens++}
   for(const[id]of order)if(typeof id==="number"){const b=S.bld[id];if(!b||b==="still"||b==="green"||!BLD[b]||!BLD[b].staff)continue;
     if(b==="pad"){if(take(id)&&!take("pad2:"+id)){free++;st.delete(id);jobs.pop()}}else take(id)}
-  if(S.hatch)for(const k in S.bld)if(S.bld[k]==="wind")pw+=CFG.wind.power;
+  if(S.hatch)for(const k in S.bld)if(S.bld[k]==="wind")pw+=CFG.wind.power*(hasBp("windgear")?1.5:1);
+  if(S.hatch&&hasBp("capbank"))pw+=2;if(S.hatch&&hasBp("coil"))pw+=6;if(hasBp("turbine"))pw+=3*order.filter(([id])=>ugRoom(id)==="furnace").length;   // blueprints: more power for the grid
   for(const[id,ix]of order){const room=ugRoom(id);if(!room||room==="gen")continue;
     if(room==="store"){on.add(id);store+=CFG.storePerRoom+(ART("pearl")?100:0);continue}
     if(RC[room].staff)need++;pend.push([RC[room].prio,ix,id,room])}
@@ -458,25 +512,25 @@ function econ(){
   for(const k in S.bld){const id=+k,b=S.bld[k];
     if(b==="shelter"){cap+=SF.shelter.cap+lmAdd(id,"shelter");continue}
     if(!st.has(id))continue;const m=mult(id,b)*pb(id);
-    if(b==="camp")sc+=SF.camp.rate*m;else if(b==="still")wa+=SF.still.rate*m*(U.filters?1.25:1);else if(b==="green")fo+=SF.green.rate*m*grow;else if(b==="tower")towers++}
+    if(b==="camp")sc+=SF.camp.rate*m*(hasBp("sorting")?1.25:1);else if(b==="still")wa+=SF.still.rate*m*(U.filters?1.25:1);else if(b==="green")fo+=SF.green.rate*m*grow;else if(b==="tower")towers++}
   // temperature (see TEMP): furnaces top the bunker up to the target and burn scrap for what they give; plants slow in the cold
   const tOut=outsideTemp(),nOn=r=>[...on].filter(id=>ugRoom(id)===r).length,nFurn=nOn("furnace"),nFrz=nOn("freezer");
-  let tIn=TEMP.earth+TEMP.seep*tOut+gens*TEMP.gen+S.pop*TEMP.person+nOn("fuel")*TEMP.plant;
-  const heat=Math.max(0,Math.min(nFurn*RC.furnace.heat,TEMP.target-tIn)),heatUse=nFurn?heat/(nFurn*RC.furnace.heat):0;tIn+=heat;sc-=RC.furnace.burn*nFurn*heatUse;
-  const pm=Math.max(0,Math.min(1,(tIn-TEMP.plantMin)/(TEMP.plantOk-TEMP.plantMin)));
+  let tIn=TEMP.earth+(hasBp("insul")?2:0)+TEMP.seep*(hasBp("insul")?1/3:1)*tOut+gens*TEMP.gen*(hasBp("heatx")?2:1)+S.pop*TEMP.person+nOn("fuel")*TEMP.plant,rsr=0;
+  const heat=Math.max(0,Math.min(nFurn*RC.furnace.heat,TEMP.target-tIn)),heatUse=nFurn?heat/(nFurn*RC.furnace.heat):0;tIn+=heat;if(hasBp("climate"))tIn=Math.max(tIn,TEMP.target);const burnUse=nFurn&&hasBp("turbine")?1:heatUse;sc-=RC.furnace.burn*nFurn*burnUse*(hasBp("smelter")?.5:1);
+  const pmOf=ok=>Math.max(0,Math.min(1,(tIn-TEMP.plantMin)/(ok-TEMP.plantMin))),pm=pmOf(TEMP.plantOk),pmH=hasBp("growlamp")?pmOf(8)*1.25:pm;
   for(const id of on){const k=id.slice(2),cell=S.ug[k],room=cell.room,m=ugMult(k)*pb(id);
     if(room==="fuel"){if(S.k.fuel<fuelCap){fuelRate+=CFG.space.plant.fuel*m*(U.catalyst?1.5:1);wa-=CFG.space.plant.water}continue}
-    if(room==="bunks")cap+=RC.bunks.cap;else if(room==="hydro")fo+=RC.hydro.food*m*(U.coldhydro?1.15:1)*grow*pm;else if(room==="shop")sc+=RC.shop.scrap*m*(U.archive?1.1:1);
-    else if(room==="pump")wa+=(cell.f==="aquifer"?RC.pump.aquifer:RC.pump.water)*m*(U.filters?1.25:1);else if(room==="algae"){fo+=RC.algae.food*m*grow*pm;wa-=RC.algae.water}else if(room==="med")med=true;else if(room==="radio")radio=true}
-  if(dem>0)sc-=RC.gen.burn*gens;
-  const eat=EAT*S.pop,frozen=nFrz*RC.freezer.keep,spoil=Math.max(0,S.res.food-TEMP.cellar-frozen)*TEMP.spoil;
-  return{temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat,fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
+    if(room==="bunks")cap+=RC.bunks.cap;else if(room==="hydro")fo+=RC.hydro.food*m*(U.coldhydro?1.15:1)*grow*pmH;else if(room==="shop")sc+=RC.shop.scrap*m*(U.archive?1.1:1)*(hasBp("tools")?1.25:1);
+    else if(room==="pump")wa+=(cell.f==="aquifer"?RC.pump.aquifer:RC.pump.water)*m*(U.filters?1.25:1)*(hasBp("deeppump")?1.5:1);else if(room==="algae"){fo+=RC.algae.food*m*grow*pm*(hasBp("vats")?2:1);wa-=RC.algae.water}else if(room==="med")med=true;else if(room==="radio")radio=true;else if(room==="lab")rsr+=.5*m}
+  if(dem>0)sc-=RC.gen.burn*gens*(hasBp("gen2")?.7:1);
+  const eat=EAT*S.pop,frozen=nFrz*(hasBp("seals")?350:RC.freezer.keep),spoil=Math.max(0,S.res.food-TEMP.cellar-frozen)*TEMP.spoil*(hasBp("preserve")?.5:1);
+  return{rsRate:smartRate()*(1+rsr),labBoost:rsr,burnUse,temp:tIn,tOut,heatUse,plant:pm,frozen,spoil,sc,wa:wa-eat*(hasBp("recycler")?.8:1),fo:fo-eat-spoil,cap,store,towers,st,on,paused,idle:free,needStaff:need,med,radio,who,jobOf,bonus,squad,fuelRate,fuelCap,siloRunning,power:{supply:pw,demand:Math.round(dem*10)/10}}
 }
 let E;
 function say(msg){S.log.unshift("D"+day()+" · "+msg);S.log.length=Math.min(S.log.length,4);dirty=true}
 function step(dt,quiet){
-  reconcile();E=econ();
-  S.t+=dt;abTick(dt,quiet);
+  reconcile();if(!S.k.smart0&&S.people.length){S.people[0].iq=Math.max(1,S.people[0].iq|0);S.k.smart0=true}E=econ();
+  S.t+=dt;abTick(dt,quiet);rsTick(dt,quiet);
   S.res.scrap+=E.sc*dt;S.res.water+=E.wa*dt;S.res.food+=E.fo*dt;
   const dry=S.res.water<=0||S.res.food<=0;
   for(const k of["scrap","water","food"])S.res[k]=Math.max(0,Math.min(E.store,S.res[k]));
@@ -508,7 +562,7 @@ function claim(i){
   pay(c);S.owned.add(i);
   if(t.b==="ruins"){const g=15+Math.floor(Math.random()*21);S.res.scrap+=g;say("Cleared ruins. Found "+g+" scrap in the rubble.")}
   else if(t.b==="woods"){S.res.scrap+=8;say("Cut back the dead woods. 8 scrap of firewood.")}
-  else if(t.b==="spire"){S.res.scrap+=120;S.pop++;say("Claimed a Spire. 120 scrap in the vault, and a stranger who was guarding it joins you.")}
+  else if(t.b==="spire"){S.res.scrap+=120;S.pop++;S.k.lessons=(S.k.lessons|0)+1;say("Claimed a Spire. 120 scrap in the vault, a stranger who was guarding it joins you, and the Spire can teach one of your people: open People to choose who.");toast("The Spire can teach someone: open People")}
   else say("Claimed "+BIOME[t.b].name.toLowerCase()+". Your border grows.");
   refreshSeen();dirty=true;save();
 }
@@ -722,22 +776,22 @@ const NAMES=["Mara","Joss","Ilse","Tobin","Wren","Ade","Sol","Petra","Kaz","Noor
 const SKILL={eng:"engineer",scav:"scavenger",grow:"grower"};
 const TRAIT={cautious:{name:"Cautious",txt:"comes home less hurt when a fight goes wrong"},tinkerer:{name:"Tinkerer",txt:"+10% at any job"},
   organizer:{name:"Organizer",txt:"everyone working makes 5% more"},stubborn:{name:"Stubborn",txt:"never the first to leave"}};
-const JOB_SKILL={camp:"scav",still:"eng",green:"grow",tower:"eng",pad:"eng",gen:"eng",pump:"eng",hydro:"grow",shop:"eng",med:"grow",radio:"eng",fuel:"eng"};
+const JOB_SKILL={camp:"scav",still:"eng",green:"grow",tower:"eng",pad:"eng",gen:"eng",pump:"eng",hydro:"grow",shop:"eng",med:"grow",radio:"eng",fuel:"eng",lab:"eng"};
 function newPerson(id){const n=NAMES.length,used=new Set(S.people.concat(S.x?S.x.crew:[],S.h&&S.h.detained?[S.h.detained.person]:[]).map(p=>p.name));let j=(id*17+(h3(id,3,61)*7|0))%n,name=null;
   for(let t=0;t<n;t++){const c=NAMES[(j+t)%n];if(!used.has(c)){name=c;break}}
   if(!name)name=NAMES[j]+" "+String.fromCharCode(65+(id%26))+".";
   return{id,name,sk:["eng","scav","grow"][h3(id,1,61)*3|0],lv:1+(h3(id,4,61)*3|0),tr:Object.keys(TRAIT)[h3(id,2,61)*4|0]}}
 function reconcile(){const P=S.people;let added=null;while(P.length<S.pop){const p=newPerson(S.k.nextPid++);P.push(p);added=p}
-  while(P.length>S.pop){let ix=-1;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}P.splice(ix<0?P.length-1:ix,1)}return added}
-function leaveOne(){let ix=-1;const P=S.people;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}if(ix<0)ix=P.length-1;const p=P.splice(ix,1)[0];S.pop=P.length;return p}
+  while(P.length>S.pop){let ix=-1;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"&&!(P[j].iq>0)){ix=j;break}if(ix<0)for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}P.splice(ix<0?P.length-1:ix,1)}return added}
+function leaveOne(){let ix=-1;const P=S.people;for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"&&!(P[j].iq>0)){ix=j;break}if(ix<0)for(let j=P.length-1;j>=0;j--)if(P[j].tr!=="stubborn"){ix=j;break}if(ix<0)ix=P.length-1;const p=P.splice(ix,1)[0];S.pop=P.length;return p}
 const personLine=p=>PUP.faceSVG(lookOf(p),20)+"<b>"+p.name+"</b> · "+SKILL[p.sk]+" "+p.lv+" · "+TRAIT[p.tr].name;
 function jobName(id){if(typeof id==="number")return BLD[S.bld[id]]?BLD[S.bld[id]].name.toLowerCase()+" (tile "+id+")":"a job";
   if(id.startsWith("pad2:"))return"the launch pad (tile "+id.slice(5)+")";const c=S.ug[id.slice(2)];return c&&c.room?ROOM[c.room].name.toLowerCase()+" below":"a job"}
 function workerNote(id){const p=E.who.get(id);if(!p)return"";const need=JOB_SKILL[typeof id==="number"?S.bld[id]:(S.ug[id.slice(2)]||{}).room];
   const pct=Math.round((E.bonus.get(id)-1)*100);return" "+p.name+" works here ("+SKILL[p.sk]+" "+p.lv+(p.sk===need?", the right skill":"")+")"+(pct?": +"+pct+"%":"")+"."}
-function peopleHTML(){const P=S.people;let h='<div class="meta">'+P.length+" people · "+E.st.size+" working · "+E.idle+" resting"+(S.exp&&!S.exp.away?" · "+XC.squad+" exploring":"")+(S.x?" · "+S.x.crew.length+" on the expedition":"")+'</div><div class="tile-h">Your people</div><div class="plist">';
+function peopleHTML(){const P=S.people;let h='<div class="meta">'+P.length+" people · "+E.st.size+" working · "+E.idle+" resting"+(S.exp&&!S.exp.away?" · "+XC.squad+" exploring":"")+(S.x?" · "+S.x.crew.length+" on the expedition":"")+'</div><div class="tile-h">Your people</div>'+smartHTML()+'<div class="plist">';
   for(const p of P){const job=E.jobOf.get(p.id),sq=E.squad.includes(p);
-    h+='<div class="prow"><div>'+personLine(p)+'</div><small>'+(sq?"out with the squad":job!==undefined?"works the "+jobName(job):"resting")+" · "+TRAIT[p.tr].txt+"</small></div>"}
+    h+='<div class="prow"><div>'+personLine(p)+'</div><small>'+(smartOf(p)?IQNAME[smartOf(p)]+" · ":"")+(sq?"out with the squad":job!==undefined?"works the "+jobName(job):"resting")+" · "+TRAIT[p.tr].txt+"</small></div>"}
   if(S.x)for(const p of S.x.crew)h+='<div class="prow"><div>'+personLine(p)+'</div><small>on the expedition to '+XWORLDS[S.x.w].name+" · "+TRAIT[p.tr].txt+"</small></div>";
   return h+"</div><p class=\"meta\">Each job wants a skill. The right person adds 10% per skill level.</p>"}
 
@@ -916,7 +970,7 @@ function completeJump(){const c=S.h.crack,from=WORLDS[Math.min(S.world,WORLDS.le
   dirty=true;save()}
 
 // ---------------------------------------------------------------- cutaway renderer
-let showPeople=false,VIEW="surface",selU=null,GR={cw:1,ch:1,gy:0,maxScroll:0},scrollY=0;
+let showRs=false,showPeople=false,VIEW="surface",selU=null,GR={cw:1,ch:1,gy:0,maxScroll:0},scrollY=0;
 const col=(a,m=1,al=1)=>"rgba("+(Math.min(255,a[0]*m)|0)+","+(Math.min(255,a[1]*m)|0)+","+(Math.min(255,a[2]*m)|0)+","+al+")";
 // people are balloon-head stick puppets (Stick 'Em Up); a look of their own when we know who it is
 function person(x,y,s,seed,now,look,o){PUP.mini(ctx,x,y,s*1.2,look||ANON[(seed|0)%ANON.length],now/1000,Object.assign({ph:seed|0},o||{}))}
@@ -1101,6 +1155,14 @@ const ROOMART={
       gR(g,col([150,160,170],L),x+w*(fx+.33),fy-u*4.6,u*.35,u*1.3);gR(g,col([150,160,170],L),x+w*(fx+.33),fy-u*2.2,u*.35,u*1);
       gR(g,col([240,250,255],L),x+w*fx,fy-u*6.4,w*.4,u*.5)}   // frost on top
     g.fillStyle=col([226,240,250],L);for(let q=0;q<7;q++){const ix=x+w*(.08+q*.13),il=u*(.6+.8*h3(q,2,5));g.beginPath();g.moveTo(ix-u*.25,u*.9);g.lineTo(ix+u*.25,u*.9);g.lineTo(ix,u*.9+il);g.closePath();g.fill()}},   // icicles
+  lab(g,x,w,h,L){const u=h/10,fy=h*.86;g.strokeStyle=INK;g.lineWidth=Math.max(.8,.7*DPR);
+    gRS(g,col([40,60,48],L),x+w*.06,u*1.4,w*.42,u*3.2);g.strokeStyle=col([220,226,210],L*.85);g.lineWidth=Math.max(.7,.6*DPR);g.beginPath();   // a chalkboard of sums
+    for(let q=0;q<3;q++){const yy=u*(2.1+q*.8);g.moveTo(x+w*.1,yy);for(let p=1;p<6;p++)g.lineTo(x+w*(.1+p*.06),yy+(p%2?-u*.2:u*.15))}g.moveTo(x+w*.36,u*2);g.arc(x+w*.36,u*2.6,u*.6,-1.57,3.6);g.stroke();
+    g.strokeStyle=INK;g.lineWidth=Math.max(.8,.7*DPR);gRS(g,col([102,80,56],L),x+w*.04,fy-u*3.2,w*.6,u*.5);gR(g,col([80,62,44],L),x+w*.07,fy-u*2.7,u*.5,u*2.7);gR(g,col([80,62,44],L),x+w*.58,fy-u*2.7,u*.5,u*2.7);
+    gR(g,col([60,110,190],L),x+w*.1,fy-u*3.45,w*.3,u*.3);g.strokeStyle=col([210,230,255],L);g.lineWidth=Math.max(.5,.4*DPR);g.strokeRect(x+w*.13,fy-u*3.42,w*.1,u*.2);   // a blueprint on the desk
+    g.strokeStyle=INK;g.lineWidth=Math.max(.8,.7*DPR);gRS(g,col([70,74,80],L),x+w*.66,fy-u*6.2,w*.28,u*2.6);gR(g,col([20,40,30],1),x+w*.68,fy-u*5.9,w*.24,u*2);gR(g,col([70,74,80],L),x+w*.76,fy-u*3.6,w*.08,u*.6);   // the terminal
+    gRS(g,col([66,58,50],L),x+w*.64,fy-u*3,w*.32,u*3);
+    g.fillStyle=col([150,200,190],L*.8);g.beginPath();g.moveTo(x+w*.46,fy-u*4.6);g.lineTo(x+w*.5,fy-u*4.6);g.lineTo(x+w*.5,fy-u*4);g.lineTo(x+w*.55,fy-u*3.2);g.lineTo(x+w*.41,fy-u*3.2);g.lineTo(x+w*.46,fy-u*4);g.closePath();g.fill();g.stroke()},   // a flask
   algae(g,x,w,h,L){const u=h/10,fy=h*.86;g.strokeStyle=INK;g.lineWidth=Math.max(.8,.7*DPR);
     for(const vx of[.08,.52]){gRS(g,col([150,190,170],L*.7),x+w*vx,fy-u*5.8,w*.38,u*5.8);gR(g,col([60,160,90],L*(L>.6?1.15:.8)),x+w*vx+u*.3,fy-u*4.6,w*.38-u*.6,u*4.3);gR(g,col([120,220,140],L),x+w*vx+u*.3,fy-u*4.6,w*.38-u*.6,Math.max(1,u*.3));
       gR(g,col([70,76,80],L),x+w*vx-u*.2,fy-u*6.2,w*.38+u*.4,u*.5)}
@@ -1124,9 +1186,12 @@ function roomFx(type,x,y,w,h,n,now){if(reduced)return;const cw=w/n,u=h/10,fy=y+h
       if(Math.sin(t*3+j)>.2){ctx.fillStyle="rgba(120,110,100,.25)";ctx.beginPath();ctx.arc(X+cw*.38+u*.45,y-u*(.5+(t*2+j)%1*1.5),u*.6,0,6.2832);ctx.fill()}}
     else if(type==="shop"){if(((t*9|0)+j*5)%11<3){ctx.strokeStyle="#ffd36a";ctx.lineWidth=Math.max(1,DPR*.8);ctx.beginPath();const sx=X+cw*.43,sy=fy-u*4.1;for(let q=0;q<4;q++){const a=-2.6+q*.5+Math.sin(t*20+q)*.3;ctx.moveTo(sx,sy);ctx.lineTo(sx+Math.cos(a)*u*1.4,sy+Math.sin(a)*u*1.4)}ctx.stroke()}}
     else if(type==="radio"){const sx=X+cw*.5,sy=fy-u*6.2,sw=cw*.38,sh=u*3;ctx.strokeStyle="#7cf0a2";ctx.lineWidth=Math.max(1,DPR*.8);ctx.beginPath();for(let q=0;q<=12;q++){const px=sx+sw*(.08+.84*q/12),py=sy+sh*(.5+.3*Math.sin(t*6+q*.9+j)*Math.sin(t*1.3+q*.3));q?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.stroke()}
-    else if(type==="furnace"){const k=E&&E.heatUse!==undefined?.25+.75*E.heatUse:1,fl=.6+.4*Math.sin(t*9+j*2)*Math.sin(t*5.3);if(k>.05){const fx=X+cw*.2+u*.3,fw=cw*.36-u*.6;
+    else if(type==="furnace"){const k=E&&E.burnUse!==undefined?.25+.75*E.burnUse:1,fl=.6+.4*Math.sin(t*9+j*2)*Math.sin(t*5.3);if(k>.05){const fx=X+cw*.2+u*.3,fw=cw*.36-u*.6;
         ctx.fillStyle="rgba(255,"+(150+60*fl|0)+",60,"+(.55*k).toFixed(2)+")";ctx.beginPath();ctx.moveTo(fx,fy-u*1.9);for(let q=0;q<=6;q++){const px=fx+fw*q/6;ctx.lineTo(px,fy-u*(2.2+1.6*k*Math.abs(Math.sin(t*7+q*1.7+j))))}ctx.lineTo(fx+fw,fy-u*1.9);ctx.closePath();ctx.fill();
         const lg=ctx.createRadialGradient(X+cw*.38,fy-u*3,0,X+cw*.38,fy-u*3,cw*.5);lg.addColorStop(0,"rgba(255,140,60,"+(.18*k*fl+.06).toFixed(3)+")");lg.addColorStop(1,"rgba(255,140,60,0)");ctx.fillStyle=lg;ctx.fillRect(X,y,cw,h)}}
+    else if(type==="lab"){const on=S&&S.rs;ctx.fillStyle="#7cf0a2";for(let q=0;q<3;q++)ctx.fillRect(X+cw*.7,fy-u*(5.6-q*.6),cw*(.08+.1*((q*7+(t*2|0))%3)/2),Math.max(1,u*.25));
+      if(((t*2)|0)%2)ctx.fillRect(X+cw*.7+cw*.14,fy-u*4.4,Math.max(1,u*.3),Math.max(1,u*.3));   // a blinking cursor
+      if(on){ctx.fillStyle="rgba(170,240,220,.7)";for(let q=0;q<3;q++){const k=(t*.8+q/3+j*.2)%1;ctx.beginPath();ctx.arc(X+cw*.48+Math.sin(t*4+q)*u*.15,fy-u*(3.4+k*2.2),Math.max(1,u*.2*(1-k*.5)),0,6.2832);ctx.fill()}}}
     else if(type==="freezer"){ctx.fillStyle="rgba(220,240,255,.35)";for(let q=0;q<5;q++){const k=(t*.15+q/5+j*.3)%1;ctx.beginPath();ctx.arc(X+cw*(.1+.8*((q*.37+j*.21)%1))+Math.sin(t+q)*u*.4,fy-u*(.5+k*5),Math.max(1,u*.5*(1-k)),0,6.2832);ctx.fill()}}
     else if(type==="fuel"||type==="algae"){ctx.fillStyle=type==="fuel"?"rgba(220,240,255,.7)":"rgba(200,255,210,.6)";
       for(const vx of type==="fuel"?[.6,.76]:[.18,.3,.62,.74])for(let q=0;q<3;q++){const k=(t*.6+q/3+j*.37+vx)%1,bx=X+cw*vx+Math.sin(t*3+q)*u*.3,by=fy-u*(.6+k*(type==="fuel"?2.7:4));ctx.beginPath();ctx.arc(bx,by,Math.max(1,u*.22*(.6+k*.6)),0,6.2832);ctx.fill()}}}}
@@ -1468,14 +1533,14 @@ function reveal(ms,k,rad){const x0=k%MW,y0=(k/MW)|0,r=ms.rev.split("");
   for(let y=y0-rad;y<=y0+rad;y++)for(let x=x0-rad;x<=x0+rad;x++){if(x<0||y<0||x>=MW||y>=MH||Math.abs(x-x0)+Math.abs(y-y0)>rad+1)continue;r[y*MW+x]="1"}ms.rev=r.join("")}
 // sight: daylight, the lookout and the scanner on the surface; caves and seabeds are dark (slice 2: the skimmer, the Builder Lens and the Deep Lamp)
 const sightR=i=>{const e=S.exp,deep=!!(e&&(e.cave||e.sea));
-  return(deep?1+(hasArt("lamp")?1:0):(smooth(-.12,.3,dot(sunAt(S.t),T[i].c))>.4?2:1)+(S.unl.lookout?1:0)+(skimOn()?1:0))+(S.gear.scanner?1:0)+(hasArt("lens")?1:0)};
+  return(hasBp("maps")?1:0)+(deep?1+(hasArt("lamp")?1:0):(smooth(-.12,.3,dot(sunAt(S.t),T[i].c))>.4?2:1)+(S.unl.lookout?1:0)+(skimOn()?1:0))+(S.gear.scanner?1:0)+(hasArt("lens")?1:0)};
 function squadP(){const base=Math.min(2,1+Math.floor(S.pop/8)),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0))+(crawlOn()&&!(S.exp&&(S.exp.cave||S.exp.sea))?1:0),morale=E&&(E.med||E.radio)?1:0;return{P:base+gear+morale,base,gear,morale}}
-const tripSteps=()=>XC.steps+(S.k.lantern?4:0)+(S.gear.pack?CFG.gear.pack.steps:0)+(S.gear.mule?CFG.gear.mule.steps:0)+(S.cnt.watch>0?6:0)-(S.cnt.decon>0?5:0);
+const tripSteps=()=>XC.steps+(hasBp("packs")?6:0)+(S.k.lantern?4:0)+(S.gear.pack?CFG.gear.pack.steps:0)+(S.gear.mule?CFG.gear.mule.steps:0)+(S.cnt.watch>0?6:0)-(S.cnt.decon>0?5:0);
 function sendBlock(){if(S.wounded>0)return"The squad is still recovering ("+Math.ceil(S.wounded)+" s).";if(S.pop<=XC.squad)return"You need more than "+XC.squad+" people to send a squad.";return null}
 let PATH=[],CARD=null,stepT=0,GM={cs:1,ox:0,oy:0};
 function startExp(i){if(S.exp)return;const sea=!land(i);if(sea&&!S.veh.bell)return;   // seas need the diving bell (slice 2)
   const own=sea?!!S.wet[i]:S.owned.has(i);if(!own&&!reachHome(i))return;if(sendBlock())return;
-  let sup=-1;if(!own){if(!afford(XC.cost))return;pay(XC.cost);sup=tripSteps();if(S.cnt.watch>0)S.cnt.watch--;if(S.cnt.decon>0)S.cnt.decon--}
+  let sup=-1;if(!own){if(!afford(xcost()))return;pay(xcost());sup=tripSteps();if(S.cnt.watch>0)S.cnt.watch--;if(S.cnt.decon>0)S.cnt.decon--}
   const M=genMap(i),ms=mapState(i);S.exp={i,sup,pos:M.entry,sea};reveal(ms,M.entry,sightR(i));
   if(S.gear.scanner){const ti=M.pois.findIndex((p,ix)=>p.type==="threat"&&!ms.got.includes(ix)&&ms.rev[p.k]!=="1");if(ti>=0)reveal(ms,M.pois[ti].k,0)}
   PATH=[];CARD=null;sel=i;setView("map");save()}
@@ -2044,7 +2109,7 @@ function seaHTML(i){if(S.wet[i])return"<p>Charted water. Diving it costs no supp
   let h="<p>"+(S.maps[i]?Math.round(explored(i)*100)+"% explored. "+tl+" threat"+(tl===1?"":"s")+" left. ":"Down there: wrecks, kelp, and things that live in the dark. ")+"Clear every threat and the water is charted.</p>"+
     "<p>Squad: "+XC.squad+" people in the diving bell, strength "+q.P+", "+tripSteps()+" steps of supplies.</p>";
   if(blk)return h+"<p><b>"+blk+"</b></p>";
-  return h+'<div class="acts">'+btn("explore",S.maps[i]?"Dive again":"Send the bell down","Costs "+costText(XC.cost)+" · "+tripSteps()+" steps",XC.cost,"primary")+"</div>"}
+  return h+'<div class="acts">'+btn("explore",S.maps[i]?"Dive again":"Send the bell down","Costs "+costText(xcost())+" · "+tripSteps()+" steps",xcost(),"primary")+"</div>"}
 
 // ---------------------------------------------------------------- the Library atlas: every book in the Library charts one star
 // Archives of Madness (index.html) builds each page of its Library of Babel from the book's address alone, so the same
@@ -4478,7 +4543,8 @@ function ship(c, g, F) {
 // ---------- the little puppets: people on the maps, in the bunker and on the ship (screen space, y down) ----------
 // (x, y) is where the feet stand, s the height in pixels; o: { f: facing, walk, ph (phase), mood, weapon }
 function mini(c, x, y, s, look, t, o) {
-  o = o || {}; var L = shades(look), f = o.f || 1, k = s / 280, ph = o.ph || 0;
+  // a smart person has a bigger head (a body a little smaller, so they still stand as tall)
+  o = o || {}; var L = shades(look), f = o.f || 1, br = 1 + 0.16 * Math.min(5, look.brain || 0); s = s * 345 / (210 + 135 * br); var k = s / 280, ph = o.ph || 0;
   var sw = o.walk && !REDUCED ? Math.sin(t * 8 + ph) : 0, bob = o.walk && !REDUCED ? Math.abs(sw) * 8 * k : (REDUCED ? 0 : Math.sin(t * 2 + ph) * 2 * k);
   var hipX = x, hipY = y - 116 * k - bob, shX = x + f * 6 * k, shY = y - 196 * k - bob, nkY = shY - 14 * k;
   var lw = Math.max(1.6, 9 * k);
@@ -4491,7 +4557,7 @@ function mini(c, x, y, s, look, t, o) {
   line(shX, shY, shX + f * 26 * k, shY + 26 * k, lw * 0.9, WOOD); line(shX + f * 26 * k, shY + 26 * k, hx, hy, lw * 0.9, WOOD);
   if (o.weapon === "sword") { c.strokeStyle = "#f4f1ea"; c.lineWidth = Math.max(1.2, 6 * k); c.beginPath(); c.moveTo(hx, hy); c.lineTo(hx + f * 90 * k, hy - 40 * k); c.stroke(); }
   // the balloon, a little bigger than in a fight so a face still reads at map size
-  var bs = clamp(2.2 - s / 150, 1.18, 1.9), rx = BRX * k * bs, ry = BRY * k * bs, bx = shX + f * 4 * k, by = nkY - ry * 0.92 + (REDUCED ? 0 : Math.sin(t * 2.6 + ph) * 1.5 * k);
+  var bs = clamp(2.2 - s / 150, 1.18, 1.9), rx = BRX * k * bs * br, ry = BRY * k * bs * br, bx = shX + f * 4 * k, by = nkY - ry * 0.92 + (REDUCED ? 0 : Math.sin(t * 2.6 + ph) * 1.5 * k);
   c.save(); c.translate(bx, by); c.scale(1, -1);
   egg(c, rx, ry);
   var gr = c.createRadialGradient(-rx * 0.32, ry * 0.38, 1, -rx * 0.1, ry * 0.1, ry * 1.5);
@@ -4514,7 +4580,7 @@ function miniFace(c, rx, ry, sc, m, f, L) {
 }
 // a balloon face for a list, as a small SVG (the people panel uses it)
 function faceSVG(look, size) {
-  var L = shades(look), s = size || 22;
+  var L = shades(look), s = (size || 22) * (1 + 0.16 * Math.min(5, look.brain || 0));   // smart people: bigger heads
   return '<svg class="pface" width="' + s + '" height="' + s + '" viewBox="-16 -18 32 36" aria-hidden="true"><defs><radialGradient id="pf' + L.col.slice(1) + '" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="' + L.c1 + '"/><stop offset=".45" stop-color="' + L.col +
     '"/><stop offset="1" stop-color="' + L.c4 + '"/></radialGradient></defs><path d="M0 15C7 15 13 8 13 -1C13 -10 7 -16 0 -16C-7 -16 -13 -10 -13 -1C-13 8 -7 15 0 15Z" fill="url(#pf' + L.col.slice(1) + ')"/>' +
     (L.blind ? '<path d="M-6 -2H6" stroke="#1d1512" stroke-width="1.6" stroke-linecap="round"/>' : '<ellipse cx="-3" cy="-3" rx="1.4" ry="2" fill="#1d1512"/><ellipse cx="4" cy="-3" rx="1.4" ry="2" fill="#1d1512"/>') +
@@ -4577,8 +4643,8 @@ return { skillAt: skillAt, start: start, run: run, quick: quick, draw: draw, min
 PUP.reduced=reduced;
 // ---- people are puppets: a balloon colour of their own, and a hat that says what they do
 const BALLOONS=["#7fb2ff","#ff8fb8","#86d98f","#b995ff","#ffb547","#ff7a45","#9be7ff","#f2c14e","#7cf0c2","#ff5f52","#d78bff","#c3ccd8"],SKILL_HAT={eng:"hard",scav:"band",grow:"straw"},LOOKS=new Map();
-function lookOf(p){if(!p)return{name:"SQUAD",col:"#7fb2ff",hat:"",big:1};const nm=String(p.name||"").toUpperCase();let L=LOOKS.get(p.id);
-  if(!L||L.name!==nm){L={name:nm,col:BALLOONS[(Math.imul((p.id|0)+1,2654435761)>>>0)%BALLOONS.length],hat:SKILL_HAT[p.sk]||"",big:1};LOOKS.set(p.id,L)}return L}
+function lookOf(p){if(!p)return{name:"SQUAD",col:"#7fb2ff",hat:"",big:1};const nm=String(p.name||"").toUpperCase(),br=Math.min(5,p.iq|0);let L=LOOKS.get(p.id);   // brain: how smart (a bigger head)
+  if(!L||L.name!==nm||(L.brain|0)!==br){L={name:nm,col:BALLOONS[(Math.imul((p.id|0)+1,2654435761)>>>0)%BALLOONS.length],hat:SKILL_HAT[p.sk]||"",big:1,brain:br};LOOKS.set(p.id,L)}return L}
 const STRANGER={name:"SURVIVOR",col:"#c3ccd8",hat:"",big:1};
 // someone we can't name (the digger, a job with nobody in it yet, a lone squad's empty second place): a plain puppet
 // in one of the balloon colours. person() falls back to these, so they have to live here, in the block update.py swaps in.
@@ -4845,7 +4911,7 @@ function panelHTML(){
     h+="<p>"+(S.maps[sel]?seenPct+"% explored. "+tl+" threat"+(tl===1?"":"s")+" left. ":"Scouts think there "+(tl===1?"is 1 threat":"are "+tl+" threats")+" out there. ")+"Clear them all and the tile is yours.</p>";
     const blk=sendBlock(),q=squadP();h+="<p>Squad: "+XC.squad+" people (they stop working while they're out), strength "+q.P+", "+tripSteps()+" steps of supplies.</p>";
     if(blk)return h+"<p><b>"+blk+"</b></p>";
-    return h+'<div class="acts">'+btn("explore",S.maps[sel]?"Send the squad back":"Send a squad","Costs "+costText(XC.cost)+" · "+tripSteps()+" steps",XC.cost,"primary")+"</div>"}
+    return h+'<div class="acts">'+btn("explore",S.maps[sel]?"Send the squad back":"Send a squad","Costs "+costText(xcost())+" · "+tripSteps()+" steps",xcost(),"primary")+"</div>"}
   if(lm)h+="<p><b>Landmark: "+lm.name+".</b> "+lm.txt+"</p>";
   h+='<div class="acts">'+walk;
   for(const k of BUILD_LIST.concat(["wind","pad","tank","garage"]).filter(k=>canBuild(sel,k))){const c=costAt(sel,k),m=mult(sel,k);h+=btn("build:"+k,BLD[k].name,BLD[k].what+(m!==1&&BLD[k].staff?" ×"+m.toFixed(1):"")+" · "+costText(c),c)}
@@ -4853,7 +4919,8 @@ function panelHTML(){
 }
 // what the temperature means for this room
 function tempNote(room){const t="It's "+deg(E.temp)+" in the bunker and "+deg(E.tOut)+" outside. ";
-  if(room==="furnace")return"<p>"+t+(E.heatUse>.01?"The furnaces are burning at "+Math.round(E.heatUse*100)+"% to keep it at "+deg(TEMP.target)+".":"It's warm enough: the fire is banked and burns nothing.")+"</p>";
+  if(room==="lab")return smartHTML(true)+labHTML();
+  if(room==="furnace")return"<p>"+t+(hasBp("turbine")?"Its turbine adds 3 power to the bunker's grid, so it burns flat out. ":"")+(E.heatUse>.01?"The furnaces are burning at "+Math.round(E.heatUse*100)+"% to keep it at "+deg(TEMP.target)+".":"It's warm enough: the fire is banked and burns nothing.")+"</p>";
   if(room==="freezer")return"<p>Freezers keep "+E.frozen+" food fresh. "+(E.spoil>.005?"Food beyond that spoils: "+E.spoil.toFixed(2)+"/s.":"Nothing is spoiling.")+"</p>";
   if((room==="hydro"||room==="algae")&&E.plant<.99)return"<p>"+t+"Too cold to grow well: "+Math.round(E.plant*100)+"%. A furnace would warm it.</p>";
   return""}
@@ -4891,7 +4958,7 @@ function renderPanel(){
   // a new subject (view, tile, card, world) starts at the top of the drawer; the same subject keeps its scroll
   const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:""].join("|");
   if(subj!==lastSubject){lastSubject=subj;const d=$("drawer");if(d)d.scrollTop=0}
-  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?peopleHTML():VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
+  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?(showRs?researchHTML():peopleHTML()):VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():panelHTML();updateButtons();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
   $("goal").innerHTML=g?"<span>Goal: "+g.text+"</span><b>"+Math.min(g.p()[0],g.p()[1])+" / "+g.p()[1]+"</b>":"<span>Every goal met. The world remembers your lights.</span><b>✓</b>";
@@ -4919,7 +4986,7 @@ function doAct(a){
   else if(["fight","pay","back","ok","out"].includes(a))resolve(a);else if(a.startsWith("ev:"))resolve(a.slice(3));
   else if(a==="hatch"){openHatch(false);if(S.hatch)setView("below")}
   else if(a==="below")setView("below");else if(a==="surface")setView("surface");
-  else if(a==="dig")startDig(selU);else if(a==="uraze")ugRaze(selU);else if(a.startsWith("room:"))buildRoom(selU,a.slice(5));
+  else if(a==="dig")startDig(selU);else if(a==="uraze")ugRaze(selU);else if(a.startsWith("room:"))buildRoom(selU,a.slice(5));else if(a.startsWith("bp:"))startResearch(a.slice(3));else if(a==="rs"){showPeople=true;showRs=true}else if(a==="rsback")showRs=false;else if(a.startsWith("teach:"))teach(+a.slice(6));else if(a==="rsstop"){S.rs=null;dirty=true}
 }
 function restoreReset(){$("resetrow").innerHTML='<button class="linkbtn" id="reset">Start a new world</button>';bindReset()}
 function bindReset(){const r=$("reset");if(r)r.onclick=()=>{$("resetrow").innerHTML='<span>Start over on a fresh world?</span><button class="act warn" id="yes-reset"><span>Start over</span></button><button class="act" id="no-reset"><span>Keep playing</span></button>';
@@ -4931,7 +4998,7 @@ const rate=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(2)+"/s";
 let lastPop=-1,wasDigging=false,lastPadSig="",lastFSig="";
 document.getElementById("alert").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b)return;const a=b.dataset.act;
   if(a==="hide")hideAll();else if(a==="quota")payQuota();else if(a==="release")releaseDetained();else doAct(a);$("alert").dataset.sig="";dirty=true;hud()});
-document.getElementById("people-chip").onclick=()=>{showPeople=!showPeople;dirty=true};
+document.getElementById("people-chip").onclick=()=>{showPeople=!showPeople;showRs=false;dirty=true};
 function hud(){
   $("r-scrap").textContent=fmt(S.res.scrap);$("r-water").textContent=fmt(S.res.water);$("r-food").textContent=fmt(S.res.food);
   for(const[k,v]of[["scrap",E.sc],["water",E.wa],["food",E.fo]]){const el=$("d-"+k),have=S.res[k];

@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boot, readyBase } from './ashen-harness.mjs';
 
-const ROOMS = ['bunks', 'pump', 'hydro', 'shop', 'gen', 'store', 'med', 'radio', 'fuel', 'algae', 'furnace', 'freezer'];
+const ROOMS = ['bunks', 'pump', 'hydro', 'shop', 'gen', 'store', 'med', 'radio', 'fuel', 'algae', 'furnace', 'freezer', 'lab'];
 const SPOTS = [0, 1, 2, 3, 5, 6, 7, 8];   // the columns either side of the shaft
 const BUILDINGS = ['camp', 'still', 'green', 'shelter', 'tower', 'wind', 'tank', 'garage'];
 
