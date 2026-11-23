@@ -21,7 +21,7 @@ function outOn(dev, S, T) {
 }
 // walk to the first find of a type, paying off any threat on the way
 function reach(dev, type) {
-  dev.mapState().rev = '1'.repeat(MW * MH);
+  dev.mapState().rev = '1'.repeat(dev.mapState().rev.length);
   for (let n = 0; n < 12; n++) {
     const M = dev.map(), ms = dev.mapState(), ix = M.pois.findIndex((p, j) => p.type === type && !ms.got.includes(j));
     if (ix < 0) return null;
@@ -101,7 +101,7 @@ test('each prize does its job: armour then a gun, the pump, fuel, research, rout
 test('every inside draws by day and night, old saves with a plain cave still load, and Mirewater has its lost colony', () => {
   const { dev, frame, A } = boot(); readyBase(dev); const S = dev.S(), T = dev.home();
   S.res = { scrap: 900, water: 400, food: 400 }; outOn(dev, S, T); let t = 4000;
-  for (const kind of KINDS) { if (S.exp.cave) dev.act('upcave'); dev.place.enter(kind); dev.mapState().rev = '1'.repeat(MW * MH); dev.setView('map');
+  for (const kind of KINDS) { if (S.exp.cave) dev.act('upcave'); dev.place.enter(kind); dev.mapState().rev = '1'.repeat(dev.mapState().rev.length); dev.setView('map');
     assert.doesNotThrow(() => dev.draw(), kind + ' draws'); frame(t += 300); }
   S.t += 45; dev.run(0.01); assert.doesNotThrow(() => dev.draw()); frame(t += 300);
   assert.deepEqual([...A.bugs], [], 'no part of a frame hit a bug');

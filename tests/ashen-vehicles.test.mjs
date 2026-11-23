@@ -21,7 +21,7 @@ function explore(dev, { onCave = 'back' } = {}) {
       dev.act('ok'); continue;
     }
     if (!dev.S().exp) return 'left';
-    const M = dev.map(), ms = dev.mapState(), skip = new Set(M.pois.filter(p => p.type === 'event' || p.type === 'cave').map(p => p.k));
+    const M = dev.map(), ms = dev.mapState(), MW = M.w || 11, MH = M.h || 9, skip = new Set(M.pois.filter(p => p.type === 'event' || p.type === 'cave' || ['trader', 'wreck', 'camp', 'mast', 'vault', 'den', 'place'].includes(p.type)).map(p => p.k));
     let moved = false;
     for (const [ix, p] of M.pois.entries()) {
       if (ms.got.includes(ix) || skip.has(p.k) || ms.rev[p.k] !== '1') continue;
@@ -31,7 +31,7 @@ function explore(dev, { onCave = 'back' } = {}) {
     for (let k = 0; k < MW * MH && !moved; k++) {
       if (ms.rev[k] === '1' || skip.has(k)) continue;
       const x = k % MW, y = (k / MW) | 0;
-      const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) return false; const n = ny * MW + nx; return ms.rev[n] === '1' && M.g[n] !== 1; });
+      const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) return false; const n = ny * MW + nx; return ms.rev[n] === '1' && M.g[n] !== 1 && M.g[n] !== 3; });
       if (edge && dev.path(k)) { dev.walk(); moved = true; }
     }
     if (!moved) return 'done';
@@ -111,7 +111,7 @@ test('the diving bell opens seabeds at home, and clearing one charts the water',
   assert.ok(M.pois.some(p => p.label === 'a wreck'), 'seabeds have wrecks');
   assert.ok(M.pois.some(p => p.type === 'threat' && ['eels', 'jelly', 'crab'].includes(p.t)), 'and sea threats');
   // pay or fight past every threat with plenty of supplies
-  for (let n = 0; n < 6 && S.exp; n++) { S.res.scrap = 400; S.res.food = 400; S.res.water = 400; S.exp.sup = 99; dev.mapState().rev = '1'.repeat(MW * MH); explore(dev); }
+  for (let n = 0; n < 6 && S.exp; n++) { S.res.scrap = 400; S.res.food = 400; S.res.water = 400; S.exp.sup = 99; dev.mapState().rev = '1'.repeat(dev.mapState().rev.length); explore(dev); }
   assert.equal(S.wet[sea], 1, 'the water is charted once its threats are gone');
   assert.ok(!S.owned.has(sea), 'charting water does not claim it');
   if (S.exp) dev.act('leave');
@@ -137,7 +137,7 @@ test('caves: climb down, find an artifact or a glyph, climb back up', () => {
   dev.setView('surface'); dev.sel(tile); dev.act('walk');
   assert.ok(S.exp && !S.exp.cave);
   const M = dev.map(), mouth = M.pois.findIndex(p => p.type === 'cave');
-  dev.mapState().rev = '1'.repeat(MW * MH);
+  dev.mapState().rev = '1'.repeat(dev.mapState().rev.length);
   assert.ok(dev.path(M.pois[mouth].k), 'a path to the cave mouth');
   dev.walk();
   assert.equal(dev.card().kind, 'cave');
@@ -147,7 +147,7 @@ test('caves: climb down, find an artifact or a glyph, climb back up', () => {
   assert.notEqual(dev.map(), M, 'the map is the cave now');
   assert.match(dev.panel(), /The cave under the/);
   const arts0 = S.arts.length, glyphs0 = S.glyphs;
-  for (let n = 0; n < 4; n++) { S.res.food = 400; S.res.water = 400; S.res.scrap = 400; dev.mapState().rev = '1'.repeat(MW * MH); explore(dev); }
+  for (let n = 0; n < 4; n++) { S.res.food = 400; S.res.water = 400; S.res.scrap = 400; dev.mapState().rev = '1'.repeat(dev.mapState().rev.length); explore(dev); }
   assert.equal(S.arts.length, arts0 + 1, 'the artifact is yours');
   assert.equal(S.glyphs, glyphs0 + 1, 'the glyph is copied');
   assert.ok(ruinCards.some(h => /class="glyrow"/.test(h) && /The \w+ glyph/.test(h)), 'the ruin card shows which glyph it was');

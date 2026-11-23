@@ -20,7 +20,7 @@ function toThreat(dev, kinds = ['dogs', 'raiders', 'nest']) {
   for (const j of [tile, ...T[tile].n]) S.seen.add(j);
   S.res = { scrap: 400, water: 400, food: 400 };
   dev.setView('surface'); dev.sel(tile); dev.act('explore');
-  const M = dev.map(); dev.mapState().rev = '1'.repeat(MAP_CELLS);
+  const M = dev.map(); dev.mapState().rev = '1'.repeat(dev.mapState().rev.length);
   for (let n = 0; n < 12; n++) {
     dev.path(M.pois[pi].k); const c = dev.walk();
     if (c && c.kind === 'threat') break;

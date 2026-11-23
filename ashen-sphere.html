@@ -464,7 +464,7 @@ function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,f
   seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},bp:[],rs:null,h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
 function ser(){return{v:9,wear:S.wear,mats:S.mats,inside:S.inside,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
-function deser(o){if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
+function deser(o){MAPS.clear();AMAPS.clear();CMAPS.clear();if(typeof PMAPS!=="undefined")PMAPS.clear();if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
   const ok=i=>Number.isInteger(i)&&i>=0&&i<T.length;
   return{t:+o.t||0,res:{scrap:+o.res.scrap||0,water:+o.res.water||0,food:+o.res.food||0},pop:Math.max(1,o.pop|0),
     owned:new Set(o.owned.filter(ok)),bld:o.bld||{},order:(o.order||[]).filter(i=>ok(i)||(typeof i==="string"&&i.startsWith("u:"))),goal:(o.goal|0)+((o.v|0)<8&&(o.goal|0)>=15?1:0),grow:+o.grow||0,starve:+o.starve||0,
@@ -779,7 +779,7 @@ function orbitHTML(){const o=ORBITERS[selOrb];const h0=dot(norm(orbPos(o,S.t)),s
 function doSurvey(){const towerOn=Object.keys(S.bld).some(k=>S.bld[k]==="tower"&&E.st.has(+k));if(!towerOn||(S.cnt.survDay||0)>=day())return;
   const front=[];for(const i of S.owned)for(const j of T[i].n)if(land(j)&&!S.owned.has(j)&&explored(j)<1)front.push(j);
   if(!front.length){say("Argus-3 has nothing new to show near you.");return}
-  const j=front[Math.floor(h3(day(),7,11)*front.length)];S.seen.add(j);mapState(j).rev="1".repeat(MW*MH);S.cnt.survDay=day();
+  const j=front[Math.floor(h3(day(),7,11)*front.length)];S.seen.add(j);revealAll(mapState(j));S.cnt.survDay=day();
   say("Argus-3 sends down a survey. Tile "+j+" is charted.");sel=j;selOrb=-1;dirty=true;save()}
 
 // ---------------------------------------------------------------- people: named colonists (GPT G-126 brief)
@@ -1331,7 +1331,7 @@ function mapGround(g,b,x,y,cs,base,lit,i,k){const L=lit*(.975+h3(i,k,3)*.05),dk=
   else sp(4,dk,.035)}
 function mapObstacle(g,b,x,y,cs,lit,i,k,base){const sh=()=>{g.fillStyle="rgba(8,6,4,.28)";g.beginPath();g.ellipse(x+cs*.52,y+cs*.86,cs*.36,cs*.1,0,0,6.2832);g.fill()};
   if(b==="woods"){sh();g.fillStyle=col([88,116,56],lit*.95);for(let q=0;q<3;q++){g.beginPath();g.ellipse(x+cs*(.38+q*.12),y+cs*.86,cs*.1,cs*.05,0,0,6.2832);g.fill()}
-    paintTree(g,x+cs*(.45+.1*h3(i,k,1)),y+cs*.88,cs*(k<MW?.95:1.55+.35*h3(i,k,2)),i*131+k,col([30,24,20],.8+.4*lit),Math.max(1.5,cs*.075));
+    paintTree(g,x+cs*(.45+.1*h3(i,k,1)),y+cs*.88,cs*(k<PW?.95:1.55+.35*h3(i,k,2)),i*131+k,col([30,24,20],.8+.4*lit),Math.max(1.5,cs*.075));
     g.strokeStyle=col([30,24,20],.8+.4*lit);g.lineWidth=Math.max(1,cs*.04);g.beginPath();g.moveTo(x+cs*.47,y+cs*.86);g.lineTo(x+cs*.34,y+cs*.93);g.moveTo(x+cs*.53,y+cs*.86);g.lineTo(x+cs*.66,y+cs*.94);g.stroke();return true}
   if(b==="ruins"||b==="spire"){sh();const w0=x+cs*.12,w1=x+cs*.88,top=y+cs*(.12+.1*h3(i,k,1)),bot=y+cs*.86,c0=[92,80,70],dk=col(c0,lit*.75),lt=col(c0,lit*1.15);
     g.fillStyle=lt;g.strokeStyle=INK;g.lineWidth=Math.max(1,cs*.03);g.beginPath();g.moveTo(w0,bot);g.lineTo(w0,top+cs*.1);g.lineTo(x+cs*.3,top);g.lineTo(x+cs*.42,top+cs*.16);g.lineTo(x+cs*.58,top+cs*.04);g.lineTo(x+cs*.7,top+cs*.24);g.lineTo(w1,top+cs*.18);g.lineTo(w1,bot);g.closePath();g.fill();
@@ -1356,17 +1356,17 @@ function mapRubble(g,x,y,cs,base,lit,i,k){for(let q=0;q<6;q++){const px=x+cs*(.1
     g.fillStyle=col(base,lit*1.25);g.fillRect(px-r*.4,py-r*.7,r,Math.max(1,r*.25))}}
 // the land (ground, rubble, what stands in the way) is painted for every cell, once per map and light; the fog on top is
 // its own picture, the only one repainted as cells are revealed (dark cells, and a soft edge where they meet open ground)
-function paintLand(g,i,M,b,base,lit,cs){if(typeof b==="string"&&b.startsWith("place:")){placePaint(g,M,b.slice(6),lit,cs,i);return}const N=MW*MH;
-  for(let k=0;k<N;k++)mapGround(g,b,(k%MW)*cs,((k/MW)|0)*cs,cs,base,lit,i,k);
-  for(let k=0;k<N;k++){const x=(k%MW)*cs,y=((k/MW)|0)*cs;
+function paintLand(g,i,M,b,base,lit,cs){if(typeof b==="string"&&b.startsWith("place:")){placePaint(g,M,b.slice(6),lit,cs,i);return}const W0=mw(M),N=W0*mh(M);PW=W0;
+  for(let k=0;k<N;k++)mapGround(g,b,(k%W0)*cs,((k/W0)|0)*cs,cs,base,lit,i,k);paintTerrain(g,M,b,base,lit,cs,i);
+  for(let k=0;k<N;k++){const x=(k%W0)*cs,y=((k/W0)|0)*cs;
     if(M.g[k]===2)mapRubble(g,x,y,cs,base,lit,i,k);
     if(M.g[k]===1&&!mapObstacle(g,b,x,y,cs,lit,i,k,base))feature(b,x,y,cs,lit,g)}}
-function drawFog(ox,oy,i,ms,cs){const N=MW*MH,A=[.5,.32,.18,.07],d=cs*.09,E=[[],[],[],[]];   // live, in a few batched calls, so revealing a cell costs nothing
-  ctx.fillStyle="#15120e";ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1")ctx.rect(ox+(k%MW)*cs,oy+((k/MW)|0)*cs,cs+1,cs+1);ctx.fill();
-  ctx.fillStyle="rgba(232,220,194,.025)";ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1"){const x=ox+(k%MW)*cs,y=oy+((k/MW)|0)*cs,ex=x+cs*h3(i,k,1),ey=y+cs*h3(i,k,2);ctx.moveTo(ex+cs*.5,ey);ctx.ellipse(ex,ey,cs*.5,cs*.3,0,0,6.2832)}ctx.fill();
-  ctx.strokeStyle="rgba(232,220,194,.05)";ctx.lineWidth=DPR;ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1"){const x=ox+(k%MW)*cs,y=oy+((k/MW)|0)*cs;ctx.moveTo(x,y+cs);ctx.lineTo(x+cs,y)}ctx.stroke();
-  for(let k=0;k<N;k++){if(ms.rev[k]!=="1")continue;const cx=k%MW,cy=(k/MW)|0,x=ox+cx*cs,y=oy+cy*cs;
-    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy;if(nx<0||ny<0||nx>=MW||ny>=MH||ms.rev[ny*MW+nx]==="1")continue;
+function drawFog(ox,oy,i,ms,cs){const FW=ms.w||MW,N=ms.rev.length,FH=(N/FW)|0,A=[.5,.32,.18,.07],d=cs*.09,E=[[],[],[],[]];   // live, in a few batched calls, so revealing a cell costs nothing
+  ctx.fillStyle="#15120e";ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1")ctx.rect(ox+(k%FW)*cs,oy+((k/FW)|0)*cs,cs+1,cs+1);ctx.fill();
+  ctx.fillStyle="rgba(232,220,194,.025)";ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1"){const x=ox+(k%FW)*cs,y=oy+((k/FW)|0)*cs,ex=x+cs*h3(i,k,1),ey=y+cs*h3(i,k,2);ctx.moveTo(ex+cs*.5,ey);ctx.ellipse(ex,ey,cs*.5,cs*.3,0,0,6.2832)}ctx.fill();
+  ctx.strokeStyle="rgba(232,220,194,.05)";ctx.lineWidth=DPR;ctx.beginPath();for(let k=0;k<N;k++)if(ms.rev[k]!=="1"){const x=ox+(k%FW)*cs,y=oy+((k/FW)|0)*cs;ctx.moveTo(x,y+cs);ctx.lineTo(x+cs,y)}ctx.stroke();
+  for(let k=0;k<N;k++){if(ms.rev[k]!=="1")continue;const cx=k%FW,cy=(k/FW)|0,x=ox+cx*cs,y=oy+cy*cs;
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy;if(nx<0||ny<0||nx>=FW||ny>=FH||ms.rev[ny*FW+nx]==="1")continue;
       for(let q=0;q<4;q++)E[q].push(dx?[dx>0?x+cs-d*(q+1):x+d*q,y,d,cs]:[x,dy>0?y+cs-d*(q+1):y+d*q,cs,d])}}
   for(let q=0;q<4;q++){if(!E[q].length)continue;ctx.fillStyle="rgba(21,18,14,"+A[q]+")";ctx.beginPath();for(const r of E[q])ctx.rect(r[0],r[1],r[2],r[3]);ctx.fill()}}
 // ==== GFX (end) ====
@@ -1685,9 +1685,9 @@ const COLONY_LOGS=["Day 212. The well went bad and nobody would say it first. We
 // which building a tile has (if any): fixed by the tile, so a door is always where you left it
 function placeKind(i,b,key){const A=PLACE_AT[b];if(!A||h3(i,6007+(key?13:0),331)>=A[0])return null;const L=A[1];return L[h3(i,6011+(key?13:0),337)*L.length|0]}
 function addPlace(m,i,b,key){const kind=placeKind(i,b,key);if(!kind)return m;
-  const seen=new Set([m.entry]),q=[m.entry],taken=new Set(m.pois.map(p=>p.k)),cand=[];
-  while(q.length){const k=q.shift(),x=k%MW,y=(k/MW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=MW||ny>=MH)continue;const n=ny*MW+nx;
-    if(seen.has(n)||m.g[n]===1)continue;seen.add(n);q.push(n);if(!taken.has(n)&&ny<MH-2)cand.push(n)}}
+  const W0=m.w||MW,H0=m.h||MH,seen=new Set([m.entry]),q=[m.entry],taken=new Set(m.pois.map(p=>p.k)),cand=[];
+  while(q.length){const k=q.shift(),x=k%W0,y=(k/W0)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W0||ny>=H0)continue;const n=ny*W0+nx;
+    if(seen.has(n)||m.g[n]===1||m.g[n]===3)continue;seen.add(n);q.push(n);if(!taken.has(n)&&ny<H0-2)cand.push(n)}}
   if(cand.length)m.pois.push({k:cand[h3(i,6029+(key?7:0),17)*cand.length|0],type:"place",kind});return m}
 // the inside: walls everywhere, then a plan carved out of them
 const PMAPS=new Map();
@@ -1975,6 +1975,187 @@ function matHud(){const el=$("mats");if(!el)return;const m=matsOf(),ks=Object.ke
   el.innerHTML=ks.map(k=>'<span><i style="background:'+MATS[k].col+'"></i>'+MATS[k].name+"<b>"+Math.floor(m[k])+"</b></span>").join("")+
     U.map(k=>"<span>"+MAT_USE[k].name+"s<b>"+S.k[k]+"</b></span>").join("")+(bad.length?'<span style="color:#e07a4f">Worn through<b style="color:#e07a4f">'+bad.length+"</b></span>":"")}
 // ==== MAT (end) ====
+// ==== MAPX (start) ====
+// Bigger, more varied tile maps. Each map carries its own size (w × h). Maps made before this keep 11 × 9 (their saved
+// state has no width), so an old save keeps every map it has seen; land you have not set foot on yet comes out bigger,
+// laid out by its kind: streets and blocks in the ruins, a stream and clearings in the woods, ridges and a chasm in the
+// crags, craters and a highway in the ash, a frozen lake on the frost, standing stones round a Spire. The map view
+// follows the squad and can be dragged. New things to do on the land: traders, wrecks, campfires, lookout masts,
+// animal dens, and locked vaults whose code is written down somewhere else on the same map.
+const mw=M=>(M&&M.w)||MW,mh=M=>(M&&M.h)||MH;
+const revealAll=ms=>{if(ms&&typeof ms.rev==="string")ms.rev="1".repeat(ms.rev.length)};
+let PW=11;   // the width of the map being painted (paintLand → mapObstacle)
+const legacyHome=i=>!!(S&&S.maps&&S.maps[i]&&typeof S.maps[i].rev==="string"&&!S.maps[i].w);
+const legacyAway=(key,i)=>{const w=S&&S.xw&&S.xw[key];return!!(w&&w.maps&&w.maps[i]&&typeof w.maps[i].rev==="string"&&!w.maps[i].w)};
+const blockedG=v=>v===1||v===3;   // walls and trees; water and chasms
+const mapStepK=M=>Math.max(1,Math.sqrt(mw(M)*mh(M)/(MW*MH)));   // a trip onto a bigger map carries more steps
+const MAP_SIZE={ash:[15,11],woods:[15,12],ruins:[17,13],crags:[15,12],frost:[15,11],spire:[15,13]};
+const AWAY_SIZE={bog:[15,12],reeds:[15,12],shell:[15,12],spore:[15,12],spire:[15,13]};
+// ---- making a map: noise, then the lay of the land, then what is on it (each find with a way in from the entry)
+function wideMap(R,w,h,dens,rough){const g=[];for(let k=0;k<w*h;k++)g.push(R()<dens?1:R()<rough?2:0);const entry=(h-1)*w+(w>>1);g[entry]=0;if(g[entry-w]===1)g[entry-w]=0;
+  return{g,pois:[],entry,w,h,road:new Set(),water:new Set(),bridge:new Set(),ice:new Set(),chasm:new Set(),glade:[]}}
+function wSet(M,x,y,v,layer){if(x<0||y<0||x>=M.w||y>=M.h)return;const k=y*M.w+x;if(k===M.entry&&blockedG(v))return;M.g[k]=v;if(layer)M[layer].add(k)}
+function wAdd(M,R,type,extra,at){const{g,w,h,entry}=M,used=M.used||(M.used=new Set([entry,...M.pois.map(p=>p.k)]));let k=at;
+  if(k===undefined||used.has(k)){k=undefined;for(let n=0;n<400;n++){const q=(R()*(h-2)|0)*w+(R()*w|0);if(!used.has(q)&&g[q]!==3){k=q;break}}}
+  if(k===undefined)return null;used.add(k);g[k]=0;M.pois.push(Object.assign({k,type},extra||{}));
+  let x=entry%w,y=(entry/w)|0;const tx=k%w,ty=(k/w)|0,xf=R()<.5,clr=()=>{const q=y*w+x;if(g[q]===1)g[q]=0;else if(g[q]===3){g[q]=0;M.bridge.add(q)}};
+  if(xf){while(x!==tx){x+=Math.sign(tx-x);clr()}while(y!==ty){y+=Math.sign(ty-y);clr()}}else{while(y!==ty){y+=Math.sign(ty-y);clr()}while(x!==tx){x+=Math.sign(tx-x);clr()}}
+  return k}
+const wClear=(M,cx,cy,r)=>{for(let y=cy-r;y<=cy+r;y++)for(let x=cx-r;x<=cx+r;x++)if((x-cx)**2+(y-cy)**2<=r*r+.5&&x>=0&&y>=0&&x<M.w&&y<M.h-1)M.g[y*M.w+x]=0;M.glade.push(cy*M.w+cx)};
+const wPick=(R,a)=>a.length?a[R()*a.length|0]:undefined;
+function wLay(M,R,b){const{w,h}=M,ex=w>>1;
+  if(b==="ruins"||b==="shell"){   // streets: an avenue up from the way in, two cross streets, a side street; blocks of walls between
+    if(b==="ruins"){for(let y=0;y<h;y++)wSet(M,ex,y,0,"road");const ys=[2+(R()*2|0),h-5+(R()*2|0)];for(const y of ys)for(let x=0;x<w;x++)wSet(M,x,y,0,"road");
+      const sx=R()<.5?2+(R()*2|0):w-3-(R()*2|0);for(let y=ys[0];y<=ys[1];y++)wSet(M,sx,y,0,"road");
+      for(let k=0;k<w*h;k++)if(!M.road.has(k)&&M.g[k]===0&&R()<.2)M.g[k]=1;
+      const px=R()<.5?ex-3:ex+3,py=ys[R()*2|0];wClear(M,Math.max(1,Math.min(w-2,px)),py,1)}
+    else for(let r=0;r<2;r++){const y0=2+(R()*(h-5)|0),gap=1+(R()*(w-3)|0);let y=y0;for(let x=0;x<w;x++){if(Math.abs(x-gap)>1)wSet(M,x,y,1);if(R()<.3)y=Math.max(1,Math.min(h-3,y+(R()<.5?-1:1)))}}}
+  else if(b==="woods"||b==="reeds"||b==="bog"){   // a stream (bridged where the ways in cross it), clearings, and in the bog, pools
+    let x=1+(R()*(w-2)|0);for(let y=0;y<h-1;y++){wSet(M,x,y,3,"water");if(R()<.45){const nx=Math.max(1,Math.min(w-2,x+(R()<.5?-1:1)));wSet(M,nx,y,3,"water");x=nx}}
+    if(b!=="reeds"){const bx=wPick(R,[...M.water]);if(bx!==undefined){M.g[bx]=0;M.bridge.add(bx)}}
+    const nG=b==="woods"?2:1;for(let n=0;n<nG;n++)wClear(M,2+(R()*(w-4)|0),1+(R()*(h-5)|0),2);
+    if(b==="bog")for(let n=0;n<3;n++){const cx=1+(R()*(w-2)|0),cy=1+(R()*(h-4)|0);for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++)if(R()<.7)wSet(M,x,y,3,"water")}}
+  else if(b==="crags"){   // two ridges with a pass through each, and a chasm
+    for(let r=0;r<2;r++){const y0=2+r*((h-4)>>1)+(R()*2|0),gap=1+(R()*(w-3)|0);let y=y0;for(let x=0;x<w;x++){if(Math.abs(x-gap)>1)wSet(M,x,y,1);if(R()<.25)y=Math.max(1,Math.min(h-3,y+(R()<.5?-1:1)))}}
+    let x=R()*w|0,y=R()*(h-4)|0;for(let n=0;n<7;n++){wSet(M,x,y,3,"chasm");x+=R()<.5?1:0;y+=R()<.6?1:0;if(x>=w||y>=h-2)break}}
+  else if(b==="ash"){   // a highway across, and craters with rims of rubble
+    const hy=2+(R()*(h-6)|0);for(let x=0;x<w;x++)for(const y of[hy,hy+1])wSet(M,x,y,0,"road");
+    const nC=2+(R()*2|0);for(let c=0;c<nC;c++){const cx=2+(R()*(w-4)|0),cy=1+(R()*(h-4)|0),r=1.7+R()*.8;
+      for(let y=Math.floor(cy-r-1);y<=cy+r+1;y++)for(let x=Math.floor(cx-r-1);x<=cx+r+1;x++){if(x<0||y<0||x>=w||y>=h-1)continue;const d=Math.hypot(x-cx,y-cy),k=y*w+x;if(M.road.has(k))continue;if(d<r-.6)M.g[k]=0;else if(d<r+.6)M.g[k]=2}
+      M.glade.push(cy*w+cx)}}
+  else if(b==="frost"){   // a frozen lake, with a hole in the ice
+    const cx=2+(R()*(w-4)|0),cy=2+(R()*(h-6)|0),rx=2.5+R()*1.5,ry=1.6+R()*.6;
+    for(let y=0;y<h-1;y++)for(let x=0;x<w;x++)if(((x-cx)/rx)**2+((y-cy)/ry)**2<=1)wSet(M,x,y,0,"ice");
+    M.glade.push(Math.round(cy)*w+Math.round(cx))}
+  else if(b==="spire"){   // standing stones in a ring round the Spire's foot
+    const cx=w>>1,cy=3,r=2.6;for(let y=0;y<h-1;y++)for(let x=0;x<w;x++){const d=Math.hypot(x-cx,y-cy);if(d<r-.5)M.g[y*w+x]=0;else if(d<r+.5&&!(y>cy&&Math.abs(x-cx)<=1)&&R()<.75)wSet(M,x,y,1)}
+    M.glade.push(cy*w+cx)}
+  else if(b==="spore")for(let n=0;n<3;n++)wClear(M,2+(R()*(w-4)|0),1+(R()*(h-5)|0),1+(R()*2|0))}
+// what else is out there, beyond the threats and finds every map has (home: a trader; away: no traders)
+function wExtras(M,R,b,away){const at=a=>wPick(R,a);
+  const T={trader:away?0:{ruins:.45,ash:.3}[b]??.18,wreck:{ash:1.2,ruins:.6,shell:.5}[b]??.15,camp:.4,mast:{crags:.45,ruins:.35,shell:.4}[b]??.2,den:{woods:.6,crags:.35,frost:.35,ash:.2,bog:.45,reeds:.5,spore:.3}[b]??.15,vault:{ruins:.35,shell:.3}[b]??.15};
+  if(R()<T.trader)wAdd(M,R,"trader",{mat:{ruins:"wire",ash:"iron",woods:"hide",crags:"copper",frost:"bone",spire:"crystal"}[b]||"iron"},at(M.glade));
+  for(let n=0,c=T.wreck;n<2&&R()<c;n++,c-=1)wAdd(M,R,"wreck",{amt:10+(R()*12|0),fuel:!away&&R()<.6,mat:R()<.5?"iron":"wire"},at([...M.road].filter(k=>k!==M.entry)));
+  if(R()<T.camp)wAdd(M,R,"camp",{},at(M.glade));
+  if(R()<T.mast)wAdd(M,R,"mast",{});
+  if(b==="frost"&&M.glade.length)wAdd(M,R,"den",{fish:true},M.glade[0]);else if(R()<T.den)wAdd(M,R,"den",{},at(M.glade));
+  if(R()<T.vault){wAdd(M,R,"vault",{});wAdd(M,R,"note",{})}}
+const EASY_SET=()=>EASY||(EASY=ring(new Set([START,...STARTERS.map(s=>s[0])]),1));
+function genTileNew(i){const b=T[i].b,[w,h]=MAP_SIZE[b]||[15,12],R=rng(i*7919+SEED+104729),easy=EASY_SET().has(i),dens={ash:.12,woods:.3,ruins:.22,crags:.26,frost:.18,spire:.2}[b]??.2;
+  const M=wideMap(R,w,h,dens,.12);wLay(M,R,b);
+  if(easy)wAdd(M,R,"threat",{t:R()<.5?"dogs":"rad"});
+  else{const n=BIO_N[b]+(w*h>200?1:0);for(let j=0;j<n;j++){const pool=BIO_T[b];wAdd(M,R,"threat",{t:pool[R()*pool.length|0]})}if(b==="spire")wAdd(M,R,"threat",{t:"warden"},M.glade[0]!==undefined?M.glade[0]+M.w:undefined)}
+  const lootW={ash:["cache","cache","spring"],woods:["garden","garden","cache"],ruins:["cache","cache","cache","spring"],crags:["cache","spring","spring"],frost:["spring","cache"],spire:["cache","cache","garden"]}[b];
+  const nL=3+(R()*4|0);for(let j=0;j<nL;j++)wAdd(M,R,lootW[R()*lootW.length|0],{amt:8+(R()*14|0)});
+  if(R()<.5)wAdd(M,R,"pack");if(R()<.22)wAdd(M,R,"survivor");
+  if(R()<.85)wAdd(M,R,"event",{e:EV_KEYS[R()*EV_KEYS.length|0]});if(R()<.35)wAdd(M,R,"event",{e:EV_KEYS[R()*EV_KEYS.length|0]});
+  if(R()<({ruins:.7,spire:1}[b]??.4)){const fam=LMS[LM_FAMILY[b]];wAdd(M,R,"landmark",{lm:fam[R()*fam.length|0].name})}
+  wExtras(M,R,b,false);delete M.used;
+  return addPlace(addCaveMouth(M,i,b,null),i,b,null)}
+function genAwayNew(key,i){const A=awayTiles(key),b=A[i].b,[w,h]=AWAY_SIZE[b]||[15,12],R=rng(i*7919+XWORLDS[key].seed+104729),dens=A_DENS[b]??.2;
+  const M=wideMap(R,w,h,dens,.16);wLay(M,R,b);
+  const n=(A_N[b]||1)+(w*h>200?1:0);for(let j=0;j<n;j++){const pool=A_T[b]||["stalker"];wAdd(M,R,"threat",{t:pool[R()*pool.length|0]})}if(b==="spire")wAdd(M,R,"threat",{t:"warden"},M.glade[0]!==undefined?M.glade[0]+M.w:undefined);
+  const lw=A_LOOT[b]||["cache"],nL=3+(R()*3|0);for(let j=0;j<nL;j++)wAdd(M,R,lw[R()*lw.length|0],{amt:8+(R()*14|0)});
+  if(R()<.45)wAdd(M,R,"pack");if(R()<.75)wAdd(M,R,"event",{e:AEV_KEYS[R()*AEV_KEYS.length|0]});
+  if(R()<(b==="spire"?1:.55)){const fam=A_LM[b]||[];if(fam.length)wAdd(M,R,"landmark",{cx:fam[R()*fam.length|0]})}
+  if(key==="mire"&&i===tideTile())wAdd(M,R,"village");
+  wExtras(M,R,b,true);delete M.used;
+  return addPlace(addCaveMouth(M,i,b,key),i,b,key)}
+
+// ---- the camera: big maps scroll with the squad; drag to look around (a new path brings the view back)
+const CAMM={x:0,y:0,px:0,py:0,t:0,id:""};
+function mapCam(M,e,cs,avH,now){const w=mw(M),h=mh(M),id=(e.away?"a":"h")+e.i+(e.cave?"c"+(e.cave.kind||"")+(e.cave.fl||0):"")+(e.sea?"s":"");
+  const tx=e.pos%w+.5+CAMM.px,ty=((e.pos/w)|0)+.5+CAMM.py;if(CAMM.id!==id){CAMM.id=id;CAMM.px=CAMM.py=0;CAMM.x=e.pos%w+.5;CAMM.y=((e.pos/w)|0)+.5}
+  const dt=Math.min(.2,Math.max(0,(now-CAMM.t)/1000));CAMM.t=now;const k=reduced?1:1-Math.exp(-dt*7);CAMM.x+=(tx-CAMM.x)*k;CAMM.y+=(ty-CAMM.y)*k;
+  const mW=cs*w,mH=cs*h,ox=mW<=W?(W-mW)/2|0:Math.round(Math.min(0,Math.max(W-mW,W/2-CAMM.x*cs))),oy=mH<=avH?Math.max(0,(avH-mH)/2|0):Math.round(Math.min(0,Math.max(avH-mH,avH/2-CAMM.y*cs)));
+  if(Math.abs(tx-CAMM.x)+Math.abs(ty-CAMM.y)>.01)dirty=true;return[ox,oy]}
+function mapPan(dx,dy){if(!S.exp||!GM.cs)return;const w=GM.w||MW,h=GM.h||MH;if(w*GM.cs<=W&&h*GM.cs<=H)return;CAMM.px=Math.max(-w,Math.min(w,CAMM.px-dx*DPR/GM.cs));CAMM.py=Math.max(-h,Math.min(h,CAMM.py-dy*DPR/GM.cs));dirty=true}
+
+// ---- the lay of the land, painted under what stands on it
+function paintTerrain(g,M,b,base,lit,cs,i){if(!M.road)return;const w=mw(M),L=lit,C=(a,m)=>col(a,(m||1)*L),at=k=>[(k%w)*cs,((k/w)|0)*cs],has=(set,x,y)=>x>=0&&y>=0&&x<w&&set.has(y*w+x);
+  for(const k of M.road){const[x,y]=at(k),cx=k%w,cy=(k/w)|0;g.fillStyle=C([60,58,56],.95+.08*h3(i,k,61));g.fillRect(x,y,cs,cs);
+    g.fillStyle=C([46,44,42]);for(let q=0;q<2;q++)g.fillRect(x+cs*h3(i,k,62+q),y+cs*h3(i,k,64+q),cs*.18,Math.max(1,cs*.03));   // cracks
+    g.fillStyle=C([200,184,110],.55);const hz=has(M.road,cx-1,cy)||has(M.road,cx+1,cy),vt=has(M.road,cx,cy-1)||has(M.road,cx,cy+1);
+    if(hz&&!vt)g.fillRect(x+cs*.3,y+cs*.47,cs*.4,Math.max(1,cs*.06));else if(vt&&!hz)g.fillRect(x+cs*.47,y+cs*.3,Math.max(1,cs*.06),cs*.4)}
+  for(const k of M.ice){const[x,y]=at(k);g.fillStyle=C([196,214,228],.95+.06*h3(i,k,71));g.fillRect(x,y,cs,cs);g.strokeStyle=C([236,246,252],.8);g.lineWidth=Math.max(1,cs*.025);
+    g.beginPath();g.moveTo(x+cs*h3(i,k,72),y+cs*.2);g.lineTo(x+cs*h3(i,k,73),y+cs*.55);g.lineTo(x+cs*h3(i,k,74),y+cs*.85);g.stroke()}
+  for(const k of M.water){const[x,y]=at(k),cx=k%w,cy=(k/w)|0;g.fillStyle=C(b==="bog"?[52,66,48]:[44,72,88]);g.fillRect(x,y,cs,cs);
+    g.strokeStyle=C(b==="bog"?[92,110,80]:[120,160,180],.8);g.lineWidth=Math.max(1,cs*.03);g.beginPath();for(let q=0;q<2;q++){const yy=y+cs*(.35+.3*q),xx=x+cs*(.15+.3*h3(i,k,75+q));g.moveTo(xx,yy);g.quadraticCurveTo(xx+cs*.12,yy-cs*.06,xx+cs*.24,yy)}g.stroke();
+    g.fillStyle=C([62,50,38],.9);for(const[dx,dy]of[[0,-1],[0,1],[-1,0],[1,0]]){if(has(M.water,cx+dx,cy+dy)||cx+dx<0||cy+dy<0||cx+dx>=w||cy+dy>=M.h)continue;   // banks
+      if(dx)g.fillRect(dx>0?x+cs*.92:x,y,cs*.08,cs);else g.fillRect(x,dy>0?y+cs*.92:y,cs,cs*.08)}}
+  for(const k of M.chasm){const[x,y]=at(k);g.fillStyle="#0b0907";g.beginPath();g.moveTo(x+cs*.1,y);g.lineTo(x+cs*.9,y+cs*.1);g.lineTo(x+cs,y+cs*.9);g.lineTo(x+cs*.2,y+cs);g.lineTo(x,y+cs*.4);g.closePath();g.fill();
+    g.strokeStyle=C([150,140,126],.7);g.lineWidth=Math.max(1,cs*.03);g.stroke()}
+  for(const k of M.bridge){const[x,y]=at(k),cx=k%w,cy=(k/w)|0,wet=M.water.has(k)||M.chasm.has(k),across=has(M.water,cx-1,cy)||has(M.water,cx+1,cy)||has(M.chasm,cx-1,cy)||has(M.chasm,cx+1,cy);
+    if(!wet)continue;g.fillStyle=C([128,94,60]);g.strokeStyle=C([60,44,30]);g.lineWidth=Math.max(1,cs*.025);
+    for(let q=0;q<4;q++){if(across)g.fillRect(x+cs*(.12+.2*q),y-cs*.05,cs*.16,cs*1.1);else g.fillRect(x-cs*.05,y+cs*(.12+.2*q),cs*1.1,cs*.16)}
+    if(across){g.strokeRect(x+cs*.1,y,cs*.8,cs)}else g.strokeRect(x,y+cs*.1,cs,cs*.8)}}
+
+// ---- the map key: only what you can see on this map
+const LEG={threat:"◆ threat",cache:"▣ cache",spring:"drop = spring",garden:"leaves = garden",event:"? = event",landmark:"flag = landmark",survivor:"figure = survivor",pack:"pack = field camp",cave:"dark arch = cave mouth",
+  place:"building = a place to go in",trader:"tent = trader",wreck:"car = wreck",camp:"fire = campfire",mast:"mast = lookout",den:"hole = den",vault:"steel door = vault",note:"paper = a note",artifact:"gold = rare artifact",ruin:"tablet = Builder ruin",village:"stilt houses = the Tidefolk"};
+function mapLegend(M,ms,aw){const seen=new Set();M.pois.forEach((p,ix)=>{if(ms.rev[p.k]==="1"&&!(ms.got.includes(ix)&&p.type!=="landmark"))seen.add(p.type)});
+  const parts=[...seen].map(t=>aw&&t==="landmark"?"flag = site":aw&&t==="pack"?"pack = supply drop":LEG[t]).filter(Boolean),drag=mw(M)*GM.cs>W||mh(M)*GM.cs>H;
+  return parts.length||drag?'<p class="meta">'+parts.join(" · ")+(drag?(parts.length?". ":"")+"Drag the map to look around.":"")+"</p>":""}
+// ---- the new things on the land
+const TP_TYPES=new Set(["trader","wreck","camp","mast","vault","note","den"]);
+function tpMeet(pi){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[pi];if(!ms.att||typeof ms.att!=="object")ms.att={};
+  if(p.type==="note"){ms.got.push(pi);ms.att.code=1;PATH=[];CARD={kind:"find",pi,title:"A scrap of paper",text:"Four numbers in pencil, and under them one word: VAULT. Somewhere on this "+(e.away?"ground":"tile")+" there is a door they open."};say("Found the code to a vault.");return}
+  PATH=[];CARD={kind:"tp",pi}}
+const tpSteps=(e,n)=>{if(e.sup<0)return true;if(e.sup<n)return false;e.sup-=n;if(e.away&&S.x)S.x.steps=e.sup;return true};
+const tpGive=(e,res,v,what)=>{if(e.away)return holdMsg(what,res,v);S.res[res]+=v;return what+": "+v+" "+res+"."};
+const tpMost=()=>{const m=matsOf();let best=null;for(const k in MATS)if((+m[k]||0)>=5&&(!best||m[k]>m[best]))best=k;return best};
+const TRADES={food:{give:{scrap:15},get:["food",14],txt:"14 food for 15 scrap"},water:{give:{scrap:15},get:["water",14],txt:"14 water for 15 scrap"},
+  mat:{give:{scrap:20},txt:"3 of what they carry for 20 scrap"},sell:{txt:"5 of what you have most of for 25 scrap"},map:{give:{scrap:10},txt:"a map of this tile for 10 scrap"}};
+function tpHTML(){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[CARD.pi],aw=!!e.away,st=n=>e.sup<0?"":" · "+n+" steps",cant=n=>e.sup>=0&&e.sup<n,att=ms.att||{},pi=CARD.pi,walk=btn("tp:back","Walk on","It stays here",null);
+  const card=(meta,title,text,acts)=>'<div class="meta">'+meta+'</div><div class="tile-h">'+title+"</div><p>"+text+'</p><div class="acts">'+acts.join("")+walk+"</div>";
+  if(p.type==="trader"){const done=Object.keys(TRADES).filter(d=>att["t"+pi+d]).length,most=tpMost();
+    return card("A trader","A trader with a pack mule","A thin man with a mule loaded down with bags. “I trade fair,” he says. “Mostly.” He'll make two deals, then he moves on."+(done?" One deal done.":""),
+      Object.keys(TRADES).filter(d=>!att["t"+pi+d]).map(d=>{const D=TRADES[d],txt=d==="mat"?"3 "+matName(p.mat)+" for 20 scrap":D.txt,ok=d==="sell"?!!most:afford(D.give);
+        return btn("tp:trade:"+d,d==="sell"&&most?"Sell 5 "+matName(most):d==="sell"?"Sell materials":"Buy "+(d==="mat"?matName(p.mat):d==="map"?"a map":d),d==="sell"&&!most?"You have nothing he wants (5 of one kind)":txt,null,"",!ok)}))}
+  if(p.type==="wreck"){const fuel=p.fuel&&!att["f"+pi],cap=E?E.fuelCap:0;
+    return card("A wreck",aw?"A crashed lander":"A wreck on its side",aw?"A Kestrel lander that came down hard. The hull is split, but the frame and wiring are still good.":"A car on its side, doors hanging open. The frame is good steel and the wiring is still there."+(fuel?" The tank sloshes when you kick it.":""),
+      [btn("tp:strip","Strip it","Scrap and "+matName(p.mat)+st(2),null,"primary",cant(2))].concat(fuel?[btn("tp:siphon","Siphon the tank",cap>0?"About 12 fuel for your tanks":"You have no fuel tanks to fill",null,"",!(cap>0&&S.k.fuel<cap))]:[]))}
+  if(p.type==="camp"){const food=aw?(S.x?S.x.hold.food:0):S.res.food;
+    return card("A campfire","An old campfire","A ring of stones with dry wood stacked beside it. A good place to stop and eat."+(e.sup<0?" On your own land the squad has no need to camp here.":""),
+      e.sup<0?[]:[btn("tp:rest","Rest and eat","+10 steps for 6 food"+(aw?" from the hold":""),null,"primary",food<6)])}
+  if(p.type==="mast")return card("A lookout","A radio mast","A lattice mast with a ladder up the side. From the top you could see the whole "+(aw?"area":"tile")+".",[btn("tp:climb","Climb it","See every cell of this map"+st(2),null,"primary",cant(2))]);
+  if(p.type==="den")return p.fish?card("A fishing hole","A hole in the ice","Someone cut a hole in the lake and left a line coiled beside it. Something big moves under the ice.",[btn("tp:hunt","Fish","Food, and bone if it goes well"+st(2),null,"primary",cant(2))]):
+    card("A den","An animal den","Tracks and gnawed bones round a hole in the bank. Something lives in there, and it's big enough to eat.",[btn("tp:hunt","Hunt","Food, hide and bone if it goes well"+st(2),null,"primary",cant(2))]);
+  if(p.type==="vault"){const code=!!att.code;
+    return card("A vault",aw?"A Kestrel strongbox":"A vault door","A steel door set into the ground, with a keypad gone green with age. "+(code?"You have the code.":"It wants four numbers. They must be written down somewhere on this "+(aw?"ground":"tile")+"."),
+      code?[btn("tp:open","Punch in the code","Whatever they locked away",null,"primary")]:[])}
+  return card("","Something","",[])}
+function tpAct(a){const e=S.exp;if(!e||!CARD||CARD.kind!=="tp")return;const M=xGen(e.i),ms=xMS(e.i),pi=CARD.pi,p=M.pois[pi],aw=!!e.away;if(!ms.att||typeof ms.att!=="object")ms.att={};const att=ms.att,done=()=>{ms.got.push(pi);CARD=null};
+  if(a==="back"){CARD=null}
+  else if(a.startsWith("trade:")&&p.type==="trader"){const d=a.slice(6),D=TRADES[d];if(!D||att["t"+pi+d])return;
+    if(d==="sell"){const k=tpMost();if(!k)return;matsOf()[k]-=5;S.res.scrap+=25;say("Sold 5 "+matName(k)+" to the trader: 25 scrap.")}
+    else{if(!afford(D.give))return;pay(D.give);if(d==="mat"){matAdd(p.mat,3);say("Bought 3 "+matName(p.mat)+" from the trader.")}else if(d==="map"){revealAll(ms);say("The trader's map shows the whole tile.")}else{S.res[D.get[0]]+=D.get[1];say("Bought "+D.get[1]+" "+D.get[0]+" from the trader.")}}
+    att["t"+pi+d]=1;if(Object.keys(TRADES).filter(q=>att["t"+pi+q]).length>=2){done();say("The trader packs up and heads off down the road.")}}
+  else if(a==="strip"&&p.type==="wreck"){if(!tpSteps(e,2))return;matAdd(p.mat,2);say(tpGive(e,"scrap",p.amt,aw?"Stripped the lander":"Stripped the wreck")+" And 2 "+matName(p.mat)+".");done()}
+  else if(a==="siphon"&&p.type==="wreck"){const cap=E?E.fuelCap:0;if(!p.fuel||att["f"+pi]||!(cap>0&&S.k.fuel<cap))return;const v=Math.min(12,cap-S.k.fuel);S.k.fuel+=v;att["f"+pi]=1;say("Siphoned "+Math.round(v)+" fuel out of the wreck's tank.")}
+  else if(a==="rest"&&p.type==="camp"){if(e.sup<0)return;if(aw){if(!S.x||S.x.hold.food<6)return;S.x.hold.food-=6}else{if(S.res.food<6)return;S.res.food-=6}e.sup+=10;if(aw&&S.x)S.x.steps=e.sup;say("A fire, a hot meal and a few hours' rest: 10 more steps.");done()}
+  else if(a==="climb"&&p.type==="mast"){if(!tpSteps(e,2))return;revealAll(ms);say("From the top of the mast you can see the whole "+(aw?"area":"tile")+".");done()}
+  else if(a==="hunt"&&p.type==="den"){if(!tpSteps(e,2))return;if(h3(e.i,pi,day()+7)<.65){if(p.fish){matAdd("bone",2);say(tpGive(e,"food",14,"A fish as long as your arm")+" And 2 bone.")}else{matAdd("hide",2);matAdd("bone",1);say(tpGive(e,"food",12,"A good hunt")+" And 2 hide, 1 bone.")}}
+    else say(p.fish?"The line snaps. Nothing this time.":"It bolts deeper into the den. Nothing this time.");done()}
+  else if(a==="open"&&p.type==="vault"){if(!att.code)return;const R=rng(e.i*31+pi),ks=Object.keys(MATS),m1=ks[R()*ks.length|0],m2=ks[R()*ks.length|0];matAdd(m1,3);matAdd(m2,3);S.k.medkits=(S.k.medkits|0)+1;
+    say(tpGive(e,"scrap",40,aw?"The strongbox opens":"The vault opens")+" Inside: 3 "+matName(m1)+", 3 "+matName(m2)+" and a medkit.");done()}
+  else return;dirty=true;save()}
+function tpIcon(p,x,y,cs,now,done){const s=cs*.3;ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.045);ctx.strokeStyle=INK;ctx.lineJoin="round";
+  if(p.type==="trader"){ctx.fillStyle="#c9a46a";ctx.beginPath();ctx.moveTo(-s*1.2,s*.9);ctx.lineTo(0,-s*1.1);ctx.lineTo(s*1.2,s*.9);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle="#2a2119";ctx.beginPath();ctx.moveTo(-s*.35,s*.9);ctx.lineTo(0,s*.1);ctx.lineTo(s*.35,s*.9);ctx.closePath();ctx.fill();ctx.fillStyle="#ffd36a";ctx.beginPath();ctx.arc(s*.95,-s*.05,s*.18,0,6.2832);ctx.fill()}
+  else if(p.type==="wreck"){ctx.fillStyle="#8a4a32";ctx.beginPath();ctx.moveTo(-s*1.2,s*.7);ctx.lineTo(-s*1.1,0);ctx.lineTo(-s*.5,-s*.1);ctx.lineTo(-s*.2,-s*.6);ctx.lineTo(s*.6,-s*.6);ctx.lineTo(s*.9,-s*.1);ctx.lineTo(s*1.2,0);ctx.lineTo(s*1.2,s*.7);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle="#1d1712";ctx.fillRect(-s*.1,-s*.48,s*.55,s*.3);ctx.beginPath();ctx.arc(-s*.6,s*.72,s*.25,0,6.2832);ctx.arc(s*.7,s*.72,s*.25,0,6.2832);ctx.fill()}
+  else if(p.type==="camp"){ctx.fillStyle="#6a4a2e";ctx.save();ctx.rotate(.5);ctx.fillRect(-s*.9,s*.2,s*1.8,s*.32);ctx.strokeRect(-s*.9,s*.2,s*1.8,s*.32);ctx.restore();ctx.save();ctx.rotate(-.5);ctx.fillRect(-s*.9,s*.2,s*1.8,s*.32);ctx.strokeRect(-s*.9,s*.2,s*1.8,s*.32);ctx.restore();
+    const f=reduced?1:.85+.15*Math.sin(now/90);ctx.fillStyle="#f0a43a";ctx.beginPath();ctx.moveTo(-s*.5,s*.3);ctx.quadraticCurveTo(-s*.4,-s*.6*f,0,-s*1.1*f);ctx.quadraticCurveTo(s*.4,-s*.6*f,s*.5,s*.3);ctx.closePath();ctx.fill();ctx.fillStyle="#ffe08a";ctx.beginPath();ctx.ellipse(0,0,s*.22,s*.45*f,0,0,6.2832);ctx.fill()}
+  else if(p.type==="mast"){ctx.strokeStyle="#c8c4b8";ctx.lineWidth=Math.max(1,cs*.035);ctx.beginPath();ctx.moveTo(-s*.7,s*1);ctx.lineTo(0,-s*1.4);ctx.lineTo(s*.7,s*1);for(let q=0;q<4;q++){const yy=s*(.8-q*.55),hw=s*.7*(yy+s*1.4)/(s*2.4);ctx.moveTo(-hw,yy);ctx.lineTo(hw,yy-s*.5)}ctx.stroke();
+    ctx.fillStyle=reduced||(now/500|0)%2?"#ff5a40":"#6a2a20";ctx.beginPath();ctx.arc(0,-s*1.4,s*.2,0,6.2832);ctx.fill()}
+  else if(p.type==="den"){ctx.fillStyle="#120e0b";ctx.beginPath();ctx.ellipse(0,s*.2,s*1.1,s*.7,0,0,6.2832);ctx.fill();ctx.strokeStyle="#5a4a3a";ctx.stroke();ctx.strokeStyle="#e6dcc4";ctx.lineWidth=Math.max(1,cs*.05);
+    ctx.beginPath();ctx.moveTo(-s*1.1,s*.9);ctx.lineTo(-s*.3,s*.6);ctx.moveTo(s*.4,s*.95);ctx.lineTo(s*1.1,s*.55);ctx.stroke()}
+  else if(p.type==="vault"){ctx.fillStyle="#7d858c";ctx.fillRect(-s*1.1,-s*1,s*2.2,s*2);ctx.strokeRect(-s*1.1,-s*1,s*2.2,s*2);ctx.strokeStyle=done?"#7d858c":"#2a3036";ctx.lineWidth=Math.max(1,cs*.06);ctx.beginPath();ctx.arc(0,0,s*.55,0,6.2832);ctx.moveTo(-s*.55,0);ctx.lineTo(s*.55,0);ctx.moveTo(0,-s*.55);ctx.lineTo(0,s*.55);ctx.stroke();
+    const code=S.exp&&(xMS(S.exp.i)||{}).att;ctx.fillStyle=code&&code.code?"#6af08a":"#c0392b";ctx.fillRect(s*.62,-s*.85,s*.3,s*.22)}
+  else if(p.type==="note"){ctx.rotate(-.2);ctx.fillStyle="#efe2c4";ctx.fillRect(-s*.8,-s*.95,s*1.6,s*1.9);ctx.strokeRect(-s*.8,-s*.95,s*1.6,s*1.9);ctx.fillStyle="#8a7a5a";for(let q=0;q<4;q++)ctx.fillRect(-s*.55,-s*.6+q*s*.38,s*(q===3?.6:1.1),Math.max(1,s*.1))}
+  ctx.restore()}
+// ==== MAPX (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   const skyH=Math.max(54*DPR,H*.13),padB=24*DPR,cw=W/COLS,ch=Math.min(cw*.8,Math.max(28*DPR,(H-skyH-padB)/ROWS)),gy=skyH;
@@ -2116,7 +2297,7 @@ const EVENTS={
 const EV_KEYS=Object.keys(EVENTS);
 function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const MAPS=new Map();let EASY=null;
-function genMap(i){if(MAPS.has(i))return MAPS.get(i);
+function genMap(i){if(MAPS.has(i))return MAPS.get(i);if(T[i].b!=="sea"&&!legacyHome(i)){const m=genTileNew(i);MAPS.set(i,m);return m}
   if(T[i].b==="sea"){const m=seaMap(i,null);MAPS.set(i,m);return m}   // slice 2: seabeds, for the diving bell
   if(!EASY)EASY=ring(new Set([START,...STARTERS.map(s=>s[0])]),1);
   const b=T[i].b,R=rng(i*7919+SEED),dens={ash:.14,woods:.3,ruins:.26,crags:.32,frost:.2,spire:.24}[b]??.2,easy=EASY.has(i);
@@ -2138,41 +2319,41 @@ function genMap(i){if(MAPS.has(i))return MAPS.get(i);
     if(R()<({ruins:.7,spire:1}[b]??.4)){const fam=LMS[LM_FAMILY[b]];add("landmark",{lm:fam[R()*fam.length|0].name})}
   }
   const m=addPlace(addCaveMouth({g,pois,entry},i,b,null),i,b,null);MAPS.set(i,m);return m}   // the cave mouth goes last, so older saves keep their finds
-function mapState(i){let ms=S.maps[i];if(!ms){const M=genMap(i);ms=S.maps[i]={rev:"0".repeat(MW*MH),got:[],att:{}};
+function mapState(i){let ms=S.maps[i];if(!ms){const M=genMap(i);ms=S.maps[i]={rev:"0".repeat(mw(M)*mh(M)),got:[],att:{}};if(M.w)ms.w=M.w;
   if(S.owned.has(i))M.pois.forEach((p,ix)=>{if(p.type==="threat")ms.got.push(ix)})}return ms}
 function landmarkOf(i){const ms=S.maps[i];if(!ms)return null;const M=genMap(i),ix=M.pois.findIndex(p=>p.type==="landmark");return ix>=0&&ms.got.includes(ix)?LM_BY_NAME[M.pois[ix].lm]:null}
 const lmBonus=(i,b)=>{if(!S||!S.maps[i])return 1;const l=landmarkOf(i);return l&&l.fx==="tile"&&l.kind===b&&l.x?l.x:1};
 const lmAdd=(i,b)=>{if(!S||!S.maps[i])return 0;const l=landmarkOf(i);return l&&l.fx==="tile"&&l.kind===b&&l.add?l.add:0};
 function threatsLeft(i){const M=genMap(i),ms=S.maps[i];return M.pois.filter((p,ix)=>p.type==="threat"&&!(ms&&ms.got.includes(ix))).length}
-function explored(i){const ms=S.maps[i];if(!ms)return 0;let n=0;for(const ch of ms.rev)if(ch==="1")n++;return n/(MW*MH)}
-function reveal(ms,k,rad){const x0=k%MW,y0=(k/MW)|0,r=ms.rev.split("");
-  for(let y=y0-rad;y<=y0+rad;y++)for(let x=x0-rad;x<=x0+rad;x++){if(x<0||y<0||x>=MW||y>=MH||Math.abs(x-x0)+Math.abs(y-y0)>rad+1)continue;r[y*MW+x]="1"}ms.rev=r.join("")}
+function explored(i){const ms=S.maps[i];if(!ms)return 0;let n=0;for(const ch of ms.rev)if(ch==="1")n++;return n/ms.rev.length}
+function reveal(ms,k,rad){const RW=ms.w||MW,RH=(ms.rev.length/RW)|0,x0=k%RW,y0=(k/RW)|0,r=ms.rev.split("");
+  for(let y=y0-rad;y<=y0+rad;y++)for(let x=x0-rad;x<=x0+rad;x++){if(x<0||y<0||x>=RW||y>=RH||Math.abs(x-x0)+Math.abs(y-y0)>rad+1)continue;r[y*RW+x]="1"}ms.rev=r.join("")}
 // sight: daylight, the lookout and the scanner on the surface; caves and seabeds are dark (slice 2: the skimmer, the Builder Lens and the Deep Lamp)
 const sightR=i=>{const e=S.exp,deep=!!(e&&(e.cave||e.sea));
   return(hasBp("maps")?1:0)+(deep?1+(hasArt("lamp")?1:0)+(S.gear.lamps?1:0):(smooth(-.12,.3,dot(sunAt(S.t),T[i].c))>.4?2:1)+(S.unl.lookout?1:0)+(skimOn()?1:0))+(S.gear.scanner?1:0)+(hasArt("lens")?1:0)};
 function squadP(){const base=Math.min(2,1+Math.floor(S.pop/8)),gear=Math.min(3,(S.gear.spear?1:0)+(S.gear.armor?1:0))+matStr()+(crawlOn()&&!(S.exp&&(S.exp.cave||S.exp.sea))?(S.gear.crawlplate?2:1):0),morale=E&&(E.med||E.radio)?1:0;return{P:base+gear+morale+(hasBp("drills")?1:0),base,gear,morale}}
 const tripSteps=()=>XC.steps+(hasBp("packs")?6:0)+(S.k.lantern?4:0)+(S.gear.pack?CFG.gear.pack.steps:0)+(S.gear.mule?CFG.gear.mule.steps:0)+(S.cnt.watch>0?6:0)-(S.cnt.decon>0?5:0);
 function sendBlock(){if(S.wounded>0)return"The squad is still recovering ("+Math.ceil(S.wounded)+" s).";if(S.pop<=XC.squad)return"You need more than "+XC.squad+" people to send a squad.";return null}
-let PATH=[],CARD=null,stepT=0,GM={cs:1,ox:0,oy:0};
+let PATH=[],CARD=null,stepT=0,GM={cs:1,ox:0,oy:0,w:11,h:9};
 function startExp(i){if(S.exp)return;const sea=!land(i);if(sea&&!S.veh.bell)return;   // seas need the diving bell (slice 2)
   const own=sea?!!S.wet[i]:S.owned.has(i);if(!own&&!reachHome(i))return;if(sendBlock())return;
-  let sup=-1;if(!own){if(!afford(xcost()))return;pay(xcost());sup=tripSteps();if(S.cnt.watch>0)S.cnt.watch--;if(S.cnt.decon>0)S.cnt.decon--}
+  let sup=-1;if(!own){if(!afford(xcost()))return;pay(xcost());sup=tripSteps()+Math.round(XC.steps*(mapStepK(genMap(i))-1));if(S.cnt.watch>0)S.cnt.watch--;if(S.cnt.decon>0)S.cnt.decon--}
   const M=genMap(i),ms=mapState(i);S.exp={i,sup,pos:M.entry,sea};matTrip(!own,sea);reveal(ms,M.entry,sightR(i));
   if(S.gear.scanner){const ti=M.pois.findIndex((p,ix)=>p.type==="threat"&&!ms.got.includes(ix)&&ms.rev[p.k]!=="1");if(ti>=0)reveal(ms,M.pois[ti].k,0)}
   PATH=[];CARD=null;sel=i;setView("map");save()}
 function endExp(msg){if(msg)say(msg);const aw=!!(S.exp&&S.exp.away);S.exp=null;PATH=[];CARD=null;setView(aw?"away":"surface");save()}
 const poiAt=k=>xGen(S.exp.i).pois.findIndex(p=>p.k===k);
 function pathTo(target){const M=xGen(S.exp.i),ms=xMS(S.exp.i),start=S.exp.pos;if(target===start)return[];
-  const prev=new Map([[start,-1]]),q=[start];
-  while(q.length){const k=q.shift();if(k===target)break;const x=k%MW,y=(k/MW)|0;
-    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=MW||ny>=MH)continue;const n=ny*MW+nx;if(prev.has(n))continue;
-      const known=ms.rev[n]==="1";if(known&&M.g[n]===1)continue;if(!known&&n!==target)continue;
+  const PWm=mw(M),PHm=mh(M),prev=new Map([[start,-1]]),q=[start];
+  while(q.length){const k=q.shift();if(k===target)break;const x=k%PWm,y=(k/PWm)|0;
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=PWm||ny>=PHm)continue;const n=ny*PWm+nx;if(prev.has(n))continue;
+      const known=ms.rev[n]==="1";if(known&&blockedG(M.g[n]))continue;if(!known&&n!==target)continue;
       const pi=poiAt(n);if(pi>=0&&((M.pois[pi].type==="threat"&&!ms.got.includes(pi))||M.pois[pi].type==="cave")&&n!==target)continue;   // walk round cave mouths unless you mean to go down
       prev.set(n,k);q.push(n)}}
   if(!prev.has(target))return null;const p=[];for(let k=target;k!==start;k=prev.get(k))p.unshift(k);return p}
 const pathCost=p=>{const M=xGen(S.exp.i);return p.reduce((a,k)=>a+stepCost(M,k),0)};
 function stepOnce(){const e=S.exp;if(!e||!PATH.length||CARD)return;const n=PATH[0],M=xGen(e.i),ms=xMS(e.i);
-  if(M.g[n]===1){reveal(ms,n,0);PATH=[];return}
+  if(blockedG(M.g[n])){reveal(ms,n,0);PATH=[];return}
   const pi=poiAt(n);
   if(pi>=0&&M.pois[pi].type==="threat"&&!ms.got.includes(pi)){PATH=[];CARD={kind:"threat",pi};dirty=true;return}
   const c=stepCost(M,n);if(e.sup>=0&&e.sup<c){PATH=[];CARD={kind:"out"};dirty=true;return}
@@ -2185,7 +2366,7 @@ function applyLandmark(i,L){switch(L.fx){
   case"res":for(const k in L.res)S.res[k]+=L.res[k];if(L.key2)S.unl[L.key2]=(S.unl[L.key2]||0)+1;return"";
   case"count":S.cnt[L.key]=(S.cnt[L.key]||0)+L.n;return"";
   case"seen":for(const j of ring([i],L.r))S.seen.add(j);return"";
-  case"observe":for(const j of T[i].n.filter(land).slice(0,3)){S.seen.add(j);mapState(j).rev="1".repeat(MW*MH)}return"";
+  case"observe":for(const j of T[i].n.filter(land).slice(0,3)){S.seen.add(j);revealAll(mapState(j))}return"";
   case"person":S.pop++;return"";
   default:return""}}
 function meet(pi){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[pi],aw=!!e.away;   // away, finds go into the ship's hold
@@ -2195,6 +2376,7 @@ function meet(pi){const e=S.exp,M=xGen(e.i),ms=xMS(e.i),p=M.pois[pi],aw=!!e.away
   else if(p.type==="garden"){ms.got.push(pi);if(aw)say(holdMsg(L||"Found edible marsh weed","food",p.amt));else{S.res.food+=p.amt;say((L||"Found a wild garden")+": "+p.amt+" food.")}}
   else if(p.type==="pack"&&aw){ms.got.push(pi);S.x.steps+=XP.packSteps;if(e.sup>=0)e.sup=S.x.steps;say((L||"An old Kestrel supply drop, still sealed")+": "+XP.packSteps+" more steps of rations.")}
   else if(p.type==="pack"){ms.got.push(pi);if(e.sup>=0){e.sup+=XC.packSteps;say((L||"An old field camp with dry rations")+": "+XC.packSteps+" more steps.")}else{S.res.food+=6;say("An old field camp: 6 food.")}}
+  else if(TP_TYPES.has(p.type))tpMeet(pi);
   else if(p.type==="cave"){PATH=[];CARD={kind:"cave",pi}}
   else if(p.type==="place"){PATH=[];CARD={kind:"place",pi}}   // a building: never "got", you can go back in
   else if(PLACE_FX[p.type])placeFind(pi);   // never "got": a cave mouth stays open
@@ -2229,20 +2411,20 @@ function evDo(code,e,ms,i){const steps=n=>{if(e.sup>=0){if(e.sup<n)return false;
     case"tech_trade":one("scrap",18);say("Traded for know-how and parts: 18 scrap.");return true;
     case"spore_yes":one("food",16);S.cnt.decon=(S.cnt.decon||0)+1;say("Harvested 16 food. The squad needs scrubbing: next trip has 5 fewer steps.");return true;
     case"spore_burn":one("scrap",8);say("Burned the spores. 8 scrap in the ashes.");return true;
-    case"fb_yes":{if(!afford({food:8}))return false;pay({food:8});const nb=T[i].n.filter(j=>land(j)&&!S.owned.has(j)).slice(0,2);for(const j of nb){S.seen.add(j);mapState(j).rev="1".repeat(MW*MH)}say("The beacon pings back. "+nb.length+" nearby tiles are charted.");return true}
+    case"fb_yes":{if(!afford({food:8}))return false;pay({food:8});const nb=T[i].n.filter(j=>land(j)&&!S.owned.has(j)).slice(0,2);for(const j of nb){S.seen.add(j);revealAll(mapState(j))}say("The beacon pings back. "+nb.length+" nearby tiles are charted.");return true}
     case"fb_strip":one("scrap",14);say("Stripped the beacon: 14 scrap.");return true;
     case"lift_yes":if(!afford({scrap:20}))return false;pay({scrap:20});S.cnt.hoist=(S.cnt.hoist||0)+3;say("Shaft Hoist: your next 3 shaft digs are cheaper and faster.");return true;
     case"lift_salv":one("scrap",12);say("Salvaged the motor: 12 scrap.");return true;
-    case"emap_yes":{if(!steps(4))return false;ms.rev="1".repeat(MW*MH);const nb=T[i].n.find(j=>land(j)&&!S.owned.has(j));if(nb!==undefined){S.seen.add(nb);mapState(nb).rev="1".repeat(MW*MH)}say("Decoded the map: this tile and a neighbour are charted.");return true}
+    case"emap_yes":{if(!steps(4))return false;revealAll(ms);const nb=T[i].n.find(j=>land(j)&&!S.owned.has(j));if(nb!==undefined){S.seen.add(nb);revealAll(mapState(nb))}say("Decoded the map: this tile and a neighbour are charted.");return true}
     case"emap_sell":one("food",9);say("Sold the map paper: 9 food.");return true;
     case"traveler_yes":if(!afford({water:10}))return false;pay({water:10});S.pop++;say("The traveler joins you.");return true;
     case"drop_yes":one("scrap",30);one("food",10);say("The crate held 30 scrap and 10 food.");return true;
-    case"static_yes":if(!steps(3))return false;ms.rev="1".repeat(MW*MH);say("You copy down the numbers. The whole tile is on your map now.");return true;
+    case"static_yes":if(!steps(3))return false;revealAll(ms);say("You copy down the numbers. The whole tile is on your map now.");return true;
     case"beacon_yes":if(!afford({food:15}))return false;pay({food:15});S.pop++;say("The family comes with you. One of them stays on as a worker.");return true;
     case"beacon_take":one("food",12);say("You take their spare tins. Nobody looks back.");return true;
     case"fungus_yes":if(h3(i,77,5)<.7){one("food",14);say("Fourteen meals of mushrooms.")}else say("The whole batch was the bad kind. Nothing to eat.");return true;
   }return false}
-function resolve(act){const e=S.exp;if(!e||!CARD)return;const M=xGen(e.i),ms=xMS(e.i),aw=!!e.away;
+function resolve(act){const e=S.exp;if(!e||!CARD)return;const M=xGen(e.i),ms=xMS(e.i),aw=!!e.away;if(CARD.kind==="tp"){if(act==="back"||act==="ok")tpAct("back");return}
   if(CARD.kind==="threat"){const p=M.pois[CARD.pi],th=thOf(p.t);
     if(act==="bomb"){matBomb(p,th,ms);return}
     if(act==="fight"&&th.lvl>0){threatFight("quick");return}   // a quick fight: Stick 'Em Up, played out by bots on both sides
@@ -2273,6 +2455,7 @@ function poiIcon(p,x,y,cs,done,now,ix){const s=cs*.3,ink="#16110c";
   if(p.type==="place"){placeIcon(p.kind,x,y,cs,now);return}
   if(PLACE_FX[p.type]){placePrize(p.type,x,y,cs);return}
   if(p.type==="village"){tideIcon(x,y,cs,now);return}
+  if(TP_TYPES.has(p.type)){tpIcon(p,x,y,cs,now,done);return}
   if(p.type==="landmark"){glyph("flag",x,y,cs*.42,done?.8:1);return}
   ctx.save();ctx.translate(x,y);ctx.lineWidth=Math.max(1,cs*.05);ctx.strokeStyle=ink;
   if(p.type==="cache"){ctx.fillStyle="#c9a46a";ctx.fillRect(-s,-s*.8,s*2,s*1.6);ctx.strokeRect(-s,-s*.8,s*2,s*1.6);ctx.beginPath();ctx.moveTo(-s,-s*.8);ctx.lineTo(s,s*.8);ctx.moveTo(s,-s*.8);ctx.lineTo(-s,s*.8);ctx.stroke()}
@@ -2292,25 +2475,26 @@ function poiIcon(p,x,y,cs,done,now,ix){const s=cs*.3,ink="#16110c";
 function drawMap(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle="#0c0a08";ctx.fillRect(0,0,W,H);
   const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),deep=e.cave?(e.cave.kind&&PLACES[e.cave.kind]?"place:"+e.cave.kind:"cave"):e.sea?"kelp":"",b=deep||t.b;
-  const avH=H-24*DPR,cs=Math.floor(Math.min(W/MW,avH/MH)),ox=(W-cs*MW)/2|0,oy=Math.max(0,(avH-cs*MH)/2|0);GM={cs,ox,oy};
+  const avH=H-24*DPR,MWd=mw(M),MHd=mh(M),cs=Math.floor(Math.min(W/Math.min(MWd,MW),avH/Math.min(MHd,MH))),[ox,oy]=mapCam(M,e,cs,avH,now);GM={cs,ox,oy,w:MWd,h:MHd};
   // caves and seabeds have no day or night; their floor takes its own colour
   const dl=deep?0:smooth(-.12,.3,dot(sunAt(S.t),t.c)),lit=deep?.7:.5+.5*dl,base=e.cave?(e.cave.kind&&PLACES[e.cave.kind]?PLACES[e.cave.kind].floor:[78,70,62]):e.sea?(e.away?[34,70,80]:[44,84,74]):t.base;
   // the map: the land painted once per light; the fog drawn live on top (cheap, so revealing a cell costs nothing)
   {const lq=Math.round(lit*12)/12,mk=(e.away&&S.x?"a"+S.x.w:"h")+":"+i+":"+b+":"+(e.cave?"c":"")+(e.sea?"s":"")+":"+cs;
-    stamp("land:"+mk+":"+lq,cs*MW,cs*MH+cs,ox,oy-cs,g=>{g.translate(0,cs);paintLand(g,i,M,b,base,lq,cs)},"land");   // a cell of margin on top, for the tops of trees
+    stamp("land:"+mk+":"+lq,cs*MWd,cs*MHd+cs,ox,oy-cs,g=>{g.translate(0,cs);paintLand(g,i,M,b,base,lq,cs)},"land");   // a cell of margin on top, for the tops of trees
     drawFog(ox,oy,i,ms,cs)}
-  M.pois.forEach((p,ix)=>{const got=ms.got.includes(ix);if((got&&p.type!=="landmark")||ms.rev[p.k]!=="1")return;poiIcon(p,ox+(p.k%MW+.5)*cs,oy+(((p.k/MW)|0)+.5)*cs,cs,got,now,ix)});
-  const ex=ox+(M.entry%MW)*cs,ey=oy+((M.entry/MW)|0)*cs;ctx.strokeStyle="#f0a43a";ctx.lineWidth=2*DPR;ctx.setLineDash([3*DPR,3*DPR]);ctx.beginPath();ctx.moveTo(ex,ey+cs-DPR);ctx.lineTo(ex+cs,ey+cs-DPR);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle="rgba(240,164,58,.6)";for(const k of PATH)ctx.fillRect(ox+(k%MW+.5)*cs-1.5*DPR,oy+(((k/MW)|0)+.5)*cs-1.5*DPR,3*DPR,3*DPR);
-  const sx=ox+(e.pos%MW+.5)*cs,sy=oy+(((e.pos/MW)|0)+.5)*cs;
+  M.pois.forEach((p,ix)=>{const got=ms.got.includes(ix);if((got&&p.type!=="landmark")||ms.rev[p.k]!=="1")return;poiIcon(p,ox+(p.k%MWd+.5)*cs,oy+(((p.k/MWd)|0)+.5)*cs,cs,got,now,ix)});
+  const ex=ox+(M.entry%MWd)*cs,ey=oy+((M.entry/MWd)|0)*cs;ctx.strokeStyle="#f0a43a";ctx.lineWidth=2*DPR;ctx.setLineDash([3*DPR,3*DPR]);ctx.beginPath();ctx.moveTo(ex,ey+cs-DPR);ctx.lineTo(ex+cs,ey+cs-DPR);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle="rgba(240,164,58,.6)";for(const k of PATH)ctx.fillRect(ox+(k%MWd+.5)*cs-1.5*DPR,oy+(((k/MWd)|0)+.5)*cs-1.5*DPR,3*DPR,3*DPR);
+  const sx=ox+(e.pos%MWd+.5)*cs,sy=oy+(((e.pos/MWd)|0)+.5)*cs;
   ctx.globalCompositeOperation="lighter";const lg=ctx.createRadialGradient(sx,sy,0,sx,sy,cs*2.4);lg.addColorStop(0,"rgba(240,164,58,"+(.22+.25*(1-dl)).toFixed(2)+")");lg.addColorStop(1,"rgba(240,164,58,0)");ctx.fillStyle=lg;ctx.fillRect(sx-cs*2.5,sy-cs*2.5,cs*5,cs*5);ctx.globalCompositeOperation="source-over";
   {const sq=squadPeople(),wk=PATH.length>0;person(sx+cs*.2,sy+cs*.42,cs*.64,2,now,sq[1]?lookOf(sq[1]):null,{walk:wk});person(sx-cs*.16,sy+cs*.4,cs*.78,1,now,lookOf(sq[0]),{walk:wk})}
   if(e.sea){ctx.strokeStyle="rgba(232,220,194,.8)";ctx.lineWidth=Math.max(1.5,cs*.05);ctx.beginPath();ctx.arc(sx,sy+cs*.42,cs*.5,Math.PI,0);ctx.stroke()}   // the diving bell
-  if(e.cave&&e.cave.kind)placeExit(ox,oy,M,cs);else if(e.cave){const rx=ox+(M.entry%MW+.5)*cs,ry=oy+((M.entry/MW)|0)*cs;ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,cs*.04);ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx,ry+cs*.8);ctx.stroke()}   // the rope back up
-  ctx.strokeStyle="#3a3127";ctx.lineWidth=DPR;ctx.strokeRect(ox+.5,oy+.5,cs*MW-1,cs*MH-1);
+  if(e.cave&&e.cave.kind)placeExit(ox,oy,M,cs);else if(e.cave){const rx=ox+(M.entry%MWd+.5)*cs,ry=oy+((M.entry/MWd)|0)*cs;ctx.strokeStyle="#c9a46a";ctx.lineWidth=Math.max(1,cs*.04);ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx,ry+cs*.8);ctx.stroke()}   // the rope back up
+  ctx.strokeStyle="#3a3127";ctx.lineWidth=DPR;ctx.strokeRect(ox+.5,oy+.5,cs*MWd-1,cs*MHd-1);
 }
 function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i),aw=!!e.away;
   if(CARD){
+    if(CARD.kind==="tp")return tpHTML();
     if(CARD.kind==="place")return placeDoorHTML(M.pois[CARD.pi]);if(CARD.kind==="find")return placeFindHTML();
     if(CARD.kind==="cave")return'<div class="meta">Cave mouth</div><div class="tile-h">A way down</div><p>Cold air breathes out of a crack in the ground, and it goes down a long way. Inside it is dark: you see less, and there is no day or night.</p>'+
       '<div class="acts">'+btn("down","Climb down","Walking down there uses the same "+(aw?"rations":"supplies"),null,"primary")+btn("back","Not now","It stays open",null)+"</div>";
@@ -2346,7 +2530,7 @@ function mapHTML(){const e=S.exp,i=e.i,M=xGen(i),ms=xMS(i),t=xTile(i),bi=xBio(i)
     '<div class="tile-h">'+(own?(aw?"Walking charted land":"Walking your land"):"Exploring "+bi.name.toLowerCase())+"</div>"+
     "<p>"+(own?(aw?"No rations needed here.":"No supplies needed here."):aw?"Rations: <b>"+e.sup+"</b> steps. Mud costs 2. Going back to the ship is free.":"Supplies: <b>"+e.sup+"</b> steps. Rubble costs 2. Heading home is free.")+" "+
     (tl?tl+" threat"+(tl>1?"s":"")+" left"+(own?".":" to clear before it's "+(aw?"charted.":"yours.")):"No threats left.")+(lm?" Landmark: "+lm.name+".":"")+(aw?" Hold "+holdUsed()+" / "+S.x.cap+".":"")+" "+(aw?"Crew":"Squad")+" strength "+q.P+".</p>"+
-    '<p class="meta">◆ threat · ▣ cache · drop = spring · leaves = garden · ? = event · flag = '+(aw?"site · pack = supply drop":"landmark · figure = survivor · pack = field camp")+" · dark arch = cave mouth · building = a place to go in</p>"+
+    mapLegend(M,ms,aw)+
     '<div class="acts">'+btn("leave",aw?"Back to the ship":"Head home","Progress here is kept",null)+"</div>"}
 
 // ---------------------------------------------------------------- expeditions: the ship, the Ashen system and a second world
@@ -2419,7 +2603,7 @@ function awayFace(){const x=S.x;if(!x)return START;if(x.site>=0)return x.site;if
   A.forEach((t,i)=>{if(t.b==="msea"||t.pent||Math.abs(t.c[1])>.6)return;let s=0;for(const j of ring([i],2))if(A[j].b!=="msea")s++;if(s>bs){bs=s;best=i}});return AFACE[x.w]=best}
 function xw(key){if(!S.xw||typeof S.xw!=="object")S.xw={};let w=S.xw[key];if(!w||typeof w!=="object")w=S.xw[key]={};
   if(!w.charted||typeof w.charted!=="object")w.charted={};if(!w.maps||typeof w.maps!=="object")w.maps={};if(!w.caves||typeof w.caves!=="object")w.caves={};w.visits|=0;w.gifts|=0;return w}
-function awayMap(key,i){const id=key+":"+i;if(AMAPS.has(id))return AMAPS.get(id);
+function awayMap(key,i){const id=key+":"+i;if(AMAPS.has(id))return AMAPS.get(id);if(awayTiles(key)[i].b!=="msea"&&!legacyAway(key,i)){const m=genAwayNew(key,i);AMAPS.set(id,m);return m}
   if(awayTiles(key)[i].b==="msea"){const m=seaMap(i,key);AMAPS.set(id,m);return m}
   const A=awayTiles(key),b=A[i].b,R=rng(i*7919+XWORLDS[key].seed),dens=A_DENS[b]??.2;
   const g=[];for(let k=0;k<MW*MH;k++)g.push(R()<dens?1:R()<.16?2:0);
@@ -2438,10 +2622,10 @@ function awayMap(key,i){const id=key+":"+i;if(AMAPS.has(id))return AMAPS.get(id)
     if(key==="mire"&&i===tideTile())add("village");   // slice 3: the Tidefolk live here
   }
   const m=addPlace(addCaveMouth({g,pois,entry},i,b,key),i,b,key);AMAPS.set(id,m);return m}
-function aMapState(key,i){const w=xw(key);let ms=w.maps[i];if(!ms){const M=awayMap(key,i);ms=w.maps[i]={rev:"0".repeat(MW*MH),got:[],att:{}};
+function aMapState(key,i){const w=xw(key);let ms=w.maps[i];if(!ms){const M=awayMap(key,i);ms=w.maps[i]={rev:"0".repeat(mw(M)*mh(M)),got:[],att:{}};if(M.w)ms.w=M.w;
   if(w.charted[i])M.pois.forEach((p,ix)=>{if(p.type==="threat")ms.got.push(ix)})}return ms}
 const aThreats=(key,i)=>{const M=awayMap(key,i),ms=xw(key).maps[i];return M.pois.filter((p,ix)=>p.type==="threat"&&!(ms&&ms.got.includes(ix))).length};
-const aExplored=(key,i)=>{const ms=xw(key).maps[i];if(!ms)return 0;let n=0;for(const ch of ms.rev)if(ch==="1")n++;return n/(MW*MH)};
+const aExplored=(key,i)=>{const ms=xw(key).maps[i];if(!ms)return 0;let n=0;for(const ch of ms.rev)if(ch==="1")n++;return n/ms.rev.length};
 const aSite=(key,i)=>{const M=awayMap(key,i),ix=M.pois.findIndex(p=>p.type==="landmark");if(ix<0)return null;const ms=xw(key).maps[i];return{ix,cx:M.pois[ix].cx,got:!!(ms&&ms.got.includes(ix))}};
 // routing for the tile-map code: the home world, or the world the crew is walking
 const XA=()=>!!(S.exp&&S.exp.away);
@@ -2453,7 +2637,7 @@ const xBio=i=>XA()?ABIOME[xTile(i).b]:BIOME[T[i].b];
 const xOwn=i=>XA()?!!xw(S.exp.w).charted[i]:land(i)?S.owned.has(i):!!S.wet[i];
 const thOf=t=>XA()?ATHREAT[t]:THREAT[t];
 const xThreatsLeft=i=>{const M=xGen(i),ms=xMS(i);return M.pois.filter((p,ix)=>p.type==="threat"&&!(ms&&ms.got.includes(ix))).length};
-const xExplored=i=>{const ms=xMS(i);if(!ms)return 0;let n=0;for(const c of ms.rev)if(c==="1")n++;return n/(MW*MH)};
+const xExplored=i=>{const ms=xMS(i);if(!ms)return 0;let n=0;for(const c of ms.rev)if(c==="1")n++;return n/ms.rev.length};
 // the ship and the trip
 const crewNames=a=>a.length<2?(a[0]?a[0].name:"nobody"):a.slice(0,-1).map(p=>p.name).join(", ")+" and "+a.at(-1).name;
 const xDest=()=>XWORLDS[S.k.dest]||XWORLDS.mire;
@@ -2552,7 +2736,7 @@ function aEvDo(code,e,ms,i){const x=S.x,steps=n=>{if(x.steps<n)return false;x.st
     case"eggs_take":say(holdMsg("Packed the eggs","food",15));return true;
     case"pool_fill":say(holdMsg("Filled the water tanks","water",20));return true;
     case"pool_rest":more(6);say("Clean water and a rest: 6 more steps.");return true;
-    case"tracks_follow":if(!steps(5))return false;ms.rev="1".repeat(MW*MH);say("The tracks wander all over this tile. Now it's all on your map.");return true;
+    case"tracks_follow":if(!steps(5))return false;revealAll(ms);say("The tracks wander all over this tile. Now it's all on your map.");return true;
     case"tracks_gift":if(!steps(5))return false;xw(x.w).gifts++;say(tideGiftMsg(x.w));return true;
   }return false}
 function xWhere(){const x=S.x,nm=XWORLDS[x.w].name,left=Math.max(0,Math.ceil(x.total-x.t));
@@ -2721,9 +2905,9 @@ function caveMap(i,key){const id=(key||"home")+":"+i;if(CMAPS.has(id))return CMA
 function caveState(i,key){const box=key?xw(key).caves:(S.caves||(S.caves={}));let ms=box[i];if(!ms)ms=box[i]={rev:"0".repeat(MW*MH),got:[],att:{}};return ms}
 const CAVE_P={crags:.5,ruins:.3,frost:.25,woods:.15,ash:.1,spire:.5,shell:.45,bog:.2,spore:.3,reeds:.15};   // how often a tile has a way down
 function addCaveMouth(m,i,b,key){if(!(h3(i,4049+(key?11:0),271)<(CAVE_P[b]||0)))return m;
-  const seen=new Set([m.entry]),q=[m.entry],taken=new Set(m.pois.map(p=>p.k)),cand=[];
-  while(q.length){const k=q.shift(),x=k%MW,y=(k/MW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=MW||ny>=MH)continue;const n=ny*MW+nx;
-    if(seen.has(n)||m.g[n]===1)continue;seen.add(n);q.push(n);if(!taken.has(n)&&ny<MH-2)cand.push(n)}}
+  const CW=m.w||MW,CH=m.h||MH,seen=new Set([m.entry]),q=[m.entry],taken=new Set(m.pois.map(p=>p.k)),cand=[];
+  while(q.length){const k=q.shift(),x=k%CW,y=(k/CW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=CW||ny>=CH)continue;const n=ny*CW+nx;
+    if(seen.has(n)||blockedG(m.g[n]))continue;seen.add(n);q.push(n);if(!taken.has(n)&&ny<CH-2)cand.push(n)}}
   if(cand.length)m.pois.push({k:cand[h3(i,9013+(key?5:0),17)*cand.length|0],type:"cave"});return m}
 function enterCave(){const e=S.exp;if(!e||e.cave||e.sea)return;e.cave={pos:e.pos};const C=xGen(e.i),ms=xMS(e.i);e.pos=C.entry;reveal(ms,C.entry,sightR(e.i));PATH=[];CARD=null;
   say((e.away?"The crew":"The squad")+" climbs down into the dark.");dirty=true;save()}
@@ -5547,14 +5731,14 @@ const ptrs=new Map();let downX=0,downY=0,moved=false,pinch=0;
 const pd=()=>{const p=[...ptrs.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)};
 cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===1){downX=e.clientX;downY=e.clientY;moved=false;vel=[0,0]}if(ptrs.size===2)pinch=pd();focus=null;lastTouch=performance.now()});
 cv.addEventListener("pointermove",e=>{const p=ptrs.get(e.pointerId);if(!p||VIEW==="fight")return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;lastTouch=performance.now();
-  if(VIEW==="map"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
+  if(VIEW==="map"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)mapPan(dx,dy);return}
   if(VIEW==="below"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;if(moved)scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY-dy*DPR));return}
   if(VIEW==="stars"){if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)moved=true;return}
   if(ptrs.size===1){if(Math.hypot(e.clientX-downX,e.clientY-downY)>6)moved=true;if(moved){spin(dx,dy);vel=[dx,dy]}}
   else if(ptrs.size===2){moved=true;const d=pd();if(pinch)zoom=Math.max(.7,Math.min(ZMAX,zoom*d/pinch));pinch=d;vel=[0,0]}});
 const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;if(VIEW==="fight")return;
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="map"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
-    const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<MW&&y<MH){const p=pathTo(y*MW+x);if(p)PATH=p}return}
+    const x=Math.floor((sx-GM.ox)/GM.cs),y=Math.floor((sy-GM.oy)/GM.cs);if(!CARD&&x>=0&&y>=0&&x<GM.w&&y<GM.h){const p=pathTo(y*GM.w+x);if(p){PATH=p;CAMM.px=CAMM.py=0}}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="below"){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;
     const c=Math.floor(sx/GR.cw),r=Math.floor((sy-GR.gy)/GR.ch);if(c>=0&&c<COLS&&r>=0&&r<ROWS){selU=r+","+c;dirty=true}return}
   if(had&&e.type==="pointerup"&&!moved&&ptrs.size===0&&VIEW==="stars"&&ATL.open){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,sy=(e.clientY-b.top)*DPR;let best=-1,bd=1e9;
@@ -5568,8 +5752,8 @@ cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
 cv.addEventListener("wheel",e=>{e.preventDefault();if(VIEW==="stars"||VIEW==="fight")return;if(VIEW==="below"){scrollY=Math.max(0,Math.min(GR.maxScroll,scrollY+e.deltaY*DPR*.6));return}zoom=Math.max(.7,Math.min(ZMAX,zoom*Math.exp(-e.deltaY*.0012)));lastTouch=performance.now()},{passive:false});
 cv.addEventListener("keydown",e=>{
   if(VIEW==="fight")return;
-  if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-MW,ArrowDown:MW}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
-    if(n>=0&&n<MW*MH&&!((mv===1&&p%MW===MW-1)||(mv===-1&&p%MW===0))){const q=pathTo(n);if(q)PATH=q}}return}
+  if(VIEW==="map"){const mv={ArrowLeft:-1,ArrowRight:1,ArrowUp:-GM.w,ArrowDown:GM.w}[e.key];if(mv!==undefined&&S.exp&&!CARD){e.preventDefault();const p=S.exp.pos,n=p+mv;
+    if(n>=0&&n<GM.w*GM.h&&!((mv===1&&p%GM.w===GM.w-1)||(mv===-1&&p%GM.w===0))){const q=pathTo(n);if(q)PATH=q}}return}
   if(VIEW==="stars"&&ATL.open){const n=atlSys().worlds.length,mv={ArrowLeft:-1,ArrowRight:1}[e.key];if(mv){e.preventDefault();ATL.w=(ATL.w+mv+n)%n;dirty=true}
     else if(e.key==="ArrowUp"||e.key==="ArrowDown"){e.preventDefault();atlAct(e.key==="ArrowUp"?"b-":"b+")}return}
   if(VIEW==="stars"){const ks=BODIES.map(b=>b.key),mv={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];if(mv){e.preventDefault();sBody=ks[(ks.indexOf(sBody)+mv+ks.length)%ks.length];dirty=true}return}
@@ -5668,7 +5852,7 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;doAct(b.dataset.act);renderPanel()});
 function doAct(a){
-  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}
+  if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}if(a.startsWith("tp:")){tpAct(a.slice(3));renderPanel();return}
   if(a==="play"){threatFight("play");return}if(a==="fauto"){if(FIGHT)PUP.hand(FIGHT.g,0,FIGHT.lvYou);dirty=true;return}if(a==="fquit"){fightGiveUp();return}
   if(a==="fw"){const ws=fightWeapons();S.fw=ws[(ws.indexOf(fightWeapon())+1)%ws.length];dirty=true;return}
   if(a==="fab"){if(CARD)CARD.abPick=!CARD.abPick;dirty=true;return}if(a.startsWith("fab:")){abToggle(a.slice(4));dirty=true;return}   // abilities
@@ -5770,7 +5954,7 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
