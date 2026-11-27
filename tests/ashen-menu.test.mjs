@@ -70,7 +70,7 @@ test('difficulty moves the raids and the creatures, Normal changes nothing, and 
 test('a small tutorial: a new world starts with it, doing each step ticks it, and it can be skipped and brought back', () => {
   const { dev } = boot(), U = dev.uix, S = dev.S(), T = dev.home();
   assert.equal(U.opts().tut, 1); dev.setView('surface'); dev.act('noop'); assert.match(dev.panel(), /Getting started · 1 of 6/); assert.match(dev.panel(), /Look around/);
-  U.tutMark(1); dev.act('noop'); assert.match(dev.panel(), /2 of 6/); assert.match(dev.panel(), /Claim land/);
+  U.tutMark(1); dev.act('noop'); assert.match(dev.panel(), /2 of 6/); assert.match(dev.panel(), /Take land/); assert.match(dev.panel(), /Send a squad/);
   const next = [...new Set([...S.owned].flatMap(i => T[i].n))].find(j => T[j].b !== 'sea' && !T[j].pent && !S.owned.has(j)); S.res.scrap = 900; dev.sel(next); dev.act('claim');
   assert.ok(S.owned.has(next)); assert.match(dev.panel(), /3 of 6/); assert.match(dev.panel(), /Build\./);
   S.bld[next] = 'camp'; S.order.push(next); dev.act('noop'); assert.match(dev.panel(), /4 of 6/); assert.match(dev.panel(), /data-act="tut:ok"/, 'a step that only wants reading has Got it');
