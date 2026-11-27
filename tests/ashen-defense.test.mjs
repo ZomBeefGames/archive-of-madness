@@ -114,3 +114,20 @@ test('looking at a raid from the map never strands the squad: the alert and the 
   dev.act('df:look'); R.cur = null; assert.equal(dev.def.alertNow().b[0][0], 'df:sqback', 'with no raid on, the bar still offers it');
   dev.orbit.tileSel(i); dev.act('walk'); assert.equal(dev.view(), 'map', 'walking any tile takes you back to the squad too');
 });
+
+test('a pack of beasts comes on its own legs: dogs are drawn as dogs, raiders as puppets', () => {
+  const { dev, S, T, frame } = base(10), PUP = dev.fight.PUP, i = dev.def.border()[0], seen = { beast: [], mini: 0 }, mb = PUP.miniBeast, mm = PUP.mini;
+  assert.equal(typeof mb, 'function');
+  PUP.miniBeast = (...a) => { seen.beast.push({ look: a[4], o: a[6] }); return mb(...a); }; PUP.mini = (...a) => { seen.mini++; return mm(...a); };
+  dev.setView('surface'); dev.orbit.look(i); let t = 1000; for (let n = 0; n < 60; n++) frame(t += 100);
+  for (let n = 0; n < 4; n++) dev.zoomx.click('z-in');
+  const c = raidAt(dev, S, T, i, 'dogs'); c.phase = 'coming'; c.left = 20; seen.beast.length = 0; seen.mini = 0; dev.draw();
+  assert.equal(seen.beast.length, 2 + Math.min(3, c.lvl), 'every dog in the pack is a dog'); assert.equal(seen.beast[0].look.body, 'dog'); assert.equal(seen.beast[0].o.walk, true);
+  const walkers = seen.mini;   // (your own people on their tiles are still puppets)
+  c.phase = 'here'; seen.beast.length = 0; dev.draw(); assert.equal(seen.beast[0].o.act, 'bay', 'at the wall they rear and bark');
+  c.foe = 'raiders'; seen.beast.length = 0; seen.mini = 0; dev.draw(); assert.equal(seen.beast.length, 0); assert.ok(seen.mini >= walkers + 2 + Math.min(3, c.lvl), 'a raider band is people');
+  // every beast body draws at any size, walking or at the wall, with or without motion
+  for (const look of [{ col: '#9b7b55', body: 'dog', ears: 'flop', spots: 1 }, { col: '#6f7a55', body: 'dog', ears: 'prick' }, { col: '#5f8a6a', body: 'snake', thick: 1.2 }, { col: '#b0603a', body: 'crab' }, { col: '#7a5a8a', body: 'bug' }])
+    for (const s of [8, 40, 160]) for (const o of [{ f: 1, walk: true }, { f: -1, act: 'bay', ph: 2 }, undefined]) assert.doesNotThrow(() => mb(fakeCtx(), 0, 0, s, look, 1.3, o));
+});
+function fakeCtx() { const noop = () => {}, grad = { addColorStop: noop }; return new Proxy({}, { get: (o, k) => k === 'createRadialGradient' ? () => grad : k in o ? o[k] : noop, set: (o, k, v) => { o[k] = v; return true; } }); }

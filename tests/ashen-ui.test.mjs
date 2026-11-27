@@ -1,6 +1,8 @@
 // Ashen Sphere: the screen is the game. Supplies sit in a slim bar on top, the panel is a sheet that slides up from the
-// bottom (a column on the right on wide screens), and messages go to a small event channel at the top left instead of
-// a box over the game. A fight gets the screen to itself; a tap that picks something raises a lowered sheet to show it.
+// bottom (a column on the right on wide screens), and messages go to the events bar just under the game instead of a
+// box over it: two lines at most, all of them on request, and it can be closed. What is going on right now (a raid, the
+// squad out, inspectors) is an icon in that bar that opens on a tap. A fight gets the screen to itself; a tap that
+// picks something raises a lowered sheet to show it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boot, readyBase } from './ashen-harness.mjs';
@@ -19,8 +21,8 @@ test('what happens goes to the event channel with its day, and the log keeps its
   dev.def.tick(1); assert.match(S.log[0], /Smoke on the horizon/, 'the game said something');
   assert.equal(S.log.length, 20, 'the log keeps 20 lines (it kept 4)');
   const e = U.feed().find(x => /^Smoke on the horizon/.test(x.text)); assert.ok(e, 'the same line, in the channel'); assert.equal(e.kind, 'ev');
-  assert.ok(e.d >= 1, 'with its day'); assert.ok(U.live().includes(U.feed()[0].text.slice(0, 20)), 'the newest is shown for a few seconds');
-  U.list(true); assert.match(U.listHTML(), /<i>Day \d+<\/i>Smoke on the horizon/, 'Events lists it with its day'); assert.equal(U.live(), '', 'the open list takes the place of the fading lines');
+  assert.ok(e.d >= 1, 'with its day'); assert.ok(U.live().includes(U.feed()[0].text.slice(0, 20)), 'the newest is shown in the bar');
+  U.list(true); assert.match(U.listHTML(), /<i>Day \d+<\/i>Smoke on the horizon/, 'Events lists it with its day'); assert.equal(U.live(), '', 'the open list takes the place of the two lines');
   U.list(false); assert.ok(U.live().includes(U.feed()[0].text.slice(0, 20)));
   // saves: 20 lines come back, an old save's 4 still load
   const save = JSON.parse(JSON.stringify(dev.ser())); assert.equal(dev.deser(save).log.length, 20);
@@ -33,9 +35,10 @@ test('a note is counted when it comes again, not repeated, and text stays text',
   const f = U.feed(); assert.equal(f[0].n, 2); assert.equal(f.filter(e => e.text === 'Not enough scrap.').length, 1);
   assert.match(U.live(), /Not enough scrap\.<em>×2<\/em>/);
   U.push('<b>bold</b> & more'); assert.doesNotMatch(U.live(), /<b>bold<\/b>/); assert.match(U.live(), /&lt;b&gt;bold&lt;\/b&gt; &amp; more/);
-  // at most three at once, newest first
+  // two lines at most, newest first; a new line is lit, and it stays as the last thing that happened once it is old
   for (const t of ['one', 'two', 'three', 'four']) U.push(t);
-  const lines = U.live().match(/<div class="ev /g) || []; assert.equal(lines.length, 3); assert.ok(U.live().indexOf('four') < U.live().indexOf('three'));
+  const lines = U.live().match(/<div class="ev /g) || []; assert.equal(lines.length, 2); assert.ok(U.live().indexOf('four') < U.live().indexOf('three'));
+  assert.doesNotMatch(U.live(), /two/); assert.match(U.live(), /class="ev note new"/);
 });
 
 test('the log a save already holds is in the channel from the start, and time away comes in as a note, not a box', () => {
@@ -76,4 +79,45 @@ test("the sheet's heights leave the game room on any phone, and the peek clears 
     assert.ok(half >= vh * .3 || half === full, vh + ': half is a real look at the panel');
   }
   assert.equal(px('peek', 844, 67, 34), px('peek', 844, 67, 0) + 34, 'the peek clears the home bar');
+});
+
+test('the events bar can be closed and opened again, and it is remembered', () => {
+  const b = boot(), U = b.dev.uix;
+  assert.equal(U.ev(), 'open'); U.push('A line.'); assert.match(U.live(), /A line\./);
+  U.setEv('closed'); assert.equal(U.ev(), 'closed'); assert.equal(U.live(), '', 'closed: no lines, only the strip');
+  assert.equal(JSON.parse(b.storage.get('ashen-ui')).ev, 'closed');
+  U.push('Another.'); assert.equal(U.live(), '', 'it stays closed when something happens'); assert.equal(U.feed()[0].text, 'Another.', 'and nothing is lost');
+  const b2 = boot(b.storage); assert.equal(b2.dev.uix.ev(), 'closed', 'the next visit finds it closed');
+  b2.dev.uix.list(true); assert.equal(b2.dev.uix.ev(), 'open', 'asking for all events opens it'); assert.match(b2.dev.uix.listHTML(), /Nothing has happened yet|evl/);
+  b2.dev.uix.setEv('closed'); assert.equal(b2.dev.uix.st().list, false, 'closing it puts the list away too');
+  b2.dev.uix.setEv('open'); assert.equal(b2.dev.uix.ev(), 'open');
+});
+
+test('what is going on right now is an icon in the bar: it flashes, a tap opens it with its buttons, and it closes when it is over', () => {
+  const { dev, S, T } = base(10), U = dev.uix, i = dev.def.border()[0];
+  U.tick(); assert.equal(U.alerts().length, 0); assert.equal(U.icons(), ''); assert.equal(U.alertBox().hidden, true, 'nothing on: no icons, nothing open');
+  const c = raidAt(dev, S, T, i); c.foe = 'dogs'; c.phase = 'coming'; c.left = 61; U.tick();
+  const [a] = U.alerts(); assert.equal(a.k, 'raid'); assert.equal(a.ic, 'paw', 'feral dogs get a paw'); assert.equal(a.n, 61); assert.equal(a.hot, 1);
+  assert.match(U.icons(), /class="evic hot" type="button" data-al="raid" aria-expanded="false"/); assert.match(U.icons(), /<b>61s<\/b>/);
+  assert.equal(U.alertBox().hidden, true, 'it does not open by itself: nothing covers the game');
+  U.pick('raid'); assert.equal(U.picked(), 'raid'); assert.equal(U.alertBox().hidden, false);
+  assert.match(U.alertBox().html, /Feral dogs coming at tile \d+ · 61 s/); assert.match(U.alertBox().html, /data-act="df:look"/); assert.match(U.icons(), /aria-expanded="true"/);
+  // at the wall it wants an answer: it flashes faster, and the open box has the choices
+  c.phase = 'here'; c.left = 0; c.wait = 30; U.tick();
+  assert.equal(U.alerts()[0].hot, 2); assert.match(U.icons(), /class="evic hot now"/); assert.match(U.alertBox().html, /data-act="df:fight"/); assert.match(U.alertBox().html, /data-act="df:quick"/);
+  // the kind of band shows in the icon
+  c.foe = 'raiders'; assert.equal(U.alerts()[0].ic, 'raid'); c.foe = 'nest'; assert.equal(U.alerts()[0].ic, 'mut');
+  // a tap again closes it; the thing ending closes it too
+  U.pick('raid'); assert.equal(U.picked(), null); assert.equal(U.alertBox().hidden, true);
+  U.pick('raid'); assert.equal(U.alertBox().hidden, false); S.raid.cur = null; U.tick();
+  assert.equal(U.picked(), null); assert.equal(U.alertBox().hidden, true); assert.equal(U.icons(), '');
+  // the first of them is still what alertText() gives (the old single alert)
+  raidAt(dev, S, T, i); assert.equal(dev.def.alertNow().b[0][0], 'df:fight');
+});
+
+test('long countdowns show in minutes, and text in an opened event stays text', () => {
+  const { dev, S, T } = base(10), U = dev.uix, i = dev.def.border()[0];
+  const c = raidAt(dev, S, T, i); c.phase = 'coming'; c.left = 240; U.tick(); assert.match(U.icons(), /<b>4m<\/b>/);
+  c.left = 99; U.tick(); U.pick('raid'); assert.match(U.icons(), /<b>99s<\/b>/);
+  assert.doesNotMatch(U.alertBox().html, /<script/); assert.match(U.alertBox().html, /^<span>Raiders coming at tile/);
 });
