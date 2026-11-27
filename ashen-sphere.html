@@ -129,11 +129,12 @@ button:disabled{opacity:.42;cursor:not-allowed}
 }
 @media (max-width:420px){ .chip b{font-size:15px} h1{font-size:21px} }
 /* ==== UI CSS (start) ==== */
-/* The overlay layout (the UI block sets the sizes it uses): the game fills the screen and everything else floats over
-   it. Supplies sit in a slim bar on top, messages go to a small event channel at the top left, and the panel is a sheet
-   that slides up from the bottom; on wide screens it is a column on the right that closes to a tab. */
+/* The overlay layout (the UI block sets the sizes it uses): the game fills the screen and everything else sits around
+   it. Supplies sit in a slim bar on top, messages and what is going on right now go to the events bar just under the
+   game, and the panel is a sheet that slides up from the bottom; on wide screens it is a column on the right that closes
+   to a tab. */
 :root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);
-  --hud-h:64px;--sheet-h:45vh;--side-w:0px;--deck-h:0px;--glass:rgba(17,14,10,.78)}
+  --hud-h:64px;--sheet-h:45vh;--side-w:0px;--deck-h:0px;--ev-h:44px;--ev-max:300px;--glass:rgba(17,14,10,.78)}
 .app{display:block;height:100%;padding:0}
 .main{display:block}
 .saprobe{position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none}
@@ -158,34 +159,56 @@ body[data-view=fight] .hud{display:none}
 .hud .goal:empty{display:none}
 .hud .mats{order:3;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;font-size:11px;padding:0 2px;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent)}
 .hud .mats::-webkit-scrollbar{display:none}
-/* the game: all of the screen the bar and the sheet leave (a fight has no bar) */
-.stage{position:fixed;z-index:1;left:0;right:var(--side-w);top:var(--hud-h);bottom:calc(var(--sheet-h) + var(--deck-h));min-height:0;flex:none}
+/* the game: all of the screen the bar, the events bar and the sheet leave (a fight has neither bar) */
+.stage{position:fixed;z-index:1;left:0;right:var(--side-w);top:var(--hud-h);bottom:calc(var(--sheet-h) + var(--deck-h) + var(--ev-h));min-height:0;flex:none}
 body[data-view=fight] .stage{top:var(--sat)}
 canvas:focus-visible{outline:1px solid rgba(240,164,58,.25);outline-offset:-1px}
 .stage .tools{top:8px;right:calc(var(--sar) + 8px);gap:6px}
 .stage .tools button{width:42px;height:40px;border-radius:10px;background:var(--glass);border-color:rgba(58,49,39,.95);font-size:15px}
 .stage .legend{left:calc(var(--sal) + 10px);max-width:calc(100% - var(--sal) - 100px);bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000,0 0 6px #000}
-.stage .alert{bottom:28px;width:min(calc(100% - 20px),440px);background:rgba(24,20,15,.95);border-radius:10px;padding:6px 8px 6px 10px;gap:6px 8px;font-size:12.5px;line-height:1.35;box-shadow:0 4px 14px rgba(0,0,0,.45)}
-.stage .alert button.act{padding:5px 10px;font-size:12.5px}
 .stage .toast{display:none!important}
-/* the event channel: the newest few messages show for a few seconds and fade; Events opens all of them */
-.feed{position:absolute;z-index:3;left:calc(var(--sal) + 8px);right:62px;top:8px;bottom:30px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;pointer-events:none}
-.feed>*{pointer-events:auto}
-.feedbtn{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:2px 10px;border-radius:14px;border:1px solid rgba(58,49,39,.95);background:var(--glass);color:var(--paper-dim);font:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+/* the events bar: it sits just under the game, never over it. Its row holds an icon for each thing going on right now
+   (the pressing ones flash; a tap opens one, with its buttons), the two newest messages, and two buttons: all events,
+   and close. Closed, it is a slim strip with the icons and a way back. All events opens upward over the game and goes
+   away again with a tap outside it. */
+.feed{position:fixed;z-index:4;left:0;right:var(--side-w);bottom:calc(var(--sheet-h) + var(--deck-h));display:flex;flex-direction:column;background:linear-gradient(rgba(22,18,13,.97),rgba(16,13,9,.98));border-top:1px solid rgba(58,49,39,.9)}
+body[data-view=fight] .feed{display:none}   /* a fight gets the screen: the messages wait in Events */
+.feedrow{display:flex;align-items:center;gap:7px;min-height:42px;padding:4px calc(var(--sar) + 8px) 4px calc(var(--sal) + 8px)}
+.feed[data-ev=closed] .feedrow{min-height:34px;padding-top:2px;padding-bottom:2px}
+.feedctl{flex:0 0 auto;display:flex;align-items:center;gap:5px;margin-left:auto}
+.feedbtn{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:32px;height:30px;padding:0 9px;border-radius:15px;border:1px solid rgba(58,49,39,.95);background:rgba(31,26,20,.75);color:var(--paper-dim);font:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
 .feedbtn:hover,.feedbtn[aria-expanded=true]{color:var(--paper);border-color:var(--lamp)}
-.feedbtn i{font-style:normal;font-size:13px;letter-spacing:0}
-.feedlive{flex:0 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;gap:3px;max-width:min(100%,310px);pointer-events:none}
-/* the newest gets three lines, older ones one: Events has them in full */
-.feedlive .ev{padding:3px 9px;border-radius:8px;background:rgba(14,11,8,.76);border-left:2px solid var(--lamp);color:var(--paper);font-size:11.5px;line-height:1.35;box-shadow:0 2px 6px rgba(0,0,0,.3);animation:uifade 8s linear both}
-.feedlive .ev>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
-.feedlive .ev+.ev{color:var(--paper-dim)}.feedlive .ev+.ev>span{-webkit-line-clamp:1}
+.feedbtn i{font-style:normal;font-size:13px;letter-spacing:0;line-height:1}
+.feed[data-ev=closed] .feedlive,.feed[data-ev=closed] #feedbtn{display:none}
+/* the two newest messages: two lines of room, no more. The newest takes both if it needs them */
+.feedlive{flex:1 1 auto;min-width:0;height:32px;overflow:hidden;display:flex;flex-direction:column}
+.feedlive .ev{flex:0 0 auto;min-width:0;padding-left:7px;border-left:2px solid var(--lamp);color:var(--paper);font-size:12px;line-height:16px}
+.feedlive .ev>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.feedlive .ev+.ev>span{-webkit-line-clamp:1}
+.feedlive .ev.old{color:var(--paper-dim);border-left-color:rgba(93,80,65,.9)}
 .feedlive .ev.note{border-left-color:var(--paper-dim)}.feedlive .ev.bug{border-left-color:var(--rust)}
+.feedlive .ev.new{animation:evnew 1.4s ease-out both}
 .feedlive em,.feedlist em{font-style:normal;color:var(--paper-dim);margin-left:4px}
-@keyframes uifade{0%{opacity:0;transform:translateY(-4px)}3%{opacity:1;transform:none}86%{opacity:1}100%{opacity:0}}
-@keyframes uifade2{0%,92%{opacity:1}100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.feedlive .ev{animation-name:uifade2}}
-body[data-view=fight] .feedlive{display:none}   /* a fight keeps its board clear: the messages wait in Events */
-.feedlist{flex:0 1 auto;min-height:0;max-height:62%;overflow:auto;overscroll-behavior:contain;width:min(100%,400px);padding:3px 0;border-radius:10px;border:1px solid var(--line);background:rgba(22,18,13,.96);box-shadow:0 6px 18px rgba(0,0,0,.5)}
+@keyframes evnew{0%{background:rgba(240,164,58,.32)}100%{background:rgba(240,164,58,0)}}
+/* what is going on right now: one round icon each, with its countdown. The pressing ones flash */
+.evicons{flex:0 0 auto;display:flex;align-items:center;gap:5px}
+.evic{display:inline-flex;align-items:center;justify-content:center;gap:3px;height:30px;min-width:30px;padding:0 7px;border-radius:15px;border:1px solid rgba(93,80,65,.95);background:rgba(31,26,20,.9);color:var(--paper);font:inherit;font-size:11px;line-height:1;cursor:pointer}
+.evic svg{width:17px;height:17px;flex:0 0 17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.evic svg .f{fill:currentColor;stroke:none}
+.evic b{font-weight:700;font-variant-numeric:tabular-nums}.evic b:empty{display:none}
+.evic:hover{border-color:var(--lamp)}
+.evic.hot{border-color:var(--rust);color:#ffe2d4;animation:evflash 1.1s ease-in-out infinite}
+.evic.now{animation-duration:.5s}
+.evic[aria-expanded=true]{background:var(--lamp);border-color:var(--lamp);color:var(--soot);animation:none}
+@keyframes evflash{0%,100%{background:rgba(31,26,20,.9);box-shadow:0 0 0 0 rgba(224,80,60,0)}50%{background:rgba(192,98,58,.75);box-shadow:0 0 0 3px rgba(224,80,60,.3)}}
+@media (prefers-reduced-motion:reduce){.evic.hot{animation:none;background:rgba(192,98,58,.5)}.feedlive .ev.new{animation:none}}
+/* one of them opened: what it is, and its buttons, in the bar above the row */
+.feed .alert{position:static;width:auto;margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:7px calc(var(--sar) + 8px) 5px calc(var(--sal) + 10px);border:0;border-bottom:1px dashed rgba(58,49,39,.9);border-radius:0;background:none;box-shadow:none;font-size:12.5px;line-height:1.35}
+.feed .alert[hidden]{display:none}
+.feed .alert>span{flex:1 1 7em;min-width:0}
+.feed .alert button.act{flex:0 0 auto;padding:6px 9px;font-size:12px}
+/* all events: a list that opens upward from the bar */
+.feedlist{position:absolute;left:calc(var(--sal) + 6px);bottom:calc(100% + 6px);width:min(calc(100% - var(--sal) - var(--sar) - 12px),520px);max-height:var(--ev-max);overflow:auto;overscroll-behavior:contain;padding:3px 0;border-radius:10px;border:1px solid var(--line);background:rgba(22,18,13,.97);box-shadow:0 6px 18px rgba(0,0,0,.5)}
 .feedlist .evl{padding:5px 10px;font-size:12px;line-height:1.35;color:var(--paper);border-bottom:1px solid rgba(58,49,39,.55)}
 .feedlist .evl:last-child{border-bottom:0}
 .feedlist .evl i{font-style:normal;color:var(--lamp);font-size:11px;margin-right:6px}
@@ -211,8 +234,11 @@ body[data-view=fight] .feedlive{display:none}   /* a fight keeps its board clear
   .grab i{width:5px;height:44px}
   .sheetmax{display:none}
   .sheet[data-st=closed] .drawer{display:none}
-  .sheet .drawer{padding:12px calc(var(--sar) + 14px) calc(var(--sab) + 14px) 12px}
-  .stage{bottom:var(--deck-h)}
+  .sheet .drawer{padding:0 calc(var(--sar) + 14px) calc(var(--sab) + 14px) 12px}
+  .tabs{padding-top:8px}
+  .tab{flex:1 1 auto;padding:0 3px;font-size:10.5px;letter-spacing:0}
+  .stage{bottom:calc(var(--deck-h) + var(--ev-h))}
+  .feed{padding-bottom:var(--sab)}
   .fdeck{bottom:0}
 }
 @media (min-width:860px){
@@ -230,6 +256,47 @@ body[data-view=fight] .feedlive{display:none}   /* a fight keeps its board clear
    from the top: centred when it fits */
 .splash{overflow-y:auto;overscroll-behavior:contain}
 .splash-in{margin:auto}
+/* the panel's tabs: Here is whatever was tapped last; the rest are the game's windows. They stay put while the panel scrolls */
+.tabs{position:sticky;top:0;z-index:3;flex:0 0 auto;display:flex;gap:2px;margin:0 -4px;padding:0 0 2px;background:#1b1711;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{position:relative;flex:1 0 auto;min-width:0;height:34px;padding:0 7px;border:0;border-bottom:2px solid rgba(58,49,39,.9);background:none;color:var(--paper-dim);font:inherit;font-size:11.5px;letter-spacing:.03em;white-space:nowrap;cursor:pointer}
+.tab:hover{color:var(--paper)}
+.tab[aria-selected=true]{color:var(--paper);border-bottom-color:var(--lamp)}
+.tab.dot::after{content:"";position:absolute;top:6px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--lamp)}
+/* the game's own windows (Stores, Guide, Menu): short labelled blocks, a choice as one row of buttons, a topic that opens */
+.pane{display:flex;flex-direction:column;gap:12px}
+.opt{display:flex;flex-direction:column;gap:5px}
+.opt>span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--paper-dim)}
+.opt>small{font-size:12px;color:var(--paper-dim);max-width:62ch}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1 1 0;min-width:0;min-height:38px;padding:4px 6px;border:0;border-right:1px solid var(--line);background:var(--soot);color:var(--paper-dim);font:inherit;font-size:12.5px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button:hover{color:var(--paper)}
+.seg button[aria-pressed=true]{background:var(--lamp);color:var(--soot);font-weight:700}
+.splash .seg{width:100%}
+.stock{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 14px;font-size:13px}
+.stock span{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:3px 0;border-bottom:1px dotted rgba(58,49,39,.9)}
+.stock b{font-weight:400}.stock em{font-style:normal;color:var(--paper);font-variant-numeric:tabular-nums;text-align:right}
+.stock i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.topic{border-top:1px solid rgba(58,49,39,.8)}
+.topic>button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;min-height:40px;padding:6px 2px;border:0;background:none;color:var(--paper);font:inherit;font-weight:700;text-align:left;cursor:pointer}
+.topic>button i{font-style:normal;font-weight:400;color:var(--paper-dim)}
+.topic ol,.topic ul{margin:0 0 10px;padding-left:20px;display:flex;flex-direction:column;gap:5px;max-width:62ch}
+.topic p{margin:0 0 8px}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;font-size:13px}
+.checks li{position:relative;padding-left:20px;color:var(--paper-dim)}
+.checks li::before{content:"\25cb";position:absolute;left:2px}
+.checks li.ok{color:var(--paper)}.checks li.ok::before{content:"\2713";color:#7fa860}
+/* the tutorial's card, at the top of the Here tab */
+.coach{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding:8px 10px;border:1px solid var(--lamp);border-radius:10px;background:rgba(240,164,58,.07)}
+.coach .row{justify-content:space-between}
+.coach button.act{padding:5px 12px}
+/* less on the screen: materials are in the Stores tab, starting over is in the Menu tab, and the day is never cut short */
+.hud .mats,#resetrow{display:none}
+.hud .clock{flex:0 0 auto;max-width:64%}
+.hud .goal{flex:1 1 auto}
+@media (min-width:860px){.hud .clock,.hud .goal{flex:0 1 auto}}
+.sheet .drawer{gap:8px}
 /* ==== UI CSS (end) ==== */
 </style>
 
@@ -243,6 +310,7 @@ body[data-view=fight] .feedlive{display:none}   /* a fight keeps its board clear
     <p>The world burned and kept turning. Five of you, one bunker, and something still blinking in orbit.</p>
     <div class="facts">642 tiles · 12 spires · 12 rows down · 4 worlds</div>
     <div class="go">
+      <div class="seg" id="sdiff" role="group" aria-label="Difficulty" hidden><button type="button" data-d="easy" aria-pressed="false">Easy</button><button type="button" data-d="normal" aria-pressed="true">Normal</button><button type="button" data-d="hard" aria-pressed="false">Hard</button></div>
       <button class="act primary" id="begin"><span id="begin-t">Begin</span><small id="begin-s">A new world</small></button>
       <a class="linkbtn" id="to-archives" href="index.html" hidden>Back to the Archives of Madness</a>
     </div>
@@ -273,10 +341,17 @@ body[data-view=fight] .feedlive{display:none}   /* a fight keeps its board clear
         <button id="dive" aria-label="Go below the bunker">⇩</button>
         <button id="sys" aria-label="System map" hidden>✦</button>
       </div>
-      <div class="feed" id="feed"><button class="feedbtn" id="feedbtn" type="button" aria-expanded="false" aria-controls="feedlist"><i>≡</i><span>Events</span></button><div class="feedlive" id="feedlive" aria-live="polite"></div><div class="feedlist" id="feedlist" role="log" aria-label="Recent events" hidden></div></div>
       <div class="legend" id="legend">642 tiles · 12 spires</div>
       <div class="toast" id="toast" hidden></div>
+    </div>
+    <div class="feed" id="feed" data-ev="open">
+      <div class="feedlist" id="feedlist" role="log" aria-label="All events" hidden></div>
       <div class="alert" id="alert" hidden role="status"></div>
+      <div class="feedrow">
+        <div class="evicons" id="evicons" role="group" aria-label="Going on right now" hidden></div>
+        <div class="feedlive" id="feedlive" aria-live="polite"></div>
+        <div class="feedctl"><button class="feedbtn" id="feedbtn" type="button" aria-expanded="false" aria-controls="feedlist" aria-label="Show all events"><i>▲</i></button><button class="feedbtn" id="feedx" type="button" aria-label="Close the events bar"><i>×</i></button></div>
+      </div>
     </div>
     <div class="saprobe" id="saprobe" aria-hidden="true"></div>
     <div class="fdeck" id="fdeck" hidden><div class="fstick" id="fstick" role="img" aria-label="The stick: your puppet's rod"><div class="fball" id="fball"></div></div><div class="fmid"><div class="fabs" id="fabs" hidden></div><p class="fhint">Stick: arrows or WASD<br>Button: Space or Enter<br>Abilities: Q and E</p></div><button class="fbtn" id="fbtn" type="button" aria-label="The button: fire, thrust, throw or punch">FIRE</button></div>
@@ -284,6 +359,7 @@ body[data-view=fight] .feedlive{display:none}   /* a fight keeps its board clear
       <div class="grab" id="grab" role="button" tabindex="0" aria-label="Lower the panel" aria-expanded="true" aria-controls="drawer"><i></i></div>
       <button class="sheetmax" id="sheetmax" type="button" aria-label="Make the panel tall">▲</button>
       <div class="drawer" id="drawer">
+        <div class="tabs" id="tabs" role="tablist" aria-label="Windows" hidden></div>
         <div id="panel"></div>
         <div class="log" id="log" hidden></div>
         <div class="row" id="resetrow"><button class="linkbtn" id="reset">Start a new world</button></div>
@@ -543,12 +619,12 @@ function labHTML(){const r=S.rs,rate=E.rsRate||0;
       return btn("bp:"+k,B.name+(B.tier>1?" \u00b7 "+["","","advanced","Builder"][B.tier]:""),B.what+" · "+(ready?costText(B.cost)+" · "+B.pts+" research":(mind?"needs someone "+IQNAME[B.tier]:"")+(mind&&need.length?", and ":"")+(need.length?"needs "+need.map(n=>BP[n].name).join(", "):"")),ready&&!r?B.cost:null,"",!ready||!!r)}).join("")+"</div>"}
   return h}
 function smartHTML(inRs){const sm=S.people.filter(p=>smartOf(p)>0).sort((a,b)=>smartOf(b)-smartOf(a)),left=(S.k.lessons|0)-(S.k.taught|0);
-  let h="<p>Research: <b>"+(E.rsRate||0).toFixed(1)+" a second</b> from "+(sm.length?sm.map(p=>p.name+" ("+IQNAME[smartOf(p)]+")").join(", "):"nobody")+(E.labBoost?", +"+Math.round(E.labBoost*100)+"% from labs":"")+". "+(S.rs?"Working on "+BP[S.rs.id].name+".":"Nothing being researched.")+"</p>"+(inRs?"":'<div class="acts">'+btn("rs","Blueprints","Research upgrades, in "+["no","one","two","three","four","five","six","seven","eight","nine","ten"][Math.min(10,BRANCHES.length)]+" branches",null,"primary")+"</div>");
-  if(left>0&&inRs)h+="<p><b>A Spire can teach someone.</b> Choose who in your People list.</p>";
+  let h="<p>Research: <b>"+(E.rsRate||0).toFixed(1)+" a second</b> from "+(sm.length?sm.map(p=>p.name+" ("+IQNAME[smartOf(p)]+")").join(", "):"nobody")+(E.labBoost?", +"+Math.round(E.labBoost*100)+"% from labs":"")+". "+(S.rs?"Working on "+BP[S.rs.id].name+".":"Nothing being researched.")+"</p>";
+  if(left>0&&inRs)h+='<p><b>A Spire can teach someone.</b></p><div class="acts">'+btn("tab:people","Choose who","In the People tab",null,"")+"</div>";
   else if(left>0)h+="<p><b>A Spire can teach someone"+(left>1?" ("+left+" lessons waiting)":"")+".</b> Pick who studies it: they come back smarter, with a bigger head, and research faster.</p><div class=\"acts\">"+
     S.people.slice().sort((a,b)=>smartOf(b)-smartOf(a)).map(p=>btn("teach:"+p.id,p.name,IQNAME[smartOf(p)]+" \u2192 "+IQNAME[Math.min(5,Math.max(1,smartOf(p))+1)],null,"")).join("")+"</div>";
   return h}
-function researchHTML(){return'<div class="row"><button class="linkbtn" data-act="rsback">\u2190 Back to your people</button></div><div class="tile-h">Blueprints</div>'+smartHTML(true)+labHTML()}
+function researchHTML(){return'<div class="tile-h">Blueprints</div>'+smartHTML(true)+labHTML()}
 const deg=v=>String(Math.round(v)).replace("-","\u2212")+"\u00b0C";
 function FIND(r,c){if(c===SHAFT)return null;const h=h3(r,c,77);if(r>=3&&r<=8&&h<.22)return"aquifer";if(r>=9&&h>.86)return"relic";if(h>.78)return"cache";if(h>.68&&h<.76)return"cave";return null}
 const rowNeed=r=>{const b=Math.min(3,Math.floor(r/3));return b===3&&S.unl.skywell?30:CFG.rowGates[b]};
@@ -572,7 +648,7 @@ const pickStarters=()=>{const nb=T[START].n.filter(land).filter(j=>!T[j].pent);
   const w=nb.find(j=>T[j].coast)??nb[0],f=nb.filter(j=>j!==w).sort((a,b)=>(T[b].b==="woods")-(T[a].b==="woods"))[0];return[[w,"still"],[f,"green"]]};
 let STARTERS=pickStarters();
 function fresh(){const s={t:0,res:{scrap:CFG.start.scrap,water:CFG.start.water,food:CFG.start.food},pop:CFG.start.people,owned:new Set([START]),bld:{[START]:"bunker"},order:[],goal:0,grow:0,starve:0,
-  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},bp:[],rs:null,h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
+  seen:null,hatch:false,ug:{},dig:null,relics:0,maps:{},exp:null,unl:{},cnt:{},gear:{},wounded:0,world:0,codex:{worlds:[],items:[],found:[]},x:null,xw:{},xs:{built:[],trips:0},veh:{},arts:[],glyphs:0,wet:{},caves:{},atlas:{at:"0,0,0,1,1,1",marks:[]},fw:"",fab:[],abk:[],beat:{},bp:[],rs:null,h:{secret:false,active:0,susp:0,sealed:false,arming:0,crack:null,detained:null,silo:{parts:{},job:null,power:true},insp:{i:0,phase:"idle"},quota:{next:1800,due:false,deadline:0,amount:0},hold:{people:[],pallets:{scrap:0,water:0,food:0}}},people:[],k:{tut:1,fuel:0,ping:false,scout:false,lantern:false,tele:0,launches:0,nextPid:1,flight:null,design:{engine:"spark",tanks:["small","small"],antenna:true,arm:false},ship:{engine:"roc",tanks:["large","large","large","large"],pods:1,antenna:true},dest:"mire",rations:40,crew:[],veh:""},log:["Day 1. Five of you, a bunker, a still and a greenhouse."]};
   for(const[i,b]of STARTERS){s.owned.add(i);s.bld[i]=b;s.order.push(i)}s.seen=ring(s.owned,2);return s}
 function ser(){return{v:9,dfs:S.dfs,raid:S.raid,cbs:S.cbs,orb:S.orb,wear:S.wear,mats:S.mats,inside:S.inside,fw:S.fw,fab:S.fab,abk:S.abk,beat:S.beat,bp:S.bp,rs:S.rs,atlas:S.atlas,veh:S.veh,arts:S.arts,glyphs:S.glyphs,wet:S.wet,caves:S.caves,x:S.x,xw:S.xw,xs:S.xs,world:S.world,codex:S.codex,h:S.h,people:S.people,k:S.k,maps:S.maps,exp:S.exp,unl:S.unl,cnt:S.cnt,gear:S.gear,wounded:S.wounded,t:S.t,res:S.res,pop:S.pop,owned:[...S.owned],bld:S.bld,order:S.order,goal:S.goal,grow:S.grow,starve:S.starve,seen:[...S.seen],hatch:S.hatch,ug:S.ug,dig:S.dig,relics:S.relics,log:S.log,saved:Date.now()}}
 function deser(o){MAPS.clear();AMAPS.clear();CMAPS.clear();if(typeof PMAPS!=="undefined")PMAPS.clear();if(!o||![5,6,7,8,9].includes(o.v)||!Array.isArray(o.owned)||!o.owned.length)return null;
@@ -1039,11 +1115,19 @@ function tickActive(dt){if(!S||S.h.crack)return;S.h.active+=dt;defTick(dt);const
     if(a>=at){I.phase="idle";I.i++;inspect()}}
   const q=S.h.quota;if(!q.due&&a>=q.next){q.due=true;q.deadline=a+HV.quotaGrace;q.amount=HV.quotaScrap;q.next=a+HV.quotaEvery;toast("The Republic wants its quota: "+q.amount+" scrap within "+HV.quotaGrace+" seconds.");dirty=true}
   if(q.due&&a>=q.deadline){q.due=false;S.h.susp=Math.min(100,S.h.susp+HV.susp.quotaMissed);say("You missed the Republic's quota. They will remember.");dirty=true}}
-function alertText(){if(!S||!S.h||S.h.crack)return null;{const ra=raidAlert()||squadAlert();if(ra)return ra}const I=S.h.insp,a=S.h.active;
-  if(S.x&&S.x.enc&&!FIGHT){const D=SPACE_FOES[S.x.enc.k];return{t:D.title+(D.plural?" are":" is")+" alongside the ship",b:[["sfight","Fight it out"],["squick","Quick fight"]]}}
-  if(republicHere()&&I.phase==="warn"){const at=inspTimes().at(I.i);return{t:"Inspectors land in "+Math.max(0,Math.ceil(at-a))+" s",b:[["hide","Hide everything"+(siloDone("floor")||S.h.sealed?"":" ("+HV.hideCost+" scrap)")]]}}
-  if(republicHere()&&S.h.quota.due)return{t:"Quota due: "+S.h.quota.amount+" scrap in "+Math.max(0,Math.ceil(S.h.quota.deadline-a))+" s",b:[["quota","Send it"]]};
-  if(S.h.detained)return{t:S.h.detained.person.name+" is held for questioning ("+Math.ceil(S.h.detained.left)+" s)",b:[["release","Pay "+HV.releaseCost+" scrap to release"]]};return null}
+// everything going on right now that wants an answer or a look, most pressing first. The events bar shows an icon for
+// each of them (the UI block); alertText() is the first. k: which one, ic: its icon, n: seconds left (-1: no clock),
+// hot: 0 steady, 1 flashing, 2 flashing fast (it wants an answer now), t: what it says, b: its buttons
+function alertList(){if(!S||!S.h||S.h.crack)return[];const L=[],I=S.h.insp,a=S.h.active,c=S.raid&&S.raid.cur,ra=raidAlert(),sq=squadAlert();
+  if(ra)L.push({k:"raid",ic:c.foe==="dogs"?"paw":c.foe==="nest"?"mut":"raid",n:Math.ceil(c.phase==="coming"?c.left:c.wait),hot:c.phase==="coming"?1:2,t:ra.t,b:ra.b});
+  if(sq)L.push({k:"squad",ic:"flag",n:-1,hot:0,t:sq.t,b:sq.b});
+  if(S.x&&S.x.enc&&!FIGHT){const D=SPACE_FOES[S.x.enc.k];L.push({k:"enc",ic:"ship",n:-1,hot:2,t:D.title+(D.plural?" are":" is")+" alongside the ship",b:[["sfight","Fight it out"],["squick","Quick fight"]]})}
+  if(republicHere()&&I.phase==="warn"){const n=Math.max(0,Math.ceil(inspTimes().at(I.i)-a));L.push({k:"insp",ic:"eye",n,hot:1,t:"Inspectors land in "+n+" s",b:[["hide","Hide everything"+(siloDone("floor")||S.h.sealed?"":" ("+HV.hideCost+" scrap)")]]})}
+  if(republicHere()&&S.h.quota.due){const n=Math.max(0,Math.ceil(S.h.quota.deadline-a));L.push({k:"quota",ic:"crate",n,hot:1,t:"Quota due: "+S.h.quota.amount+" scrap in "+n+" s",b:[["quota","Send it"]]})}
+  {const les=(S.k.lessons|0)-(S.k.taught|0);if(les>0&&!FIGHT)L.push({k:"lesson",ic:"spire",n:-1,hot:0,t:"A Spire can teach someone"+(les>1?" ("+les+" lessons waiting)":"")+": pick who studies it",b:[["tab:people","Choose who"]]})}
+  if(S.h.detained){const n=Math.ceil(S.h.detained.left);L.push({k:"held",ic:"bars",n,hot:1,t:S.h.detained.person.name+" is held for questioning ("+n+" s)",b:[["release","Pay "+HV.releaseCost+" scrap to release"]]})}
+  return L}
+function alertText(){const L=alertList();return L.length?{t:L[0].t,b:L[0].b}:null}
 function holdSlots(){const H=S.h.hold;return H.people.length+H.pallets.scrap+H.pallets.water+H.pallets.food}
 function holdAct(a){const H=S.h.hold,P=HV.hold;
   if(a.startsWith("p:")){const id=+a.slice(2),ix=H.people.indexOf(id);if(ix>=0)H.people.splice(ix,1);else if(H.people.length<P.people&&holdSlots()<P.slots)H.people.push(id)}
@@ -2598,21 +2682,21 @@ function raidBorder(){const out=[];for(const i of S.owned){if(T[i].b==="sea")con
 function raidPick(){const B=raidBorder();if(!B.length)return null;const R0=raidOf(),tp=defTurPowered();let tot=0;const w=B.map(i=>{const v=(S.bld[i]?3:1)/(1+defStr(i,tp));tot+=v;return v});
   let x=h3(R0.n+1,S.owned.size,883)*tot,i=B[B.length-1];for(let q=0;q<B.length;q++){x-=w[q];if(x<=0){i=B[q];break}}
   const src=T[i].n.filter(j=>land(j)&&!S.owned.has(j)),from=src[Math.floor(h3(R0.n+3,i,887)*src.length)];return{i,from}}
-function raidSpawn(quiet){const R0=raidOf(),pk=raidPick();if(!pk)return;const foe=raidFoeAt(pk.from),lvl=Math.max(1,Math.min(4,1+Math.floor(R0.n/DF.lvlEvery)+(foe==="nest"?1:0)));
-  const tw=[...ring([pk.i],2)].some(j=>S.owned.has(j)&&dfAt(j)&&dfAt(j).tower),left=DF.warn+(tw?DF.towerWarn:0);
-  R0.cur={i:pk.i,from:pk.from,foe,lvl,left,total:left,phase:"coming",wait:DF.decide,seed:(Math.imul(R0.n+1,2654435761)^Math.imul(pk.i+1,40503))>>>0,att:0,mined:false};R0.n++;
+function raidSpawn(quiet){const R0=raidOf(),pk=raidPick();if(!pk)return;const foe=raidFoeAt(pk.from),lvl=Math.max(1,Math.min(4,1+Math.floor(R0.n/DF.lvlEvery)+(foe==="nest"?1:0)+diff().lvl));
+  const tw=[...ring([pk.i],2)].some(j=>S.owned.has(j)&&dfAt(j)&&dfAt(j).tower),left=(DF.warn+(tw?DF.towerWarn:0))*diff().warn;
+  R0.cur={i:pk.i,from:pk.from,foe,lvl,left,total:left,phase:"coming",wait:DF.decide*diff().warn,seed:(Math.imul(R0.n+1,2654435761)^Math.imul(pk.i+1,40503))>>>0,att:0,mined:false};R0.n++;
   if(!quiet){say(raidName(foe).replace(/^./,m=>m.toUpperCase())+" is coming out of the "+BIOME[T[pk.from].b].name.toLowerCase()+" at tile "+pk.i+".");toast(raidName(foe).replace(/^./,m=>m.toUpperCase())+" is coming at tile "+pk.i+": "+Math.round(left)+" s. Tap Show me.")}dirty=true}
 // called from the clock while the game is on screen (raids never come while you're away)
 function defTick(dt){if(!S||S.h&&S.h.crack)return;const R0=raidOf();R0.t+=dt;
-  if(!R0.on){if(S.owned.size>=DF.start){R0.on=true;R0.next=R0.t+DF.firstIn;say("Smoke on the horizon. Your lights have been seen: raiders and worse will come at your border. Wall and arm the tiles at the edge.");
+  if(!R0.on){if(S.owned.size>=DF.start){R0.on=true;R0.next=R0.t+DF.firstIn*diff().every;say("Smoke on the horizon. Your lights have been seen: raiders and worse will come at your border. Wall and arm the tiles at the edge.");
       toast("Raids are coming. Open a border tile and tap Defenses to wall it and arm it.");dirty=true}return}
   const c=R0.cur;
   if(!c){if(R0.t>=R0.next)raidSpawn(false);return}
-  if(c.phase==="coming"){c.left-=dt;if(c.left<=0){c.left=0;c.phase="here";c.wait=DF.decide;const d=dfAt(c.i);
+  if(c.phase==="coming"){c.left-=dt;if(c.left<=0){c.left=0;c.phase="here";c.wait=DF.decide*diff().warn;const d=dfAt(c.i);
       if(d&&d.mines){d.mines=0;c.mined=true;c.lvl=Math.max(1,c.lvl-1);say("The raid on tile "+c.i+" walks into the minefield. They come on, weaker.")}
       toast(raidName(c.foe).replace(/^./,m=>m.toUpperCase())+" is at the wall of tile "+c.i+". Fight, or let the defenses fight.");dirty=true}return}
   if(c.phase==="here"&&!FIGHT){c.wait-=dt;if(c.wait<=0)raidFight("quick")}}
-function raidNextIn(){const R0=raidOf(),[a,b]=DF.every;return a+(b-a)*h3(R0.n,R0.won+R0.lost,889)}
+function raidNextIn(){const R0=raidOf(),[a,b]=DF.every;return(a+(b-a)*h3(R0.n,R0.won+R0.lost,889))*diff().every}
 // ---- settling it
 function defenderOf(i){const p=E&&E.who?[...E.who].find(([id])=>id==="d:"+i||id===i):null;return p?p[1]:S.people[0]||null}
 function raidFight(mode){const R0=raidOf(),c=R0.cur;if(!c||c.phase!=="here"||FIGHT)return;defAbInit();const P=raidP(c.i),L=c.lvl,F=foeOf(c.foe,c.i,7),wk=fightWeapon(),w1=F.wk==="same"?wk:F.wk,
@@ -2622,7 +2706,7 @@ function raidFight(mode){const R0=raidOf(),c=R0.cur;if(!c||c.phase!=="here"||FIG
     g:PUP.start({weapon0:wk,weapon1:w1,seed,look0:you,look1:foe,ctl0:"cab",ctl1:lv.foe,needs:[fightPops(L),fightLives(P)],ab0,ab1:F.ab}),done:false};fightIn()}
 function raidLance(){const R0=raidOf(),c=R0.cur;if(!c||c.phase!=="here"||typeof orbLanceFire!=="function"||!orbLanceFire(c.i))return;R0.cur=null;R0.won++;R0.next=R0.t+raidNextIn();
   const loot=3*c.lvl;S.res.scrap+=loot;say("The Orbital Lance strikes from orbit. Whatever was at the wall of tile "+c.i+" is gone; "+loot+" scrap in the scorch.");toast("A strike from orbit: the raid is over.");dirty=true;save()}
-function raidSteal(c){const k=c.lvl,f=c.foe,take=(r,cap)=>{const v=Math.min(Math.floor(S.res[r]*.2),cap*k);if(v>0)S.res[r]-=v;return v>0?v+" "+r:""},bunk=S.bld[c.i]==="bunker"?1.5:1;
+function raidSteal(c){const k=c.lvl,f=c.foe,dk=diff().steal,take=(r,cap)=>{const v=Math.min(Math.floor(S.res[r]*.2*dk),Math.round(cap*k*dk));if(v>0)S.res[r]-=v;return v>0?v+" "+r:""},bunk=S.bld[c.i]==="bunker"?1.5:1;
   const got=(f==="dogs"?[take("food",25*bunk)]:f==="nest"?[take("food",20*bunk),take("water",15*bunk)]:[take("scrap",30*bunk),take("water",15*bunk)]).filter(Boolean);return got.length?got.join(" and "):"nothing much"}
 function raidOutcome(win,g){const R0=raidOf(),c=R0.cur;if(!c)return;R0.cur=null;R0.next=R0.t+raidNextIn();const i=c.i,sc=g?" "+g.wins[0]+"–"+g.wins[1]:"",nm=raidName(c.foe),d=dfAt(i);matAfterFight(win,false);
   if(win){R0.won++;S.beat=S.beat||{};S.beat[c.foe]=(S.beat[c.foe]|0)+1;const loot=6*c.lvl;S.res.scrap+=loot;if(d&&d.wall)d.wh=Math.max(0,d.wh-8*c.lvl);
@@ -2736,8 +2820,10 @@ function defModel(o,now){const[,,x,y,s,a,dl,i,,X]=o,D=.42+.58*dl,F=cl=>col(cl,D)
     if(night){const sw=reduced?0:Math.sin(t*.8+i)*.9;ctx.globalCompositeOperation="lighter";ctx.fillStyle="rgba(255,240,190,.16)";ctx.beginPath();ctx.moveTo(0,top-s*.15);ctx.lineTo(Math.sin(sw)*s*3-s*.5,top+s*2.4);ctx.lineTo(Math.sin(sw)*s*3+s*.5,top+s*2.4);ctx.closePath();ctx.fill();ctx.globalCompositeOperation="source-over"}
     ctx.fillStyle=night?"#fff3b0":"#6a5a40";ctx.beginPath();ctx.arc(0,top-s*.15,Math.max(.8,s*.08),0,6.2832);ctx.fill()}
   ctx.restore()}
-function defBand(o,now){const[,,x,y,s,a,,,,X]=o;ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.fillStyle="rgba(8,6,4,.3)";ctx.beginPath();ctx.ellipse(0,0,s*.24,s*.07,0,0,6.2832);ctx.fill();
-  PUP.mini(ctx,0,0,s,X.look,now/1000,{ph:X.q*1.9,f:X.f,walk:X.walk,act:X.here?(X.q%2?"point":"hammer"):""});ctx.restore()}
+function defBand(o,now){const[,,x,y,s,a,,,,X]=o,beast=!!X.look.body;ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.fillStyle="rgba(8,6,4,.3)";ctx.beginPath();ctx.ellipse(0,0,s*(beast?.36:.24),s*.07,0,0,6.2832);ctx.fill();
+  // a pack of beasts (feral dogs, a mutant on four legs, in coils, in a shell) comes on its own legs; people come as puppets
+  if(beast)PUP.miniBeast(ctx,0,0,s,X.look,now/1000,{ph:X.q*1.9,f:X.f,walk:X.walk,act:X.here?"bay":""});
+  else PUP.mini(ctx,0,0,s,X.look,now/1000,{ph:X.q*1.9,f:X.f,walk:X.walk,act:X.here?(X.q%2?"point":"hammer"):""});ctx.restore()}
 function defSmoke(o,now){const[,,x,y,s]=o,t=reduced?0:now/1000;for(let q=0;q<3;q++){const k=(t*.35+q/3)%1,px=x+Math.sin(t+q*2)*s*.2+(q-1)*s*.2,py=y-s*(.4+k*1.6),rr=s*(.2+.35*k);
   ctx.fillStyle="rgba(60,56,52,"+(.55*(1-k)).toFixed(2)+")";ctx.beginPath();ctx.arc(px,py,rr,0,6.2832);ctx.fill()}
   if(Math.floor(t*6+o[7])%4){ctx.fillStyle="rgba(255,140,60,.7)";ctx.beginPath();ctx.arc(x-s*.15,y-s*.1,s*.09,0,6.2832);ctx.fill()}}
@@ -3091,36 +3177,71 @@ function cutTap(e){const b=cv.getBoundingClientRect(),sx=(e.clientX-b.left)*DPR,
   const[r,c]=cutCell(sx,sy,GR);if(c>=0&&c<COLS&&r>=0&&r<ROWS){selU=r+","+c;dirty=true}}
 // ==== ZOOM (end) ====
 // ==== UI (start) ====
-// The overlay layout. The game fills the screen and the rest floats over it: supplies in a slim bar on top, messages in
-// a small event channel at the top left (toasts and the log both land there; nothing pops up over the game), and the
-// panel in a sheet that slides up from the bottom (drag its handle, or tap it). On wide screens, and phones on their
+// The overlay layout. The game fills the screen and the rest sits around it: supplies in a slim bar on top, messages
+// and what is going on right now in the events bar just under the game (toasts and the log both land there; nothing
+// pops up over the game), and the panel in a sheet that slides up from the bottom (drag its handle, or tap it). On wide screens, and phones on their
 // side, the panel is a column on the right that closes to a tab. The look is the UI CSS block; this sets the sizes it
 // uses, moves the sheet and keeps the channel. Nothing here is saved with the game: the sheet's height is remembered
 // on its own, and the channel's history is the game's log plus this visit's messages.
 var UI_;   // made on first use (a message can come before this part of the page has run)
 function ui_(){if(UI_)return UI_;let st="half",open=true;
-  try{const o=JSON.parse(localStorage.getItem("ashen-ui")||"null");if(o&&["peek","half","full"].includes(o.st))st=o.st;if(o&&typeof o.open==="boolean")open=o.open}catch(e){}
-  return UI_={st,open,side:false,pre:null,feed:[],seq:0,liveSig:"",listSig:"",list:false,poke:-1e9,seeded:false,pd:null,drag:null}}
+  let ev="open";const lv={sfx:2,mus:2};try{const o=JSON.parse(localStorage.getItem("ashen-ui")||"null");if(o&&["peek","half","full"].includes(o.st))st=o.st;if(o&&typeof o.open==="boolean")open=o.open;if(o&&o.ev==="closed")ev="closed";for(const k of["sfx","mus"])if(o&&[0,1,2,3].includes(o[k]))lv[k]=o[k]}catch(e){}
+  return UI_={st,open,ev,sfx:lv.sfx,mus:lv.mus,tab:"",tabSig:"",help:"",newWorld:false,al:null,alSig:"",side:false,pre:null,feed:[],seq:0,liveSig:"",listSig:"",list:false,poke:-1e9,seeded:false,pd:null,drag:null}}
 function uiEl(id){return document.getElementById(id)}
 function uiNow(){return performance.now()}
 function uiEsc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
-// ---- the event channel: say() (the game's log) and toast() (notes, and bugs) both land here
-// how long a message shows before it fades: longer ones stay longer (6 to 15 seconds)
+// ---- the events bar: say() (the game's log) and toast() (notes, and bugs) both land here
+// how long a message counts as new (it is lit, then it is just the last thing that happened): 6 to 15 seconds
 function uiLife(e){return Math.min(15000,6000+e.text.length*55)}
 function uiFeed(text,kind){const U=ui_(),now=uiNow(),top=U.feed[0];text=String(text==null?"":text);if(!text)return;
   if(top&&top.text===text&&top.kind===kind&&top.t>0&&now-top.t<30000){top.n++;top.t=now}   // the same again: counted, not repeated
   else{let d=0;try{d=day()}catch(e){}U.feed.unshift({id:++U.seq,text,kind,t:now,n:1,d});if(U.feed.length>80)U.feed.length=80}
-  uiFeedDraw()}
+  try{sfx(sndFor(text,kind))}catch(e){}uiFeedDraw()}   // (a line can come before the sound part of the page has run)
 function uiFeedDraw(){const U=ui_(),now=uiNow(),fl=uiEl("feedlive");if(!fl)return;
-  const live=U.list?[]:U.feed.filter(e=>e.t>0&&now-e.t<uiLife(e)).slice(0,3),sig=live.map(e=>e.id+"/"+e.n).join();
-  // each line fades on its own clock: drawn again, it picks up where it was
-  if(sig!==U.liveSig){U.liveSig=sig;fl.innerHTML=live.map(e=>'<div class="ev '+e.kind+'" style="animation-duration:'+(uiLife(e)/1000).toFixed(1)+"s;animation-delay:-"+((now-e.t)/1000).toFixed(2)+'s"><span>'+uiEsc(e.text)+(e.n>1?"<em>×"+e.n+"</em>":"")+"</span></div>").join("")}
+  // the two newest lines stay in the bar: two lines of room, no more (all of them are in the list)
+  const fresh=e=>e.t>0&&now-e.t<uiLife(e),live=U.list||U.ev==="closed"?[]:U.feed.slice(0,2),sig=live.map(e=>e.id+"/"+e.n+(fresh(e)?"n":"")).join();
+  // (a new line's glow runs on its own clock: drawn again, it picks up where it was)
+  if(sig!==U.liveSig){U.liveSig=sig;fl.innerHTML=live.map(e=>'<div class="ev '+e.kind+(fresh(e)?' new" style="animation-delay:-'+((now-e.t)/1000).toFixed(2)+'s':" old")+'"><span>'+uiEsc(e.text)+(e.n>1?"<em>×"+e.n+"</em>":"")+"</span></div>").join("")}
   if(U.list)uiFeedList()}
 function uiFeedList(){const U=ui_(),fl=uiEl("feedlist");if(!fl)return;const sig=U.feed.length+":"+(U.feed[0]?U.feed[0].id+"/"+U.feed[0].n:"");if(sig===U.listSig)return;U.listSig=sig;
   fl.innerHTML=U.feed.length?U.feed.map(e=>'<div class="evl '+e.kind+'">'+(e.kind==="ev"&&e.d?"<i>Day "+e.d+"</i>":"")+uiEsc(e.text)+(e.n>1?"<em>×"+e.n+"</em>":"")+"</div>").join(""):"<p>Nothing has happened yet.</p>"}
-function uiList(open){const U=ui_();U.list=open===undefined?!U.list:!!open;const fl=uiEl("feedlist"),b=uiEl("feedbtn");if(fl){fl.hidden=!U.list;if(U.list)fl.scrollTop=0}
-  if(b&&b.setAttribute)b.setAttribute("aria-expanded",String(U.list));U.listSig=U.liveSig=null;uiFeedDraw()}   // (null: draw both again)
-function uiTick(){uiFeedDraw()}   // from hud(), four times a second: lets old lines go
+function uiList(open){const U=ui_();U.list=open===undefined?!U.list:!!open;if(U.list){tutMark(4);if(U.ev==="closed"){U.ev="open";uiSave()}}const fl=uiEl("feedlist"),b=uiEl("feedbtn");if(fl){fl.hidden=!U.list;if(U.list)fl.scrollTop=0}
+  if(b&&b.setAttribute){b.setAttribute("aria-expanded",String(U.list));b.setAttribute("aria-label",U.list?"Hide all events":"Show all events");b.innerHTML="<i>"+(U.list?"▼":"▲")+"</i>"}
+  U.listSig=U.liveSig=null;uiEvDom();uiFeedDraw();uiLayout()}   // (null: draw both again)
+// the bar itself: open (two lines of messages) or closed (a slim strip: the icons, and a way back). Remembered.
+function uiEv(st){const U=ui_();U.ev=st==="closed"?"closed":"open";if(U.ev==="closed"&&U.list){uiList(false)}uiSave();U.liveSig=null;uiEvDom();uiFeedDraw();uiLayout()}
+function uiEvDom(){const U=ui_(),f=uiEl("feed"),x=uiEl("feedx"),shut=U.ev==="closed";if(f&&f.dataset)f.dataset.ev=U.ev;
+  if(x&&x.setAttribute){x.innerHTML=shut?"<i>≡</i><span>Events</span>":"<i>×</i>";x.setAttribute("aria-label",shut?"Open the events bar":"Close the events bar")}}
+// ---- what is going on right now (alertList()): an icon each, with its countdown. The pressing ones flash. A tap on
+// one opens it in the bar (what it is, and its buttons); a tap again, or the thing ending, closes it.
+const uiSvg=d=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+d+"</svg>";
+const UI_ICON={
+  paw:uiSvg('<g class="f"><ellipse cx="5.8" cy="10.6" rx="1.9" ry="2.5"/><ellipse cx="9.8" cy="6.2" rx="1.9" ry="2.6"/><ellipse cx="14.4" cy="6.2" rx="1.9" ry="2.6"/><ellipse cx="18.4" cy="10.6" rx="1.9" ry="2.5"/><path d="M12.1 11.2c-2.9 0-5.6 3-5.6 5.6 0 1.7 1.3 2.6 2.9 2.6 1.2 0 1.7-.6 2.7-.6s1.5.6 2.7.6c1.6 0 2.9-.9 2.9-2.6 0-2.6-2.7-5.6-5.6-5.6z"/></g>'),   // feral dogs
+  raid:uiSvg('<path d="M4.5 4.5l11 11M19.5 4.5l-11 11M13.4 17.6l4.2-4.2M10.6 17.6l-4.2-4.2M17 17l3 3M7 17l-3 3"/>'),   // raiders: crossed blades
+  mut:uiSvg('<circle cx="12" cy="12" r="4.2"/><path d="M12 3v3.2M12 17.8V21M3 12h3.2M17.8 12H21M5.6 5.6l2.3 2.3M16.1 16.1l2.3 2.3M18.4 5.6l-2.3 2.3M7.9 16.1l-2.3 2.3"/><circle class="f" cx="12" cy="12" r="1.5"/>'),   // a mutant pack
+  flag:uiSvg('<path d="M6 21V4M6 5h11.5l-3 3.8 3 3.8H6"/>'),   // your squad is out
+  ship:uiSvg('<path d="M12 3c3 2.6 4.4 6.2 4.4 10.4L12 16.2l-4.4-2.8C7.600 9.200 9 5.600 12 3zM7.600 13.400L4.500 17l3.700.6M16.400 13.400l3.100 3.600-3.700.6M12 17.5V21"/>'),   // something alongside the ship
+  eye:uiSvg('<path d="M2.500 12s3.500-6 9.500-6 9.500 6 9.500 6-3.500 6-9.500 6-9.500-6-9.500-6z"/><circle cx="12" cy="12" r="2.600"/>'),   // inspectors
+  crate:uiSvg('<path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8"/>'),   // the quota
+  bars:uiSvg('<rect x="4" y="4" width="16" height="16" rx="1.500"/><path d="M9.300 4v16M14.700 4v16"/>'),   // someone is held
+  spire:uiSvg('<path d="M12 2.500l2.600 15h-5.200zM7 21h10M9.400 17.500h5.200"/><circle class="f" cx="12" cy="9.500" r="1.300"/>')};   // a Spire has a lesson to give
+const uiAlN=n=>n<0?"":n>=100?Math.ceil(n/60)+"m":n+"s";
+function uiAlerts(L){const U=ui_(),box=uiEl("evicons"),ab=uiEl("alert");if(!box||!ab)return;
+  if(U.al&&!L.some(a=>a.k===U.al))U.al=null;   // it is over: it closes
+  const sig=L.map(a=>a.k+":"+a.ic+a.hot+(a.k===U.al?"*":"")).join();
+  if(sig!==U.alSig){U.alSig=sig;box.hidden=!L.length;
+    box.innerHTML=L.map(a=>'<button class="evic'+(a.hot?" hot":"")+(a.hot>1?" now":"")+'" type="button" data-al="'+a.k+'" aria-expanded="'+(a.k===U.al)+'" aria-label="'+uiEsc(a.t).replace(/"/g,"&quot;")+'">'+(UI_ICON[a.ic]||"")+"<b>"+uiAlN(a.n)+"</b></button>").join("")}
+  else{const bs=box.querySelectorAll?box.querySelectorAll("b"):[];   // the countdowns tick in place: the buttons are not made again, so a tap in progress is never lost
+    for(let i=0;i<bs.length&&i<L.length;i++){const t=uiAlN(L[i].n);if(bs[i].textContent!==t)bs[i].textContent=t}}
+  const cur=U.al?L.find(a=>a.k===U.al):null,was=ab.hidden;
+  if(cur){const bsig=cur.k+"|"+cur.b.map(x=>x[0]+x[1]).join(),sp=ab.dataset.sig===bsig&&ab.querySelector?ab.querySelector("span"):null;
+    if(sp){if(sp.textContent!==cur.t)sp.textContent=cur.t}
+    else{ab.dataset.sig=bsig;ab.innerHTML="<span>"+uiEsc(cur.t)+"</span>"+cur.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+uiEsc(x[1])+"</span></button>").join("")}
+    ab.hidden=false}
+  else{ab.hidden=true;ab.dataset.sig=""}
+  if(was!==ab.hidden)uiLayout()}
+function uiAlertPick(k){const U=ui_();tutMark(4);U.al=U.al===k?null:k;U.alSig=null;uiAlerts(alertList())}
+function uiTick(){uiFeedDraw();uiAlerts(alertList())}   // from hud(), four times a second: a new line stops being new, the countdowns tick
 // ---- the sheet: a peek (its handle and the panel's first lines), about half the screen, or most of it; the game keeps
 // at least 170 px (CSS) under the bar so there is always a picture to tap
 function uiSheetPx(st,vh,hh,sab){const peek=84+sab,full=Math.max(peek,vh-hh-170),half=Math.max(peek,Math.min(full,Math.round(vh*.45)));return st==="peek"?peek:st==="full"?full:half}
@@ -3131,10 +3252,12 @@ function uiLayout(){const U=ui_(),doc=document.documentElement,cs=doc&&doc.style
   const vh=window.innerHeight||800,vw=window.innerWidth||400,hh=uiHudH(),deck=uiEl("fdeck"),dh=deck&&!deck.hidden&&deck.offsetHeight||0;
   U.side=uiWide();const sideW=U.side?(U.open?Math.round(Math.min(400,Math.max(300,vw*.32))):30):0,sheetH=U.side?0:uiSheetPx(U.st,vh,hh,uiSab());
   cs.setProperty("--hud-h",hh+"px");cs.setProperty("--side-w",sideW+"px");cs.setProperty("--sheet-h",sheetH+"px");cs.setProperty("--deck-h",dh+"px");
+  // the events bar takes its own height from under the game (none in a fight); all events may open as tall as the game is
+  const fd=uiEl("feed"),eh=fd&&fd.offsetHeight||0;cs.setProperty("--ev-h",eh+"px");cs.setProperty("--ev-max",Math.max(110,vh-hh-sheetH-dh-eh-14)+"px");
   const s=U.side?(U.open?"open":"closed"):U.st,sh=uiEl("sheet"),g=uiEl("grab"),mx=uiEl("sheetmax");if(sh&&sh.dataset)sh.dataset.st=s;
   if(g&&g.setAttribute){g.setAttribute("aria-expanded",String(s!=="peek"&&s!=="closed"));g.setAttribute("aria-label",U.side?(U.open?"Close the panel":"Open the panel"):s==="peek"?"Raise the panel":"Lower the panel")}
   if(mx){mx.textContent=U.st==="full"?"▼":"▲";if(mx.setAttribute)mx.setAttribute("aria-label",U.st==="full"?"Make the panel shorter":"Make the panel tall")}}
-function uiSave(){const U=ui_();try{localStorage.setItem("ashen-ui",JSON.stringify({st:U.st,open:U.open}))}catch(e){}}
+function uiSave(){const U=ui_();try{localStorage.setItem("ashen-ui",JSON.stringify({st:U.st,open:U.open,ev:U.ev,sfx:U.sfx,mus:U.mus}))}catch(e){}}
 function uiSet(st){const U=ui_();if(U.side)U.open=st!=="closed"&&st!=="peek";else{U.st=st;U.pre=null}uiSave();uiLayout()}
 function uiToggle(){const U=ui_();if(U.side)U.open=!U.open;else{U.st=U.st==="peek"?"half":"peek";U.pre=null}uiSave();uiLayout()}
 // dragging the handle (or a lowered sheet anywhere): the sheet follows the finger, then settles on the nearest height
@@ -3166,24 +3289,192 @@ function uiView(v){const U=ui_(),b=document.body;if(b&&b.dataset)b.dataset.view=
 function uiSubject(){const U=ui_(),poked=uiNow()-U.poke<1000,card=VIEW==="map"&&!!CARD;if(!poked&&!card)return;U.poke=-1e9;
   if(U.side){if(!U.open){U.open=true;uiLayout()}}else if(U.st==="peek"&&VIEW!=="fight"){U.st="half";uiLayout()}}
 (()=>{const on=(el,ev,f,o)=>{if(el&&el.addEventListener)el.addEventListener(ev,f,o)},g=uiEl("grab");
-  on(uiEl("feedbtn"),"click",()=>uiList());
+  on(uiEl("feedbtn"),"click",()=>uiList());on(uiEl("feedx"),"click",()=>uiEv(ui_().ev==="closed"?"open":"closed"));uiEvDom();
+  on(uiEl("evicons"),"click",e=>{const b=e.target&&e.target.closest&&e.target.closest("[data-al]");if(b)uiAlertPick(b.dataset.al)});
   const sh=uiEl("sheet");on(sh,"pointerdown",uiDragStart);on(sh,"pointermove",uiDragMove);on(sh,"pointerup",uiDragEnd);on(sh,"pointercancel",uiDragEnd);
   on(g,"keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();uiToggle()}});
   on(uiEl("sheetmax"),"click",()=>uiSet(ui_().st==="full"?"half":"full"));
-  on(uiEl("goal"),"click",()=>{try{const gl=GOALS[S.goal],p=gl&&gl.p();uiFeed(gl?"Goal: "+gl.text+" ("+Math.min(p[0],p[1])+" of "+p[1]+")":"Every goal met.","note")}catch(e){}});
+  on(uiEl("goal"),"click",()=>{try{tutMark(8);uiTabSet("guide");renderPanel()}catch(e){}});   // the goal in full, and the rest of the Guide
   on(uiEl("people-chip"),"click",()=>{ui_().poke=uiNow()});
   // the supply chips are short on room: a tap says it in full in the channel
   for(const k of["scrap","water","food"]){const v=uiEl("r-"+k),ch=v&&v.parentNode;if(!ch||!ch.setAttribute)continue;ch.setAttribute("role","button");ch.setAttribute("tabindex","0");
     const say=()=>{const d=uiEl("d-"+k);uiFeed(k[0].toUpperCase()+k.slice(1)+": "+v.textContent+(d&&d.textContent?" · "+d.textContent:""),"note")};
     on(ch,"click",say);on(ch,"keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();say()}})}
-  on(uiEl("alert"),"click",()=>{ui_().poke=uiNow()},true);
+  on(uiEl("alert"),"click",e=>{const U=ui_(),b=e.target&&e.target.closest&&e.target.closest("button[data-act]");U.poke=uiNow();if(b&&/^tab:/.test(b.dataset.act)){U.al=null;U.alSig=null}},true);   // (a button that opens a tab: the icon closes behind it)
   // a tap on the picture (not a drag) counts as choosing something; with Events open, a tap outside it only closes it
   on(stage,"pointerdown",e=>{const U=ui_();U.pd=null;if(U.list&&!(e.target&&e.target.closest&&e.target.closest(".feed"))){uiList(false);if(e.target===cv)e.stopPropagation();return}
     if(e.target===cv)U.pd={x:e.clientX,y:e.clientY,t:uiNow()}},true);
-  on(stage,"pointerup",e=>{const U=ui_(),p=U.pd;U.pd=null;if(p&&e.target===cv&&Math.hypot(e.clientX-p.x,e.clientY-p.y)<10&&uiNow()-p.t<700)U.poke=uiNow()},true);
+  on(stage,"pointerup",e=>{const U=ui_(),p=U.pd;U.pd=null;if(p&&e.target===cv&&Math.hypot(e.clientX-p.x,e.clientY-p.y)<10&&uiNow()-p.t<700){U.poke=uiNow();tutMark(1);if(U.tab){U.tab="";dirty=true}}},true);   // (a tap on the map: back to Here)
   on(window,"resize",()=>uiLayout());
-  if(typeof ResizeObserver==="function"){const ro=new ResizeObserver(()=>uiLayout());for(const id of["hud","fdeck"]){const el=uiEl(id);if(el)ro.observe(el)}}})();
+  if(typeof ResizeObserver==="function"){const ro=new ResizeObserver(()=>uiLayout());for(const id of["hud","fdeck","feed"]){const el=uiEl(id);if(el)ro.observe(el)}}})();
 // ==== UI (end) ====
+// ==== SND (start) ====
+// Sound and music, made in the browser (no files to load): a few short effects, and a slow, sparse piece that plays
+// under the game. Nothing sounds before the first tap or key (browsers ask for that). Each has its own level in the
+// Menu tab (0 off, 1 low, 2 medium, 3 high), remembered with the panel's layout. Claude's first pass: the piece is a
+// stand-in that keeps to four chords, thins out at night and gets a low pulse while a raid is on.
+const SND={ac:null,out:null,fx:null,mu:null,nz:null,last:{},timer:0,next:0,bar:0};
+const SND_LV=[0,.3,.6,1],SND_NAME=["Off","Low","Medium","High"];
+function sndOn(){const U=ui_();
+  if(!SND.ac){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+    try{const ac=new AC(),out=ac.createDynamicsCompressor(),fx=ac.createGain(),mu=ac.createGain(),dl=ac.createDelay(1.5),fb=ac.createGain(),wet=ac.createGain();
+      out.connect(ac.destination);fx.connect(out);mu.connect(out);   // the music also goes through a slow echo, so single notes hang in the air
+      dl.delayTime.value=.46;fb.gain.value=.36;wet.gain.value=.45;mu.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(wet);wet.connect(out);
+      SND.ac=ac;SND.out=out;SND.fx=fx;SND.mu=mu}catch(e){SND.ac=null;return false}}
+  try{if(SND.ac.state==="suspended")SND.ac.resume()}catch(e){}
+  SND.fx.gain.value=.5*SND_LV[U.sfx];SND.mu.gain.value=.3*SND_LV[U.mus];
+  if(U.mus>0&&!SND.timer&&typeof setInterval==="function"){SND.next=0;SND.timer=setInterval(musTick,400)}
+  else if(!U.mus&&SND.timer){clearInterval(SND.timer);SND.timer=0}
+  return true}
+// one note: a rise (a), an optional hold, then it dies away by the end of dur; "to" slides its pitch, "lp" dulls it
+function sndTone(dest,f,t,dur,o){o=o||{};const ac=SND.ac,os=ac.createOscillator(),g=ac.createGain(),v=o.v==null?.4:o.v,a=o.a==null?.006:o.a;
+  os.type=o.type||"triangle";os.frequency.setValueAtTime(f,t);if(o.to)os.frequency.exponentialRampToValueAtTime(o.to,t+dur);
+  g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(v,t+a);if(o.hold)g.gain.setValueAtTime(v,t+a+o.hold);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  if(o.lp){const fl=ac.createBiquadFilter();fl.type="lowpass";fl.frequency.value=o.lp;os.connect(fl);fl.connect(g)}else os.connect(g);
+  g.connect(dest);os.start(t);os.stop(t+dur+.05)}
+// a puff of noise around one pitch (a hammer, a pop)
+function sndNoise(dest,t,dur,o){const ac=SND.ac;
+  if(!SND.nz){const b=ac.createBuffer(1,Math.floor(ac.sampleRate*.3),ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;SND.nz=b}
+  const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=SND.nz;f.type="bandpass";f.frequency.value=o.f||1000;f.Q.value=1.2;
+  g.gain.setValueAtTime(o.v||.4,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(f);f.connect(g);g.connect(dest);s.start(t);s.stop(t+dur+.02)}
+const SFX={
+  tap:t=>sndTone(SND.fx,520,t,.05,{v:.22,type:"sine"}),
+  tab:t=>sndTone(SND.fx,700,t,.04,{v:.16,type:"sine"}),
+  ev:t=>{sndTone(SND.fx,587,t,.12,{v:.2});sndTone(SND.fx,880,t+.06,.14,{v:.13})},
+  note:t=>sndTone(SND.fx,440,t,.09,{v:.15,type:"sine"}),
+  deny:t=>sndTone(SND.fx,150,t,.16,{v:.3,type:"sawtooth",lp:600,to:110}),
+  build:t=>{sndNoise(SND.fx,t,.06,{v:.35,f:900});sndNoise(SND.fx,t+.13,.06,{v:.35,f:1200});sndTone(SND.fx,330,t+.26,.2,{v:.22})},
+  good:t=>[523,659,784,1047].forEach((f,i)=>sndTone(SND.fx,f,t+i*.09,.28,{v:.28})),
+  bad:t=>[392,330,262].forEach((f,i)=>sndTone(SND.fx,f,t+i*.14,.34,{v:.3,type:"sawtooth",lp:900})),
+  learn:t=>[392,587,784,988,1175].forEach((f,i)=>sndTone(SND.fx,f,t+i*.11,.5,{v:.22,type:"sine"})),
+  warn:t=>[0,.26,.52].forEach(d=>{sndTone(SND.fx,740,t+d,.12,{v:.28,type:"square",lp:1800});sndTone(SND.fx,554,t+d+.12,.12,{v:.28,type:"square",lp:1800})}),
+  alarm:t=>[0,.16,.32,.48,.64].forEach(d=>sndTone(SND.fx,880,t+d,.1,{v:.3,type:"square",lp:2200,to:660})),
+  pop:t=>{sndNoise(SND.fx,t,.09,{v:.6,f:1600});sndTone(SND.fx,300,t,.1,{v:.35,to:80,type:"sine"})}};
+function sfx(k){const U=ui_();if(!U.sfx||!SND.ac||SND.ac.state!=="running"||document.hidden||!SFX[k])return;
+  const now=uiNow();if(now-(SND.last[k]||-1e9)<(k==="tap"||k==="tab"?40:160))return;SND.last[k]=now;try{SFX[k](SND.ac.currentTime+.01)}catch(e){}}
+// which effect goes with a line in the events bar (the game says what happened in words; this listens to the words)
+function sndFor(text,kind){if(kind==="bug")return"";
+  if(/is at the wall/.test(text))return"alarm";
+  if(/is coming (at|out of)|^Raids are coming|^Smoke on the horizon|^Republic inspectors land|^The Republic wants its quota/.test(text))return"warn";
+  if(/studied the Spire|^Blueprint done|^Claimed a Spire|^The Spire can teach|^New ability|^Copied a Builder glyph/.test(text))return"learn";
+  if(/^Goal met|^Drove off|^Popped |^Won |^A strike from orbit/.test(text))return"good";
+  if(/^Lost |^You missed|^Worn through|^The rocket broke|^Taken from/.test(text))return"bad";
+  if(/^Not enough|^Can't|^Nothing |^No /.test(text))return"deny";
+  if(/^Built |^Claimed|^Cleared|^Cut back|^Crafted|^Made |^Fitted|^Repaired|^Tile \d+:|^Bought|^Research started/.test(text))return"build";
+  return kind==="ev"?"ev":"note"}
+// the piece: four chords, two bars each, a held pad and a bass note, and a few plucked notes that are never the same twice
+const MUS={bar:4.8,chords:[[38,[53,57,60,64]],[34,[53,57,58,62]],[41,[52,57,60,65]],[33,[52,55,60,64]]],order:[0,0,1,1,2,2,3,1],scale:[62,65,67,69,72,74,77,79]};
+const hz=m=>440*Math.pow(2,(m-69)/12);
+function musTick(){const ac=SND.ac,U=ui_();if(!ac||!U.mus||ac.state!=="running"||document.hidden)return;
+  if(SND.next<ac.currentTime+.05)SND.next=ac.currentTime+.1;
+  while(SND.next<ac.currentTime+1.2){musBar(SND.next,SND.bar++);SND.next+=MUS.bar}}
+function musBar(t,n){const[bass,pad]=MUS.chords[MUS.order[n%MUS.order.length]],B=MUS.bar,dst=SND.mu;let night=false,raid=false;
+  try{night=partOfDay()==="night";raid=!!(S.raid&&S.raid.cur)}catch(e){}
+  for(const m of pad){sndTone(dst,hz(m),t,B+2.2,{v:.1,a:1.6,hold:B-1.4,lp:night?700:1100});sndTone(dst,hz(m)*1.004,t,B+2.2,{v:.05,a:2,hold:B-1.8,type:"sine"})}
+  sndTone(dst,hz(bass),t,B+.6,{v:.3,a:.4,hold:B-1.6,type:"sine"});
+  for(let i=0;i<8;i++)if(Math.random()<(night?.15:.3)){const m=MUS.scale[Math.floor(Math.random()*MUS.scale.length)]-(night?12:0);sndTone(dst,hz(m),t+i*B/8+Math.random()*.03,1.4,{v:.2+.1*Math.random(),a:.004,lp:2400})}
+  if(raid)for(let i=0;i<8;i++)sndTone(dst,55,t+i*B/8,.28,{v:.5,a:.004,type:"sine",to:40})}
+// ==== SND (end) ====
+// ==== MENU (start) ====
+// The panel's tabs and the game's own windows. Here is whatever was tapped last (a tile, a room, a card). People and
+// Research are the lists that sat behind the People chip. Stores is what you hold. Guide is the goal, a small tutorial
+// and how things work. Menu is sound, music, difficulty and starting over. The difficulty and the tutorial's progress
+// are saved with the world (S.k.diff, S.k.tut, S.k.tf); the sound levels with the panel's layout.
+const UI_TABS=[["here","Here"],["people","People"],["research","Research"],["stores","Stores"],["guide","Guide"],["menu","Menu"]];
+function uiTab(){const U=ui_();return showPeople?(showRs?"research":"people"):U.tab||"here"}
+function uiTabSet(t){const U=ui_();showPeople=t==="people"||t==="research";showRs=t==="research";U.tab=t==="stores"||t==="guide"||t==="menu"?t:"";U.newWorld=false;
+  if(t!=="here")tutMark(2);U.poke=uiNow();if(!U.side&&U.st==="peek"&&VIEW!=="fight")uiSet("half");dirty=true}
+function uiTabsDraw(){const U=ui_(),el=uiEl("tabs");if(!el)return;const hide=!S||!!(S.h&&S.h.crack)||VIEW==="fight",cur=uiTab(),les=S&&S.k?(S.k.lessons|0)-(S.k.taught|0):0,sig=hide?"-":cur+(les>0?"*":"");
+  if(sig===U.tabSig)return;U.tabSig=sig;el.hidden=hide;
+  el.innerHTML=hide?"":UI_TABS.map(([k,n])=>'<button class="tab'+(k==="people"&&les>0?" dot":"")+'" type="button" role="tab" data-tab="'+k+'" aria-selected="'+(k===cur)+'">'+n+"</button>").join("")}
+// ---- difficulty: how hard the wild pushes back. Normal is the game as it was tuned; the other two move the raids
+// (how often, how strong, how much warning, how much they take) and the creatures out on the tiles (a level either way)
+const DIFF={
+  easy:{name:"Easy",every:1.6,lvl:-1,warn:1.5,steal:.5,what:"Raids come less often, a level weaker and with more warning, and take half as much when they win. Creatures out on the tiles are a level weaker."},
+  normal:{name:"Normal",every:1,lvl:0,warn:1,steal:1,what:"The game as it was tuned."},
+  hard:{name:"Hard",every:.7,lvl:1,warn:.75,steal:1.5,what:"Raids come more often, a level stronger and with less warning, and take half as much again when they win. Creatures out on the tiles are a level stronger."}};
+function diff(){return DIFF[S&&S.k&&S.k.diff]||DIFF.normal}
+// ---- a small tutorial: six short steps on a card at the top of the Here tab. Doing the thing ticks it; two of them
+// only want reading (Got it). A new world starts with it on; a world saved before it existed has it off.
+const TUT=[
+  {n:"Look around",t:"<b>Look around.</b> Drag the planet to turn it. Tap any tile to see what it is.",ok:()=>tutF(1)},
+  {n:"Claim a tile",t:"<b>Claim land.</b> Tap a tile touching your amber border, then <b>Claim</b>. Scrap pays for it.",ok:()=>S.owned.size>1+STARTERS.length},
+  {n:"Build something",t:"<b>Build.</b> Tap an empty tile you own and pick a building. A scav camp brings in scrap.",ok:()=>Object.keys(S.bld).length>1+STARTERS.length},
+  {n:"Read the events bar",t:"<b>The bar under the map</b> is your events: the two newest lines, ▲ for all of them, × to tuck it away. A flashing icon there is something going on right now: tap it to answer it.",ok:()=>tutF(4),got:4},
+  {n:"Open a tab",t:"<b>The tabs</b> above are your windows: People, Research, Stores, the Guide (how things work) and the Menu (sound, music, difficulty). <b>Here</b> is whatever you tapped last. Open one of them.",ok:()=>tutF(2)},
+  {n:"Follow the goal",t:"<b>Follow the goal</b> in the top bar: tap it for the list. That is the basics; the Guide tab has the rest.",ok:()=>tutF(8),got:8}];
+const tutF=b=>!!((S.k.tf|0)&b);
+function tutMark(b){if(S&&S.k&&S.k.tut&&!tutF(b)){S.k.tf=(S.k.tf|0)|b;dirty=true}}
+function tutStep(){if(!S||!S.k||!S.k.tut)return-1;const i=TUT.findIndex(s=>!s.ok());if(i<0){S.k.tut=0;say("That is the tutorial done. The Guide tab has how things work whenever you want it.")}return i}
+function tutHTML(){const i=tutStep();if(i<0)return"";const s=TUT[i];
+  return'<div class="coach"><div class="meta">Getting started · '+(i+1)+" of "+TUT.length+"</div><p>"+s.t+'</p><div class="row">'+(s.got?'<button class="act primary" data-act="tut:ok"><span>Got it</span></button>':"")+'<button class="linkbtn" data-act="tut:skip">Skip the tutorial</button></div></div>'}
+// ---- the Stores tab: what you hold
+function storesHTML(){const m=matsOf(),ks=Object.keys(MATS).filter(k=>(+m[k]||0)>=1),us=Object.keys(MAT_USE).filter(k=>(S.k[k]|0)>0),bad=Object.keys(MAT_GEAR).filter(k=>matMade(k)&&!S.gear[k]);
+  const left=(v,have)=>{if(!(v<0)||!(have>0))return"";const s=have/-v;return" · "+(s>=3600?Math.floor(s/3600)+" h":s>=60?Math.floor(s/60)+" min":Math.ceil(s)+" s")+" left"};
+  let h='<div class="pane"><div class="tile-h">Stores</div><div class="opt"><span>Supplies · room for '+E.store+' of each</span><div class="stock">'+
+    [["scrap","Scrap",E.sc],["water","Water",E.wa],["food","Food",E.fo]].map(([k,n,v])=>"<span><b>"+n+"</b><em>"+fmt(S.res[k])+" · "+rate(v)+left(v,S.res[k])+"</em></span>").join("")+"</div></div>";
+  h+='<div class="opt"><span>Materials</span>'+(ks.length?'<div class="stock">'+ks.map(k=>'<span><b><i style="background:'+MATS[k].col+'"></i>'+MATS[k].name+"</b><em>"+Math.floor(m[k])+"</em></span>").join("")+"</div>":
+    "<small>None yet. Beaten creatures and raiders leave them behind, veins in the rock below hold them, and buildings out on the tiles have some.</small>")+"</div>";
+  if(us.length)h+='<div class="opt"><span>For fights</span><div class="stock">'+us.map(k=>"<span><b>"+MAT_USE[k].name+"s</b><em>"+S.k[k]+"</em></span>").join("")+"</div></div>";
+  if(bad.length)h+='<p><b style="color:#e07a4f">Worn through:</b> '+bad.map(k=>MAT_GEAR[k].name).join(", ")+". Repair it at a Workshop's bench.</p>";
+  return h+'<p class="meta">Gear is made and repaired at a Workshop below the bunker.</p></div>'}
+// ---- the Guide tab: the goal, the tutorial's steps, and how things work (one topic open at a time)
+const HELP=[
+  ["spire","Teach someone at a Spire",()=>{const sp=[...S.owned].filter(i=>T[i].pent).length,les=(S.k.lessons|0)-(S.k.taught|0);
+    return"<ol><li><b>Find a Spire:</b> a five-sided tile. There are 12 on each world.</li>"+
+      "<li><b>Claim it.</b> Claim tiles toward it until one of yours touches it, then tap the Spire and <b>Claim</b>. You get 120 scrap, the stranger guarding it joins you, and the Spire holds <b>one lesson</b>.</li>"+
+      "<li><b>Pick who studies it.</b> Open the <b>People</b> tab. At the top it says <i>A Spire can teach someone</i>, with a button for each person. Tap one.</li>"+
+      "<li><b>They come back smarter</b>, with a bigger head: they research faster, and harder blueprints open up.</li></ol>"+
+      "<p>Each Spire teaches once. One lesson makes anyone Spire-taught (1 research a second, and advanced blueprints). More lessons on the same person give 1.8, then 2.8, then 4 a second, and the second one opens Builder blueprints.</p>"+
+      "<p>You hold "+sp+" of 12 Spires"+(les>0?", and <b>"+les+" lesson"+(les>1?"s are":" is")+" waiting</b>.":".")+"</p>"+(les>0?'<div class="acts">'+btn("tab:people","Choose who","Open the People tab",null,"primary")+"</div>":"")}],
+  ["raids","Raids and defenses",()=>"<ul><li>Once you hold 9 tiles your lights draw raiders, mutant packs and feral dogs. Every few minutes of play a band comes at a tile on your border. Never while you are away.</li>"+
+      "<li>An icon flashes in the events bar with a countdown. Tap it, then <b>Show me</b> to see where.</li>"+
+      "<li>When they reach the wall, choose: <b>Fight it out</b> (you work the stick), <b>Defenses fight</b> (it plays out by itself), or a strike from orbit if you have a charged Orbital Lance. No answer in time and the defenses fight.</li>"+
+      "<li>Win and they leave what they carried. Lose and they take a share of your stores and wreck the building on that tile until it is repaired.</li>"+
+      "<li><b>To fortify:</b> tap a border tile you own, then <b>Defenses</b>: a wall, a gate, turrets (they run on the bunker's spare power), a pillbox (it needs a guard), a watchtower (more warning), wire and mines.</li></ul>"],
+  ["research","Research and blueprints",()=>"<ul><li>Smart people do the research. You start with one.</li>"+
+      "<li>The <b>Research</b> tab lists the blueprints in branches. Pick one and pay its cost; it fills up while someone smart is home.</li>"+
+      "<li>More smart people, or smarter ones, means more research a second. Spires make people smarter (the topic above).</li>"+
+      "<li>Advanced blueprints need someone taught by a Spire; Builder blueprints need someone taught by two.</li></ul>"],
+  ["screen","The screen",()=>"<ul><li><b>The map:</b> drag to turn the world, tap a tile to choose it. + and − zoom, ⌂ turns back to your bunker, ⇩ goes below it once the hatch is open.</li>"+
+      "<li><b>Top bar:</b> scrap, water, food and people, the day, and your goal. Tap a supply for the full figure, People for your people, the goal for this tab.</li>"+
+      "<li><b>Events bar</b> (under the map): the two newest messages. ▲ shows them all, × tucks it away. Flashing icons are things going on right now: tap one.</li>"+
+      "<li><b>This panel:</b> drag its handle up or down. The tabs are its windows; Here is whatever you tapped last.</li></ul>"]];
+function guideHTML(){const U=ui_(),g=GOALS[S.goal],p=g&&g.p();
+  let h='<div class="pane"><div class="tile-h">Guide</div><div class="opt"><span>Goal '+Math.min(S.goal+1,GOALS.length)+" of "+GOALS.length+"</span><p>"+
+    (g?"<b>"+g.text+"</b> · "+Math.min(p[0],p[1])+" of "+p[1]+" · reward "+costText(g.reward):"Every goal met. The world remembers your lights.")+"</p></div>";
+  h+='<div class="opt"><span>Getting started</span>'+(S.k.tut?'<ul class="checks">'+TUT.map(s=>'<li class="'+(s.ok()?"ok":"")+'">'+s.n+"</li>").join("")+"</ul>":
+    '<div class="acts">'+btn("opt:tut:1","Show the tutorial","Six short steps at the top of the Here tab",null,"")+"</div>")+"</div>";
+  h+='<div class="opt"><span>How things work</span>'+HELP.map(([k,n,f])=>'<div class="topic"><button type="button" data-act="help:'+k+'" aria-expanded="'+(U.help===k)+'">'+n+"<i>"+(U.help===k?"−":"+")+"</i></button>"+(U.help===k?f():"")+"</div>").join("")+"</div>";
+  return h+"</div>"}
+// ---- the Menu tab: sound, music, difficulty, the tutorial, starting over
+function segHTML(label,act,opts,cur,note){return'<div class="opt"><span>'+label+'</span><div class="seg" role="group" aria-label="'+label+'">'+
+  opts.map(([v,n])=>'<button type="button" data-act="'+act+":"+v+'" aria-pressed="'+(String(v)===String(cur))+'">'+n+"</button>").join("")+"</div>"+(note?"<small>"+note+"</small>":"")+"</div>"}
+function menuHTML(){const U=ui_(),d=S.k.diff&&DIFF[S.k.diff]?S.k.diff:"normal",lv=[0,1,2,3].map(v=>[v,SND_NAME[v]]),mute=!(window.AudioContext||window.webkitAudioContext);
+  return'<div class="pane"><div class="tile-h">Menu</div>'+
+    segHTML("Sound","opt:sfx",lv,U.sfx,mute?"This browser has no sound.":"Taps, building, alarms and fights.")+
+    segHTML("Music","opt:mus",lv,U.mus,"A slow piece made as it plays. It thins out at night and tightens during a raid.")+
+    segHTML("Difficulty","opt:diff",Object.keys(DIFF).map(k=>[k,DIFF[k].name]),d,DIFF[d].what+" You can change it at any time.")+
+    segHTML("Tutorial","opt:tut",[[1,"Show"],[0,"Hide"]],S.k.tut?1:0,"Six short steps at the top of the Here tab.")+
+    '<div class="opt"><span>This world</span>'+(U.newWorld?'<p>Start over on a fresh world? This one is lost.</p><div class="acts">'+btn("menu:newyes","Start over","A new world, day 1",null,"warn")+btn("menu:newno","Keep playing","",null,"")+"</div>":
+      '<div class="acts">'+btn("menu:new","Start a new world","Now: day "+day()+" · "+S.pop+" people · "+S.owned.size+" tiles",null,"")+"</div>")+"</div>"+
+    '<p class="meta">Ashen Sphere · ZomBeef Games · saved on this device every few seconds</p></div>'}
+function menuAct(a){const U=ui_(),[k,x,y]=a.split(":");
+  if(k==="tab"){uiTabSet(x);return}
+  if(k==="help"){U.help=U.help===x?"":x;dirty=true;return}
+  if(k==="tut"){if(x==="ok"){const i=tutStep();if(i>=0&&TUT[i].got)tutMark(TUT[i].got)}else if(x==="skip"){S.k.tut=0;uiFeed("Tutorial put away. The Menu tab brings it back, and the Guide tab has how things work.","note")}dirty=true;return}
+  if(k==="opt"){
+    if(x==="sfx"||x==="mus"){U[x]=Math.max(0,Math.min(3,y|0));uiSave();sndOn();if(x==="sfx")sfx("ev")}
+    else if(x==="diff"&&DIFF[y]){if(y==="normal")delete S.k.diff;else S.k.diff=y;uiFeed("Difficulty: "+DIFF[y].name+". "+DIFF[y].what,"note");save()}
+    else if(x==="tut"){S.k.tut=y==="1"?1:0;if(S.k.tut){S.k.tf=0;uiTabSet("here")}}
+    dirty=true;return}
+  if(k==="menu"){if(x==="new")U.newWorld=true;else if(x==="newno")U.newWorld=false;else if(x==="newyes"){newWorld();uiTabSet("here")}dirty=true}}
+(()=>{const on=(el,ev,f,o)=>{if(el&&el.addEventListener)el.addEventListener(ev,f,o)};
+  on(uiEl("tabs"),"click",e=>{const b=e.target&&e.target.closest&&e.target.closest("[data-tab]");if(!b)return;uiTabSet(b.dataset.tab);renderPanel()});
+  // sound wakes on the first tap or key; every button has a tick
+  const wake=()=>{try{sndOn()}catch(e){}};on(window,"pointerdown",wake,true);on(window,"keydown",wake,true);
+  on(document,"click",e=>{const b=e.target&&e.target.closest&&e.target.closest("button,[role=button]");if(b&&!b.disabled)sfx(b.dataset&&b.dataset.tab?"tab":"tap")},true)})();
+// ==== MENU (end) ====
 function drawBelow(now){
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   // zoom and move around (the ZOOM block): laid out Z.rz times its zoom-1 size, stretched by Z.k, moved by Z.ox and Z.oy
@@ -3669,7 +3960,7 @@ const xMS=i=>inCave()?(S.exp.cave.kind?placeState(i,XA()?S.exp.w:null):caveState
 const xTile=i=>XA()?awayTiles(S.exp.w)[i]:T[i];
 const xBio=i=>XA()?ABIOME[xTile(i).b]:BIOME[T[i].b];
 const xOwn=i=>XA()?!!xw(S.exp.w).charted[i]:land(i)?S.owned.has(i):!!S.wet[i];
-const thOf=t=>XA()?ATHREAT[t]:THREAT[t];
+const thOf=t=>{const b=XA()?ATHREAT[t]:THREAT[t],d=diff().lvl;return!b||!d||!(b.lvl>0)?b:{...b,lvl:Math.max(1,b.lvl+d)}};   // (difficulty: creatures a level weaker or stronger)
 const xThreatsLeft=i=>{const M=xGen(i),ms=xMS(i);return M.pois.filter((p,ix)=>p.type==="threat"&&!(ms&&ms.got.includes(ix))).length};
 const xExplored=i=>{const ms=xMS(i);if(!ms)return 0;let n=0;for(const c of ms.rev)if(c==="1")n++;return n/ms.rev.length};
 // the ship and the trip
@@ -4934,6 +5225,7 @@ function shreds(g, x, y, c1, c2, n) {
 function popIt(g, O, by, x, y, how) {
   var b = O.b, L = O.look;
   if (!b.alive || O.iframe > 0) return;
+  if (VIEW === "fight") sfx("pop");   // (only a fight on screen: the quick ones play out silently)
   if (O.pu.bubble > 0) {
     // DOUBLE BUBBLE: the outer balloon goes, and the one inside it is still there
     O.pu.bubble = 0; O.inner = 0.86; O.iframe = 0.5;
@@ -6422,6 +6714,73 @@ function mini(c, x, y, s, look, t, o) {
   if (s >= 22) { miniFace(c, rx, ry, sc, o.mood || "", f, L); hat(c, { t: t }, FF, rx, ry, sc); }
   c.restore();
 }
+// (Ashen Sphere) a beast at map size: a raiding pack out on the globe. The same make as its body in a fight (wooden
+// legs, a cardboard body in its colour, its balloon for a head), kept simple enough to read from orbit as a dog, a
+// serpent, a crab or a crawler. (x, y) is where it stands, s the height of a person standing beside it, in pixels;
+// o: { f: facing, walk, ph (phase), act: "bay" (at the wall: it rears and barks) }
+function miniBeast(c, x, y, s, look, t, o) {
+  o = o || {}; var L = shades(look), f = o.f || 1, k = s / 280 * 1.3, ph = o.ph || 0, bp = L.body, mv = !REDUCED, tt = mv ? t : 0.4, bay = o.act === "bay";
+  var sw = o.walk && mv ? Math.sin(tt * 9 + ph) : 0, fur = L.col, edge = L.c4, lw = Math.max(1.3, 8 * k), ol = Math.max(0.9, 2.4 * k), ink = "#1d1512";
+  var seg = function (ax, ay, bx, by, w, col, ed) { c.lineCap = "round"; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.strokeStyle = ed; c.lineWidth = w + ol; c.stroke(); c.strokeStyle = col; c.lineWidth = w; c.stroke(); };
+  var ball = function (bx, by, rx, ry) {
+    var g = c.createRadialGradient(bx - rx * 0.32, by - ry * 0.38, 0.5, bx - rx * 0.1, by - ry * 0.1, Math.max(rx, ry) * 1.5); g.addColorStop(0, L.c1); g.addColorStop(0.4, fur); g.addColorStop(1, edge);
+    c.fillStyle = g; c.beginPath(); c.ellipse(bx, by, rx, ry, 0, 0, TAU); c.fill();
+    c.fillStyle = "rgba(255,255,255,0.45)"; c.beginPath(); c.ellipse(bx - rx * 0.4, by - ry * 0.42, rx * 0.16, ry * 0.22, -0.55, 0, TAU); c.fill(); };
+  var dot = function (ax, ay, r, col) { c.fillStyle = col; c.beginPath(); c.arc(ax, ay, Math.max(0.6, r), 0, TAU); c.fill(); };
+  var bs = clamp(2 - s / 150, 1.1, 1.6), i, u;
+  if (bp === "snake") {   // coils along the ground that ripple as it comes, the head riding up in front
+    var pts = [], n = 9, rip = mv ? tt * (o.walk ? 7 : 2.5) : 0, w = 24 * k * (L.thick || 1);
+    for (i = 0; i <= n; i++) { u = i / n; pts.push([x - f * (78 - 118 * u) * k, y - w * 0.5 - ((12 * Math.sin(u * 8 - rip + ph) + 12) * (1 - u) + 96 * u * u * u) * k]); }
+    var run = function (wd, col) { c.lineCap = "round"; c.lineJoin = "round"; c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (var j = 1; j <= n; j++) c.lineTo(pts[j][0], pts[j][1]); c.strokeStyle = col; c.lineWidth = wd; c.stroke(); };
+    run(w + ol, edge); run(w, fur);
+    var sr = 22 * k * bs, sx = pts[n][0] + f * sr * 0.3, sy = pts[n][1] - sr * 0.5 + (bay && mv ? Math.sin(tt * 11 + ph) * 3 * k : 0);
+    ball(sx, sy, sr * 1.15, sr); dot(sx + f * sr * 0.45, sy - sr * 0.2, 2.6 * k * bs, ink);
+    c.strokeStyle = "#c0402e"; c.lineWidth = Math.max(0.8, 2 * k); c.beginPath(); c.moveTo(sx + f * sr * 1.1, sy + sr * 0.2); c.lineTo(sx + f * sr * (1.5 + (bay ? 0.3 : 0)), sy + sr * 0.3); c.stroke();
+    return;
+  }
+  if (bp === "crab") {   // a wide shell low to the ground, legs out both sides, the claws up
+    var cy = y - 36 * k - Math.abs(sw) * 4 * k, crx = 60 * k * bs * 0.8, cry = 30 * k * bs * 0.8;
+    for (i = -1; i <= 1; i++) for (u = -1; u <= 1; u += 2) seg(x + u * crx * 0.55, cy + cry * 0.3, x + u * (crx + (18 + 10 * i + u * sw * 6 * (i ? 1 : -1)) * k), y, lw * 0.75, i ? WOOD2 : WOOD, WOOD_E);
+    for (u = -1; u <= 1; u += 2) { var ax = x + u * crx * 0.7, ay = cy - cry * 0.5, clx = x + u * (crx + 22 * k), cly = cy - (46 + (bay && mv ? Math.sin(tt * 10 + ph + u) * 10 : 4 * sw * u)) * k;
+      seg(ax, ay, clx, cly, lw, fur, edge); c.strokeStyle = edge; c.lineWidth = Math.max(1, 5 * k); c.lineCap = "round"; c.beginPath(); c.moveTo(clx - 9 * k, cly - 14 * k); c.lineTo(clx, cly); c.lineTo(clx + 9 * k, cly - 14 * k); c.stroke(); }
+    ball(x, cy, crx, cry);
+    for (u = -1; u <= 1; u += 2) { c.strokeStyle = edge; c.lineWidth = Math.max(0.8, 3 * k); c.beginPath(); c.moveTo(x + u * 12 * k, cy - cry * 0.8); c.lineTo(x + u * 15 * k, cy - cry - 14 * k); c.stroke(); dot(x + u * 15 * k, cy - cry - 16 * k, 4 * k, ink); }
+    return;
+  }
+  if (bp === "bug") {   // a crawler: long and low on six legs, a mantis arm cocked in front
+    var gy = y - 30 * k - Math.abs(sw) * 3 * k;
+    for (i = 0; i < 3; i++) { var lx = x - f * (46 - 40 * i) * k, st = sw * (i % 2 ? -12 : 12) * k; seg(lx, gy, lx - f * 14 * k + st, gy - 26 * k, lw * 0.6, WOOD2, WOOD_E); seg(lx - f * 14 * k + st, gy - 26 * k, lx - f * 26 * k + st * 1.6, y, lw * 0.6, WOOD2, WOOD_E); }
+    for (i = 0; i < 3; i++) ball(x - f * (58 - 44 * i) * k, gy - (i === 2 ? 8 : 0) * k, (30 - 2 * i) * k, (22 - 2 * i) * k);
+    for (i = 0; i < 3; i++) { var nx = x - f * (40 - 40 * i) * k, s2 = sw * (i % 2 ? 12 : -12) * k; seg(nx, gy + 4 * k, nx + f * 10 * k + s2, gy - 22 * k, lw * 0.7, WOOD, WOOD_E); seg(nx + f * 10 * k + s2, gy - 22 * k, nx + f * 20 * k + s2 * 1.6, y, lw * 0.7, WOOD, WOOD_E); }
+    var bx2 = x + f * 62 * k, by2 = gy - 22 * k * bs, br2 = 20 * k * bs, lift = bay && mv ? Math.sin(tt * 9 + ph) * 12 * k : 0;
+    seg(x + f * 44 * k, gy - 14 * k, x + f * 76 * k, gy - 62 * k - lift, lw * 0.8, fur, edge); seg(x + f * 76 * k, gy - 62 * k - lift, x + f * 104 * k, gy - 30 * k - lift * 0.4, lw * 0.6, edge, ink);
+    ball(bx2, by2, br2, br2 * 0.9); dot(bx2 + f * br2 * 0.45, by2 - br2 * 0.2, 4.5 * k * bs, ink); dot(bx2 + f * br2 * 0.05, by2 - br2 * 0.35, 3.5 * k * bs, ink);
+    return;
+  }
+  // a dog (and anything else on four legs): it trots in, and at the wall it rears and barks
+  var hop = bay && mv ? Math.abs(Math.sin(tt * 6 + ph)) * 12 * k : Math.abs(sw) * 5 * k, st4 = sw * 20 * k;
+  var rx0 = x - f * 46 * k, ry0 = y - 76 * k - hop * 0.5, cx0 = x + f * 40 * k, cy0 = y - 84 * k - hop - (bay ? 12 * k : 0);   // the rump and the chest
+  seg(rx0 + f * 4 * k, ry0, x - f * 52 * k - f * st4, y, lw * 0.9, WOOD2, WOOD_E); seg(cx0 - f * 2 * k, cy0, x + f * 38 * k + f * st4, y - (bay ? hop : 0), lw * 0.9, WOOD2, WOOD_E);
+  var wag = mv ? Math.sin(tt * (bay ? 16 : 7) + ph) * 0.45 : 0.2, ta = 0.9 + wag;
+  c.lineCap = "round"; c.beginPath(); c.moveTo(rx0 - f * 8 * k, ry0 - 6 * k); c.quadraticCurveTo(rx0 - f * 30 * k, ry0 - 10 * k, rx0 - f * (16 + 36 * Math.cos(ta)) * k, ry0 - (8 + 46 * Math.sin(ta)) * k);
+  c.strokeStyle = edge; c.lineWidth = lw * 0.8 + ol; c.stroke(); c.strokeStyle = fur; c.lineWidth = lw * 0.8; c.stroke();
+  seg(rx0, ry0, cx0, cy0, 40 * k, fur, edge);
+  c.globalAlpha = 0.5; c.strokeStyle = L.c1; c.lineWidth = Math.max(0.8, 9 * k); c.beginPath(); c.moveTo(rx0 + f * 6 * k, ry0 - 12 * k); c.lineTo(cx0 - f * 6 * k, cy0 - 12 * k); c.stroke(); c.globalAlpha = 1;
+  if (L.spots) { c.fillStyle = edge; c.globalAlpha = 0.4; for (i = 0; i < 3; i++) { u = 0.25 + i * 0.27; c.beginPath(); c.ellipse(lerp(rx0, cx0, u), lerp(ry0, cy0, u) + (4 - i * 2) * k, 7 * k, 5 * k, 0, 0, TAU); c.fill(); } c.globalAlpha = 1; }
+  seg(rx0, ry0 + 4 * k, x - f * 38 * k + f * st4, y, lw, WOOD, WOOD_E); seg(cx0, cy0 + 4 * k, x + f * 52 * k - f * st4, y - (bay ? hop : 0), lw, WOOD, WOOD_E);
+  var hr = 26 * k * bs, hx = cx0 + f * (26 * k + hr * 0.55), hy = cy0 - 30 * k - hr * 0.35 + (mv ? Math.sin(tt * (bay ? 12 : 3) + ph) * 2.5 * k : 0);
+  seg(cx0 + f * 6 * k, cy0 - 10 * k, hx - f * hr * 0.45, hy + hr * 0.5, lw * 1.5, fur, edge);
+  var ear = function (dx, far) { c.fillStyle = far ? edge : L.c3; c.beginPath();
+    if (L.ears === "prick") { c.moveTo(hx - f * (hr * 0.55 - dx), hy - hr * 0.6); c.lineTo(hx - f * (hr * 0.4 - dx), hy - hr * 1.65); c.lineTo(hx + f * (hr * 0.1 + dx), hy - hr * 0.8); }
+    else { c.moveTo(hx - f * (hr * 0.1 - dx), hy - hr * 0.85); c.quadraticCurveTo(hx - f * (hr * 1.25 - dx), hy - hr * 0.9, hx - f * (hr * 0.95 - dx), hy + hr * 0.45); c.quadraticCurveTo(hx - f * (hr * 0.5 - dx), hy + hr * 0.1, hx - f * (hr * 0.35 - dx), hy - hr * 0.35); }
+    c.closePath(); c.fill(); };
+  ear(f * hr * 0.3, true); ball(hx, hy, hr, hr * 1.05);
+  var mx = hx + f * hr * 0.95, my = hy + hr * 0.3, open = bay && mv ? Math.max(0, Math.sin(tt * 12 + ph)) : 0;   // the muzzle, and its mouth when it barks
+  if (open > 0.2) { c.fillStyle = "#3a1512"; c.beginPath(); c.moveTo(hx + f * hr * 0.5, my + hr * 0.1); c.lineTo(mx + f * hr * 0.45, my + hr * (0.25 + 0.4 * open)); c.lineTo(hx + f * hr * 0.4, my + hr * 0.55); c.closePath(); c.fill(); }
+  c.fillStyle = L.c1; c.strokeStyle = edge; c.lineWidth = ol; c.beginPath(); c.ellipse(mx, my, hr * 0.62, hr * 0.36, f * -0.12, 0, TAU); c.fill(); c.stroke();
+  dot(mx + f * hr * 0.52, my - hr * 0.08, hr * 0.15, ink); dot(hx + f * hr * 0.32, hy - hr * 0.22, hr * 0.11, ink);
+  ear(0, false);
+}
 // (Ashen Sphere) where the hand goes for each thing a person can be doing, and the tool or load in it
 function actPose(A, at, f, k, sx, sy, x, y) {
   var P = { hx: sx + f * 46 * k, hy: sy + 36 * k }, u, L, th;
@@ -6553,7 +6912,7 @@ var SKL = ["rookie", "easy", "pro", "good", "champ"];
 function skillAt(x) { x = clamp(x, 0, 4); var i = Math.min(3, Math.floor(x)), t = x - i, a = SKILLS[SKL[i]], b = SKILLS[SKL[i + 1]], o = { id: "s" + x.toFixed(2) }, k;
   for (k in a) if (k !== "id") o[k] = lerp(a[k], b[k], t); return o; }
 function hand(g, i, skill) { var F = g.f[i]; F.ctl = skill; F.bot = typeof skill === "number" ? makeBot(skillAt(skill)) : SKILLS[skill] ? makeBot(SKILLS[skill]) : null; if (F.bot) botReset(F.bot, g.r); }
-return { skillAt: skillAt, start: start, run: run, quick: quick, draw: draw, mini: mini, faceSVG: faceSVG, hand: hand, CTL: CTL, WPN: WPN, ORDER: ORDER, SKILLS: SKILLS, PUPS: PUPS,
+return { skillAt: skillAt, start: start, run: run, quick: quick, draw: draw, mini: mini, miniBeast: miniBeast, faceSVG: faceSVG, hand: hand, CTL: CTL, WPN: WPN, ORDER: ORDER, SKILLS: SKILLS, PUPS: PUPS,
   ABIL: ABIL, activeAb: activeAb, abIcon: abIcon, portrait: portrait,
   dbg: { newMatch: newMatch, poseFor: poseFor, gear: gear, simStep: simStep, BEAST: BEAST },
   set reduced(v) { REDUCED = !!v; } };
@@ -6877,13 +7236,16 @@ function belowHTML(){
   if(why==="busy")return h+"<p>"+hint+"Your diggers are busy. One dig at a time.</p>";
   const co=digCost(r,c);return h+"<p>"+hint+(shaft?"Extend the shaft one row down.":"Dig out a space for a room.")+"</p><div class=\"acts\">"+btn("dig","Dig here","Costs "+costText(co)+" · "+Math.ceil(digTime(r,c))+" s",co,"primary")+"</div>";
 }
-let lastSubject="";
+let lastSubject="",lastCore=null;
 function renderPanel(){
   const p=$("panel"),f=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.act:null;
   // a new subject (view, tile, card, world) starts at the top of the drawer; the same subject keeps its scroll
-  const subj=[VIEW,showPeople,selOrb,VIEW==="below"?selU:VIEW==="cave"?CBI+":"+selC:VIEW==="station"?"st:"+selO:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:"",DEFP].join("|");
+  const U=ui_(),core=[VIEW,selOrb,VIEW==="below"?selU:VIEW==="cave"?CBI+":"+selC:VIEW==="station"?"st:"+selO:VIEW==="stars"?(ATL.open?"atlas"+(ATL.dial?":dial":""):sBody):VIEW==="map"?(CARD?CARD.kind+(CARD.pi??""):"walk"):sel,S.x?S.x.phase:"",DEFP].join("|");
+  // the game moved on to something else (another tile, a card, a view): show it, whatever window was open
+  if(core!==lastCore){if(lastCore!==null){U.tab="";if(VIEW==="map")showPeople=false}lastCore=core}
+  const tab=VIEW==="fight"?"here":uiTab(),subj=core+"|"+tab;
   if(subj!==lastSubject){lastSubject=subj;const d=$("drawer");if(d)d.scrollTop=0;uiSubject()}
-  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():VIEW==="map"&&S.exp?mapHTML():showPeople?(showRs?researchHTML():peopleHTML()):VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():VIEW==="cave"?caveHTML():VIEW==="station"?stationHTML():panelHTML();updateButtons();
+  p.innerHTML=S.h.crack?'<div class="tile-h">The world is breaking</div><p>The Spire coupling tears the Builder engine open. The planet cracks along its seams and the blast throws the ark clear.</p>':VIEW==="fight"&&FIGHT?fightHTML():tab==="stores"?storesHTML():tab==="guide"?guideHTML():tab==="menu"?menuHTML():tab==="research"?researchHTML():tab==="people"?peopleHTML():VIEW==="map"&&S.exp?mapHTML():VIEW==="stars"?(ATL.open?atlasHTML():starsHTML()):VIEW==="away"&&S.x?awayHTML():VIEW==="surface"&&selOrb>=0?orbitHTML():VIEW==="below"?belowHTML():VIEW==="cave"?caveHTML():VIEW==="station"?stationHTML():(VIEW==="surface"?tutHTML():"")+panelHTML();updateButtons();uiTabsDraw();
   if(f){const again=p.querySelector('[data-act="'+f+'"]');if(again)again.focus()}
   const g=GOALS[S.goal];
   $("goal").innerHTML=g?"<span>Goal: "+g.text+"</span><b>"+Math.min(g.p()[0],g.p()[1])+" / "+g.p()[1]+"</b>":"<span>Every goal met. The world remembers your lights.</span><b>✓</b>";
@@ -6892,6 +7254,7 @@ function renderPanel(){
 function updateButtons(){for(const b of $("panel").querySelectorAll("[data-cost]"))b.disabled=!afford(JSON.parse(b.dataset.cost))}
 $("panel").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b||b.disabled)return;doAct(b.dataset.act);renderPanel()});
 function doAct(a){
+  if(/^(tab|opt|menu|help|tut):/.test(a)){menuAct(a);return}
   if(a.startsWith("atl:")){atlAct(a.slice(4));return}if(a.startsWith("tf:")){tideAct(a.slice(3));renderPanel();return}if(a.startsWith("mk:")){matCraft(a.slice(3));renderPanel();return}if(a.startsWith("pl:")){placeAct(a.slice(3));renderPanel();return}if(a.startsWith("mx:")){matAct(a.slice(3));renderPanel();return}if(a.startsWith("tp:")){tpAct(a.slice(3));renderPanel();return}if(a.startsWith("cb:")){cbAct(a.slice(3));renderPanel();return}if(a.startsWith("orb:")){orbAct(a.slice(4));renderPanel();return}if(a.startsWith("df:")){defAct(a.slice(3));renderPanel();return}
   if(a==="play"){threatFight("play");return}if(a==="fauto"){if(FIGHT)PUP.hand(FIGHT.g,0,FIGHT.lvYou);dirty=true;return}if(a==="fquit"){fightGiveUp();return}
   if(a==="fw"){const ws=fightWeapons();S.fw=ws[(ws.indexOf(fightWeapon())+1)%ws.length];dirty=true;return}
@@ -6913,9 +7276,10 @@ function doAct(a){
   else if(a==="below")setView("below");else if(a==="surface")setView("surface");
   else if(a==="dig")startDig(selU);else if(a==="uraze")ugRaze(selU);else if(a.startsWith("room:"))buildRoom(selU,a.slice(5));else if(a.startsWith("bp:"))startResearch(a.slice(3));else if(a==="rs"){showPeople=true;showRs=true}else if(a==="rsback")showRs=false;else if(a.startsWith("teach:"))teach(+a.slice(6));else if(a==="rsstop"){S.rs=null;dirty=true}
 }
+function newWorld(){const d=S&&S.k&&S.k.diff;S=fresh();if(d)S.k.diff=d;E=econ();CAMS={surface:null,away:null};CAMV="surface";PATH=[];CARD=null;showPeople=false;setView("surface");sel=START;R=faceR(T[START].c);zoom=1;save();dirty=true}   // (the difficulty carries over)
 function restoreReset(){$("resetrow").innerHTML='<button class="linkbtn" id="reset">Start a new world</button>';bindReset()}
 function bindReset(){const r=$("reset");if(r)r.onclick=()=>{$("resetrow").innerHTML='<span>Start over on a fresh world?</span><button class="act warn" id="yes-reset"><span>Start over</span></button><button class="act" id="no-reset"><span>Keep playing</span></button>';
-  $("yes-reset").onclick=()=>{S=fresh();E=econ();CAMS={surface:null,away:null};CAMV="surface";PATH=[];CARD=null;showPeople=false;setView("surface");sel=START;R=faceR(T[START].c);zoom=1;save();restoreReset();dirty=true};$("no-reset").onclick=restoreReset;$("no-reset").focus()}}
+  $("yes-reset").onclick=()=>{newWorld();restoreReset()};$("no-reset").onclick=restoreReset;$("no-reset").focus()}}
 bindReset();
 
 const fmt=v=>v>=1e4?(v/1e3).toFixed(1)+"k":Math.floor(v).toString();
@@ -6923,7 +7287,7 @@ const rate=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(2)+"/s";
 let lastPop=-1,wasDigging=false,lastPadSig="",lastFSig="";
 document.getElementById("alert").addEventListener("click",e=>{const b=e.target.closest("button[data-act]");if(!b)return;const a=b.dataset.act;
   if(a==="hide")hideAll();else if(a==="quota")payQuota();else if(a==="release")releaseDetained();else doAct(a);$("alert").dataset.sig="";dirty=true;hud()});
-document.getElementById("people-chip").onclick=()=>{showPeople=!showPeople;showRs=false;dirty=true};
+document.getElementById("people-chip").onclick=()=>{uiTabSet(showPeople&&!showRs?"here":"people")};
 function hud(){
   $("r-scrap").textContent=fmt(S.res.scrap);$("r-water").textContent=fmt(S.res.water);$("r-food").textContent=fmt(S.res.food);
   for(const[k,v]of[["scrap",E.sc],["water",E.wa],["food",E.fo]]){const el=$("d-"+k),have=S.res[k];
@@ -6934,7 +7298,6 @@ function hud(){
   const unstaffed=E.needStaff-E.st.size,dp=$("d-pop");dp.textContent=S.exp&&!S.exp.away?XC.squad+" out exploring":S.wounded>0?"squad resting":unstaffed>0?unstaffed+" job"+(unstaffed>1?"s":"")+" empty":
     S.x?S.x.crew.length+" on the expedition":E.idle>0?E.idle+" idle":"all working";if(S.cbs&&cbPeople()&&dp.textContent==="all working")dp.textContent="+"+cbPeople()+" in caves";if(orbCrew().length&&dp.textContent==="all working")dp.textContent="+"+orbCrew().length+" on the station";dp.className=unstaffed>0?"neg":"";
   $("clock").innerHTML=(S.world?WORLDS[Math.min(S.world,WORLDS.length-1)].name+" · ":"")+"Day <b>"+day()+"</b> · "+partOfDay()+(S.x?" · "+xShort():"")+(republicHere()&&S.h.secret?" · suspicion <b"+(S.h.susp>=50?' class="hot"':"")+">"+Math.round(S.h.susp)+"</b>":"");
-  const al=alertText(),ab=$("alert");if(al){const sig=al.t+al.b.map(x=>x[0]).join();if(ab.dataset.sig!==sig){ab.dataset.sig=sig;ab.innerHTML="<span>"+al.t+"</span>"+al.b.map(x=>'<button class="act primary" data-act="'+x[0]+'"><span>'+x[1]+"</span></button>").join("")}ab.hidden=false}else ab.hidden=true;
   const tl=VIEW==="map"&&S.exp?xThreatsLeft(S.exp.i):0;
   if(VIEW==="fight"&&FIGHT){const g=FIGHT.g,sig=g.wins.join()+g.f[0].ctl+g.f.map(f=>Object.keys(f.abU).join("")).join("|");if(sig!==lastFSig){lastFSig=sig;dirty=true}}
   $("legend").textContent=VIEW==="fight"&&FIGHT?(FIGHT.kind==="space"?"Space battle":FIGHT.kind==="raid"?"Defending tile "+(S.raid&&S.raid.cur?S.raid.cur.i:""):"Fight")+" · "+PUP.WPN[FIGHT.wk].name.toLowerCase()+" · pop them "+FIGHT.g.needs[0]+"× before they pop you "+FIGHT.g.needs[1]+"×":VIEW==="map"&&S.exp?(S.exp.cave?(S.exp.cave.kind&&PLACES[S.exp.cave.kind]?"Inside the "+PLACES[S.exp.cave.kind].name.toLowerCase()+" · ":"In the cave · "):S.exp.sea?"Under water · ":"")+(PATH.length?"Walking "+pathCost(PATH)+" steps · ":"")+(S.exp.sup>=0?S.exp.sup+" steps of "+(S.exp.away?"rations":"supplies"):S.exp.cave||S.exp.sea?"no supplies needed":S.exp.away?"Charted land":"Your land")+" · "+tl+" threat"+(tl===1?"":"s")+" left · "+Math.round(xExplored(S.exp.i)*100)+"% explored":
@@ -6994,7 +7357,7 @@ function start(data){
   try{if(window.claude&&window.claude.hot&&typeof window.claude.hot.snapshot==="function")window.claude.hot.snapshot(()=>({S:ser(),R:CAMV==="surface"?R:(CAMS.surface?CAMS.surface.R:R),splashDone:$("splash").hidden}))}catch(e){}
   window.__ashen={tiles:T.length,pentagons:T.filter(t=>t.pent).length,biomes:T.reduce((a,t)=>(a[t.b]=(a[t.b]||0)+1,a),{}),start:START,bugs:BUGS,
     // test hooks (used by tests/ashen-expedition.test.mjs): read state and press the same buttons a player would
-    dev:{S:()=>S,E:()=>E,uix:{st:()=>{const U=ui_();return{st:U.st,open:U.open,side:U.side,pre:U.pre,list:U.list,feed:U.feed.length}},feed:()=>ui_().feed.map(e=>({...e})),push:(t,k)=>uiFeed(t,k||"note"),list:o=>uiList(o),set:x=>uiSet(x),toggle:()=>uiToggle(),px:uiSheetPx,layout:()=>uiLayout(),poke:()=>{ui_().poke=uiNow()},subject:()=>uiSubject(),live:()=>uiEl("feedlive").innerHTML,listHTML:()=>uiEl("feedlist").innerHTML},zoomx:{cam:v=>CUTZ[v],at:(f,sx,sy)=>cutZoomAt(cutCam(),f,sx,sy,true),pan:(dx,dy)=>{cutPan(cutCam(),dx,dy);dirty=true},reset:()=>cutReset(cutCam()),tap:(sx,sy)=>{const b=cv.getBoundingClientRect();cutTap({clientX:b.left+sx/DPR,clientY:b.top+sy/DPR});renderPanel()},gr:()=>({...GR}),grc:()=>({...GRC}),W:()=>W,H:()=>H,btn:k=>$(k).hidden,click:k=>$(k).onclick(),key:k=>cutCam()&&(k==="+"||k==="-")?cutZoomAt(cutCam(),k==="-"?1/CUT.step:CUT.step,W/2,H/2,true):null},orbit:{board:()=>{orbBoard();renderPanel()},act:a=>{orbAct(a);renderPanel()},pick:k=>{selO=k;dirty=true;renderPanel()},checks:()=>orbBoardChecks(),why:k=>orbWhyNot(k),fit:(sl,k)=>orbFit(sl,k),tick:(dt,q)=>orbTick(dt,q!==false),info:()=>E.obx,lift:()=>orbLift(),parked:()=>orbParked(),anchorOk:i=>orbAnchorOk(i),anchor:i=>{sel=i;orbAct("anchor");renderPanel()},spinWhy:()=>orbSpinWhy(),dv:d=>orbDv(d),yard:()=>orbYardK(),lance:()=>orbLanceReady(),pos:()=>orbPos(ORBITERS[0],S.t),panel:()=>stationHTML(),tile:i=>orbTileHTML(i),pad:()=>orbPadHTML(),layout:()=>orbLayout(),lat:i=>orbLat(i),tileSel:i=>{sel=i;selOrb=-1;dirty=true;renderPanel()},selStation:()=>{sel=-1;selOrb=0;dirty=true;renderPanel()},look:i=>{focus=i}},def:{tick:dt=>defTick(dt),spawn:()=>raidSpawn(true),pick:()=>raidPick(),build:(i,k)=>{defBuild(i,k);renderPanel()},str:i=>defStr(i),P:i=>raidP(i),abs:i=>defAbs(i),fight:m=>{raidFight(m);renderPanel()},out:w=>raidOutcome(w,null),act:a=>{defAct(a);renderPanel()},open:i=>{sel=i;selOrb=-1;DEFP=i;renderPanel()},repair:i=>defRepair(i),border:()=>raidBorder(),alert:()=>raidAlert(),fix:i=>defFix(i),turOn:()=>defTurOn(),why:(i,k)=>defWhyNot(i,k),panel:i=>defPanelHTML(i),tile:i=>defTileHTML(i),alertNow:()=>alertText()},cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
+    dev:{S:()=>S,E:()=>E,uix:{st:()=>{const U=ui_();return{st:U.st,open:U.open,side:U.side,pre:U.pre,list:U.list,feed:U.feed.length}},feed:()=>ui_().feed.map(e=>({...e})),push:(t,k)=>uiFeed(t,k||"note"),list:o=>uiList(o),set:x=>uiSet(x),toggle:()=>uiToggle(),px:uiSheetPx,layout:()=>uiLayout(),poke:()=>{ui_().poke=uiNow()},subject:()=>uiSubject(),live:()=>uiEl("feedlive").innerHTML,listHTML:()=>uiEl("feedlist").innerHTML,ev:()=>ui_().ev,setEv:x=>uiEv(x),alerts:()=>alertList(),pick:k=>uiAlertPick(k),picked:()=>ui_().al,tick:()=>uiTick(),tab:()=>uiTab(),setTab:t=>{uiTabSet(t);renderPanel()},tabs:()=>uiEl("tabs").innerHTML,opts:()=>{const U=ui_();return{sfx:U.sfx,mus:U.mus,diff:S.k.diff||"normal",tut:S.k.tut|0,tf:S.k.tf|0,help:U.help}},diffOf:()=>diff(),tutStep:()=>tutStep(),tutMark:b=>tutMark(b),threat:t=>thOf(t),sndFor,snd:()=>SND,sndx:{on:()=>sndOn(),bar:(t,n)=>musBar(t,n),fx:(k,t)=>SFX[k](t),names:()=>Object.keys(SFX)},icons:()=>uiEl("evicons").innerHTML,alertBox:()=>({hidden:uiEl("alert").hidden,html:uiEl("alert").innerHTML})},zoomx:{cam:v=>CUTZ[v],at:(f,sx,sy)=>cutZoomAt(cutCam(),f,sx,sy,true),pan:(dx,dy)=>{cutPan(cutCam(),dx,dy);dirty=true},reset:()=>cutReset(cutCam()),tap:(sx,sy)=>{const b=cv.getBoundingClientRect();cutTap({clientX:b.left+sx/DPR,clientY:b.top+sy/DPR});renderPanel()},gr:()=>({...GR}),grc:()=>({...GRC}),W:()=>W,H:()=>H,btn:k=>$(k).hidden,click:k=>$(k).onclick(),key:k=>cutCam()&&(k==="+"||k==="-")?cutZoomAt(cutCam(),k==="-"?1/CUT.step:CUT.step,W/2,H/2,true):null},orbit:{board:()=>{orbBoard();renderPanel()},act:a=>{orbAct(a);renderPanel()},pick:k=>{selO=k;dirty=true;renderPanel()},checks:()=>orbBoardChecks(),why:k=>orbWhyNot(k),fit:(sl,k)=>orbFit(sl,k),tick:(dt,q)=>orbTick(dt,q!==false),info:()=>E.obx,lift:()=>orbLift(),parked:()=>orbParked(),anchorOk:i=>orbAnchorOk(i),anchor:i=>{sel=i;orbAct("anchor");renderPanel()},spinWhy:()=>orbSpinWhy(),dv:d=>orbDv(d),yard:()=>orbYardK(),lance:()=>orbLanceReady(),pos:()=>orbPos(ORBITERS[0],S.t),panel:()=>stationHTML(),tile:i=>orbTileHTML(i),pad:()=>orbPadHTML(),layout:()=>orbLayout(),lat:i=>orbLat(i),tileSel:i=>{sel=i;selOrb=-1;dirty=true;renderPanel()},selStation:()=>{sel=-1;selOrb=0;dirty=true;renderPanel()},look:i=>{focus=i}},def:{tick:dt=>defTick(dt),spawn:()=>raidSpawn(true),pick:()=>raidPick(),build:(i,k)=>{defBuild(i,k);renderPanel()},str:i=>defStr(i),P:i=>raidP(i),abs:i=>defAbs(i),fight:m=>{raidFight(m);renderPanel()},out:w=>raidOutcome(w,null),act:a=>{defAct(a);renderPanel()},open:i=>{sel=i;selOrb=-1;DEFP=i;renderPanel()},repair:i=>defRepair(i),border:()=>raidBorder(),alert:()=>raidAlert(),fix:i=>defFix(i),turOn:()=>defTurOn(),why:(i,k)=>defWhyNot(i,k),panel:i=>defPanelHTML(i),tile:i=>defTileHTML(i),alertNow:()=>alertText()},cave:{found:i=>{sel=i;cbAct("found");renderPanel()},act:a=>{cbAct(a);renderPanel()},pick:k=>{selC=k;dirty=true},at:()=>CBI,info:i=>E.cbx&&E.cbx[i],vein:(i,r,c)=>cbVeinAt(i,r,c),can:i=>cbCanFound(i),panel:i=>cbTileHTML(i)},floors:{go:d=>floorGo(d),list:k=>(PFLOORS[k]||[0]).slice(),act:a=>{placeAct(a);renderPanel()}},mapx:{tripSteps:()=>tripSteps(),stepK:M=>mapStepK(M),legacy:i=>legacyHome(i),cam:()=>({...CAMM}),gm:()=>({...GM}),pan:(dx,dy)=>mapPan(dx,dy)},mine:{tick:(dt,q)=>mineTick(dt,q!==false),left:veinLeft,size:veinSize,rate:id=>mineRate(id),act:a=>{matAct(a);renderPanel()},wear:(u,n)=>matWear(u,n),cond:matCond,made:matMade,cost:repairCost,fight:w=>matAfterFight(w),trip:(f,s,v)=>matTrip(f,s,v),str:()=>matStr()},mats:{drop:(t,n)=>matDrop(t,n||t),win:()=>threatOutcome(true,null),lose:()=>threatOutcome(false,null),craft:k=>{matCraft(k);renderPanel()},vein:veinAt,all:()=>Object.keys(MATS),gear:()=>Object.keys(MAT_GEAR),squadP:()=>squadP(),crewP:()=>crewP(),hold:(d,v)=>holdCap(d,v),reach:v=>reachN(v),hud:()=>{MAT_SIG="";matHud();return $("mats").innerHTML},fuel:()=>haulFuel()},place:{map:placeMap,kind:placeKind,state:placeState,kinds:()=>Object.keys(PLACES),enter:k=>{enterPlace(k);renderPanel()}},tide:{tile:tideTile,state:()=>({t:tideOf(),out:outOf(),haul:haulOf()}),act:a=>{tideAct(a);renderPanel()},tick:(dt,q)=>tickTide(dt,q),blds:tideBlds,away:()=>wkAway().map(m=>({name:m.p.name,i:m.i,job:m.job})),route:tideRouteHTML,ev:c=>S.exp?aEvDo(c,S.exp,xMS(S.exp.i),S.exp.i):false},wk:{crew:()=>wkCrew().map(m=>({id:m.p.id,name:m.p.name,i:m.i,job:m.job,slot:m.slot})),shown:()=>WK_SHOWN.map(o=>({i:o[7],job:o[9].m.job,act:o[9].act,item:o[9].item,walk:o[9].walk,x:o[2],y:o[3],s:o[4]})),where:(k,t)=>{const m=wkCrew()[k];return m?wkWhere(m,wkBasis(T[m.i].c),false,t):null},path:wkPath},act:a=>{doAct(a);renderPanel()},sel:i=>{sel=i;dirty=true;renderPanel()},view:()=>VIEW,cam:()=>CAMV,setView,panel:()=>$("panel").innerHTML,
       run:sec=>{for(let l=sec;l>0;l-=1){step(Math.min(1,l));tickCrack(Math.min(1,l))}E=econ();renderPanel()},walk:()=>{let n=0;while(PATH.length&&!CARD&&n++<999)stepOnce();renderPanel();return CARD},
       path:k=>{const p=pathTo(k);if(p)PATH=p;return!!p},card:()=>CARD,map:()=>S.exp?xGen(S.exp.i):null,mapState:()=>S.exp?xMS(S.exp.i):null,away:k=>awayTiles(k),awayMap,home:()=>T,selU:k=>{selU=k;dirty=true;renderPanel()},genMap,caveMap,
       fn:{squadP,crewP,sightR,reachHome,reachAway,stepCost,holdCap},
@@ -7005,7 +7368,10 @@ function start(data){
   const sp=$("splash"),hadSave=!!loadSaved();
   try{if(new URLSearchParams(location.search).get("from")==="archives")$("to-archives").hidden=false}catch(e){}
   if(fromHot||(data&&data.splashDone)){sp.classList.add("gone");sp.hidden=true}
-  else{if(hadSave){$("begin-t").textContent="Continue";$("begin-s").textContent="Day "+day()+" · "+S.pop+" people · "+S.owned.size+" tiles"}
+  else{const sd=$("sdiff");
+    if(sd){sd.hidden=hadSave;if(sd.addEventListener)sd.addEventListener("click",e=>{const b=e.target&&e.target.closest&&e.target.closest("[data-d]");if(!b||!DIFF[b.dataset.d])return;
+      if(b.dataset.d==="normal")delete S.k.diff;else S.k.diff=b.dataset.d;for(const x of sd.querySelectorAll("button"))x.setAttribute("aria-pressed",String(x===b));save()})}
+    if(hadSave){$("begin-t").textContent="Continue";$("begin-s").textContent="Day "+day()+" · "+S.pop+" people · "+S.owned.size+" tiles"}
     $("begin").onclick=()=>{sp.classList.add("gone");setTimeout(()=>{sp.hidden=true},reduced?0:600);cv.focus({preventScroll:true})};
     try{$("begin").focus({preventScroll:true})}catch(e){}}
 }
